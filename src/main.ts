@@ -4,17 +4,17 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { previewPath } from './core/ballistics';
-import { CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_DAMAGE, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, STREAK_MAX, STREAK_PERFECT_KILL, streakBonus, type Club, type ClubId } from './core/clubs';
+import { chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_DAMAGE, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, STREAK_MAX, STREAK_PERFECT_KILL, streakBonus, type Club, type ClubId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
 import { Effects } from './game/effects';
 import { Horde } from './game/enemies';
-import { PortalBall } from './game/portal';
+import { Tees } from './game/tees';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
-import { GATE_Z, World } from './game/world';
+import { GATE_Z, GUARD_POSTS, World } from './game/world';
 import { Hud } from './hud';
 import { Input } from './input';
 import { Intro } from './intro';
@@ -31,10 +31,13 @@ const world = new World(scene);
 const effects = new Effects(scene);
 const horde = new Horde(scene);
 const balls = new Balls(scene, horde, effects);
-const portal = new PortalBall(scene);
+const tees = new Tees(scene);
 
 // ---------- estado ----------
-const GATE_MAX = 300;
+const GATE_MAX = 10;
+/** Color de la línea de tiro y del anillo del cursor según el nivel de carga, 1 a 5. */
+const LEVEL_COLORS = [0xffffff, 0x8be08b, 0xffe066, 0xffa53c, 0xff4a3c];
+const PERFECT_COLOR = 0xfff1b8;
 const hud = new Hud();
 const audio = new GameAudio();
 const director = new WaveDirector();
@@ -141,6 +144,15 @@ function shotRange(club: Club, reach: number): number {
   return THREE.MathUtils.clamp(Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z), club.minRange, club.maxRange);
 }
 
+/** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
+let lastLevel = 0;
+
+/** ¿El golfista está parado en un puesto que tiene pelota? */
+function hasBallHere(): boolean {
+  const i = tees.nearest(player.position.x);
+  return Math.abs(tees.spots[i].x - player.position.x) < 0.1 && tees.hasBall(i);
+}
+
 function updatePreview(): void {
   const charging = player.mode === 'charging';
   const club = player.club;
@@ -149,18 +161,29 @@ function updatePreview(): void {
   const show = started && !ended && player.alive && player.mode !== 'swinging' && !player.grabbedBy;
   previewLine.visible = show;
   landing.visible = show && (charging || cursorAim);
-  teeBall.visible = show && charging;
+  const ballHere = hasBallHere();
+  teeBall.visible = show && charging && ballHere;
   landingCore.visible = landing.visible && club.enchant === 'ice';
   hud.setMeter(charging, player.meter.power, cursorAim ? `${range.toFixed(0)} m · fuerza ${Math.round(player.meter.power * 100)} %` : `${range.toFixed(0)} m`);
+  const px = ((input.pointer.x + 1) / 2) * innerWidth;
+  const py = ((1 - input.pointer.y) / 2) * innerHeight;
+  hud.setChargeCursor(show && charging, px, py, chargeLevel(player.meter.power), player.meter.power >= PERFECT_FROM);
   if (!show) return;
   player.teePosition(tee);
   const loft = THREE.MathUtils.degToRad(club.loftDeg);
-  const path = previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS);
+  const path = previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
   path.forEach((p, i) => pos.setXYZ(i, p.x, charging ? p.y : 0.05, p.z));
   pos.needsUpdate = true;
-  previewMat.color.setHex(club.color);
-  previewMat.opacity = charging ? 0.9 : 0.3;
+  // La línea dice cuánto está cargado el tiro: cambia de color con cada nivel, y es dorada en el punto
+  // justo del swing perfecto. Sin pelota en el puesto queda apagada.
+  const level = chargeLevel(player.meter.power);
+  const perfectLine = charging && player.meter.power >= PERFECT_FROM;
+  previewMat.color.setHex(!ballHere ? 0x6b7480 : perfectLine ? PERFECT_COLOR : charging ? LEVEL_COLORS[level - 1] : club.color);
+  previewMat.size = charging ? 4 + level : 5;
+  previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
+  if (charging && level !== lastLevel) audio.chargeTick(level);
+  lastLevel = charging ? level : 0;
   const end = path[path.length - 1];
   landing.position.set(end.x, 0.05, end.z);
   const perfectNow = charging && player.meter.power >= PERFECT_FROM;
@@ -308,9 +331,8 @@ function selectClub(index: number): void {
 }
 
 /**
- * Espacio: el putter. Sin pelota en el campo, la tira hacia el cursor (sale al toque, sin carga). Con
- * la pelota ya tirada, salta hasta donde esté, aunque siga rodando. La pelota puede quedar esperando
- * todo lo que haga falta; pasarle por arriba la levanta.
+ * Espacio: el putter. Teletransporta al puesto más cercano al cursor. Tiene recarga, y es la única
+ * salida cuando un alma en pena lo tiene agarrado.
  */
 function usePutter(): void {
   if (!player.alive) return;
@@ -318,25 +340,17 @@ function usePutter(): void {
     hud.feedback('El putter llega más adelante', 'neutral');
     return;
   }
-  if (portal.out) {
-    if (!player.portalReady) {
-      hud.feedback(`Portal recargando: ${Math.ceil(player.cooldowns.putter)} s`, 'neutral');
-      return;
-    }
-    const from = player.position.clone();
-    if (!player.teleport(portal.position)) return;
-    effects.blink(from, CLUBS.putter.color);
-    effects.blink(player.position, CLUBS.putter.color);
-    audio.zap();
-    portal.clear();
+  if (!player.portalReady) {
+    hud.feedback(`Portal recargando: ${Math.ceil(player.cooldowns.putter)} s`, 'neutral');
     return;
   }
-  // la pelota sale de los pies hacia el cursor y frena en ese punto
-  const to = new THREE.Vector3(aimPoint.x - player.position.x, 0, aimPoint.z - player.position.z);
-  const meters = to.length();
-  if (meters < 0.5) return;
-  portal.launch(player.position, to.normalize(), meters);
-  audio.tock(false);
+  const to = tees.nearest(aimPoint.x);
+  if (to === tees.nearest(player.position.x) && !player.grabbedBy) return;
+  const from = player.position.clone();
+  if (!player.teleport(to)) return;
+  effects.blink(from, CLUBS.putter.color);
+  effects.blink(player.position, CLUBS.putter.color);
+  audio.zap();
 }
 
 /**
@@ -398,7 +412,6 @@ function togglePause(): void {
   else audio.resume();
 }
 
-const moveDir = new THREE.Vector3();
 const input = new Input({
   swingStart() {
     if (started && !paused && !ended && !cardOpen) player.startSwing();
@@ -428,6 +441,9 @@ const input = new Input({
   },
   lobAim() {
     if (started && !paused) toggleLobAim();
+  },
+  step(right) {
+    if (started && !paused && !ended && !cardOpen && player) player.step(-right);
   },
   melee() {
     if (!started || paused || ended || cardOpen || !player) return;
@@ -560,6 +576,15 @@ async function makePlayer(skin: Skin): Promise<Player> {
   playerClips = gltf.animations;
   const p = new Player(root, gltf.animations, scene, clubModel ? clubModel.clone() : null);
   if (ALL_CLUBS) for (const id of Object.keys(CLUBS) as ClubId[]) p.unlocked.add(id);
+  p.spotXs = tees.spots.map((s) => s.x);
+  p.canFire = () => {
+    const i = tees.nearest(p.position.x);
+    return Math.abs(tees.spots[i].x - p.position.x) < 0.1 && tees.take(i);
+  };
+  p.onWhiff = () => {
+    audio.whoosh(0.3);
+    hud.feedback('¡Sin pelota! Movete con A / D', 'bad');
+  };
   p.onDenied = (club) => hud.feedback(`${club.name} recargando: ${p.cooldowns[club.id].toFixed(1)} s`, 'neutral');
   p.onShot = (shot) => {
     shots++;
@@ -599,6 +624,7 @@ async function cycleSkin(delta = 1): Promise<void> {
   try {
     const next = (skinIndex + delta + SKINS.length) % SKINS.length;
     const fresh = await makePlayer(SKINS[next]);
+    fresh.placeAt(player.spotIndex);
     fresh.position.copy(player.position);
     fresh.hp = player.hp;
     for (const id of player.unlocked) fresh.unlocked.add(id);
@@ -611,7 +637,7 @@ async function cycleSkin(delta = 1): Promise<void> {
     skinIndex = next;
     localStorage.setItem(SKIN_KEY, SKINS[next].id);
     hud.setSkin(SKINS[next].name);
-    player.update(0, new THREE.Vector3());
+    player.update(0, 0);
   } catch (e) {
     console.error('no se pudo cargar el skin', e);
   } finally {
@@ -630,8 +656,13 @@ async function loadModels(): Promise<void> {
     skinIndex = 0;
     return makePlayer(SKINS[0]);
   });
-  player.position.set(0, 0, 9);
-  if (guardGltf) world.addGuards(scene, guardGltf);
+  player.placeAt(tees.centerIndex);
+  // arranca con una pelota a los pies y dos a los costados
+  for (const d of [0, -2, 2]) tees.place(tees.centerIndex + d);
+  if (guardGltf) {
+    world.addGuards(scene, guardGltf);
+    tees.guards = GUARD_POSTS.map(([x, z]) => new THREE.Vector3(x, 0, z));
+  }
   for (const k of kinds) measured[k] = +horde.register(k, dungeon).toFixed(3);
   hud.setClub(player.club);
   hud.setSkin(SKINS[skinIndex].name);
@@ -641,7 +672,7 @@ async function loadModels(): Promise<void> {
   hud.onLobAimClick = () => {
     if (started && !paused) toggleLobAim();
   };
-  player.update(0, new THREE.Vector3());
+  player.update(0, 0);
 }
 
 // ---------- inicio ----------
@@ -704,8 +735,8 @@ function updateWaves(dt: number): void {
         break;
       case 'cleared':
         if (e.index + 1 < director.waveCount) {
-          player.heal(25);
-          gateHp = Math.min(GATE_MAX, gateHp + 30);
+          player.heal(1);
+          gateHp = Math.min(GATE_MAX, gateHp + 2);
           if (!offerUnlock()) hud.showBanner('¡Oleada despejada!', 'Los albañiles remiendan la puerta · recuperás el aliento', 2.5);
         }
         break;
@@ -724,21 +755,19 @@ function frame(): void {
   if (frameTimes.length > 240) frameTimes = frameTimes.filter((t) => nowMs - t < 1000);
   if (player && cardOpen && !paused) director.wait(dt);
   if (player && !paused && !cardOpen) {
-    // la cámara no rota: W va hacia la horda (+Z) y D hacia la derecha de la pantalla (-X)
-    const { forward, right } = input.move;
-    moveDir.set(-right, 0, forward);
-    if (moveDir.lengthSq() > 1) moveDir.normalize();
+    // la cámara no rota: la derecha de la pantalla es -X, o sea el puesto anterior
+    const hold = -input.move.right;
 
     if (started) gameClock += dt;
     updateAim();
     const active = started && !ended;
-    player.update(dt, active ? moveDir : new THREE.Vector3());
+    player.update(dt, active ? hold : 0);
     if (active) updateWaves(dt);
     if (started) {
       horde.update(dt, player);
-      if (!player.grabbedBy) horde.pushOut(player.position, 0.45);
       balls.update(dt);
-      if (portal.update(dt, player.position)) hud.feedback('Pelota levantada', 'neutral');
+      const stance = player.mode === 'charging' || player.mode === 'swinging';
+      tees.update(dt, player.spotIndex, stance && player.atSpot ? player.spotIndex : -1);
     }
     effects.update(dt);
     world.update(dt);
@@ -746,7 +775,7 @@ function frame(): void {
     updatePreview();
 
     hud.setClub(player.club, player.pendingClub);
-    hud.setClubState(player.unlocked, player.cooldowns, portal.out, player.meleeCooldown);
+    hud.setClubState(player.unlocked, player.cooldowns, player.meleeCooldown);
     hud.setStreak(streak, streakBonus(streak));
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
@@ -803,7 +832,7 @@ addEventListener('resize', () => {
   get clock() { return gameClock; },
   /** Desde dónde sale la pelota ahora mismo. */
   get tee() { player.teePosition(tee); return [tee.x, tee.z]; },
-  get portal() { return portal; },
+  get tees() { return tees; },
   get lobAim() { return lobAim; },
   set lobAim(v: LobAim) { lobAim = v; hud.setLobAim(v); },
   usePutter,

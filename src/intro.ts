@@ -31,9 +31,9 @@ const SLIDES: Slide[] = [
     art: '',
     html: `<p class="controls">
       Apuntá con el <kbd>mouse</kbd> · mantené <kbd>click</kbd> para cargar el swing y soltá para pegar<br />
-      Cuanto más cargás, más lejos y más fuerte. Soltá con la barra arriba de todo para el <em>swing perfecto</em><br />
-      Buscá el ángulo para atravesar a varios de un tiro<br />
-      Mover <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> · palazo <kbd>Shift</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
+      La carga sube por niveles, del 1 al 5: el nivel es el daño. Los cuadraditos sobre cada enemigo son su vida<br />
+      Solo se pega donde hay una <em>pelota</em>: movete de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd><br />
+      Buscá el ángulo para atravesar a varios de un tiro · palazo <kbd>Shift</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
       Que no lleguen a la puerta.
     </p>`,
   },

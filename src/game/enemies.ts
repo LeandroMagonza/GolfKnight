@@ -12,10 +12,15 @@ import type { Player } from './player';
 import { rotateWorld } from './swingPose';
 import { FIELD_HALF_WIDTH, GATE_HALF_WIDTH, GATE_Z, SPAWN_Z } from './world';
 
-const AGGRO_RANGE = 7;
-const AGGRO_DROP = 11;
-const BOMB_ENEMY_DAMAGE = 70;
+// El golfista ya no camina libre: se mueve de costado entre puestos. Un enemigo solo se le va encima si
+// le pasa cerca, y lo suelta apenas se corre un par de puestos: así moverse es una esquiva de verdad, y
+// el que lo perdió de vista sigue viaje a la puerta.
+const AGGRO_RANGE = 4;
+const AGGRO_DROP = 7;
+const BOMB_ENEMY_DAMAGE = 4;
 const KAMIKAZE_FUSE = 0.6;
+/** Segundos que tarda en caer un golpe dirigido al golfista, desde que levanta el brazo. */
+const PLAYER_WINDUP = 0.75;
 const ROCK_FLIGHT = 1.6;
 
 export type EnemyState = 'walk' | 'attack' | 'dying' | 'gone';
@@ -114,6 +119,7 @@ export class Enemy {
   /** Cuánto le queda de expuesto (wedge perfecto), arriba de la barra de vida. */
   private readonly exposedBg: THREE.Sprite;
   private readonly exposedFill: THREE.Sprite;
+  private pips: { canvas: HTMLCanvasElement; tex: THREE.CanvasTexture; sprite: THREE.Sprite } | null = null;
   /** Aura del chamán, en el piso. */
   private readonly aura: THREE.Mesh | null = null;
   /** El escudo del guerrero. Se ve solo mientras sirve: con hielo encima desaparece. */
@@ -177,6 +183,19 @@ export class Enemy {
     this.barBg.scale.set(barWidth, 0.16, 1);
     this.barFill.scale.set(barWidth, 0.1, 1);
     this.barFill.renderOrder = 11;
+    if (stats.hp <= 8) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 32 * stats.hp;
+      canvas.height = 32;
+      const tex = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+      sprite.scale.set(0.3 * stats.hp, 0.3, 1);
+      sprite.position.set(0, stats.height + 0.45, 0);
+      sprite.renderOrder = 12;
+      this.group.add(sprite);
+      this.pips = { canvas, tex, sprite };
+      this.drawPips();
+    }
 
     this.chillBg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x0a1a26, transparent: true, opacity: 0.75, depthTest: false }));
     this.chillFill = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x58c8ff, depthTest: false }));
@@ -258,7 +277,30 @@ export class Enemy {
     return (vx * f.x + vz * f.z) / h < -0.55;
   }
 
+  /** Vida en cuadraditos, uno por punto: siempre a la vista, para decidir cuánto cargar el tiro. */
+  private drawPips(): void {
+    const p = this.pips;
+    if (!p) return;
+    const ctx = p.canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
+    for (let i = 0; i < this.maxHp; i++) {
+      ctx.fillStyle = i < this.hp ? '#5be07a' : 'rgba(10, 14, 20, 0.7)';
+      ctx.strokeStyle = '#0b0f14';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(i * 32 + 4, 5, 24, 22, 5);
+      ctx.fill();
+      ctx.stroke();
+    }
+    p.tex.needsUpdate = true;
+    p.sprite.visible = this.alive;
+  }
+
   private refreshBar(): void {
+    if (this.pips) {
+      this.drawPips();
+      return;
+    }
     const barWidth = this.barBg.scale.x;
     const f = Math.max(0, this.hp / this.maxHp);
     this.barBg.visible = this.barFill.visible = f < 1 && this.alive;
@@ -562,7 +604,9 @@ export class Enemy {
     this.attackHitDone = false;
     if (castEvery > 0) this.castTimer = castEvery;
     const slowSwing = this.stats.heavy ? 1.5 : 1;
-    this.attackHitAt = this.stats.behavior === 'kamikaze' ? KAMIKAZE_FUSE : 0.45 * slowSwing;
+    // Contra el golfista el golpe se anuncia más: con 3 de vida, tiene que dar tiempo a correrse de puesto
+    const windup = this.target === 'player' ? PLAYER_WINDUP : 0.45;
+    this.attackHitAt = this.stats.behavior === 'kamikaze' ? KAMIKAZE_FUSE : windup * slowSwing;
     this.attackEnd = this.attackHitAt + 0.45 * slowSwing;
   }
 
@@ -595,7 +639,8 @@ export class Enemy {
 
   private updateLook(dt: number): void {
     // lo que se ve coincide con lo que pasa: sin escudo a la vista, el driver entra
-    if (this.shieldMesh) this.shieldMesh.visible = this.stats.shield && !this.chilled;
+    // tampoco se ve mientras cae muerto
+    if (this.shieldMesh) this.shieldMesh.visible = this.shieldUp;
     if (this.flashTimer > 0) this.flashTimer -= dt;
     const flash = this.flashTimer > 0;
     // el kamikaze late en rojo, cada vez más rápido cuando ya encendió la mecha
@@ -637,6 +682,10 @@ export class Enemy {
     this.barFill.material.dispose();
     this.chillBg.material.dispose();
     this.chillFill.material.dispose();
+    if (this.pips) {
+      this.pips.tex.dispose();
+      this.pips.sprite.material.dispose();
+    }
     this.exposedBg.material.dispose();
     this.exposedFill.material.dispose();
     if (this.aura) (this.aura.material as THREE.Material).dispose();
@@ -717,7 +766,8 @@ export class Horde {
       return false;
     }
     // frío y expuesto multiplican todo el daño que recibe, venga de donde venga
-    const dealt = Math.round(amount * enemy.damageTaken);
+    // la vida va en números chicos y enteros: todo golpe que entra saca al menos 1
+    const dealt = amount > 0 ? Math.max(1, Math.round(amount * enemy.damageTaken)) : 0;
     const killed = enemy.damage(dealt, knockDir, knockback);
     this.emit({ type: 'damage', enemy, amount: dealt, killed });
     return killed;

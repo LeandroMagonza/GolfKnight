@@ -27,17 +27,19 @@ export interface BallState {
 export interface BounceParams {
   restitution: number;
   bounceKeep: number;
+  /** Gravedad propia, si el palo vuela con otra que la normal (el wedge, para llegar rápido). */
+  gravity?: number;
 }
 
 /** Velocidad de salida para volar `range` metros con ángulo `loftRad` sobre piso plano. */
-export function launchSpeed(range: number, loftRad: number): number {
+export function launchSpeed(range: number, loftRad: number, gravity = GRAVITY): number {
   if (loftRad <= 0.001) return Math.sqrt(2 * ROLL_FRICTION * range);
-  return Math.sqrt((range * GRAVITY) / Math.sin(2 * loftRad));
+  return Math.sqrt((range * gravity) / Math.sin(2 * loftRad));
 }
 
 /** Estado inicial de una pelota que sale desde `from` hacia `dirX, dirZ` (unitario en el plano). */
-export function launch(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number): BallState {
-  const v = launchSpeed(range, loftRad);
+export function launch(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number, gravity = GRAVITY): BallState {
+  const v = launchSpeed(range, loftRad, gravity);
   const h = v * Math.cos(loftRad);
   const rolling = loftRad <= 0.001;
   return {
@@ -72,8 +74,9 @@ export function stepBall(s: BallState, dt: number, p: BounceParams): boolean {
   }
   s.pos.x += s.vel.x * dt;
   s.pos.z += s.vel.z * dt;
-  s.pos.y += s.vel.y * dt - 0.5 * GRAVITY * dt * dt;
-  s.vel.y -= GRAVITY * dt;
+  const g = p.gravity ?? GRAVITY;
+  s.pos.y += s.vel.y * dt - 0.5 * g * dt * dt;
+  s.vel.y -= g * dt;
   if (s.pos.y > BALL_RADIUS || s.vel.y >= 0) return false;
   // tocó el piso
   s.pos.y = BALL_RADIUS;
@@ -92,7 +95,7 @@ export function stepBall(s: BallState, dt: number, p: BounceParams): boolean {
 }
 
 /** Puntos de la trayectoria hasta el primer contacto con el piso (o hasta frenar, si rueda). */
-export function previewPath(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number, points = 24): Vec3[] {
+export function previewPath(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number, points = 24, gravity = GRAVITY): Vec3[] {
   const out: Vec3[] = [];
   if (loftRad <= 0.001) {
     for (let i = 0; i <= points; i++) {
@@ -101,15 +104,15 @@ export function previewPath(from: Vec3, dirX: number, dirZ: number, range: numbe
     }
     return out;
   }
-  const v = launchSpeed(range, loftRad);
+  const v = launchSpeed(range, loftRad, gravity);
   const h = v * Math.cos(loftRad);
   const vy = v * Math.sin(loftRad);
   const y0 = Math.max(from.y, BALL_RADIUS);
   // tiempo hasta volver a la altura del piso saliendo desde y0
-  const total = (vy + Math.sqrt(vy * vy + 2 * GRAVITY * (y0 - BALL_RADIUS))) / GRAVITY;
+  const total = (vy + Math.sqrt(vy * vy + 2 * gravity * (y0 - BALL_RADIUS))) / gravity;
   for (let i = 0; i <= points; i++) {
     const t = (total * i) / points;
-    out.push({ x: from.x + dirX * h * t, y: y0 + vy * t - 0.5 * GRAVITY * t * t, z: from.z + dirZ * h * t });
+    out.push({ x: from.x + dirX * h * t, y: y0 + vy * t - 0.5 * gravity * t * t, z: from.z + dirZ * h * t });
   }
   return out;
 }

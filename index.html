@@ -96,6 +96,28 @@
       .club.ready { animation: slotReady 0.45s ease-out; }
       @keyframes slotReady { 0% { transform: scale(1.18); box-shadow: 0 0 22px var(--c); border-color: var(--c); } 100% { transform: scale(1); } }
       #lobaim[hidden] { display: none; }
+      /* vida en puntos: la barra se corta en tantos tramos como puntos tiene */
+      .track { position: relative; }
+      .track::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(100% / var(--seg, 1) - 2px), rgba(0,0,0,0.85) calc(100% / var(--seg, 1) - 2px), rgba(0,0,0,0.85) calc(100% / var(--seg, 1))); }
+      /* indicador de carga junto al cursor */
+      #chargecursor { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; --lc: #ffffff; }
+      #chargecursor[hidden] { display: none; }
+      #chargecursor[data-level='2'] { --lc: #8be08b; }
+      #chargecursor[data-level='3'] { --lc: #ffe066; }
+      #chargecursor[data-level='4'] { --lc: #ffa53c; }
+      #chargecursor[data-level='5'] { --lc: #ff4a3c; }
+      #chargecursor.perfect { --lc: #fff1b8; }
+      #chargecursor .ring { position: absolute; left: -34px; top: -34px; width: 68px; height: 68px; border-radius: 50%; -webkit-mask: radial-gradient(circle, transparent 25px, #000 26px); mask: radial-gradient(circle, transparent 25px, #000 26px); background: conic-gradient(from -90deg, var(--lc) calc(var(--fill) * 1%), rgba(0,0,0,0.45) 0); opacity: 0.95; }
+      #chargecursor[data-level='1'] .ring { --fill: 20; }
+      #chargecursor[data-level='2'] .ring { --fill: 40; }
+      #chargecursor[data-level='3'] .ring { --fill: 60; }
+      #chargecursor[data-level='4'] .ring { --fill: 80; }
+      #chargecursor[data-level='5'] .ring { --fill: 100; }
+      #chargecursor .gaps { position: absolute; left: -34px; top: -34px; width: 68px; height: 68px; border-radius: 50%; -webkit-mask: radial-gradient(circle, transparent 25px, #000 26px); mask: radial-gradient(circle, transparent 25px, #000 26px); background: repeating-conic-gradient(from -90deg, transparent 0 68deg, #10161d 68deg 72deg); }
+      #chargecursor .num { position: absolute; left: 30px; top: -46px; font-size: 24px; font-weight: 800; color: var(--lc); text-shadow: 0 2px 5px #000; }
+      #chargecursor.perfect .ring { box-shadow: 0 0 18px #fff1b8; filter: drop-shadow(0 0 6px #fff1b8); }
+      #chargecursor.tick { animation: chargeTick 0.16s ease-out; }
+      @keyframes chargeTick { from { scale: 1.35; } to { scale: 1; } }
       #card { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 12, 18, 0.62); pointer-events: auto; cursor: pointer; }
       #card[hidden] { display: none; }
       #card .box { min-width: 420px; max-width: 560px; background: rgba(10, 16, 24, 0.94); border: 3px solid var(--c); border-radius: 14px; box-shadow: 0 0 40px var(--c); padding: 22px 34px; text-align: center; animation: cardIn 0.35s ease-out; }
@@ -113,7 +135,9 @@
       /* recarga: una cortina oscura que baja a medida que el palo vuelve a estar listo */
       .club .cd { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(0,0,0,0.72); border-top: 2px solid var(--c); pointer-events: none; }
       .club .key, .club .name, .club .title { position: relative; }
-      #meter .floor { position: absolute; top: 0; bottom: 0; left: 70%; width: 2px; background: rgba(255,255,255,0.45); }
+      /* la barra va por niveles: una raya cada quinto, y más marcada la del piso del rebote (nivel 3) */
+      #meter .floor { position: absolute; top: 0; bottom: 0; left: 40%; width: 2px; background: rgba(255,255,255,0.7); }
+      #meter::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 2px), rgba(0,0,0,0.55) calc(20% - 2px), rgba(0,0,0,0.55) 20%); pointer-events: none; }
       .club .key { float: right; font-size: 12px; color: #9aa4b2; }
       .club .name { font-size: 15px; font-weight: 700; }
       .club .title { font-size: 12px; color: var(--c); letter-spacing: 1px; text-transform: uppercase; }
@@ -137,8 +161,8 @@
     </div>
     <div id="hud">
       <div class="bars">
-        <div class="bar" id="gatebar"><span>Puerta de Valdehoyo</span><div class="track"><div id="gate" class="fill gate"></div></div></div>
-        <div class="bar"><span>Vos</span><div class="track"><div id="hp" class="fill hp"></div></div></div>
+        <div class="bar" id="gatebar"><span>Puerta de Valdehoyo</span><div class="track" style="--seg:10"><div id="gate" class="fill gate"></div></div></div>
+        <div class="bar"><span>Vos</span><div class="track" style="--seg:3"><div id="hp" class="fill hp"></div></div></div>
       </div>
       <div id="wave"><div class="n"></div><div class="sub"></div></div>
       <div id="score"></div>
@@ -153,6 +177,7 @@
         <div id="clubrow"><div id="streak"></div><div id="clubs"></div></div>
         <div id="hint"></div>
       </div>
+      <div id="chargecursor" hidden><div class="ring"></div><div class="gaps"></div><div class="num"></div></div>
       <div id="card" hidden><div class="box"><div class="tag">PALO NUEVO</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>
       <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música</p></div>
       <div id="end" hidden><h2></h2><p class="detail"></p><p>R para jugar de nuevo</p></div>

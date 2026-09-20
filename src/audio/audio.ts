@@ -19,6 +19,7 @@ export class GameAudio {
   private horn!: Tone.PolySynth;
   private pluck!: Tone.PolySynth;
   private pad!: Tone.PolySynth;
+  private chargeSynth!: Tone.Synth;
   ready = false;
   muted = false;
   private readonly lastPlayed = new Map<string, number>();
@@ -28,7 +29,7 @@ export class GameAudio {
   constructor() {
     // Un error de audio nunca tiene que cortar el cuadro del juego: los efectos se llaman desde el
     // medio del update de pelotas y enemigos.
-    const sfx = ['whoosh', 'tock', 'thud', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'] as const;
+    const sfx = ['chargeTick', 'whoosh', 'tock', 'thud', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'] as const;
     for (const name of sfx) {
       const fn = (this[name] as (...args: unknown[]) => void).bind(this);
       (this as Record<string, unknown>)[name] = (...args: unknown[]) => {
@@ -85,7 +86,20 @@ export class GameAudio {
 
     this.pluck = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.003, decay: 0.3, sustain: 0.05, release: 0.3 }, volume: -20 }).connect(this.musicBus);
     this.pad = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.6, decay: 0.4, sustain: 0.7, release: 1.6 }, volume: -24 }).connect(this.musicBus);
+    this.chargeSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.002, decay: 0.16, sustain: 0, release: 0.08 }, volume: -11 }).connect(verb);
     this.ready = true;
+  }
+
+  /**
+   * Una nota por nivel de carga, para timear el tiro de oído: un acorde mayor con séptima que sube
+   * (do, mi, sol, si) y resuelve en la octava en el nivel 5. Cuando la barra rebota, suena entre las
+   * tres más agudas: sol, si, do.
+   */
+  chargeTick(level: number): void {
+    if (!this.ready) return;
+    const notes = ['C5', 'E5', 'G5', 'B5', 'C6'];
+    const note = notes[Math.min(notes.length, Math.max(1, level)) - 1];
+    this.chargeSynth.triggerAttackRelease(note, level >= notes.length ? 0.22 : 0.09, this.at(this.chargeSynth), level >= notes.length ? 1 : 0.75);
   }
 
   /** Música de fondo: progresión modal en re dórico, arpegio de laúd y colchón. */

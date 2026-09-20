@@ -43,14 +43,14 @@ export interface EnemyStats {
 const base = { behavior: 'melee' as Behavior, runs: false, heavy: false, shield: false, boss: false, tint: 0 };
 
 export const ENEMIES: Record<EnemyKind, EnemyStats> = {
-  goblin: { ...base, kind: 'goblin', name: 'Goblin', mesh: 'Character_Goblin_Male', height: 1.25, radius: 0.45, hp: 35, speed: 3.6, runs: true, damage: 6, gateDamage: 10, score: 10 },
-  skeleton: { ...base, kind: 'skeleton', name: 'Esqueleto', mesh: 'Character_Skeleton_Soldier_01', height: 1.8, radius: 0.55, hp: 90, speed: 2.1, damage: 12, gateDamage: 20, score: 20 },
-  kamikaze: { ...base, kind: 'kamikaze', name: 'Goblin kamikaze', mesh: 'Character_Goblin_Female', behavior: 'kamikaze', height: 1.25, radius: 0.45, hp: 45, speed: 3.2, runs: true, damage: 28, gateDamage: 35, tint: 0xffa08a, score: 20 },
-  warrior: { ...base, kind: 'warrior', name: 'Goblin guerrero', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 90, speed: 2.4, damage: 14, gateDamage: 25, shield: true, score: 30 },
-  knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 300, speed: 1.5, damage: 20, gateDamage: 50, heavy: true, score: 50 },
-  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', height: 1.45, radius: 0.5, hp: 70, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
-  wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 50, speed: 5.8, runs: true, damage: 5, gateDamage: 0, score: 40 },
-  golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 1400, speed: 1.3, damage: 35, gateDamage: 30, heavy: true, boss: true, score: 500 },
+  goblin: { ...base, kind: 'goblin', name: 'Goblin', mesh: 'Character_Goblin_Male', height: 1.25, radius: 0.45, hp: 2, speed: 3.6, runs: true, damage: 1, gateDamage: 1, score: 10 },
+  skeleton: { ...base, kind: 'skeleton', name: 'Esqueleto', mesh: 'Character_Skeleton_Soldier_01', height: 1.8, radius: 0.55, hp: 4, speed: 2.1, damage: 1, gateDamage: 1, score: 20 },
+  kamikaze: { ...base, kind: 'kamikaze', name: 'Goblin kamikaze', mesh: 'Character_Goblin_Female', behavior: 'kamikaze', height: 1.25, radius: 0.45, hp: 2, speed: 3.2, runs: true, damage: 1, gateDamage: 2, tint: 0xffa08a, score: 20 },
+  warrior: { ...base, kind: 'warrior', name: 'Goblin guerrero', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 4, speed: 2.4, damage: 1, gateDamage: 1, shield: true, score: 30 },
+  knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 5, speed: 1.5, damage: 1, gateDamage: 2, heavy: true, score: 50 },
+  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', height: 1.45, radius: 0.5, hp: 3, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
+  wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 3, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
+  golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, score: 500 },
 };
 
 /** Cada enemigo camina entre (1 - x) y (1 + x) veces la velocidad de su tipo. */
@@ -63,7 +63,7 @@ export const SHAMAN_WARD_RADIUS = 8;
 /** Segundos entre piedras del gólem. */
 export const GOLEM_THROW_EVERY = 4;
 /** Alma en pena: cada cuánto lastima mientras tiene agarrado al golfista, y cuánto aguanta agarrada. */
-export const GRAB_TICK = 0.5;
+export const GRAB_TICK = 1.6;
 export const GRAB_MAX = 5;
 
 export interface WaveGroup {
@@ -81,12 +81,12 @@ export interface Wave {
 }
 
 export const WAVES: Wave[] = [
-  { title: 'Solo vos y el driver: buscá la fila', interval: 1.3, groups: [{ kind: 'goblin', count: 8 }, { kind: 'skeleton', count: 4 }] },
-  { title: 'Escudos al frente', unlock: 'iron', interval: 1.5, groups: [{ kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
-  { title: 'La estampida', unlock: 'wedge', interval: 1.1, groups: [{ kind: 'goblin', count: 10 }, { kind: 'kamikaze', count: 4 }, { kind: 'skeleton', count: 4 }] },
-  { title: 'Almas en pena', unlock: 'putter', interval: 1.4, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
-  { title: 'El chamán los vuelve inmunes', interval: 1.2, groups: [{ kind: 'shaman', count: 2 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }] },
-  { title: 'El Gólem de roca', interval: 1.1, groups: [{ kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }] },
+  { title: 'Solo vos y el driver: buscá la fila', interval: 2.2, groups: [{ kind: 'goblin', count: 8 }, { kind: 'skeleton', count: 4 }] },
+  { title: 'Escudos al frente', unlock: 'iron', interval: 2.2, groups: [{ kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
+  { title: 'La estampida', unlock: 'wedge', interval: 1.5, groups: [{ kind: 'goblin', count: 10 }, { kind: 'kamikaze', count: 4 }, { kind: 'skeleton', count: 4 }] },
+  { title: 'Almas en pena', unlock: 'putter', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
+  { title: 'El chamán los vuelve inmunes', interval: 1.6, groups: [{ kind: 'shaman', count: 2 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }] },
+  { title: 'El Gólem de roca', interval: 1.5, groups: [{ kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }] },
 ];
 
 /** Palos disponibles durante la oleada número index (el driver está siempre). */

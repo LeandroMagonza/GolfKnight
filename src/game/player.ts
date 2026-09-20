@@ -5,7 +5,7 @@ import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
 import { analyzeSwing, downswingTimeFor, type SwingClip } from './golfClips';
 import { CLUB_LENGTH, SwingRig, TEE_OFFSET } from './swingPose';
-import { FIELD_HALF_WIDTH, PLAYER_MAX_Z, PLAYER_MIN_Z } from './world';
+import { TEE_Z } from './tees';
 
 function lerpAngle(a: number, b: number, t: number): number {
   let d = (b - a) % (Math.PI * 2);
@@ -42,6 +42,10 @@ const FOLLOW_SPEED = 1.35;
 const MIN_BACKSWING = 0.3;
 /** Segundos después del impacto a partir de los cuales ya se puede cargar otro tiro. */
 const RECOVER = 0.22;
+/** Corre entre puestos así de rápido (m/s): tiene que sentirse casi como un salto. */
+const RUN_SPEED = 24;
+/** Segundos de invulnerabilidad después de recibir un golpe. */
+const HIT_GRACE = 1.2;
 /** Palazo: el clip de swing, desde el tope, bien rápido; y cuánto dura el gesto después del golpe. */
 const MELEE_SPEED = 3.2;
 const MELEE_FOLLOW = 0.22;
@@ -54,9 +58,16 @@ export class Player {
   readonly animator: LayeredAnimator;
   readonly rig: SwingRig;
   readonly meter = new SwingMeter();
-  readonly maxHp = 100;
-  hp = 100;
-  speed = 5.2;
+  readonly maxHp = 3;
+  hp = 3;
+  /** Posición x de cada puesto de tiro, de menor a mayor. El golfista solo se mueve entre ellos. */
+  spotXs: number[] = [0];
+  /** Puesto al que va (o en el que está). */
+  spotIndex = 0;
+  /** ¿Hay pelota en este puesto? Si no, el swing sale al aire. */
+  canFire: (() => boolean) | null = null;
+  /** El swing no encontró pelota. */
+  onWhiff: (() => void) | null = null;
   club: Club = CLUBS.driver;
   mode: PlayerMode = 'free';
   /** Hacia dónde apunta (unitario en el plano). Lo fija el juego en cada cuadro desde el mouse. */
@@ -177,7 +188,7 @@ export class Player {
 
   startSwing(): void {
     const recovered = this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER;
-    if ((this.mode !== 'free' && !recovered) || this.grabbedBy || this.stunned || !this.alive) return;
+    if ((this.mode !== 'free' && !recovered) || this.grabbedBy || this.stunned || !this.alive || !this.atSpot) return;
     // encadenar otro tiro apenas pasó el impacto también cuenta como fin del tiro anterior
     const next = this.pendingClub ?? this.club;
     if (this.cooldowns[next.id] > 0) {
@@ -247,22 +258,35 @@ export class Player {
     }
   }
 
+  /** Ya llegó al puesto al que iba. */
+  get atSpot(): boolean {
+    return Math.abs(this.position.x - this.spotXs[this.spotIndex]) < 0.05;
+  }
+
+  /** Pide moverse `delta` puestos (se acumula: dos toques seguidos son dos puestos). */
+  step(delta: number): void {
+    if (!this.alive) return;
+    this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, this.spotIndex + delta));
+  }
+
+  /** Lo planta en un puesto, sin correr (arranque, cambio de skin). */
+  placeAt(index: number): void {
+    this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, index));
+    this.position.set(this.spotXs[this.spotIndex], 0, TEE_Z);
+  }
+
   /** El salto del putter está listo. */
   get portalReady(): boolean {
     return this.cooldowns.putter <= 0;
   }
 
   /**
-   * Salta por el portal hasta `to`. No interrumpe la carga ni el swing: solo cambia de lugar. Suelta
-   * cualquier agarre, da un instante de invulnerabilidad y arranca la recarga.
+   * Salta por el portal hasta un puesto. No interrumpe la carga ni el swing: solo cambia de lugar.
+   * Suelta cualquier agarre, da un instante de invulnerabilidad y arranca la recarga.
    */
-  teleport(to: THREE.Vector3): boolean {
+  teleport(index: number): boolean {
     if (!this.alive || !this.portalReady) return false;
-    this.position.set(
-      THREE.MathUtils.clamp(to.x, -FIELD_HALF_WIDTH, FIELD_HALF_WIDTH),
-      0,
-      THREE.MathUtils.clamp(to.z, PLAYER_MIN_Z, PLAYER_MAX_Z),
-    );
+    this.placeAt(index);
     this.grabbedBy = null;
     this.knockTimer = 0;
     this.blinkTimer = 0.45;
@@ -301,6 +325,8 @@ export class Player {
     if (!this.alive || this.invulnerable) return;
     this.hp = Math.max(0, this.hp - amount);
     this.flashTimer = 0.25;
+    // con 3 de vida, un golpe da un respiro: invulnerable un momento, titilando
+    this.blinkTimer = HIT_GRACE;
     this.meter.cancel();
     this.swingShot = null;
     if (this.mode !== 'free') this.animator.clearOneShot();
@@ -323,8 +349,8 @@ export class Player {
     if (this.alive) this.hp = Math.min(this.maxHp, this.hp + amount);
   }
 
-  /** @param move dirección de movimiento en mundo (largo 0..1) */
-  update(dt: number, move: THREE.Vector3): void {
+  /** @param hold hacia qué lado se mantiene apretado el movimiento, en puestos: -1, 0 o +1 */
+  update(dt: number, hold: number): void {
     if (this.flashTimer > 0) {
       this.flashTimer -= dt;
       const on = this.flashTimer > 0 && Math.floor(this.flashTimer * 20) % 2 === 0;
@@ -341,7 +367,6 @@ export class Player {
     let stance = false;
     if (this.stunned) {
       this.knockTimer -= dt;
-      this.position.addScaledVector(this.knockDir, 5 * dt);
       this.animator.setLocomotion('Idle', 1);
     } else if (!this.alive) {
       // queda en el piso
@@ -363,17 +388,25 @@ export class Player {
       this.yaw = lerpAngle(this.yaw, this.stanceYaw(), 1 - Math.exp(-30 * dt));
       this.updateMelee(dt);
       this.animator.setLocomotion('Idle', 1);
+    } else if (this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER && (hold !== 0 || !this.atSpot)) {
+      // ya pegó y quiere irse: corta el final del gesto y sale corriendo
+      if (this.swingClip) this.animator.clearOneShot();
+      this.mode = 'free';
     } else if (this.mode === 'swinging') {
       stance = true;
       if (this.swingClip) this.updateClipSwing(dt, this.swingClip);
       else this.updateSwing(dt);
       this.animator.setLocomotion('Idle', 1);
     } else {
-      const moving = move.lengthSq() > 0.01;
-      if (moving) {
-        this.position.addScaledVector(move, this.speed * dt);
-        this.yaw = lerpAngle(this.yaw, Math.atan2(move.x, move.z), 1 - Math.exp(-14 * dt));
-        this.animator.setLocomotion('Running', 1.15);
+      // de puesto en puesto, corriendo muy rápido. Con la tecla apretada, al llegar sigue al próximo
+      if (this.atSpot && hold !== 0) this.step(hold);
+      const dx = this.spotXs[this.spotIndex] - this.position.x;
+      if (Math.abs(dx) >= 0.05) {
+        const stepX = Math.sign(dx) * Math.min(Math.abs(dx), RUN_SPEED * dt);
+        this.position.x += stepX;
+        if (Math.abs(this.spotXs[this.spotIndex] - this.position.x) < 0.05) this.position.x = this.spotXs[this.spotIndex];
+        this.yaw = lerpAngle(this.yaw, Math.atan2(Math.sign(dx), 0), 1 - Math.exp(-30 * dt));
+        this.animator.setLocomotion('Running', 2.4);
       } else {
         this.yaw = lerpAngle(this.yaw, Math.atan2(this.aimDir.x, this.aimDir.z), 1 - Math.exp(-8 * dt));
         this.animator.setLocomotion('Idle', 1);
@@ -388,8 +421,9 @@ export class Player {
       this.rig.phi = 0;
     }
 
-    this.position.x = THREE.MathUtils.clamp(this.position.x, -FIELD_HALF_WIDTH, FIELD_HALF_WIDTH);
-    this.position.z = THREE.MathUtils.clamp(this.position.z, PLAYER_MIN_Z, PLAYER_MAX_Z);
+    this.position.z = TEE_Z;
+    // mientras es invulnerable, titila
+    this.root.visible = !(this.alive && this.blinkTimer > 0 && Math.floor(this.blinkTimer * 14) % 2 === 1);
     this.root.rotation.y = this.yaw;
     this.animator.update(dt);
     this.rig.apply();
@@ -409,6 +443,11 @@ export class Player {
     const shot = this.swingShot;
     if (!shot) return;
     this.swingShot = null;
+    // sin pelota en el puesto, el palo pasa de largo: no hay tiro ni recarga
+    if (this.canFire && !this.canFire()) {
+      this.onWhiff?.();
+      return;
+    }
     this.cooldowns[this.club.id] = this.club.cooldown;
     // un palo con recarga no se puede volver a usar enseguida: si no se eligió otro, vuelve solo el driver
     if (this.club.cooldown > 0 && !this.pendingClub && this.club.id !== 'driver') this.pendingClub = CLUBS.driver;

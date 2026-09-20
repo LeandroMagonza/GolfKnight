@@ -3,7 +3,7 @@
 // y ahí hacen lo suyo (hielo, empujón).
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, stepBall, type BallState } from '../core/ballistics';
-import { driverPowerFactor, EXPOSED_SECONDS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, iceSeconds, PUSH_RADIUS, pushSpeed, type Club } from '../core/clubs';
+import { chargeLevel, EXPOSED_SECONDS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, iceSeconds, PUSH_RADIUS, pushSpeed, type Club } from '../core/clubs';
 import { PERFECT_BONUS } from '../core/swing';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
@@ -56,7 +56,7 @@ export class Balls {
 
   fire(shot: Shot, range: number, damageMul = 1): Ball {
     const loft = THREE.MathUtils.degToRad(shot.club.loftDeg);
-    const state = launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft);
+    const state = launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: shot.club.color, emissiveIntensity: shot.perfect ? 1.6 : 0.7 });
     const mesh = new THREE.Mesh(ballGeo, mat);
     mesh.position.set(state.pos.x, state.pos.y, state.pos.z);
@@ -78,7 +78,8 @@ export class Balls {
 
   private damageOf(ball: Ball): number {
     const s = ball.state;
-    const base = ball.club.damage * ball.damageMul * driverPowerFactor(ball.power) * (ball.perfect ? PERFECT_BONUS : 1);
+    // el daño del driver es el nivel de carga (1 a 5); el swing perfecto lo duplica
+    const base = ball.club.damage * chargeLevel(ball.power) * ball.damageMul * (ball.perfect ? PERFECT_BONUS : 1);
     // De aire pega con todo. Después de picar pierde fuerza con la velocidad.
     if (s.bounces === 0 && !s.rolling) return base;
     const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);

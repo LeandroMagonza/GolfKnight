@@ -1,16 +1,16 @@
 // Medidor de potencia del swing: mientras se mantiene apretado sube de 0 a 1. Al llegar al tope no
-// vuelve al principio: rebota entre el 100 % y el 70 %. Soltar cerca del tope es un swing perfecto.
+// vuelve al principio: rebota entre el 100 % y el 40 % (entre los niveles de carga 5 y 3). Soltar cerca del tope es un swing perfecto.
 // Así el costo de un tiro fuerte es el tiempo de carga; para un tiro corto que se pasó, se cancela.
 //
 // El alcance del tiro va aparte (reach): sube con la carga y, cuando llegó al máximo, se queda ahí.
 // Lo que sigue oscilando es solo la potencia, que define el daño y el swing perfecto.
 
 export const PERFECT_FROM = 0.92;
-export const PERFECT_BONUS = 1.5;
+export const PERFECT_BONUS = 2;
 /** Potencia mínima de un tiro, para que un click corto igual salga. */
 export const MIN_POWER = 0.08;
-/** Piso del rebote una vez que el medidor llegó al tope. */
-export const REBOUND_FLOOR = 0.7;
+/** Piso del rebote una vez que el medidor llegó al tope: el comienzo del nivel 3 de carga. */
+export const REBOUND_FLOOR = 0.4;
 
 export class SwingMeter {
   private elapsed = 0;

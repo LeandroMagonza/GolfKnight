@@ -41,27 +41,31 @@ export interface Club {
   maxHits: number;
   /** Segundos de recarga después de usarlo (0 = sin recarga). */
   cooldown: number;
+  /** Gravedad propia del vuelo. Más gravedad = mismo globo, pero llega mucho antes. */
+  gravity?: number;
   color: number;
 }
 
+// El driver sale casi rasante (3.5 grados): a 60 m no sube más de 0.9 m. Con más loft, un tiro cargado a
+// fondo les pasaba por arriba a los goblins (1.25 m) en todo el tramo medio, y cargar más era pegar peor.
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
     id: 'driver', name: 'Driver', title: 'Rompevientos', hint: 'Recto y fuerte: atraviesa toda la fila. Cada baja lo carga; un tiro que no daña a nadie lo descarga',
-    enchant: 'pierce', loftDeg: 7, minRange: 18, maxRange: 60, chargeTime: 1.0, damage: 60, knockback: 5,
+    enchant: 'pierce', loftDeg: 3.5, minRange: 18, maxRange: 60, chargeTime: 1.0, damage: 1, knockback: 5,
     restitution: 0.3, bounceKeep: 0.8, maxHits: 99, cooldown: 0, color: 0xffb347,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Escarcha', hint: 'Globo de hielo: congela en el centro y enfría alrededor. Frío = lento, sin escudo, sin aura, y recibe más daño',
-    enchant: 'ice', loftDeg: 40, minRange: 6, maxRange: 40, chargeTime: 0.8, damage: 0, knockback: 0,
-    restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 2, color: 0x7fd4ff,
+    enchant: 'ice', loftDeg: 40, minRange: 6, maxRange: 40, chargeTime: 0.5, damage: 0, knockback: 0,
+    restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 2, gravity: 50, color: 0x7fd4ff,
   },
   wedge: {
     id: 'wedge', name: 'Wedge', title: 'Vendaval', hint: 'Globo sin daño: empuja a todos hacia afuera. Perfecto: además quedan expuestos y reciben más daño',
-    enchant: 'push', loftDeg: 58, minRange: 5, maxRange: 28, chargeTime: 0.8, damage: 0, knockback: 0,
-    restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 0, color: 0xff6b4a,
+    enchant: 'push', loftDeg: 45, minRange: 5, maxRange: 28, chargeTime: 0.4, damage: 0, knockback: 0,
+    restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 0, gravity: 75, color: 0xff6b4a,
   },
   putter: {
-    id: 'putter', name: 'Putter', title: 'Portal', hint: 'Espacio tira la pelota; Espacio de nuevo te lleva hasta ella',
+    id: 'putter', name: 'Putter', title: 'Portal', hint: 'Espacio te teletransporta al puesto más cercano al cursor',
     enchant: 'portal', loftDeg: 0, minRange: 3, maxRange: 22, chargeTime: 0, damage: 0, knockback: 0,
     restitution: 0, bounceKeep: 1, maxHits: 0, cooldown: 8, color: 0xc9a2ff,
   },
@@ -100,7 +104,7 @@ export const EXPOSED_DAMAGE_TAKEN = 1.5;
 
 /** Palazo (botón aparte): golpe corto alrededor del golfista, con recarga. */
 export const MELEE_RANGE = 2.4;
-export const MELEE_DAMAGE = 30;
+export const MELEE_DAMAGE = 2;
 export const MELEE_KNOCKBACK = 9;
 export const MELEE_COOLDOWN = 2.5;
 export const MELEE_MAX_TARGETS = 4;
@@ -113,10 +117,15 @@ export function pushSpeed(power: number): number {
   return 27 * (0.55 + 0.45 * clamp01(power));
 }
 
-/** Un toque de driver pega bastante menos que un swing cargado: el costo de pegar fuerte es el tiempo. */
-export const DRIVER_MIN_DAMAGE = 0.55;
-export function driverPowerFactor(power: number): number {
-  return DRIVER_MIN_DAMAGE + (1 - DRIVER_MIN_DAMAGE) * clamp01(power);
+/**
+ * La carga va por niveles, no de forma continua: así se sabe cuánto va a pegar. Sin cargar es nivel 1
+ * y cada quinto de la barra suma uno, hasta 5. Con el driver, el nivel ES el daño: 1 a 5 (y el swing
+ * perfecto lo duplica). La vida de los enemigos está en la misma escala: el goblin tiene 2, así que
+ * pide nivel 2; cargar de más es tiempo perdido.
+ */
+export const CHARGE_LEVELS = 5;
+export function chargeLevel(power: number): number {
+  return Math.min(CHARGE_LEVELS, 1 + Math.floor(clamp01(power) * CHARGE_LEVELS + 1e-9));
 }
 
 /**

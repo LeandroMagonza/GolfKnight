@@ -24,40 +24,44 @@ npm run deploy       # compila y publica en GitHub Pages (rama gh-pages)
 La idea que ordena todo: **el driver es el único palo que hace daño**. Los otros preparan el tiro:
 el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
 
+- **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
+  con un banderín, con `A` y `D`. Un toque es un puesto, dos toques son dos, y mantener apretado sigue
+  de largo; corre muy rápido. **Solo se pega donde hay una pelota**: los guardias las van tirando desde
+  atrás. Nunca hay más de tres esperando, llegan más rápido cuantas menos quedan, y nunca caen en el
+  puesto donde estás parado, así que después de cada tiro hay que moverse. Sin pelota, el swing sale
+  al aire.
 - Mouse apunta. Mantener click (o `F`) carga el swing; soltar pega. Click derecho (o `X`) cancela.
-- La carga hace dos cosas por separado. El **alcance** crece mientras cargás y, cuando llega al máximo,
-  se queda en el máximo. La **potencia** (la barra de abajo) sube hasta el tope y ahí rebota entre 100 %
-  y 70 %: define el daño, y soltar en el último 8 % es un swing perfecto. Para un tiro corto que se
-  pasó, cancelá y empezá de nuevo.
+- **La carga va por niveles, del 1 al 5**, y con el driver el nivel es el daño. Sin cargar es 1; la
+  barra sube hasta 5 y ahí rebota entre 5 y 3. Soltar en el último 8 % es un swing perfecto y pega el
+  doble. El **alcance** va aparte: crece con la carga y, cuando llega al máximo, se queda ahí.
+- El nivel se ve y se escucha donde estás mirando: un anillo de cinco tramos junto al cursor, la línea
+  de tiro que cambia de color, y una nota por nivel (do, mi, sol, si y la octava en el 5).
+- **La vida está en la misma escala**: los cuadraditos sobre cada enemigo son su vida. Un goblin tiene
+  2, así que pide nivel 2; cargar de más es tiempo perdido.
+- Vos tenés 3 de vida y la puerta 10. Cada golpe enemigo saca 1 (el caballero y el kamikaze le sacan 2
+  a la puerta). Después de recibir un golpe hay un segundo de respiro, titilando. Entre oleadas se
+  recupera 1 de vida y 2 de puerta.
 - Palos con `1`-`3`, rueda o `Q`/`E`. Si cambiás en medio de un tiro, el palo queda en cola (borde
   punteado) y entra solo cuando el tiro termina o lo cancelás.
-  - **Driver · Rompevientos**: recto y largo (18-60 m), atraviesa a toda la fila. La carga define la
-    distancia y el daño (55 % con un toque, 100 % a fondo; ×1.5 si es perfecto). **Racha**: cada baja
-    del driver le suma +10 % de daño, hasta +50 % (tres escalones de una si el swing fue perfecto).
-    Pegar sin matar la mantiene. Un tiro de driver que no daña a nadie (no le pegó a nada, o solo a
-    escudos e inmunes) la corta. El indicador está a la izquierda de los palos.
+  - **Driver · Rompevientos**: recto y casi rasante (18-60 m), atraviesa a toda la fila. **Racha**: cada
+    baja del driver le suma +10 % de daño, hasta +50 % (tres escalones de una si el swing fue perfecto).
+    Pegar sin matar la mantiene; un tiro que no daña a nadie la corta. Con daño en números enteros casi
+    no se nota: está pendiente rehacerla.
   - **Hierro 7 · Escarcha**: globo de hielo (6-40 m), sin daño, recarga de 2 s; después de usarlo
     vuelve solo el driver. Congela en un centro chico y enfría alrededor. *Frío*: camina al 40 %, no
-    se cubre con el escudo, si es chamán se le apaga el aura, y recibe 25 % más de daño. *Congelado*:
-    además no camina ni ataca. Dura de 3 a 5 s según la carga; el swing perfecto agranda las dos
-    zonas y suma duración. Una barra celeste sobre el enemigo muestra cuánto le queda. Al jefe nunca
-    lo congela, pero frío camina y ataca más lento.
-  - **Wedge · Vendaval**: globo alto (5-28 m), sin daño: empuja a todos hacia afuera desde donde cae.
-    Sirve para acomodar enemigos en fila, o para sacarlos del aura de un chamán. Con swing perfecto,
-    además los deja *expuestos* 4 s (barra naranja): reciben 50 % más de daño.
-- **Putter · Portal**, en `Espacio` (reemplaza al roll). El primer `Espacio` tira la pelota hacia el
-  cursor, sin carga y bien rápido (unos 15 m/s); frena en ese punto (3-22 m) y queda ahí todo lo que haga falta. El segundo
-  `Espacio` te lleva hasta la pelota, aunque siga rodando. Pasarle por arriba la levanta. Solo el
-  salto tiene recarga (8 s). El salto no corta la carga ni el swing y suelta cualquier agarre.
-- `G` (o el botón de arriba a la derecha) cambia cómo se apuntan los globos: **al cursor** (caen donde
-  está el mouse y la carga define solo la fuerza del efecto) o **por carga** (la carga es la
-  distancia, como el driver). Están los dos para compararlos jugando; ver `docs/diseno-combate.md`.
-- **Palazo** en `Shift` (o `V`): golpe corto a lo que tengas encima, hasta cuatro enemigos, con 2.5 s de
-  recarga. Los empuja y les corta el ataque. Ya no sale solo con cada swing.
-- `WASD` mueve, `Esc` pausa, `R` reinicia, `M` silencia la música.
-- `C` (o el botón) cambia el skin del golfista: dos guardias y dos caballeros. Queda guardado.
-- Un enemigo que llega a la puerta le pega una sola vez, fuerte, y desaparece adentro: no hay que
-  volver a sacarlos de la muralla.
+    tiene escudo (desaparece mientras dura), si es chamán se le apaga el aura, y recibe 25 % más de
+    daño. *Congelado*: además no camina ni ataca. Dura de 3 a 5 s según la carga; el swing perfecto
+    agranda las dos zonas y suma duración. Al jefe nunca lo congela, pero frío camina y ataca más lento.
+  - **Wedge · Vendaval**: globo rápido (5-28 m, llega en medio segundo), sin daño: empuja a todos hacia
+    afuera desde donde cae. Con swing perfecto, además los deja *expuestos* 4 s: reciben 50 % más.
+- **Putter · Portal**, en `Espacio`: te teletransporta al puesto más cercano al cursor. Recarga de 8 s.
+  Es la única salida cuando un alma en pena te tiene agarrado.
+- **Palazo** en `Shift` (o `V`): golpe corto de 2 de daño a lo que tengas encima, hasta cuatro
+  enemigos, con 2.5 s de recarga. Los empuja y les corta el ataque.
+- `G` (o el botón) cambia cómo se apuntan los globos: **al cursor** (caen donde está el mouse y la
+  carga define solo la fuerza del efecto) o **por carga** (la carga es la distancia, como el driver).
+- `Esc` pausa, `R` reinicia, `M` silencia la música, `C` cambia el skin del golfista.
+- Un enemigo que llega a la puerta le pega una sola vez y desaparece adentro.
 - Pierde si cae la puerta o el golfista.
 
 Son 6 oleadas, y cada una presenta un enemigo y el palo que lo resuelve. Se arranca solo con el
@@ -78,16 +82,16 @@ Para mirar al bot jugar una partida: `http://localhost:5173/?bot` (se pueden com
 Los enemigos salen sueltos, sin formación, y cada uno camina en línea recta a su ritmo: las filas se arman y se
 deshacen solas, y encontrarlas es el juego.
 
-| Enemigo | Qué hace |
+| Enemigo (vida) | Qué hace |
 | --- | --- |
-| Goblin | Rápido y débil, viene en montón |
-| Esqueleto | Aguanta un driver; con la racha alta cae de uno |
-| Goblin kamikaze | Corre a la puerta (o a vos) y explota; su explosión también daña a la horda |
-| Goblin guerrero | Su escudo devuelve el driver que le llega de frente. Con hielo encima no se cubre |
-| Caballero esqueleto | Lento, mucha vida, casi no se deja empujar |
-| Alma en pena | Corre más que vos y va siempre por vos. Si te agarra no podés caminar ni pegar, y te saca vida hasta que saltás por el portal (o se cansa, a los 5 s) |
-| Chamán goblin | Camina con el grupo con las manos en alto. Los enemigos a menos de 8 m son inmunes a todo. A él nunca lo protege nadie. Con hielo encima se le apaga el aura |
-| Gólem de roca | Jefe. Se planta a 22 m y le tira piedras a la puerta cada 4 s; de cerca pega |
+| Goblin (2) | Rápido y débil, viene en montón |
+| Esqueleto (4) | Pide un tiro bien cargado |
+| Goblin kamikaze (2) | Corre a la puerta (o a vos) y explota; su explosión también daña a la horda |
+| Goblin guerrero (4) | Su escudo devuelve el driver que le llega de frente. Con hielo encima no se cubre |
+| Caballero esqueleto (5) | Lento, mucha vida, casi no se deja empujar |
+| Alma en pena (3) | Corre más que vos y va siempre por vos. Si te agarra no podés caminar ni pegar, y te saca vida hasta que saltás con el putter (o se cansa, a los 5 s) |
+| Chamán goblin (3) | Camina con el grupo con las manos en alto. Los enemigos a menos de 8 m son inmunes a todo. A él nunca lo protege nadie. Con hielo encima se le apaga el aura |
+| Gólem de roca (80) | Jefe. Se planta a 22 m y le tira piedras a la puerta cada 4 s; de cerca pega |
 
 El diseño, lo que se probó y lo que queda abierto está en `docs/diseno-combate.md`.
 
@@ -110,12 +114,13 @@ fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa e
 ## Estructura
 
 - `src/core/`: lógica pura con tests (`ballistics`, `clubs`, `swing`, `waves`).
-- `src/game/`: `player` (estados libre / cargando / swing, salto por el portal, agarre), `portal` (la pelota del putter), `golfClips` (detecta solo las fases de los clips de swing), `swingPose` (el palo, y un swing
+- `src/game/`: `player` (estados libre / cargando / swing, salto por el portal, agarre), `tees` (los puestos de tiro y las pelotas que tiran los guardias), `golfClips` (detecta solo las fases de los clips de swing), `swingPose` (el palo, y un swing
   procedural con IK de respaldo), `balls` (pelotas y encantamientos), `enemies` (horda, hielo, aura del chamán), `effects`, `world`.
 - `src/audio/audio.ts`: todo sintetizado con Tone.js.
 - `tools/`:
   - `playtest.mjs`: prueba automática con comprobaciones (sale con error si alguna falla): palos bloqueados,
-    palo en cola, medidor, driver y racha, hielo, empujón, chamán, portal, alma en pena, puerta, pausa y
+    cartel, puestos y pelotas, palo en cola, medidor y niveles, racha, hielo, empujón, chamán, putter,
+    alma en pena, vida, puerta, pausa y
     derrota. Capturas en `logs/`.
   - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las 6 oleadas, para chequear balance. No
     camina ni busca filas: es una cota inferior. Con `--ver` abre una ventana para mirarlo.

@@ -8,6 +8,8 @@ export const FIELD_HALF_WIDTH = 18;
 export const GATE_Z = 0;
 export const GATE_HALF_WIDTH = 2.6;
 export const SPAWN_Z = 68;
+/** Dónde se paran los guardias: detrás de la línea de puestos, desde donde le tiran pelotas al golfista. */
+export const GUARD_POSTS: readonly (readonly [number, number, number])[] = [[-14, 4.6, 0.12], [-5, 4.4, 0.05], [5, 4.4, -0.05], [14, 4.6, -0.12]];
 export const PLAYER_MIN_Z = 1.5;
 export const PLAYER_MAX_Z = 48;
 const WALL_HEIGHT = 5;
@@ -195,7 +197,7 @@ export class World {
     });
     const box = new THREE.Box3().setFromObject(gltf.scene, true);
     const scale = 1.75 / Math.max(0.5, box.max.y - box.min.y);
-    for (const [x, z, yaw] of [[-7, 1.2, 0.25], [7, 1.2, -0.25], [-10.5, 1.0, 0.1], [10.5, 1.0, -0.1]] as const) {
+    for (const [x, z, yaw] of GUARD_POSTS) {
       const guard = cloneSkinned(gltf.scene);
       guard.position.set(x, 0, z);
       guard.rotation.y = yaw;

@@ -1,5 +1,5 @@
 // Teclado y mouse.
-// WASD mueve, el mouse apunta, click izquierdo (o F) mantiene para cargar el swing y suelta para pegar,
+// A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado sigue de largo), el mouse apunta, click izquierdo (o F) mantiene para cargar el swing y suelta para pegar,
 // click derecho (o X) cancela, 1-3 / rueda / Q-E cambian de palo, Espacio es el putter (tira la pelota o salta
 // hasta ella; en la intro, avanza), Shift (o V) es el palazo, G cambia cómo se apuntan los globos, Escape pausa, R reinicia, C cambia
 // el skin, M silencia la música.
@@ -17,6 +17,8 @@ export interface InputEvents {
   skin(): void;
   lobAim(): void;
   melee(): void;
+  /** Un toque de movimiento lateral: +1 hacia la derecha de la pantalla, -1 hacia la izquierda. */
+  step(right: number): void;
 }
 
 export class Input {
@@ -63,6 +65,8 @@ export class Input {
       case 'KeyM': this.ev.muteToggle(); break;
       case 'KeyC': this.ev.skin(); break;
       case 'KeyG': this.ev.lobAim(); break;
+      case 'KeyD': case 'ArrowRight': this.ev.step(1); break;
+      case 'KeyA': case 'ArrowLeft': this.ev.step(-1); break;
       case 'ShiftLeft': case 'ShiftRight': case 'KeyV': this.ev.melee(); break;
     }
   }

@@ -62,8 +62,8 @@ export class Hud {
   private shownState = '';
   private readonly shownCd = new Map<string, string>();
 
-  /** Qué palos están habilitados, cuánto le falta a cada recarga y si la pelota del putter está en el campo. */
-  setClubState(unlocked: ReadonlySet<ClubId>, cooldowns: Record<ClubId, number>, portalOut: boolean, meleeLeft: number): void {
+  /** Qué palos están habilitados y cuánto le falta a cada recarga. */
+  setClubState(unlocked: ReadonlySet<ClubId>, cooldowns: Record<ClubId, number>, meleeLeft: number): void {
     for (const el of Array.from(this.clubsEl.children) as HTMLElement[]) {
       const slot = el.dataset.club as ClubId | 'melee';
       const left = slot === 'melee' ? meleeLeft : cooldowns[slot];
@@ -84,7 +84,7 @@ export class Hud {
     }
     this.lobBtn.hidden = !unlocked.has('iron') && !unlocked.has('wedge');
     // lo demás solo toca el DOM cuando cambia
-    const key = `${[...unlocked].join()}|${portalOut}|${cooldowns.putter > 0}`;
+    const key = `${[...unlocked].join()}|${cooldowns.putter > 0}`;
     if (key === this.shownState) return;
     const first = this.shownState === '';
     this.shownState = key;
@@ -98,8 +98,7 @@ export class Hud {
       }
       el.classList.toggle('locked', !unlocked.has(id));
       if (id !== 'putter') continue;
-      el.classList.toggle('armed', portalOut && cooldowns.putter <= 0);
-      (el.querySelector('.title') as HTMLElement).textContent = !portalOut ? 'tirar pelota' : cooldowns.putter > 0 ? 'recargando' : '¡saltar!';
+      (el.querySelector('.title') as HTMLElement).textContent = cooldowns.putter > 0 ? 'recargando' : 'portal';
     }
   }
 
@@ -119,6 +118,36 @@ export class Hud {
     if (before < 0) return;
     void el.offsetWidth;
     el.classList.add(streak > before ? 'gain' : 'lost');
+  }
+
+  private cursorEl = $('chargecursor');
+  private shownCursor = '';
+
+  /**
+   * Indicador de carga pegado al cursor, que es donde está mirando quien juega: un anillo de cinco
+   * tramos que se van prendiendo con el color del nivel, y dorado en el punto del swing perfecto.
+   */
+  setChargeCursor(on: boolean, x: number, y: number, level: number, perfect: boolean): void {
+    const el = this.cursorEl;
+    if (!on) {
+      if (this.shownCursor !== '') {
+        this.shownCursor = '';
+        el.hidden = true;
+      }
+      return;
+    }
+    el.style.transform = `translate(${x}px, ${y}px)`;
+    const key = `${level}|${perfect}`;
+    if (key === this.shownCursor) return;
+    this.shownCursor = key;
+    el.hidden = false;
+    el.dataset.level = String(level);
+    el.classList.toggle('perfect', perfect);
+    (el.querySelector('.num') as HTMLElement).textContent = perfect ? `${level * 2}` : String(level);
+    // un saltito con cada nivel
+    el.classList.remove('tick');
+    void el.offsetWidth;
+    el.classList.add('tick');
   }
 
   /** Cartel de palo nuevo. Se queda hasta que se lo cierre con un click. */

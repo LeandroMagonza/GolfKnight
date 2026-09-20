@@ -4,7 +4,7 @@
 //
 // Juega con el reparto de palos del diseño: el driver cobra, el hierro abre (chamanes, escudos, jefe),
 // el wedge se saca enemigos de encima, el palazo pega de cerca y el putter lo libera de un agarre. No
-// camina ni busca filas, así que es una cota inferior de lo que hace una persona.
+// busca filas: solo corre hasta la pelota más cercana, así que es una cota inferior de lo que hace una persona.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Gk = any;
@@ -12,6 +12,8 @@ type Gk = any;
 export interface BotStats {
   byClub: Record<string, number>;
   melee: number;
+  moves: number;
+  dodges: number;
   grabs: number;
   jumps: number;
 }
@@ -25,7 +27,7 @@ function key(code: string): void {
 
 export function startBot(): BotStats {
   const gk: Gk = (window as any).__gk;
-  const stats: BotStats = { byClub: {}, melee: 0, grabs: 0, jumps: 0 };
+  const stats: BotStats = { byClub: {}, melee: 0, moves: 0, dodges: 0, grabs: 0, jumps: 0 };
   (window as any).__bot = stats;
 
   // El bot apunta moviendo el mouse. Para que el mouse de quien mira no le corra la puntería, repite
@@ -44,6 +46,7 @@ export function startBot(): BotStats {
   holdAim();
 
   let escaping = false;
+  let dodgedAt = 0;
   let cardSince = 0;
   let pushedAt = -10;
 
@@ -62,25 +65,42 @@ export function startBot(): BotStats {
     const p = pl.position;
     const dist = (e: any) => Math.hypot(e.position.x - p.x, e.position.z - p.z);
 
-    // agarrado: tira la pelota lejos del alma en pena y salta
+    // agarrado: apunta al otro lado del campo y salta con el putter
     if (pl.grabbedBy) {
       if (escaping || !pl.unlocked.has('putter')) return;
       escaping = true;
       stats.grabs++;
-      const g = pl.grabbedBy.position;
-      const away = Math.atan2(p.x - g.x, p.z - g.z);
-      if (!gk.portal.out) {
-        aim(Math.max(-14, Math.min(14, p.x + Math.sin(away) * 10)), Math.max(4, Math.min(40, p.z + Math.cos(away) * 10)));
-        setTimeout(() => key('Space'), 80);
-      }
+      aim(p.x > 0 ? -12 : 12, 20);
       setTimeout(() => {
         key('Space');
         stats.jumps++;
         escaping = false;
-      }, 500);
+      }, 120);
       return;
     }
-    if (pl.mode !== 'free') return;
+    // le están por pegar: suelta lo que esté cargando y se corre dos puestos, hacia el lado con más lugar
+    const threat = gk.horde.enemies.find((e: any) => e.alive && e.state === 'attack' && e.target === 'player' && dist(e) < e.radius + 2.2);
+    if (threat && pl.atSpot && performance.now() - dodgedAt > 600) {
+      dodgedAt = performance.now();
+      stats.dodges++;
+      if (pl.mode === 'charging') key('KeyX');
+      const i = gk.tees.nearest(p.x);
+      const up = i + 2 < gk.tees.spots.length && (i - 2 < 0 || threat.position.x < p.x);
+      for (let n = 0; n < 2; n++) key(up ? 'KeyA' : 'KeyD');
+      return;
+    }
+    if (pl.mode !== 'free' || !pl.atSpot) return;
+
+    // sin pelota en este puesto: corre hasta la más cercana (A sube de puesto, D baja)
+    const here = gk.tees.nearest(p.x);
+    if (!gk.tees.hasBall(here)) {
+      const to = gk.tees.nearestBall(here);
+      if (to >= 0) {
+        stats.moves++;
+        for (let i = 0; i < Math.abs(to - here); i++) key(to > here ? 'KeyA' : 'KeyD');
+      }
+      return;
+    }
 
     const alive: any[] = gk.horde.enemies.filter((e: any) => e.alive);
     if (!alive.length) return;
@@ -124,15 +144,30 @@ export function startBot(): BotStats {
     }
     if (pl.club.id !== club) key(KEYS[club]);
 
-    // anticipación: el enemigo sigue caminando mientras la pelota vuela
+    // Cuánto cargar: la vida del blanco dice el nivel (nivel n = n de daño, y cada nivel es un quinto de
+    // la barra); además la carga tiene que alcanzar para llegar hasta él.
+    const minRange = club === 'driver' ? 18 : club === 'iron' ? 6 : 5;
+    const maxRange = club === 'driver' ? 60 : club === 'iron' ? 40 : 28;
+    const chargeTime = club === 'driver' ? 1 : club === 'iron' ? 0.5 : 0.4;
+    const need = Math.min(5, Math.max(1, Math.ceil(target.hp / (target.chilled ? 1.25 : 1))));
+    const reach = Math.min(0.99, Math.max(0, (dist(target) + 4 - minRange) / (maxRange - minRange)));
+    const want = club === 'iron' ? 0.3 : club === 'wedge' ? 0.5 : Math.max(reach, (need - 1) / 5 + 0.02);
+
+    // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
+    // (en diagonal, no derecho). Se apunta a donde va a estar.
     const speed = target.frozen ? 0 : target.stats.speed * target.speedMul * (target.chilled ? 0.4 : 1);
     if (target.stats.behavior === 'grabber' && !target.frozen && dist(target) > 3) {
       // viene hacia el golfista: se apunta un poco más acá sobre esa misma línea
-      const k = Math.max(0.2, 1 - (speed * 0.8) / dist(target));
+      const k = Math.max(0.2, 1 - (speed * (0.6 + want)) / dist(target));
       aim(p.x + (target.position.x - p.x) * k, p.z + (target.position.z - p.z) * k);
+    } else if (target.target === 'gate' && speed > 0) {
+      const lead = 0.12 + want * chargeTime + 0.4 + (club === 'driver' ? dist(target) / 90 : Math.sqrt((2 * dist(target) * 0.84) / 50));
+      const gx = Math.max(-2.3, Math.min(2.3, target.position.x)) - target.position.x;
+      const gz = 0.8 - target.position.z;
+      const gl = Math.hypot(gx, gz) || 1;
+      aim(target.position.x + (gx / gl) * speed * lead, Math.max(1, target.position.z + (gz / gl) * speed * lead));
     } else {
-      const lead = target.target === 'gate' ? speed * (club === 'iron' ? 1.3 : 0.5) : 0;
-      aim(target.position.x, Math.max(1, target.position.z - lead));
+      aim(target.position.x, target.position.z);
     }
 
     setTimeout(() => {
@@ -140,9 +175,6 @@ export function startBot(): BotStats {
       stats.byClub[club] = (stats.byClub[club] ?? 0) + 1;
       // Carga de verdad: mantiene apretado y suelta al llegar a la potencia buscada. El hierro sale
       // con poca carga; un toque de driver alcanza para un goblin y lo demás pide carga.
-      const c = pl.club;
-      const reach = Math.min(0.99, Math.max(0, (gk.aimDistance + 6 - c.minRange) / (c.maxRange - c.minRange)));
-      const want = club === 'iron' ? 0.3 : club === 'wedge' ? 0.5 : Math.max(reach, target.hp > 36 ? 0.85 : 0.08);
       pl.startSwing();
       const poll = () => {
         if (pl.mode !== 'charging') return;

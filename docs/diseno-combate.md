@@ -6,7 +6,10 @@ Nada de esto está implementado todavía, salvo donde dice lo contrario.
 > **19/9/2026:** después del primer playtest largo cambió bastante el rumbo. La sección
 > "Rediseño tras el playtest" manda sobre todo lo anterior donde se contradigan.
 >
-> **20/9/2026:** al final están las "Notas del 20/9", con las ideas pendientes de decidir y lo que se
+> **21/9/2026:** la última sección, "Prueba del 21/9", cambia el movimiento, la vida y el daño, y manda
+> sobre todo lo anterior.
+>
+> **20/9/2026:** antes de esa están las "Notas del 20/9", con las ideas pendientes de decidir y lo que se
 > hizo ese día.
 
 ## Resumen
@@ -524,3 +527,80 @@ siguiente, con saltito, teletransporte o animación. O movimiento libre con algo
 - **El escudo desaparece con hielo (21/9).** Mientras el goblin guerrero está frío o congelado el
   escudo no se ve, y vuelve cuando se le pasa. Antes el escudo seguía ahí aunque ya no frenara nada.
 - **Publicado** en GitHub Pages: https://leandromagonza.github.io/GolfKnight/ (ver el README).
+
+## Prueba del 21/9/2026: puestos, números chicos y carga por niveles
+
+Leandro pidió probar varias de las ideas anotadas el 20/9. Todo lo de esta sección está implementado
+y publicado. Es una prueba: si no divierte, se vuelve atrás.
+
+### Movimiento por puestos
+
+- El golfista **no avanza ni retrocede**. Se mueve de costado entre nueve puestos marcados con un
+  banderín, separados 4 m, con A y D. Un toque es un puesto; dos toques, dos; con la tecla apretada
+  sigue de largo. Corre a 24 m/s: un puesto en menos de dos décimas.
+- **Solo se pega donde hay una pelota.** Las tiran los guardias, que ahora están parados detrás de la
+  línea de puestos. Se puede hacer el swing igual, pero sin pelota sale al aire.
+- **Siempre hay pelotas, y nunca se acumulan.** Como mucho tres esperando. La siguiente tarda 0.2 s
+  si no queda ninguna, 0.7 s si queda una y 1.5 s si quedan dos: quien tira rápido recarga rápido.
+- Nunca caen en el puesto donde está parado el golfista (y caen, si pueden, a tres puestos o menos):
+  después de cada tiro hay que moverse.
+- Se puede salir corriendo apenas pasó el impacto, sin esperar a que termine el gesto del swing.
+- **Putter:** Espacio teletransporta al puesto más cercano al cursor, con 8 s de recarga. Se fue el
+  putter de dos pasos (tirar la pelota y saltar a ella).
+
+### Vida y daño en números chicos
+
+| | Vida |
+| --- | --- |
+| Golfista | 3 |
+| Puerta | 10 |
+| Goblin, kamikaze | 2 |
+| Chamán, alma en pena | 3 |
+| Esqueleto, goblin guerrero | 4 |
+| Caballero esqueleto | 5 |
+| Gólem | 80 |
+
+- Cada golpe enemigo saca 1. A la puerta, el caballero y el kamikaze le sacan 2.
+- **Driver:** el daño es el nivel de carga. 1 sin cargar, hasta 5; la barra rebota entre 5 y 3. El
+  swing perfecto (el "headshot") pega el doble: 10.
+- Palazo: 2. Explosión de kamikaze a la horda: 4, menos hacia el borde.
+- Frío (+25 %) y expuesto (+50 %) se redondean; todo golpe que entra saca al menos 1.
+- La vida de cada enemigo se ve en cuadraditos arriba suyo, siempre, para decidir cuánto cargar.
+- Entre oleadas se recupera 1 de vida y 2 de puerta.
+
+### Indicador de carga donde se mira
+
+- Un anillo de cinco tramos junto al cursor, con el número del nivel al lado; dorado y con el daño
+  duplicado en el punto del swing perfecto.
+- La línea de tiro cambia de color y de grosor con cada nivel. Sin pelota en el puesto queda gris.
+- Una nota por nivel: do, mi, sol, si y la octava en el 5. Al rebotar suena entre las tres más
+  agudas (sol, si, do). Elegí el acorde con séptima para que el si pida resolver en la octava.
+- La barra de abajo sigue estando, ahora con una raya por nivel.
+
+### Lo que cambié por mi cuenta para que cierre
+
+Medido con el bot, que ahora corre entre puestos, esquiva y carga según la vida del blanco.
+
+- **El driver sale casi rasante** (3.5° en lugar de 7°). Con 7°, un tiro cargado a fondo subía hasta
+  1.8 m y les pasaba por arriba a los goblins en todo el tramo medio: cargar más era pegar peor. Era
+  un defecto viejo (estaba anotado como "driver por arriba") que el alcance fijo en el máximo volvió grave.
+- **Respiro de 1.2 s después de un golpe**, y el golpe dirigido al golfista se anuncia más (0.75 s en
+  lugar de 0.45 s): con 3 de vida tiene que dar tiempo a correrse de puesto.
+- **Los enemigos solo se le van encima si le pasan a menos de 4 m, y lo sueltan a los 7 m.** Antes
+  eran 7 y 11. Con el golfista fijo en una línea, lo perseguían de punta a punta; ahora correrse dos
+  puestos es una esquiva de verdad, y el que lo pierde sigue viaje a la puerta.
+- El golpe recibido ya no lo empuja fuera del puesto, y los enemigos no lo desplazan.
+- **El hierro también es más rápido** (carga 0.5 s, vuela con más gravedad), igual que el wedge: es la
+  mitad del combo contra escudos y con el ritmo nuevo llegaba tarde.
+- **Oleadas más espaciadas** (de 2.2 s entre apariciones en la primera a 1.5 s en la última) y un
+  goblin guerrero menos en la oleada 2. Con la puerta en 10, cada enemigo que se escapa duele diez
+  veces más que antes.
+- Con estos números el bot pasa las oleadas 1 a 3 y cae en la 4 por la puerta, no por la vida.
+  **Es la parte que más necesita que la juegue una persona.**
+
+### Queda flojo
+
+- **La racha** casi no se nota con daño entero: +10 % sobre 3 sigue siendo 3. Refuerza la idea de
+  reemplazarla por "la pelota que mata pega más", que con números chicos sería +1 por baja.
+- Tirar la pelota no tiene animación de los guardias: la pelota sale volando desde donde están parados.
+- El wedge sigue sin mucho uso. La idea de los obstáculos sigue anotada.
