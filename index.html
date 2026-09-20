@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Knight</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #16202b; font-family: system-ui, sans-serif; color: #eee; user-select: none; }
+      canvas { display: block; }
+      kbd { background: #2c3644; border-radius: 4px; padding: 1px 6px; font-family: inherit; border: 1px solid #4a5666; }
+      #overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: radial-gradient(ellipse at center, rgba(16, 28, 40, 0.92), rgba(6, 10, 16, 0.97)); z-index: 10; }
+      #overlay[hidden] { display: none; }
+      #overlay h1 { margin: 0; font-size: 44px; letter-spacing: 2px; color: #ffd66b; text-shadow: 0 3px 0 #7a4b12; }
+      #overlay h1 small { display: block; font-size: 15px; letter-spacing: 4px; color: #cfd6e0; text-shadow: none; text-align: center; font-weight: 400; margin-top: 4px; }
+      #slide { width: min(680px, 86vw); min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+      #slide .art { font-size: 58px; line-height: 1; }
+      #slide p { margin: 0; font-size: 19px; line-height: 1.55; color: #e4e9f0; }
+      #slide p em { color: #ffd66b; font-style: normal; }
+      #slide .controls { font-size: 15px; color: #cfd6e0; line-height: 2; }
+      #dots { display: flex; gap: 8px; }
+      #dots span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.22); }
+      #dots span.on { background: #ffd66b; }
+      .buttons { display: flex; gap: 14px; align-items: center; }
+      #overlay button { font-size: 19px; padding: 11px 30px; border-radius: 8px; border: 0; background: #5be07a; color: #102; cursor: pointer; font-weight: 600; }
+      #overlay button:disabled { background: #556; color: #aab; cursor: wait; }
+      #overlay button#skip { background: transparent; color: #9aa4b2; font-size: 15px; font-weight: 400; border: 1px solid #4a5666; padding: 8px 18px; }
+      #overlay button#skip:disabled { opacity: 0.4; }
+
+      #hud { position: fixed; inset: 0; pointer-events: none; }
+      .bars { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; justify-content: space-between; gap: 24px; }
+      .bar { width: 30%; }
+      .bar span { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #fff; text-shadow: 0 1px 3px #000; }
+      .track { height: 16px; background: rgba(0,0,0,0.55); border-radius: 8px; overflow: hidden; margin-top: 4px; }
+      .fill { height: 100%; width: 100%; transition: width 0.15s; }
+      .fill.gate { background: linear-gradient(90deg, #c98a3c, #ffd66b); }
+      .fill.hp { background: linear-gradient(90deg, #5be07a, #2fb95a); }
+      .bar.alert .track { box-shadow: 0 0 0 2px #ff5b5b; animation: alert 0.5s infinite alternate; }
+      @keyframes alert { from { box-shadow: 0 0 0 2px rgba(255,91,91,0.2); } to { box-shadow: 0 0 0 3px rgba(255,91,91,1); } }
+      #wave { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000; }
+      #wave .n { font-size: 20px; font-weight: 700; }
+      #wave .sub { font-size: 13px; color: #e4e9f0; }
+      #score { position: absolute; top: 62px; right: 14px; font-size: 15px; text-shadow: 0 1px 3px #000; text-align: right; }
+      #skin { position: absolute; top: 88px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #skin:hover, #lobaim:hover { background: rgba(0,0,0,0.75); }
+      #lobaim { position: absolute; top: 122px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #clubrow { position: relative; }
+      #streak { position: absolute; right: 100%; top: 0; bottom: 0; margin-right: 14px; width: 124px; box-sizing: border-box; background: rgba(0,0,0,0.55); border-radius: 8px; border: 2px solid rgba(255,179,71,0.25); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; opacity: 0.55; transition: opacity 0.2s, border-color 0.2s, box-shadow 0.2s; }
+      #streak.on { opacity: 1; border-color: #ffb347; box-shadow: 0 0 10px rgba(255,179,71,0.6); }
+      #streak.max { border-color: #ff5b3c; box-shadow: 0 0 18px #ff5b3c; }
+      #streak .lbl { font-size: 9px; letter-spacing: 1.5px; color: #9aa4b2; }
+      #streak .mult { font-size: 22px; font-weight: 800; color: #ffb347; line-height: 1; }
+      #streak.max .mult { color: #ff7a4a; }
+      #streak .pips { display: flex; gap: 3px; }
+      #streak .pips i { width: 15px; height: 6px; border-radius: 2px; background: rgba(255,255,255,0.15); }
+      #streak .pips i.on { background: #ffb347; box-shadow: 0 0 6px #ffb347; }
+      #streak.max .pips i.on { background: #ff5b3c; box-shadow: 0 0 6px #ff5b3c; }
+      #streak.gain { animation: streakGain 0.35s ease-out; }
+      #streak.lost { animation: streakLost 0.5s ease-out; }
+      @keyframes streakGain { 0% { transform: scale(1.3); } 100% { transform: scale(1); } }
+      @keyframes streakLost { 0% { background: rgba(140,0,0,0.7); border-color: #ff5b5b; } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-3px); } 100% { transform: translateX(0); } }
+      .club.extra { opacity: 0.9; border-color: rgba(255,255,255,0.18); }
+      #banner { position: absolute; top: 24%; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 2px 10px #000; opacity: 0; transition: opacity 0.4s; }
+      #banner.show { opacity: 1; }
+      #banner .big { font-size: 40px; font-weight: 800; color: #ffd66b; }
+      #banner .small { font-size: 19px; color: #fff; }
+      #feedback { position: absolute; top: 38%; left: 50%; transform: translateX(-50%); font-size: 28px; font-weight: 800; text-shadow: 0 2px 8px #000; animation: pop 1.1s ease-out forwards; white-space: nowrap; }
+      #feedback.good { color: #ffd66b; }
+      #feedback.bad { color: #ff6b6b; }
+      #feedback.neutral { color: #ffffff; }
+      @keyframes pop { 0% { opacity: 1; transform: translateX(-50%) scale(1.3); } 30% { transform: translateX(-50%) scale(1); } 100% { opacity: 0; } }
+      #floats { position: absolute; inset: 0; overflow: hidden; }
+      .float { position: absolute; font-weight: 800; font-size: 18px; text-shadow: 0 1px 4px #000; transform: translate(-50%, -50%); animation: rise 0.8s ease-out forwards; white-space: nowrap; }
+      .float.kill { color: #ffd66b; font-size: 22px; }
+      .float.hurt { color: #ff6b6b; }
+      @keyframes rise { 0% { opacity: 1; margin-top: 0; } 100% { opacity: 0; margin-top: -46px; } }
+
+      #bottom { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+      #meter { width: 420px; height: 20px; background: rgba(0,0,0,0.6); border-radius: 10px; position: relative; overflow: hidden; border: 2px solid rgba(255,255,255,0.35); opacity: 0.45; transition: opacity 0.15s; }
+      #meter.on { opacity: 1; }
+      #meter .perfect { position: absolute; top: 0; bottom: 0; right: 0; width: 8%; background: rgba(255,214,107,0.55); }
+      #meter .power { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: linear-gradient(90deg, #5be07a, #ffd66b 70%, #ff6b4a); }
+      #range { font-size: 14px; color: #fff; text-shadow: 0 1px 3px #000; min-height: 18px; }
+      #clubs { display: flex; gap: 8px; }
+      .club { width: 132px; background: rgba(0,0,0,0.55); border-radius: 8px; padding: 6px 10px; border: 2px solid transparent; opacity: 0.75; }
+      .club.active { opacity: 1; border-color: var(--c); box-shadow: 0 0 12px var(--c); }
+      .club.queued { opacity: 1; border-color: var(--c); border-style: dashed; animation: queued 0.7s infinite alternate; }
+      @keyframes queued { from { background: rgba(0,0,0,0.55); } to { background: rgba(255,255,255,0.16); } }
+      .club { position: relative; overflow: hidden; }
+      /* lo que todavía no se desbloqueó no se muestra: aparece cuando llega */
+      .club.locked { display: none; }
+      .club.appear { animation: slotIn 0.5s ease-out; }
+      @keyframes slotIn { from { transform: translateY(18px) scale(0.8); opacity: 0; } to { transform: none; opacity: 0.75; } }
+      .club .cdlabel { position: absolute; right: 8px; bottom: 5px; font-size: 11px; color: #9aa4b2; }
+      .club .cdnum { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800; color: #fff; text-shadow: 0 2px 6px #000; pointer-events: none; }
+      .club.cooling .name, .club.cooling .title, .club.cooling .key, .club.cooling .cdlabel { opacity: 0.35; }
+      .club.ready { animation: slotReady 0.45s ease-out; }
+      @keyframes slotReady { 0% { transform: scale(1.18); box-shadow: 0 0 22px var(--c); border-color: var(--c); } 100% { transform: scale(1); } }
+      #lobaim[hidden] { display: none; }
+      #card { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 12, 18, 0.62); pointer-events: auto; cursor: pointer; }
+      #card[hidden] { display: none; }
+      #card .box { min-width: 420px; max-width: 560px; background: rgba(10, 16, 24, 0.94); border: 3px solid var(--c); border-radius: 14px; box-shadow: 0 0 40px var(--c); padding: 22px 34px; text-align: center; animation: cardIn 0.35s ease-out; }
+      @keyframes cardIn { from { transform: scale(0.8); opacity: 0; } to { transform: none; opacity: 1; } }
+      #card .tag { font-size: 13px; letter-spacing: 4px; color: #9aa4b2; }
+      #card .name { font-size: 40px; font-weight: 800; color: #fff; margin-top: 4px; }
+      #card .title { font-size: 16px; letter-spacing: 3px; text-transform: uppercase; color: var(--c); }
+      #card .keyrow { margin: 14px 0 10px; font-size: 16px; color: #cfd6e0; }
+      #card .hint { font-size: 18px; line-height: 1.5; color: #e4e9f0; }
+      #card .cool { margin-top: 10px; font-size: 14px; color: #9aa4b2; }
+      #card .next { margin-top: 14px; font-size: 15px; color: #ffd66b; }
+      #card .go { margin-top: 16px; font-size: 14px; color: #9aa4b2; animation: queued 0.8s infinite alternate; }
+      .club.space { margin-left: 14px; border-color: rgba(255,255,255,0.18); }
+      .club.space.armed { opacity: 1; border-color: var(--c); box-shadow: 0 0 12px var(--c); }
+      /* recarga: una cortina oscura que baja a medida que el palo vuelve a estar listo */
+      .club .cd { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(0,0,0,0.72); border-top: 2px solid var(--c); pointer-events: none; }
+      .club .key, .club .name, .club .title { position: relative; }
+      #meter .floor { position: absolute; top: 0; bottom: 0; left: 70%; width: 2px; background: rgba(255,255,255,0.45); }
+      .club .key { float: right; font-size: 12px; color: #9aa4b2; }
+      .club .name { font-size: 15px; font-weight: 700; }
+      .club .title { font-size: 12px; color: var(--c); letter-spacing: 1px; text-transform: uppercase; }
+      #hint { font-size: 13px; color: #e4e9f0; text-shadow: 0 1px 3px #000; min-height: 17px; }
+
+      #pause, #end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(8, 12, 18, 0.78); text-align: center; }
+      #pause[hidden], #end[hidden] { display: none; }
+      #pause h2, #end h2 { margin: 0 0 12px; font-size: 44px; color: #ffd66b; }
+      #pause p, #end p { margin: 4px 0; color: #e4e9f0; font-size: 17px; }
+    </style>
+  </head>
+  <body>
+    <div id="overlay">
+      <h1>GOLF KNIGHT<small>EL ELEGIDO DE LA PROFECÍA (MÁS O MENOS)</small></h1>
+      <div id="slide"></div>
+      <div id="dots"></div>
+      <div class="buttons">
+        <button id="skip" type="button" disabled>Saltar intro</button>
+        <button id="start" type="button" disabled>Cargando…</button>
+      </div>
+    </div>
+    <div id="hud">
+      <div class="bars">
+        <div class="bar" id="gatebar"><span>Puerta de Valdehoyo</span><div class="track"><div id="gate" class="fill gate"></div></div></div>
+        <div class="bar"><span>Vos</span><div class="track"><div id="hp" class="fill hp"></div></div></div>
+      </div>
+      <div id="wave"><div class="n"></div><div class="sub"></div></div>
+      <div id="score"></div>
+      <button id="skin" type="button" tabindex="-1"></button>
+      <button id="lobaim" type="button" tabindex="-1"></button>
+      <div id="banner"><div class="big"></div><div class="small"></div></div>
+      <div id="feedback"></div>
+      <div id="floats"></div>
+      <div id="bottom">
+        <div id="range"></div>
+        <div id="meter"><div class="power"></div><div class="floor"></div><div class="perfect"></div></div>
+        <div id="clubrow"><div id="streak"></div><div id="clubs"></div></div>
+        <div id="hint"></div>
+      </div>
+      <div id="card" hidden><div class="box"><div class="tag">PALO NUEVO</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>
+      <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música</p></div>
+      <div id="end" hidden><h2></h2><p class="detail"></p><p>R para jugar de nuevo</p></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

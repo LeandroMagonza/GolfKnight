@@ -1,0 +1,6 @@
+node_modules/
+dist/
+logs/
+__pycache__/
+# archivos fuente de terceros (FBX de Mixamo, modelos sin usar): no se redistribuyen
+assets/
