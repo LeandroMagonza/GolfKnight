@@ -451,6 +451,15 @@ costados y devuelve pelotas).
 
 No se está usando ni se la tiene en cuenta al jugar, y es muy fácil perderla. Hay que rehacerla.
 
+**Idea (21/9): la pelota que mata, pega más.** Si el primer golpe de una pelota mata al enemigo, el
+daño de esa misma pelota aumenta para los que siguen en la línea. Premia justo lo divertido, pegarle
+a varios en fila, y dentro de un solo tiro, sin nada que recordar entre tiro y tiro.
+
+*Opinión:* puede reemplazar a la racha entera en lugar de sumarse. Es el mismo premio (matar en
+fila rinde más) pero se entiende solo, se ve en el momento y no se pierde por errar un tiro. Si
+cada baja vuelve a subir el daño, un tiro bien alineado barre la fila; habría que ponerle tope.
+Hoy la pelota hace lo contrario: pierde 12 % de velocidad con cada enemigo que atraviesa.
+
 ### Cómo se dispara
 
 En los juegos de golf el tiro tiene pasos: primero hacia dónde, después la carga, después el punto
@@ -512,4 +521,6 @@ siguiente, con saltito, teletransporte o animación. O movimiento libre con algo
 - **Cartel de palo nuevo.** Al despejar la oleada anterior aparece el cartel del palo que viene, y el
   juego queda frenado hasta que se lo cierra con un click (o Espacio). El descanso entre oleadas
   sigue corriendo mientras tanto: si se leyó con calma, la oleada arranca apenas se cierra.
+- **El escudo desaparece con hielo (21/9).** Mientras el goblin guerrero está frío o congelado el
+  escudo no se ve, y vuelve cuando se le pasa. Antes el escudo seguía ahí aunque ya no frenara nada.
 - **Publicado** en GitHub Pages: https://leandromagonza.github.io/GolfKnight/ (ver el README).

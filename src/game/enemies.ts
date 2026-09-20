@@ -116,6 +116,8 @@ export class Enemy {
   private readonly exposedFill: THREE.Sprite;
   /** Aura del chamán, en el piso. */
   private readonly aura: THREE.Mesh | null = null;
+  /** El escudo del guerrero. Se ve solo mientras sirve: con hielo encima desaparece. */
+  private shieldMesh: THREE.Object3D | null = null;
   private readonly arms: THREE.Object3D[] = [];
   private readonly spine: THREE.Object3D | null;
 
@@ -153,6 +155,7 @@ export class Enemy {
       // adelante y un poco a la izquierda, en unidades del modelo sin escalar
       shield.position.set(0.22, 1.05, 0.42);
       this.model.add(shield);
+      this.shieldMesh = shield;
     }
 
     const shadow = new THREE.Mesh(shadowGeo, shadowMat);
@@ -248,7 +251,7 @@ export class Enemy {
    * llegan de frente; congelado o aturdido no se cubre.
    */
   blocks(vx: number, vy: number, vz: number): boolean {
-    if (!this.stats.shield || !this.alive || this.chilled || this.stunTimer > 0) return false;
+    if (!this.shieldUp || this.stunTimer > 0) return false;
     const h = Math.hypot(vx, vz);
     if (h < 0.5 || Math.abs(vy) > h * 0.5) return false;
     const f = this.facing;
@@ -585,7 +588,14 @@ export class Enemy {
     return false;
   }
 
+  /** ¿Tiene el escudo en alto? Con hielo encima (frío o congelado) lo pierde hasta que se le pasa. */
+  get shieldUp(): boolean {
+    return this.stats.shield && this.alive && !this.chilled;
+  }
+
   private updateLook(dt: number): void {
+    // lo que se ve coincide con lo que pasa: sin escudo a la vista, el driver entra
+    if (this.shieldMesh) this.shieldMesh.visible = this.stats.shield && !this.chilled;
     if (this.flashTimer > 0) this.flashTimer -= dt;
     const flash = this.flashTimer > 0;
     // el kamikaze late en rojo, cada vez más rápido cuando ya encendió la mecha

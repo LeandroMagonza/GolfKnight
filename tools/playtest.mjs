@@ -158,7 +158,8 @@ if (!quick) {
   // --- medidor: llega al tope y después rebota entre 100 y 70 %, sin volver al principio ---
   await page.keyboard.press('Digit1');
   await page.mouse.down();
-  await page.waitForFunction(() => window.__gk.player.meter.power > 0.97, null, { timeout: 5000, polling: 'raf' }).catch(() => {});
+  // se empieza a medir recién cuando la carga llegó al tope
+  await page.waitForFunction(() => window.__gk.player.meter.reach >= 1, null, { timeout: 5000, polling: 'raf' }).catch(() => {});
   let minPower = 1;
   let minReach = 1;
   const ranges = new Set();
@@ -237,6 +238,10 @@ if (!quick) {
   const afterIron = await page.evaluate(() => ({ recarga: +window.__gk.player.cooldowns.iron.toFixed(2), palo: window.__gk.player.club.id }));
   log('hielo: borde', slowed, afterIron);
   check('en el borde el hielo enfría pero no congela', slowed.chilled && !slowed.frozen);
+  const shieldSeen = () => page.evaluate(() => { const e = window.__gk.horde.enemies.at(-1); return { visible: e.shieldMesh.visible, enAlto: e.shieldUp }; });
+  const coldShield = await shieldSeen();
+  log('escudo con hielo', coldShield);
+  check('con hielo encima el escudo desaparece', !coldShield.visible && !coldShield.enAlto);
   check('el hierro queda recargando', afterIron.recarga > 0);
   const cdShown = await page.evaluate(() => { const el = document.querySelector('#clubs .club[data-club=iron]'); return { numero: el.querySelector('.cdnum').textContent, etiqueta: el.querySelector('.cdlabel').textContent, recargando: el.classList.contains('cooling') }; });
   log('recarga en la barra', cdShown);
@@ -252,6 +257,12 @@ if (!quick) {
   const iced = await enemy(shield);
   log('hielo: centro', iced);
   check('en el centro el hielo congela, sin swing perfecto', iced.frozen);
+  check('congelado tampoco tiene escudo', !(await shieldSeen()).visible);
+  await page.evaluate(() => { window.__gk.horde.enemies.at(-1).chillTimer = 0.01; });
+  await page.waitForTimeout(400);
+  const thawed = await shieldSeen();
+  log('escudo al pasar el hielo', thawed);
+  check('cuando se le pasa el hielo el escudo vuelve', thawed.visible && thawed.enAlto);
   await page.screenshot({ path: 'logs/k4-hielo.png' });
   // el perfecto llega más lejos: un esqueleto a 4.3 m del centro queda afuera del normal y adentro del perfecto
   await clearEnemies();
