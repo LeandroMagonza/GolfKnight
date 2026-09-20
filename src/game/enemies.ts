@@ -12,11 +12,8 @@ import type { Player } from './player';
 import { rotateWorld } from './swingPose';
 import { FIELD_HALF_WIDTH, GATE_HALF_WIDTH, GATE_Z, SPAWN_Z } from './world';
 
-// El golfista ya no camina libre: se mueve de costado entre puestos. Un enemigo solo se le va encima si
-// le pasa cerca, y lo suelta apenas se corre un par de puestos: así moverse es una esquiva de verdad, y
-// el que lo perdió de vista sigue viaje a la puerta.
-const AGGRO_RANGE = 4;
-const AGGRO_DROP = 7;
+/** A esta distancia (más su radio) un enemigo que pasa le pega al golfista. */
+const TRAMPLE_REACH = 0.55;
 const BOMB_ENEMY_DAMAGE = 4;
 const KAMIKAZE_FUSE = 0.6;
 /** Segundos que tarda en caer un golpe dirigido al golfista, desde que levanta el brazo. */
@@ -31,6 +28,7 @@ export type HordeEvent =
   | { type: 'playerHit'; enemy: Enemy; amount: number }
   | { type: 'gateHit'; enemy: Enemy; amount: number }
   | { type: 'breach'; enemy: Enemy }
+  | { type: 'trample'; enemy: Enemy }
   | { type: 'explosion'; pos: THREE.Vector3; radius: number }
   | { type: 'immune'; enemy: Enemy }
   | { type: 'grab'; enemy: Enemy }
@@ -446,13 +444,27 @@ export class Enemy {
     }
 
     const toPlayer = Math.hypot(player.position.x - this.position.x, player.position.z - this.position.z);
-    // a quién va: al golfista si lo tiene cerca, si no a la puerta. El chamán no pelea, y el alma en
-    // pena va siempre por el golfista.
-    const aggro = behavior === 'golem' ? 4.5 : AGGRO_RANGE;
-    if (!player.alive || behavior === 'shaman') this.target = 'gate';
-    else if (behavior === 'grabber') this.target = 'player';
-    else if (this.target === 'gate' && toPlayer < aggro) this.target = 'player';
-    else if (this.target === 'player' && toPlayer > AGGRO_DROP) this.target = 'gate';
+    // Nadie persigue al golfista: todos van derecho a la puerta. La única excepción es el alma en pena,
+    // que existe justamente para ir por él.
+    this.target = behavior === 'grabber' && player.alive ? 'player' : 'gate';
+
+    // Pero si en el camino le pasan por encima, lo atropellan: le sacan vida y mueren ahí mismo, así que
+    // ese enemigo ya no llega a la puerta. Durante el respiro de invulnerabilidad pasan de largo.
+    if (player.alive && this.state === 'walk' && toPlayer < this.radius + TRAMPLE_REACH) {
+      if (behavior === 'kamikaze') {
+        this.hp = 0;
+        this.state = 'gone';
+        horde.explode(this, player);
+        return;
+      }
+      if (behavior === 'melee' && !player.invulnerable) {
+        player.hit(this.stats.damage, this.position);
+        horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
+        horde.emit({ type: 'trample', enemy: this });
+        this.state = 'gone';
+        return;
+      }
+    }
 
     // dónde se para: los que pelean llegan hasta la puerta; el chamán y el gólem se plantan lejos
     const holdZ = behavior === 'shaman' ? SHAMAN_HOLD_Z : behavior === 'golem' ? GOLEM_HOLD_Z : null;
@@ -536,7 +548,7 @@ export class Enemy {
   private updateGrab(dt: number, player: Player, horde: Horde): void {
     if (player.grabbedBy !== this || !player.alive) {
       // se le escapó por el portal (o cayó): queda desorientada el tiempo justo para un driver cargado
-      this.letGo(2.2);
+      this.letGo(3);
       horde.emit({ type: 'release', enemy: this });
       this.finishFrame(dt, 0);
       return;

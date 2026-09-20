@@ -263,7 +263,7 @@ export class Player {
     return Math.abs(this.position.x - this.spotXs[this.spotIndex]) < 0.05;
   }
 
-  /** Pide moverse `delta` puestos (se acumula: dos toques seguidos son dos puestos). */
+  /** Pide moverse `delta` puestos. Se acumula: dos toques seguidos son dos puestos. */
   step(delta: number): void {
     if (!this.alive) return;
     this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, this.spotIndex + delta));
@@ -349,8 +349,7 @@ export class Player {
     if (this.alive) this.hp = Math.min(this.maxHp, this.hp + amount);
   }
 
-  /** @param hold hacia qué lado se mantiene apretado el movimiento, en puestos: -1, 0 o +1 */
-  update(dt: number, hold: number): void {
+  update(dt: number): void {
     if (this.flashTimer > 0) {
       this.flashTimer -= dt;
       const on = this.flashTimer > 0 && Math.floor(this.flashTimer * 20) % 2 === 0;
@@ -388,7 +387,7 @@ export class Player {
       this.yaw = lerpAngle(this.yaw, this.stanceYaw(), 1 - Math.exp(-30 * dt));
       this.updateMelee(dt);
       this.animator.setLocomotion('Idle', 1);
-    } else if (this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER && (hold !== 0 || !this.atSpot)) {
+    } else if (this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER && !this.atSpot) {
       // ya pegó y quiere irse: corta el final del gesto y sale corriendo
       if (this.swingClip) this.animator.clearOneShot();
       this.mode = 'free';
@@ -398,8 +397,7 @@ export class Player {
       else this.updateSwing(dt);
       this.animator.setLocomotion('Idle', 1);
     } else {
-      // de puesto en puesto, corriendo muy rápido. Con la tecla apretada, al llegar sigue al próximo
-      if (this.atSpot && hold !== 0) this.step(hold);
+      // de puesto en puesto, corriendo muy rápido. Cada toque es un puesto: mantener apretado no repite
       const dx = this.spotXs[this.spotIndex] - this.position.x;
       if (Math.abs(dx) >= 0.05) {
         const stepX = Math.sign(dx) * Math.min(Math.abs(dx), RUN_SPEED * dt);

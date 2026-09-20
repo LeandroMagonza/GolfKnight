@@ -78,10 +78,18 @@ export function startBot(): BotStats {
       }, 120);
       return;
     }
-    // le están por pegar: suelta lo que esté cargando y se corre dos puestos, hacia el lado con más lugar
-    const threat = gk.horde.enemies.find((e: any) => e.alive && e.state === 'attack' && e.target === 'player' && dist(e) < e.radius + 2.2);
-    if (threat && pl.atSpot && performance.now() - dodgedAt > 600) {
+    // Nadie lo persigue, pero el que le pasa por encima lo atropella. Si uno viene derecho hacia su puesto:
+    // palazo si está listo (lo manda 15 m atrás); si no, suelta lo que esté cargando y se corre dos puestos.
+    const threat = gk.horde.enemies.find((e: any) => e.alive && !e.frozen && e.state === 'walk' && (e.stats.behavior === 'melee' || e.stats.behavior === 'kamikaze')
+      && e.position.z > p.z - 0.5 && e.position.z - p.z < 4.5 && Math.abs(e.position.x - p.x) < 1.8);
+    if (threat && pl.atSpot && performance.now() - dodgedAt > 500) {
       dodgedAt = performance.now();
+      if (pl.meleeCooldown <= 0 && pl.mode !== 'swinging' && threat.stats.behavior === 'melee' && dist(threat) < 3.2) {
+        aim(threat.position.x, threat.position.z);
+        stats.melee++;
+        setTimeout(() => key('ShiftLeft'), 40);
+        return;
+      }
       stats.dodges++;
       if (pl.mode === 'charging') key('KeyX');
       const i = gk.tees.nearest(p.x);
@@ -104,15 +112,6 @@ export function startBot(): BotStats {
 
     const alive: any[] = gk.horde.enemies.filter((e: any) => e.alive);
     if (!alive.length) return;
-
-    // palazo a lo que tenga encima, cuando está listo
-    if (pl.meleeCooldown <= 0 && alive.some((e) => dist(e) < 2.6)) {
-      const nearest = alive.slice().sort((a, b) => dist(a) - dist(b))[0];
-      aim(nearest.position.x, nearest.position.z);
-      stats.melee++;
-      setTimeout(() => key('ShiftLeft'), 60);
-      return;
-    }
 
     const ironReady = pl.unlocked.has('iron') && pl.cooldowns.iron <= 0;
     const inIron = (e: any) => dist(e) > 7 && dist(e) < 39;

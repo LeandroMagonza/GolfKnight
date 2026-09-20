@@ -105,7 +105,11 @@ export const EXPOSED_DAMAGE_TAKEN = 1.5;
 /** Palazo (botón aparte): golpe corto alrededor del golfista, con recarga. */
 export const MELEE_RANGE = 2.4;
 export const MELEE_DAMAGE = 2;
-export const MELEE_KNOCKBACK = 9;
+/**
+ * Impulso del palazo en m/s. El empujón se frena solo (decae a razón de 6 por segundo), así que el
+ * enemigo recorre impulso / 6: con 84 son 14 m, que con el paso de simulación terminan siendo unos 15. Los pesados, una octava parte.
+ */
+export const MELEE_KNOCKBACK = 84;
 export const MELEE_COOLDOWN = 2.5;
 export const MELEE_MAX_TARGETS = 4;
 /** Segundos que quedan trastabillando los golpeados (les corta el ataque en curso). */

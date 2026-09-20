@@ -25,21 +25,26 @@ La idea que ordena todo: **el driver es el único palo que hace daño**. Los otr
 el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
 
 - **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
-  con un banderín, con `A` y `D`. Un toque es un puesto, dos toques son dos, y mantener apretado sigue
-  de largo; corre muy rápido. **Solo se pega donde hay una pelota**: los guardias las van tirando desde
+  con un banderín, con `A` y `D`. Un toque es un puesto y dos toques son dos; mantener apretado no
+  repite, para que sea fácil de controlar. Corre muy rápido. **Solo se pega donde hay una pelota**: los guardias las van tirando desde
   atrás. Nunca hay más de tres esperando, llegan más rápido cuantas menos quedan, y nunca caen en el
   puesto donde estás parado, así que después de cada tiro hay que moverse. Sin pelota, el swing sale
   al aire.
 - Mouse apunta. Mantener click (o `F`) carga el swing; soltar pega. Click derecho (o `X`) cancela.
 - **La carga va por niveles, del 1 al 5**, y con el driver el nivel es el daño. Sin cargar es 1; la
-  barra sube hasta 5 y ahí rebota entre 5 y 3. Soltar en el último 8 % es un swing perfecto y pega el
+  barra sube lenta al principio y rápida al final, llega a 5 y ahí rebota rápido entre 5 y 3. Así
+  el daño por segundo crece con cada nivel: spamear toques es lo que menos rinde, la carga completa
+  rinde más, y el swing perfecto es lo que más rinde (hay un test que lo fija). Soltar en el último 8 % es un swing perfecto y pega el
   doble. El **alcance** va aparte: crece con la carga y, cuando llega al máximo, se queda ahí.
-- El nivel se ve y se escucha donde estás mirando: un anillo de cinco tramos junto al cursor, la línea
-  de tiro que cambia de color, y una nota por nivel (do, mi, sol, si y la octava en el 5).
+- El nivel se ve y se escucha donde estás mirando: la línea de tiro cambia de color y de grosor con
+  cada nivel (gris si en el puesto no hay pelota), y suena una nota por nivel (do, mi, sol, si y la
+  octava en el 5). La punta de la línea lleva el color y el ícono del palo en uso.
 - **La vida está en la misma escala**: los cuadraditos sobre cada enemigo son su vida. Un goblin tiene
   2, así que pide nivel 2; cargar de más es tiempo perdido.
-- Vos tenés 3 de vida y la puerta 10. Cada golpe enemigo saca 1 (el caballero y el kamikaze le sacan 2
-  a la puerta). Después de recibir un golpe hay un segundo de respiro, titilando. Entre oleadas se
+- Vos tenés 3 de vida y la puerta 10. **Nadie te persigue**: todos van derecho a la puerta. Pero el que
+  te pasa por encima te atropella: te saca 1 y muere en el choque, así que ese ya no llega a la puerta.
+  A la puerta cada enemigo le saca 1 (el caballero y el kamikaze, 2). Después de recibir un golpe hay un
+  segundo de respiro, titilando: el que pasa en ese momento sigue de largo. Entre oleadas se
   recupera 1 de vida y 2 de puerta.
 - Palos con `1`-`3`, rueda o `Q`/`E`. Si cambiás en medio de un tiro, el palo queda en cola (borde
   punteado) y entra solo cuando el tiro termina o lo cancelás.
@@ -54,10 +59,11 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
     agranda las dos zonas y suma duración. Al jefe nunca lo congela, pero frío camina y ataca más lento.
   - **Wedge · Vendaval**: globo rápido (5-28 m, llega en medio segundo), sin daño: empuja a todos hacia
     afuera desde donde cae. Con swing perfecto, además los deja *expuestos* 4 s: reciben 50 % más.
-- **Putter · Portal**, en `Espacio`: te teletransporta al puesto más cercano al cursor. Recarga de 8 s.
+- **Putter · Portal**, en `Espacio`: te teletransporta al puesto más cercano al cursor y te deja una
+  pelota ahí. Recarga de 8 s.
   Es la única salida cuando un alma en pena te tiene agarrado.
 - **Palazo** en `Shift` (o `V`): golpe corto de 2 de daño a lo que tengas encima, hasta cuatro
-  enemigos, con 2.5 s de recarga. Los empuja y les corta el ataque.
+  enemigos, con 2.5 s de recarga. Los manda unos 15 m hacia atrás (a los pesados, apenas).
 - `G` (o el botón) cambia cómo se apuntan los globos: **al cursor** (caen donde está el mouse y la
   carga define solo la fuerza del efecto) o **por carga** (la carga es la distancia, como el driver).
 - `Esc` pausa, `R` reinicia, `M` silencia la música, `C` cambia el skin del golfista.
@@ -89,7 +95,7 @@ deshacen solas, y encontrarlas es el juego.
 | Goblin kamikaze (2) | Corre a la puerta (o a vos) y explota; su explosión también daña a la horda |
 | Goblin guerrero (4) | Su escudo devuelve el driver que le llega de frente. Con hielo encima no se cubre |
 | Caballero esqueleto (5) | Lento, mucha vida, casi no se deja empujar |
-| Alma en pena (3) | Corre más que vos y va siempre por vos. Si te agarra no podés caminar ni pegar, y te saca vida hasta que saltás con el putter (o se cansa, a los 5 s) |
+| Alma en pena (2) | La única que te persigue. Si te agarra no podés caminar ni pegar, y te saca vida hasta que saltás con el putter (o se cansa, a los 5 s) |
 | Chamán goblin (3) | Camina con el grupo con las manos en alto. Los enemigos a menos de 8 m son inmunes a todo. A él nunca lo protege nadie. Con hielo encima se le apaga el aura |
 | Gólem de roca (80) | Jefe. Se planta a 22 m y le tira piedras a la puerta cada 4 s; de cerca pega |
 

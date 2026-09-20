@@ -604,3 +604,44 @@ Medido con el bot, que ahora corre entre puestos, esquiva y carga según la vida
   reemplazarla por "la pelota que mata pega más", que con números chicos sería +1 por baja.
 - Tirar la pelota no tiene animación de los guardias: la pelota sale volando desde donde están parados.
 - El wedge sigue sin mucho uso. La idea de los obstáculos sigue anotada.
+
+### Ajustes del 22/9 (después de jugar la prueba)
+
+Pedidos por Leandro, todos hechos y publicados:
+
+- **Un toque, un puesto.** Mantener apretado ya no repite: era difícil de controlar.
+- **Nadie persigue al golfista.** Todos van derecho a la puerta. El que le pasa por encima lo
+  atropella: le saca 1 y muere en el choque, así que un mismo enemigo nunca le pega a él y a la puerta.
+  El kamikaze explota al tocarlo. Durante el respiro de invulnerabilidad pasan de largo. La única que
+  sigue yendo por él es el alma en pena, porque existe para eso; lo dejé así y lo aviso.
+  Como todos convergen hacia la puerta, en la práctica solo atropellan en los tres puestos del medio.
+- **El indicador de carga es la línea**, y nada más: color y grosor por nivel. Se fue el anillo del
+  cursor, que además tenía un bug (aparecía corrido y se deslizaba a su lugar, porque la animación de
+  escala multiplicaba también su posición). **La punta de la línea lleva el color y el ícono del
+  palo.** Con el driver la punta va a la altura del cursor, porque el final real de la línea queda
+  fuera de pantalla.
+- **El putter deja una pelota** en el puesto al que llega.
+- **El palazo manda a los enemigos unos 15 m hacia atrás.**
+- **Curva de carga:** lenta al principio y rápida al final (la potencia es el cuadrado del tiempo), y
+  el rebote entre 5 y 3 corre 2.6 veces más rápido que antes. La ventana del swing perfecto en el
+  rebote dura unas 6 centésimas.
+- **Daño por segundo:** tiene que rendir más el crítico, después la carga completa, y spamear toques
+  tiene que ser lo peor, para que contra enemigos grandes convenga cargar. Con la curva nueva da así,
+  contando medio segundo fijo por tiro (bajar el palo, recuperarse y correr al otro puesto):
+
+  | Tiro | Daño | Segundos de carga | Daño por segundo |
+  | --- | --- | --- | --- |
+  | Nivel 1 (toque) | 1 | 0 | 2.0 |
+  | Nivel 2 | 2 | 0.45 | 2.1 |
+  | Nivel 3 | 3 | 0.63 | 2.7 |
+  | Nivel 4 | 4 | 0.77 | 3.1 |
+  | Nivel 5 | 5 | 0.89 | 3.6 |
+  | Perfecto | 10 | 0.96 | 6.8 |
+
+  Hay un test que lo fija (`swing.test.ts`): si alguien toca la curva y el orden se rompe, falla.
+- **"Críticos de la cabeza":** no había nada que desactivar. El juego nunca detectó golpes a la
+  cabeza; el "headshot ×2" del pedido anterior lo había puesto en el swing perfecto, que es el único
+  crítico que existe y sigue pegando el doble. Si la idea era sacarle el ×2 al perfecto, es una
+  constante (`PERFECT_BONUS`).
+- Por mi cuenta: el alma en pena bajó a 2 de vida y queda 3 s aturdida cuando se le escapan. El bot
+  la sufría muchísimo (21 agarres en una oleada) y con 3 de vida cada agarre cuesta caro.

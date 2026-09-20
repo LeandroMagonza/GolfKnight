@@ -49,7 +49,7 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   warrior: { ...base, kind: 'warrior', name: 'Goblin guerrero', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 4, speed: 2.4, damage: 1, gateDamage: 1, shield: true, score: 30 },
   knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 5, speed: 1.5, damage: 1, gateDamage: 2, heavy: true, score: 50 },
   shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', height: 1.45, radius: 0.5, hp: 3, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
-  wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 3, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
+  wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
   golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, score: 500 },
 };
 

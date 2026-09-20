@@ -120,36 +120,6 @@ export class Hud {
     el.classList.add(streak > before ? 'gain' : 'lost');
   }
 
-  private cursorEl = $('chargecursor');
-  private shownCursor = '';
-
-  /**
-   * Indicador de carga pegado al cursor, que es donde está mirando quien juega: un anillo de cinco
-   * tramos que se van prendiendo con el color del nivel, y dorado en el punto del swing perfecto.
-   */
-  setChargeCursor(on: boolean, x: number, y: number, level: number, perfect: boolean): void {
-    const el = this.cursorEl;
-    if (!on) {
-      if (this.shownCursor !== '') {
-        this.shownCursor = '';
-        el.hidden = true;
-      }
-      return;
-    }
-    el.style.transform = `translate(${x}px, ${y}px)`;
-    const key = `${level}|${perfect}`;
-    if (key === this.shownCursor) return;
-    this.shownCursor = key;
-    el.hidden = false;
-    el.dataset.level = String(level);
-    el.classList.toggle('perfect', perfect);
-    (el.querySelector('.num') as HTMLElement).textContent = perfect ? `${level * 2}` : String(level);
-    // un saltito con cada nivel
-    el.classList.remove('tick');
-    void el.offsetWidth;
-    el.classList.add('tick');
-  }
-
   /** Cartel de palo nuevo. Se queda hasta que se lo cierre con un click. */
   showCard(c: { name: string; title: string; key: string; hint: string; cooldown: number; color: number; next: string }): void {
     const el = this.cardEl;

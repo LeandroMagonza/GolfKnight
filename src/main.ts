@@ -153,6 +153,39 @@ function hasBallHere(): boolean {
   return Math.abs(tees.spots[i].x - player.position.x) < 0.1 && tees.hasBall(i);
 }
 
+/** Ícono de cada palo, para la punta de la línea de tiro. */
+const TIP_ICONS: Record<ClubId, string> = { driver: '➤', iron: '❄', wedge: '✹', putter: '✦' };
+const tipTextures = new Map<ClubId, THREE.CanvasTexture>();
+function tipTexture(club: Club): THREE.CanvasTexture {
+  let tex = tipTextures.get(club.id);
+  if (tex) return tex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d')!;
+  ctx.beginPath();
+  ctx.arc(64, 64, 54, 0, Math.PI * 2);
+  ctx.fillStyle = '#' + club.color.toString(16).padStart(6, '0');
+  ctx.fill();
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = 'rgba(8, 12, 18, 0.85)';
+  ctx.stroke();
+  ctx.fillStyle = '#10161d';
+  ctx.font = 'bold 70px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(TIP_ICONS[club.id], 64, 68);
+  tex = new THREE.CanvasTexture(c);
+  tipTextures.set(club.id, tex);
+  return tex;
+}
+const tipMat = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
+const tip = new THREE.Sprite(tipMat);
+tip.scale.set(1.5, 1.5, 1);
+tip.renderOrder = 20;
+tip.visible = false;
+scene.add(tip);
+let tipClub: ClubId | null = null;
+
 function updatePreview(): void {
   const charging = player.mode === 'charging';
   const club = player.club;
@@ -165,9 +198,7 @@ function updatePreview(): void {
   teeBall.visible = show && charging && ballHere;
   landingCore.visible = landing.visible && club.enchant === 'ice';
   hud.setMeter(charging, player.meter.power, cursorAim ? `${range.toFixed(0)} m · fuerza ${Math.round(player.meter.power * 100)} %` : `${range.toFixed(0)} m`);
-  const px = ((input.pointer.x + 1) / 2) * innerWidth;
-  const py = ((1 - input.pointer.y) / 2) * innerHeight;
-  hud.setChargeCursor(show && charging, px, py, chargeLevel(player.meter.power), player.meter.power >= PERFECT_FROM);
+  tip.visible = show && ballHere;
   if (!show) return;
   player.teePosition(tee);
   const loft = THREE.MathUtils.degToRad(club.loftDeg);
@@ -186,6 +217,16 @@ function updatePreview(): void {
   lastLevel = charging ? level : 0;
   const end = path[path.length - 1];
   landing.position.set(end.x, 0.05, end.z);
+  // la punta de la línea dice con qué palo se está por pegar: su color y su ícono
+  // El driver llega mucho más lejos de lo que se ve en pantalla: su punta va a la altura del cursor,
+  // sobre la misma línea. La de un globo va donde cae.
+  const tipAt = isLob(club) ? range : Math.min(range, Math.max(4, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z)));
+  tip.position.set(tee.x + player.aimDir.x * tipAt, 1.15, tee.z + player.aimDir.z * tipAt);
+  if (tipClub !== club.id) {
+    tipClub = club.id;
+    tipMat.map = tipTexture(club);
+    tipMat.needsUpdate = true;
+  }
   const perfectNow = charging && player.meter.power >= PERFECT_FROM;
   const wide = perfectNow ? ICE_PERFECT_AREA : 1;
   landing.scale.setScalar(club.enchant === 'ice' ? ICE_RADIUS * wide : club.enchant === 'push' ? PUSH_RADIUS : 0.7);
@@ -242,6 +283,11 @@ horde.onEvent = (e) => {
       hud.gateAlert();
       if (gateHp <= 0) endGame('defeat', 'La puerta cayó', 'Las hordas entraron a Valdehoyo');
       break;
+    case 'trample': {
+      // lo atropelló y murió en el choque: ese enemigo ya no llega a la puerta
+      effects.explosion(new THREE.Vector3(e.enemy.position.x, 0.8, e.enemy.position.z), 1.4, 0xd96b5b);
+      break;
+    }
     case 'breach': {
       // entró por la puerta: una nube de polvo donde estaba, y el cartel del daño
       effects.explosion(new THREE.Vector3(e.enemy.position.x, 0.8, e.enemy.position.z), 1.6, 0xc9b38a);
@@ -351,6 +397,8 @@ function usePutter(): void {
   effects.blink(from, CLUBS.putter.color);
   effects.blink(player.position, CLUBS.putter.color);
   audio.zap();
+  // llega con una pelota lista en ese puesto
+  tees.place(to);
 }
 
 /**
@@ -601,7 +649,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     audio.whoosh(0.9);
     const dir = new THREE.Vector3();
     for (const e of targets) {
-      dir.set(e.position.x - p.position.x, 0, e.position.z - p.position.z).normalize();
+      // los manda hacia atrás, por donde vinieron, apenas abiertos hacia el costado de donde estaban
+      dir.set((e.position.x - p.position.x) * 0.25, 0, 1).normalize();
       horde.damage(e, MELEE_DAMAGE, dir, MELEE_KNOCKBACK);
       // es el botón de sacárselos de encima: además de dañar, les corta el ataque
       e.stagger(MELEE_STAGGER);
@@ -637,7 +686,7 @@ async function cycleSkin(delta = 1): Promise<void> {
     skinIndex = next;
     localStorage.setItem(SKIN_KEY, SKINS[next].id);
     hud.setSkin(SKINS[next].name);
-    player.update(0, 0);
+    player.update(0);
   } catch (e) {
     console.error('no se pudo cargar el skin', e);
   } finally {
@@ -672,7 +721,7 @@ async function loadModels(): Promise<void> {
   hud.onLobAimClick = () => {
     if (started && !paused) toggleLobAim();
   };
-  player.update(0, 0);
+  player.update(0);
 }
 
 // ---------- inicio ----------
@@ -755,13 +804,11 @@ function frame(): void {
   if (frameTimes.length > 240) frameTimes = frameTimes.filter((t) => nowMs - t < 1000);
   if (player && cardOpen && !paused) director.wait(dt);
   if (player && !paused && !cardOpen) {
-    // la cámara no rota: la derecha de la pantalla es -X, o sea el puesto anterior
-    const hold = -input.move.right;
 
     if (started) gameClock += dt;
     updateAim();
     const active = started && !ended;
-    player.update(dt, active ? hold : 0);
+    player.update(dt);
     if (active) updateWaves(dt);
     if (started) {
       horde.update(dt, player);
@@ -826,6 +873,8 @@ addEventListener('resize', () => {
     player.releaseSwing();
   },
   get streak() { return streak; },
+  /** Color actual de la línea de tiro y palo que muestra la punta, para las pruebas. */
+  get aimLine() { return { color: previewMat.color.getHex(), tip: tipClub, tipVisible: tip.visible }; },
   get cardOpen() { return cardOpen; },
   offerUnlock,
   dismissCard,
