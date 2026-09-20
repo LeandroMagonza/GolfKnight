@@ -3,8 +3,7 @@
 // y ahí hacen lo suyo (hielo, empujón).
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, stepBall, type BallState } from '../core/ballistics';
-import { chargeLevel, EXPOSED_SECONDS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, iceSeconds, PUSH_RADIUS, pushSpeed, type Club } from '../core/clubs';
-import { PERFECT_BONUS } from '../core/swing';
+import { chargeLevel, CRIT_DAMAGE, EXPOSED_SECONDS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, iceSeconds, PUSH_RADIUS, pushSpeed, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
@@ -78,8 +77,8 @@ export class Balls {
 
   private damageOf(ball: Ball): number {
     const s = ball.state;
-    // el daño del driver es el nivel de carga (1 a 5); el swing perfecto lo duplica
-    const base = ball.club.damage * chargeLevel(ball.power) * ball.damageMul * (ball.perfect ? PERFECT_BONUS : 1);
+    // el daño del driver es el nivel de carga (1 a 3); el swing perfecto es el crítico
+    const base = ball.club.damage * (ball.perfect ? CRIT_DAMAGE : chargeLevel(ball.power)) * ball.damageMul;
     // De aire pega con todo. Después de picar pierde fuerza con la velocidad.
     if (s.bounces === 0 && !s.rolling) return base;
     const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);

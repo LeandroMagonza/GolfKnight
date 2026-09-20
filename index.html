@@ -77,7 +77,7 @@
       #bottom { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
       #meter { width: 420px; height: 20px; background: rgba(0,0,0,0.6); border-radius: 10px; position: relative; overflow: hidden; border: 2px solid rgba(255,255,255,0.35); opacity: 0.45; transition: opacity 0.15s; }
       #meter.on { opacity: 1; }
-      #meter .perfect { position: absolute; top: 0; bottom: 0; right: 0; width: 8%; background: rgba(255,214,107,0.55); }
+      #meter .perfect { position: absolute; top: 0; bottom: 0; right: 0; width: 8%; background: rgba(255,45,60,0.75); }
       #meter .power { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: linear-gradient(90deg, #5be07a, #ffd66b 70%, #ff6b4a); }
       #range { font-size: 14px; color: #fff; text-shadow: 0 1px 3px #000; min-height: 18px; }
       #clubs { display: flex; gap: 8px; }
@@ -116,9 +116,9 @@
       /* recarga: una cortina oscura que baja a medida que el palo vuelve a estar listo */
       .club .cd { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(0,0,0,0.72); border-top: 2px solid var(--c); pointer-events: none; }
       .club .key, .club .name, .club .title { position: relative; }
-      /* la barra va por niveles: una raya cada quinto, y más marcada la del piso del rebote (nivel 3) */
-      #meter .floor { position: absolute; top: 0; bottom: 0; left: 40%; width: 2px; background: rgba(255,255,255,0.7); }
-      #meter::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 2px), rgba(0,0,0,0.55) calc(20% - 2px), rgba(0,0,0,0.55) 20%); pointer-events: none; }
+      /* la barra va por niveles: una raya cada tercio; la franja del final es el crítico */
+      #meter .floor { display: none; }
+      #meter::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(100% / 3 - 2px), rgba(0,0,0,0.6) calc(100% / 3 - 2px), rgba(0,0,0,0.6) calc(100% / 3)); pointer-events: none; }
       .club .key { float: right; font-size: 12px; color: #9aa4b2; }
       .club .name { font-size: 15px; font-weight: 700; }
       .club .title { font-size: 12px; color: var(--c); letter-spacing: 1px; text-transform: uppercase; }

@@ -148,9 +148,9 @@ export function startBot(): BotStats {
     const minRange = club === 'driver' ? 18 : club === 'iron' ? 6 : 5;
     const maxRange = club === 'driver' ? 60 : club === 'iron' ? 40 : 28;
     const chargeTime = club === 'driver' ? 1 : club === 'iron' ? 0.5 : 0.4;
-    const need = Math.min(5, Math.max(1, Math.ceil(target.hp / (target.chilled ? 1.25 : 1))));
+    const need = Math.min(3, Math.max(1, Math.ceil(target.hp / (target.chilled ? 1.25 : 1))));
     const reach = Math.min(0.99, Math.max(0, (dist(target) + 4 - minRange) / (maxRange - minRange)));
-    const want = club === 'iron' ? 0.3 : club === 'wedge' ? 0.5 : Math.max(reach, (need - 1) / 5 + 0.02);
+    const want = club === 'iron' ? 0.3 : club === 'wedge' ? 0.5 : Math.max(reach, (need - 1) / 3 + 0.02);
 
     // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
     // (en diagonal, no derecho). Se apunta a donde va a estar.

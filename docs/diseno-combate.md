@@ -645,3 +645,32 @@ Pedidos por Leandro, todos hechos y publicados:
   constante (`PERFECT_BONUS`).
 - Por mi cuenta: el alma en pena bajó a 2 de vida y queda 3 s aturdida cuando se le escapan. El bot
   la sufría muchísimo (21 agarres en una oleada) y con 3 de vida cada agarre cuesta caro.
+
+### Ajustes del 23/9
+
+"Sigue estando fácil hacer daño." Pedidos por Leandro, hechos y publicados:
+
+- **Tres niveles de daño y el crítico.** La carga da 1, 2 o 3 (un tercio de barra cada nivel) y el
+  crítico, soltando justo al tope, pega **8**. Antes eran cinco niveles y el perfecto duplicaba (10).
+  Con la vida como estaba (goblin 2, esqueleto y guerrero 4, caballero 5), sin crítico un esqueleto
+  ya no cae de un tiro: son dos, o un crítico.
+- **La barra rebota por todo el rango**, de 100 % a 0 y vuelta, en lugar de quedarse entre 5 y 3.
+  Pasarse del tope ahora cuesta: hay que esperar toda la vuelta o conformarse con menos.
+- **Después del wedge también vuelve solo el driver**, como ya pasaba con el hierro.
+- **El driver no lleva ícono en la punta.** El hierro y el wedge sí.
+- La línea de tiro: blanca, amarilla y naranja para los niveles, roja en el crítico. Las notas: do,
+  mi, sol, y la octava en el crítico.
+
+Daño por segundo con estos números, contando 0.7 s fijos por tiro:
+
+| Tiro | Daño | Segundos de carga | Daño por segundo |
+| --- | --- | --- | --- |
+| Nivel 1 (toque) | 1 | 0 | 1.4 |
+| Nivel 2 | 2 | 0.58 | 1.6 |
+| Nivel 3 | 3 | 0.82 | 2.0 |
+| Crítico | 8 | 0.96 | 4.8 |
+
+El orden que pidió Leandro se mantiene (crítico, carga completa, y el toque último). Ojo con un
+detalle: si el fijo por tiro fuera de medio segundo o menos, el nivel 2 rendiría apenas menos que el
+toque (1.9 contra 2.0). El test lo contempla: exige el orden completo con un fijo realista, y con uno
+optimista solo exige crítico, carga completa, toque.

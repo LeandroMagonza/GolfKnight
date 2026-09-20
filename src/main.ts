@@ -4,7 +4,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { previewPath } from './core/ballistics';
-import { chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_DAMAGE, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, STREAK_MAX, STREAK_PERFECT_KILL, streakBonus, type Club, type ClubId } from './core/clubs';
+import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_DAMAGE, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, STREAK_MAX, STREAK_PERFECT_KILL, streakBonus, type Club, type ClubId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -36,8 +36,9 @@ const tees = new Tees(scene);
 // ---------- estado ----------
 const GATE_MAX = 10;
 /** Color de la línea de tiro y del anillo del cursor según el nivel de carga, 1 a 5. */
-const LEVEL_COLORS = [0xffffff, 0x8be08b, 0xffe066, 0xffa53c, 0xff4a3c];
-const PERFECT_COLOR = 0xfff1b8;
+const LEVEL_COLORS = [0xffffff, 0xffe066, 0xff9a3c];
+/** El crítico (swing perfecto): rojo, bien distinto de los niveles. */
+const PERFECT_COLOR = 0xff2d3c;
 const hud = new Hud();
 const audio = new GameAudio();
 const director = new WaveDirector();
@@ -198,7 +199,8 @@ function updatePreview(): void {
   teeBall.visible = show && charging && ballHere;
   landingCore.visible = landing.visible && club.enchant === 'ice';
   hud.setMeter(charging, player.meter.power, cursorAim ? `${range.toFixed(0)} m · fuerza ${Math.round(player.meter.power * 100)} %` : `${range.toFixed(0)} m`);
-  tip.visible = show && ballHere;
+  // el driver no lleva ícono: su línea ya dice todo. Los otros palos sí.
+  tip.visible = show && ballHere && club.id !== 'driver';
   if (!show) return;
   player.teePosition(tee);
   const loft = THREE.MathUtils.degToRad(club.loftDeg);
@@ -211,10 +213,12 @@ function updatePreview(): void {
   const level = chargeLevel(player.meter.power);
   const perfectLine = charging && player.meter.power >= PERFECT_FROM;
   previewMat.color.setHex(!ballHere ? 0x6b7480 : perfectLine ? PERFECT_COLOR : charging ? LEVEL_COLORS[level - 1] : club.color);
-  previewMat.size = charging ? 4 + level : 5;
+  previewMat.size = charging ? (perfectLine ? 10 : 4 + level * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
-  if (charging && level !== lastLevel) audio.chargeTick(level);
-  lastLevel = charging ? level : 0;
+  // una nota por escalón; el crítico es el cuarto
+  const step = perfectLine ? CHARGE_LEVELS + 1 : level;
+  if (charging && step !== lastLevel) audio.chargeTick(step);
+  lastLevel = charging ? step : 0;
   const end = path[path.length - 1];
   landing.position.set(end.x, 0.05, end.z);
   // la punta de la línea dice con qué palo se está por pegar: su color y su ícono

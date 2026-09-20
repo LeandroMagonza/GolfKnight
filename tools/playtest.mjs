@@ -50,12 +50,12 @@ const drive = async (meters, maxMs = 6000) => {
   await playerFree();
   await ballsDone(maxMs);
 };
-/** Tiro de driver cargado justo hasta un nivel (1 a 5), sin llegar al swing perfecto. */
+/** Tiro de driver cargado justo hasta un nivel (1 a 3), sin llegar al crítico. */
 const driveLevel = async (level, maxMs = 6000) => {
   await page.keyboard.press('Digit1');
   await playerFree();
   await give();
-  await page.evaluate((p) => window.__gk.shootPower(p), (level - 1) / 5 + 0.02);
+  await page.evaluate((p) => window.__gk.shootPower(p), (level - 1) / 3 + 0.02);
   await playerFree();
   await ballsDone(maxMs);
 };
@@ -231,7 +231,7 @@ if (!quick) {
   check('el palo en cola entra al cancelar', afterCancel.club === 'iron');
   await ballsDone(15000);
 
-  // --- medidor: el alcance llega al tope y se queda; la carga rebota entre los niveles 5 y 3 ---
+  // --- medidor: el alcance llega al tope y se queda; la carga rebota por todo el rango ---
   await page.keyboard.press('Digit1');
   await give();
   await page.mouse.down();
@@ -253,15 +253,15 @@ if (!quick) {
   await page.mouse.up();
   await page.waitForTimeout(200);
   log('medidor', { minimoTrasElTope: +minPower.toFixed(2), alcanceMinimo: minReach, alcances: [...ranges], coloresDeLaLinea: [...levels].sort() });
-  check('la carga no baja del nivel 3 después del tope', minPower >= 0.39);
-  check('el alcance llega al máximo y se queda ahí mientras la barra rebota', minReach === 1 && ranges.size === 1 && [...ranges][0] === '60 m' && minPower < 0.95);
-  // nivel 3 amarillo, 4 naranja, 5 rojo, y crema en el punto del swing perfecto
-  check('la línea de tiro cambia de color con el nivel, entre 3 y 5', [...levels].every((l) => ['ffe066', 'ffa53c', 'ff4a3c', 'fff1b8'].includes(l)) && levels.has('ff4a3c') && levels.has('ffe066'));
+  check('después del tope la carga rebota por todo el rango', minPower < 0.2);
+  check('el alcance llega al máximo y se queda ahí mientras la barra rebota', minReach === 1 && ranges.size === 1 && [...ranges][0] === '60 m');
+  // nivel 1 blanco, 2 amarillo, 3 naranja, y rojo en el crítico
+  check('la línea de tiro cambia de color con cada nivel', [...levels].every((l) => ['ffffff', 'ffe066', 'ff9a3c', 'ff2d3c'].includes(l)) && ['ffffff', 'ffe066', 'ff9a3c'].every((c) => levels.has(c)));
   check('ya no hay anillo junto al cursor', await page.evaluate(() => !document.getElementById('chargecursor')));
   const tips = [];
   for (const d of [1, 2, 3]) { await page.keyboard.press(`Digit${d}`); await give(); await page.waitForTimeout(150); tips.push(await page.evaluate(() => window.__gk.aimLine)); }
   log('punta de la línea', tips.map((t) => t.tip));
-  check('la punta de la línea muestra el palo en uso', tips.map((t) => t.tip).join() === 'driver,iron,wedge' && tips.every((t) => t.tipVisible));
+  check('la punta lleva el ícono del palo, salvo con el driver', tips.map((t) => t.tip).join() === 'driver,iron,wedge' && tips.map((t) => t.tipVisible).join() === 'false,true,true');
   await page.keyboard.press('Digit1');
   // la carga arranca lenta: a un tercio del tiempo todavía va por el nivel 1
   await give();
@@ -278,7 +278,7 @@ if (!quick) {
   const dummy = await still('golem', 0, 24);
   await aimAt(0, 24);
   const hits = [];
-  for (const level of [1, 2, 3, 4, 5]) {
+  for (const level of [1, 2, 3]) {
     const hp = (await enemy(dummy)).hp;
     await driveLevel(level);
     hits.push(hp - (await enemy(dummy)).hp);
@@ -287,8 +287,8 @@ if (!quick) {
   await drive(60);
   const perfectHit = hpBeforePerfect - (await enemy(dummy)).hp;
   log('daño por nivel', hits, { perfecto: perfectHit });
-  check('el daño del driver es el nivel de carga, de 1 a 5', hits.join() === '1,2,3,4,5');
-  check('el swing perfecto pega el doble', perfectHit === 10);
+  check('el daño del driver es el nivel de carga: 1, 2 o 3', hits.join() === '1,2,3');
+  check('el crítico pega 8', perfectHit === 8);
 
   // --- racha del driver: sube al matar, se mantiene al pegar sin matar, se corta si no daña a nadie ---
   // la pelota sale del tee, a un costado del golfista: la fila se arma sobre la línea tee -> cursor
@@ -365,21 +365,21 @@ if (!quick) {
   const thawed = await shieldSeen();
   log('escudo al pasar el hielo', thawed);
   check('cuando se le pasa el hielo el escudo vuelve', thawed.visible && thawed.enAlto);
-  // frío recibe 25 % más: un nivel 4 (4 de daño) no mata a un caballero de 5, salvo que esté frío
+  // frío recibe 25 % más: un nivel 3 le saca 3 a un caballero, y 4 si está frío
   await clearEnemies();
   const warm = await still('knight', 0, 24);
   await aimAt(0, 24);
-  await driveLevel(4, 2500);
+  await driveLevel(3, 2500);
   const warmHp = (await enemy(warm)).hp;
   await clearEnemies();
   const cold = await still('knight', 0, 24);
   await aimAt(2.6, 24);
   await lob(2, 0.5);
   await aimAt(0, 24);
-  await driveLevel(4, 2500);
+  await driveLevel(3, 2500);
   const coldAfter = await enemy(cold);
-  log('frío: nivel 4 al caballero', { sinFrio: warmHp, conFrio: coldAfter ? coldAfter.hp : 'muerto' });
-  check('un enemigo frío recibe 25 % más de daño', warmHp === 1 && (!coldAfter || !coldAfter.alive));
+  log('frío: nivel 3 al caballero', { sinFrio: warmHp, conFrio: coldAfter.hp });
+  check('un enemigo frío recibe 25 % más de daño', warmHp === 2 && coldAfter.hp === 1);
   // muerto: el escudo tampoco se ve mientras cae
   await clearEnemies();
   await still('warrior', 0, 24);
@@ -423,6 +423,7 @@ if (!quick) {
   for (const id of ring) pushed.push(await enemy(id));
   log('wedge', { vuelo: flight }, pushed.map((e) => [e.hp, e.x, e.z]));
   check('el wedge llega en menos de un segundo', flight < 1);
+  check('después del wedge también vuelve solo el driver', (await state()).club === 'driver');
   check('el wedge no daña', pushed.every((e) => e.hp === 4));
   check('el wedge aleja a todos del centro', pushed.every((e) => Math.hypot(e.x, e.z - 24) > 2.5));
   check('sin perfecto no quedan expuestos', !(await page.evaluate(() => window.__gk.horde.enemies.some((e) => e.exposedTimer > 0))));

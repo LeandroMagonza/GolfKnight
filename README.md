@@ -31,14 +31,15 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
   puesto donde estás parado, así que después de cada tiro hay que moverse. Sin pelota, el swing sale
   al aire.
 - Mouse apunta. Mantener click (o `F`) carga el swing; soltar pega. Click derecho (o `X`) cancela.
-- **La carga va por niveles, del 1 al 5**, y con el driver el nivel es el daño. Sin cargar es 1; la
-  barra sube lenta al principio y rápida al final, llega a 5 y ahí rebota rápido entre 5 y 3. Así
-  el daño por segundo crece con cada nivel: spamear toques es lo que menos rinde, la carga completa
-  rinde más, y el swing perfecto es lo que más rinde (hay un test que lo fija). Soltar en el último 8 % es un swing perfecto y pega el
-  doble. El **alcance** va aparte: crece con la carga y, cuando llega al máximo, se queda ahí.
+- **La carga va por niveles: 1, 2 y 3**, y con el driver el nivel es el daño. El cuarto escalón es el
+  **crítico**: soltar justo al tope (el último 8 % de la barra) pega 8. La barra sube lenta al principio
+  y rápida al final, y después del tope rebota rápido por todo el rango, de 0 a 100 %. El crítico es lo
+  que más daño por segundo rinde, después la carga completa, y spamear toques lo que menos (hay un test
+  que lo fija). El **alcance** va aparte: crece con la carga y, cuando llega al máximo, se queda ahí.
 - El nivel se ve y se escucha donde estás mirando: la línea de tiro cambia de color y de grosor con
-  cada nivel (gris si en el puesto no hay pelota), y suena una nota por nivel (do, mi, sol, si y la
-  octava en el 5). La punta de la línea lleva el color y el ícono del palo en uso.
+  cada nivel (blanca, amarilla, naranja, y roja en el crítico; gris si en el puesto no hay pelota), y
+  suena una nota por escalón (do, mi, sol, y la octava en el crítico). Con el hierro y el wedge, la
+  punta de la línea lleva el color y el ícono del palo; con el driver no.
 - **La vida está en la misma escala**: los cuadraditos sobre cada enemigo son su vida. Un goblin tiene
   2, así que pide nivel 2; cargar de más es tiempo perdido.
 - Vos tenés 3 de vida y la puerta 10. **Nadie te persigue**: todos van derecho a la puerta. Pero el que
@@ -46,14 +47,13 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
   A la puerta cada enemigo le saca 1 (el caballero y el kamikaze, 2). Después de recibir un golpe hay un
   segundo de respiro, titilando: el que pasa en ese momento sigue de largo. Entre oleadas se
   recupera 1 de vida y 2 de puerta.
-- Palos con `1`-`3`, rueda o `Q`/`E`. Si cambiás en medio de un tiro, el palo queda en cola (borde
+- Palos con `1`-`3`, rueda o `Q`/`E`. Después de usar el hierro o el wedge vuelve solo el driver. Si cambiás en medio de un tiro, el palo queda en cola (borde
   punteado) y entra solo cuando el tiro termina o lo cancelás.
   - **Driver · Rompevientos**: recto y casi rasante (18-60 m), atraviesa a toda la fila. **Racha**: cada
     baja del driver le suma +10 % de daño, hasta +50 % (tres escalones de una si el swing fue perfecto).
     Pegar sin matar la mantiene; un tiro que no daña a nadie la corta. Con daño en números enteros casi
     no se nota: está pendiente rehacerla.
-  - **Hierro 7 · Escarcha**: globo de hielo (6-40 m), sin daño, recarga de 2 s; después de usarlo
-    vuelve solo el driver. Congela en un centro chico y enfría alrededor. *Frío*: camina al 40 %, no
+  - **Hierro 7 · Escarcha**: globo de hielo (6-40 m), sin daño, recarga de 2 s. Congela en un centro chico y enfría alrededor. *Frío*: camina al 40 %, no
     tiene escudo (desaparece mientras dura), si es chamán se le apaga el aura, y recibe 25 % más de
     daño. *Congelado*: además no camina ni ataca. Dura de 3 a 5 s según la carga; el swing perfecto
     agranda las dos zonas y suma duración. Al jefe nunca lo congela, pero frío camina y ataca más lento.

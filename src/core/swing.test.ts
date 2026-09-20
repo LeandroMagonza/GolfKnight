@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CHARGE_LEVELS, chargeLevel, CLUBS } from './clubs';
-import { MIN_POWER, PERFECT_BONUS, PERFECT_FROM, REBOUND_FLOOR, REBOUND_SPEED, RISE_CURVE, SwingMeter } from './swing';
+import { CHARGE_LEVELS, chargeLevel, CLUBS, CRIT_DAMAGE } from './clubs';
+import { MIN_POWER, PERFECT_FROM, REBOUND_SPEED, RISE_CURVE, SwingMeter } from './swing';
 
 describe('SwingMeter', () => {
   it('sube lento al principio y rápido al final', () => {
@@ -18,20 +18,24 @@ describe('SwingMeter', () => {
     expect(1 - mid).toBeGreaterThan(early);
   });
 
-  it('después del tope rebota rápido entre 1 y el piso, sin volver al principio', () => {
+  it('después del tope rebota rápido por todo el rango: baja hasta 0 y vuelve a subir', () => {
     const m = new SwingMeter();
     m.start(1);
     m.update(1);
-    const span = 1 - REBOUND_FLOOR;
-    m.update(span / REBOUND_SPEED);
-    expect(m.power).toBeCloseTo(REBOUND_FLOOR);
-    m.update(span / REBOUND_SPEED);
+    m.update(1 / REBOUND_SPEED);
+    expect(m.power).toBeCloseTo(0);
+    m.update(0.5 / REBOUND_SPEED);
+    expect(m.power).toBeCloseTo(0.5);
+    m.update(0.5 / REBOUND_SPEED);
     expect(m.power).toBeCloseTo(1);
+    let low = 1;
     for (let i = 0; i < 300; i++) {
       m.update(0.013);
-      expect(m.power).toBeGreaterThanOrEqual(REBOUND_FLOOR - 1e-9);
+      low = Math.min(low, m.power);
+      expect(m.power).toBeGreaterThanOrEqual(-1e-9);
       expect(m.power).toBeLessThanOrEqual(1 + 1e-9);
     }
+    expect(low).toBeLessThan(0.05);
   });
 
   it('en el rebote, la ventana del swing perfecto dura menos de una décima de segundo', () => {
@@ -40,23 +44,28 @@ describe('SwingMeter', () => {
     expect(window).toBeLessThan(0.1);
   });
 
-  it('el daño por segundo crece con la carga: spamear toques es lo peor y el perfecto es lo mejor', () => {
+  it('daño por segundo: el crítico es lo que más rinde, después la carga completa, y spamear toques lo que menos', () => {
     // Cada tiro cuesta el tiempo de carga más un fijo (bajar el palo, recuperarse, correr al otro puesto).
-    // Se prueba con un fijo optimista de medio segundo y con uno realista: en los dos casos cada nivel
-    // tiene que rendir más que el anterior, para que contra enemigos grandes convenga cargar.
     const driverCharge = CLUBS.driver.chargeTime;
     const timeToPower = (p: number) => Math.pow(p, 1 / RISE_CURVE) * driverCharge;
-    for (const fixed of [0.5, 0.8]) {
-      const dps: number[] = [];
+    const dpsAt = (fixed: number) => {
+      const levels: number[] = [];
       for (let level = 1; level <= CHARGE_LEVELS; level++) {
-        const t = level === 1 ? 0 : timeToPower((level - 1) / CHARGE_LEVELS);
         expect(chargeLevel(Math.max(MIN_POWER, (level - 1) / CHARGE_LEVELS))).toBe(level);
-        dps.push(level / (fixed + t));
+        levels.push(level / (fixed + (level === 1 ? 0 : timeToPower((level - 1) / CHARGE_LEVELS))));
       }
-      for (let i = 1; i < dps.length; i++) expect(dps[i]).toBeGreaterThan(dps[i - 1]);
-      const perfect = (CHARGE_LEVELS * PERFECT_BONUS) / (fixed + timeToPower(PERFECT_FROM));
-      expect(perfect).toBeGreaterThan(dps[dps.length - 1]);
+      return { levels, crit: CRIT_DAMAGE / (fixed + timeToPower(PERFECT_FROM)) };
+    };
+    // Con un fijo realista cada nivel rinde más que el anterior.
+    for (const fixed of [0.7, 0.9]) {
+      const { levels, crit } = dpsAt(fixed);
+      for (let i = 1; i < levels.length; i++) expect(levels[i]).toBeGreaterThan(levels[i - 1]);
+      expect(crit).toBeGreaterThan(levels[levels.length - 1]);
     }
+    // Aun siendo optimista con el fijo, el orden que importa se mantiene: crítico, carga completa, toque.
+    const fast = dpsAt(0.5);
+    expect(fast.crit).toBeGreaterThan(fast.levels[CHARGE_LEVELS - 1]);
+    expect(fast.levels[CHARGE_LEVELS - 1]).toBeGreaterThan(fast.levels[0]);
   });
 
   it('el alcance llega al máximo y se queda, aunque la potencia siga rebotando', () => {

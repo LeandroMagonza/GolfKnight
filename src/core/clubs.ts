@@ -123,11 +123,13 @@ export function pushSpeed(power: number): number {
 
 /**
  * La carga va por niveles, no de forma continua: así se sabe cuánto va a pegar. Sin cargar es nivel 1
- * y cada quinto de la barra suma uno, hasta 5. Con el driver, el nivel ES el daño: 1 a 5 (y el swing
- * perfecto lo duplica). La vida de los enemigos está en la misma escala: el goblin tiene 2, así que
+ * y cada tercio de la barra suma uno, hasta 3. Con el driver, el nivel ES el daño: 1, 2 o 3. El cuarto
+ * escalón es el crítico (swing perfecto), que pega CRIT_DAMAGE. La vida de los enemigos está en la misma escala: el goblin tiene 2, así que
  * pide nivel 2; cargar de más es tiempo perdido.
  */
-export const CHARGE_LEVELS = 5;
+export const CHARGE_LEVELS = 3;
+/** Daño del driver con swing perfecto (el crítico): no es un múltiplo del nivel, es este número. */
+export const CRIT_DAMAGE = 8;
 export function chargeLevel(power: number): number {
   return Math.min(CHARGE_LEVELS, 1 + Math.floor(clamp01(power) * CHARGE_LEVELS + 1e-9));
 }

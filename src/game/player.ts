@@ -447,8 +447,9 @@ export class Player {
       return;
     }
     this.cooldowns[this.club.id] = this.club.cooldown;
-    // un palo con recarga no se puede volver a usar enseguida: si no se eligió otro, vuelve solo el driver
-    if (this.club.cooldown > 0 && !this.pendingClub && this.club.id !== 'driver') this.pendingClub = CLUBS.driver;
+    // los otros palos preparan y el driver cobra: después de usar cualquiera, si no se eligió otro,
+    // vuelve solo el driver (tenga recarga o no el que se usó)
+    if (!this.pendingClub && this.club.id !== 'driver') this.pendingClub = CLUBS.driver;
     this.onShot?.({ club: this.club, power: shot.power, reach: shot.reach, perfect: shot.perfect, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
   }
 

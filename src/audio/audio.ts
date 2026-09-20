@@ -91,13 +91,12 @@ export class GameAudio {
   }
 
   /**
-   * Una nota por nivel de carga, para timear el tiro de oído: un acorde mayor con séptima que sube
-   * (do, mi, sol, si) y resuelve en la octava en el nivel 5. Cuando la barra rebota, suena entre las
-   * tres más agudas: sol, si, do.
+   * Una nota por escalón de carga, para timear el tiro de oído: el acorde mayor (do, mi, sol) para los
+   * tres niveles de daño, y la octava para el crítico.
    */
   chargeTick(level: number): void {
     if (!this.ready) return;
-    const notes = ['C5', 'E5', 'G5', 'B5', 'C6'];
+    const notes = ['C5', 'E5', 'G5', 'C6'];
     const note = notes[Math.min(notes.length, Math.max(1, level)) - 1];
     this.chargeSynth.triggerAttackRelease(note, level >= notes.length ? 0.22 : 0.09, this.at(this.chargeSynth), level >= notes.length ? 1 : 0.75);
   }
