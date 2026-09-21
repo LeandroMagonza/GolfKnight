@@ -54,8 +54,8 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
   segundo de respiro, titilando: el que pasa en ese momento sigue de largo. **El que ya pasó tu línea queda
   fuera de juego**: se desvanece, no se le puede pegar más y corre hasta la puerta. Entre oleadas se
   recupera 1 de vida y 2 de puerta.
-- Palos con `1`-`3`, rueda o `Q`/`E`. Después de usar el hierro o el wedge vuelve solo el driver. Si cambiás en medio de un tiro, el palo queda en cola (borde
-  punteado) y entra solo cuando el tiro termina o lo cancelás.
+- Palos con `1`-`3`, rueda o `Q`/`E`. Después de usar el hierro o el wedge vuelve solo el driver. Si cambiás mientras cargás, cambia en el acto y la carga arranca de nuevo con el palo nuevo. Con el
+  swing ya bajando, el palo queda en cola (borde punteado) y entra solo cuando el tiro termina.
   - **Driver · Rompevientos**: recto y casi rasante (18-60 m), atraviesa a toda la fila. Es el único
     palo que hace daño, y su daño es el nivel de carga o el crítico, y nada más: no hay racha, ni
     estados que lo suban, ni pierde fuerza después de picar.
@@ -64,15 +64,16 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
     y cada escalón es mejor: nivel 1, 3 s; nivel 2, 4.5 s y 15 % más de área; nivel 3, 6.5 s y 30 % más;
     crítico, 8 s y 70 % más. Al jefe nunca lo congela, pero frío camina y ataca más lento.
   - **Wedge · Vendaval**: globo rápido (5-28 m, llega en medio segundo), sin daño: barre un rectángulo
-    hacia los costados, alejando del punto donde cae y más fuerte cuanto más cerca. Cada uno recorre
-    justo lo que le falta para llegar al borde, así que los de un mismo lado quedan en fila en la misma
-    columna, servidos para el driver. Medio ancho de 4, 5, 6 y 8 m según el escalón de carga; 3.5 m de
+    que sale de la línea del tiro (apuntando derecho queda de frente; a 45 grados, a 45). Empuja hacia
+    los costados de esa línea, alejando del punto donde cae y más fuerte cuanto más cerca. Cada uno
+    recorre justo lo que le falta para llegar al borde, así que los de un mismo lado quedan en una fila
+    paralela al tiro, servidos para el driver. Mueve a todos lo mismo, pesen lo que pesen. Medio ancho de 4, 5, 6 y 8 m según el escalón de carga; 3.5 m de
     medio fondo.
 - **Putter · Portal**, en `Espacio`: te teletransporta al puesto más cercano al cursor y te deja una
   pelota ahí. Recarga de 8 s.
   Es la única salida cuando un alma en pena te tiene agarrado.
-- **Palazo** en `Shift` (o `V`): no hace daño: empuja unos 15 m hacia atrás a todo lo que tengas a
-  4 m (a los pesados, apenas) y les corta el ataque. 2.5 s de recarga.
+- **Palazo** en `Shift` (o `V`): no hace daño: empuja unos 14 m hacia atrás a todo lo que tengas a
+  4 m, a todos por igual, y les corta el ataque. 2.5 s de recarga.
 - `G` (o el botón) cambia cómo se apuntan los globos: **al cursor** (caen donde está el mouse y la
   carga define solo la fuerza del efecto) o **por carga** (la carga es la distancia, como el driver).
 - `Esc` pausa, `R` reinicia, `M` silencia la música, `C` cambia el skin del golfista.

@@ -336,10 +336,13 @@ export class Enemy {
     }
   }
 
-  /** Empujón sin daño (wedge): sale despedido y trastabilla. Los pesados apenas se mueven. */
+  /**
+   * Empujón sin daño (wedge, palazo): sale despedido y trastabilla. Mueve a todos lo mismo, pesen lo que
+   * pesen: si no, era muy difícil calcular a cuáles alineaba el wedge y a cuáles no.
+   */
   shove(dir: THREE.Vector3, speed: number): void {
     if (!this.alive) return;
-    this.knock.addScaledVector(dir, speed * (this.stats.heavy ? 0.12 : 1));
+    this.knock.addScaledVector(dir, speed);
     if (!this.stats.heavy) this.stunTimer = Math.max(this.stunTimer, 0.55);
   }
 
@@ -380,8 +383,12 @@ export class Enemy {
       return;
     }
 
-    this.position.addScaledVector(this.knock, dt);
-    this.knock.multiplyScalar(Math.exp(-KNOCK_DECAY * dt));
+    // El empujón se apaga con exp(-KNOCK_DECAY t). Se integra exacto, no con velocidad por dt: así recorre
+    // velocidad / KNOCK_DECAY a cualquier cantidad de cuadros por segundo, y el wedge alinea igual en
+    // una máquina lenta que en una rápida.
+    const fade = Math.exp(-KNOCK_DECAY * dt);
+    this.position.addScaledVector(this.knock, (1 - fade) / KNOCK_DECAY);
+    this.knock.multiplyScalar(fade);
     if (this.chillTimer > 0) this.chillTimer = Math.max(0, this.chillTimer - dt);
     this.refreshChill();
     const slow = this.chilled ? ICE_SLOW : 1;
@@ -816,19 +823,25 @@ export class Horde {
   }
 
   /**
-   * Vendaval del wedge: barre hacia los costados a los que están en el rectángulo centrado en `pos`
-   * (halfWidth a cada lado en X, halfDepth en Z). Cada uno recorre lo que le falta para llegar al borde de
-   * su lado, así que terminan todos en la misma columna. Devuelve a cuántos movió.
+   * Vendaval del wedge: barre un rectángulo centrado en `pos` y orientado según la línea del tiro
+   * (`along`, unitario): halfDepth a lo largo de la línea y halfWidth a cada costado. Empuja solo hacia
+   * los costados de esa línea, y cada uno recorre lo que le falta para llegar al borde de su lado, así
+   * que terminan todos en una misma fila paralela al tiro. Devuelve a cuántos movió.
    */
-  sweep(pos: THREE.Vector3, halfWidth: number, halfDepth: number): number {
+  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number): number {
     let count = 0;
+    // el costado de la línea del tiro, en el piso
+    const side = new THREE.Vector3(along.z, 0, -along.x);
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
       if (!e.alive || e.passed) continue;
-      const dx = e.position.x - pos.x;
-      if (Math.abs(dx) > halfWidth || Math.abs(e.position.z - pos.z) > halfDepth + e.radius) continue;
-      const side = Math.abs(dx) < 0.05 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(dx);
-      e.shove(dir.set(side, 0, 0), (halfWidth - Math.abs(dx)) * KNOCK_DECAY);
+      const rx = e.position.x - pos.x;
+      const rz = e.position.z - pos.z;
+      const lateral = rx * side.x + rz * side.z;
+      const forward = rx * along.x + rz * along.z;
+      if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
+      const sign = Math.abs(lateral) < 0.05 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(lateral);
+      e.shove(dir.copy(side).multiplyScalar(sign), (halfWidth - Math.abs(lateral)) * KNOCK_DECAY);
       count++;
     }
     return count;

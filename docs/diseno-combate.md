@@ -794,3 +794,32 @@ de calle (madera 3, madera 5), híbridos, hierros largos (2 a 4), medios (5 a 7)
 cuatro wedges distintos: pitching, gap, sand (para el búnker) y lob (el globo más alto y corto). Una
 bolsa reglamentaria lleva hasta 14. Los nombres antiguos dan juego para un mundo de fantasía: brassie
 (madera 2), spoon (madera 3), cleek (hierro largo), mashie (hierro medio), niblick (wedge).
+
+### Wedge orientado, cambio de palo cargando, y más ideas
+
+Pedidos por Leandro, hechos:
+
+- **Cambiar de palo mientras se carga cambia en el acto** y la carga arranca de nuevo con el palo
+  nuevo. Si ese palo está recargando, no cambia y la carga sigue. La cola de palos quedó solo para
+  cuando el swing ya está bajando.
+- **El rectángulo del wedge sale de la línea del tiro.** Apuntando derecho queda igual que antes; a
+  45 grados, el rectángulo va a 45, y empuja hacia los costados de esa línea. Así se arman filas
+  para tiros cruzados, no solo para tiros derechos.
+- **El empujón mueve a todos lo mismo**, pesen lo que pesen (wedge y palazo). Antes los pesados se
+  movían un 12 %, y era difícil calcular a cuáles alineaba y a cuáles no. El retroceso por el golpe
+  del driver sí sigue dependiendo del peso.
+- De paso: el empujón ahora se integra exacto, así recorre lo mismo a cualquier cantidad de cuadros
+  por segundo. Antes, a pocos cuadros se pasaba un 8 % y desarmaba la fila.
+
+Ideas anotadas, sin implementar:
+
+- **Palo escopeta**: tira varias pelotas. Variantes: que vaya con el carcaj (gasta las pelotas que se
+  llevan encima); o un palo aparte que pega menos por pelota pero en área; o que solo tenga recarga.
+  Control: cuanto más cerca el mouse, más juntas salen; cuanto más se carga, más pelotas salen.
+- **Habilidades sobre los palos que ya hay**, sin sumar palos: por ejemplo apretar `Q` y que el
+  próximo ataque salga con varias pelotas.
+- **Enemigos a distancia que le tiren al golfista** proyectiles que haya que esquivar moviéndose de
+  puesto. Candidata a reconvertirse: el alma en pena (la que corre rápido), porque la idea es sacar el
+  teletransporte del putter y sin salto su agarre no tiene salida.
+- **Enemigo de 1 de vida, más rápido**, quizás con esquive: corre, y cada unos segundos hace un roll
+  más rápido en diagonal.

@@ -19,6 +19,8 @@ export interface Ball {
   club: Club;
   power: number;
   perfect: boolean;
+  /** Hacia dónde salió el tiro, en el piso (unitario). Al caer, la velocidad de la pelota ya no lo dice. */
+  dir: THREE.Vector3;
   hitIds: Set<number>;
   hits: number;
   /** Enemigos que mató esta pelota. */
@@ -65,6 +67,7 @@ export class Balls {
     this.scene.add(mesh, trail);
     const ball: Ball = {
       state, club: shot.club, power: shot.power, perfect: shot.perfect,
+      dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(),
       hitIds: new Set(), hits: 0, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
@@ -87,10 +90,10 @@ export class Balls {
       const r = this.horde.chillAround(pos, ICE_CORE * ice.area, ICE_RADIUS * ice.area, ice.seconds);
       this.onEvent?.({ type: 'ice', pos, frozen: r.frozen, chilled: r.chilled, perfect: ball.perfect });
     } else {
-      // barre hacia los costados, en un rectángulo que se ensancha con la carga
+      // barre hacia los costados de la línea del tiro, en un rectángulo que se ensancha con la carga
       const half = pushHalfWidth(ball.power, ball.perfect);
       this.effects.explosion(pos, Math.min(half, PUSH_HALF_DEPTH), ball.club.color);
-      const hits = this.horde.sweep(pos, half, PUSH_HALF_DEPTH);
+      const hits = this.horde.sweep(pos, ball.dir, half, PUSH_HALF_DEPTH);
       this.onEvent?.({ type: 'push', pos, hits });
     }
     ball.done = true;

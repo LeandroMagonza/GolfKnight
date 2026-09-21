@@ -115,11 +115,11 @@ export const MELEE_STAGGER = 0.7;
 
 /** Empujón del wedge: radio, y velocidad que le da a un enemigo parado en el centro. */
 /**
- * Vendaval del wedge: barre un rectángulo alineado con el campo. Empuja SOLO hacia los costados (nunca
- * hacia atrás ni hacia adelante), alejando del punto donde cayó, y más fuerte cuanto más cerca. El
+ * Vendaval del wedge: barre un rectángulo orientado según la línea del tiro. Empuja SOLO hacia los
+ * costados de esa línea, alejando del punto donde cayó, y más fuerte cuanto más cerca. El
  * desplazamiento es exactamente lo que le falta a cada uno para llegar al borde, así que todos los de
- * un mismo lado terminan en la misma columna: una fila servida para el driver. A los pesados apenas
- * los mueve. El ancho crece con cada escalón de carga.
+ * un mismo lado terminan en una misma fila paralela al tiro, servida para el driver. Mueve a todos lo
+ * mismo, pesen lo que pesen. El ancho crece con cada escalón de carga.
  */
 export const PUSH_HALF_DEPTH = 3.5;
 export const PUSH_HALF_WIDTHS = [4, 5, 6, 8];

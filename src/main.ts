@@ -249,6 +249,8 @@ function updatePreview(): void {
   if (sweepBox.visible) {
     landing.visible = false;
     sweepBox.position.set(end.x, 0.05, end.z);
+    // el rectángulo sale de la línea del tiro: apuntando derecho queda de frente, y a 45 grados, a 45
+    sweepBox.rotation.z = Math.atan2(player.aimDir.x, player.aimDir.z);
     sweepBox.scale.set(pushHalfWidth(charging ? player.meter.power : 0, perfectNow), PUSH_HALF_DEPTH, 1);
     const c = perfectNow ? 0xffd66b : club.color;
     sweepMat.color.setHex(c);
@@ -383,7 +385,8 @@ function selectClub(index: number): void {
     hud.feedback(`${club.name}: todavía no lo tenés`, 'neutral');
     return;
   }
-  // en medio de un tiro queda en cola; el HUD se pone al día en el bucle, cuando el cambio entra
+  // cargando, cambia en el acto y vuelve a cargar; con el swing bajando queda en cola. El HUD se pone al
+  // día en el bucle
   player.setClub(club);
 }
 

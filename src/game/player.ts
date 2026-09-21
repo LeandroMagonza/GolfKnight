@@ -171,12 +171,25 @@ export class Player {
   }
 
   /**
-   * Cambia de palo. En medio de un tiro (cargando o pegando) no se puede cambiar lo que ya está en
-   * las manos: el pedido queda en cola y entra solo cuando el tiro termina o se cancela. Pedir el
-   * palo que ya está en uso vacía la cola.
+   * Cambia de palo. Mientras se carga, cambia en el acto y la carga arranca de nuevo con el palo nuevo
+   * (si está recargando, no cambia y la carga sigue). Con el swing ya bajando no se puede cambiar lo que
+   * está en las manos: el pedido queda en cola y entra solo cuando el tiro termina. Pedir el palo que ya
+   * está en uso vacía la cola.
    */
   setClub(club: Club): void {
     if (!this.unlocked.has(club.id)) return;
+    if (this.mode === 'charging') {
+      this.pendingClub = null;
+      if (club.id === this.club.id) return;
+      if (this.cooldowns[club.id] > 0) {
+        this.onDenied?.(club);
+        return;
+      }
+      this.cancelSwing();
+      this.applyClub(club);
+      this.startSwing();
+      return;
+    }
     if (this.mode !== 'free') {
       this.pendingClub = club.id === this.club.id ? null : club;
       return;

@@ -240,22 +240,25 @@ if (!quick) {
   await page.waitForTimeout(200);
   await resetPlayer();
 
-  // --- palo en cola: elegido en medio de un tiro, entra cuando el tiro termina o se cancela ---
-  const clubs = () => page.evaluate(() => ({ club: window.__gk.player.club.id, enCola: window.__gk.player.pendingClub?.id ?? null, mode: window.__gk.player.mode }));
-  await aimAt(0, 40);
+  // --- cambiar de palo mientras se carga: cambia en el acto y la carga arranca de nuevo ---
+  const clubs = () => page.evaluate(() => ({ club: window.__gk.player.club.id, enCola: window.__gk.player.pendingClub?.id ?? null, mode: window.__gk.player.mode, power: +window.__gk.player.meter.power.toFixed(2) }));
+  await aimAt(0, 30);
   await give();
   await page.mouse.down();
-  await page.waitForTimeout(250);
+  await page.waitForFunction(() => window.__gk.player.meter.power > 0.3, null, { timeout: 3000, polling: 'raf' }).catch(() => {});
+  const beforeSwitch = await clubs();
   await page.keyboard.press('Digit3');
-  log('cola: cargando', await clubs());
-  await page.screenshot({ path: 'logs/k1b-palo-en-cola.png' });
+  const afterSwitch = await clubs();
+  log('cambio cargando', beforeSwitch, afterSwitch);
+  await page.screenshot({ path: 'logs/k1b-cambio-cargando.png' });
+  check('cambiar de palo mientras se carga cambia en el acto y vuelve a cargar', afterSwitch.club === 'wedge' && afterSwitch.mode === 'charging' && afterSwitch.power < beforeSwitch.power);
   await page.mouse.up();
   await playerFree();
   await page.waitForTimeout(150);
   await give();
   const afterShot = await clubs();
-  log('cola: tras el tiro', afterShot);
-  check('el palo en cola entra al terminar el tiro', afterShot.club === 'wedge');
+  log('tras el tiro', afterShot);
+  check('después del tiro con el wedge vuelve el driver', afterShot.club === 'driver');
   await page.mouse.down();
   await page.waitForTimeout(250);
   await page.keyboard.press('Digit2');
@@ -263,8 +266,8 @@ if (!quick) {
   await page.mouse.up();
   await page.waitForTimeout(250);
   const afterCancel = await clubs();
-  log('cola: tras cancelar', afterCancel);
-  check('el palo en cola entra al cancelar', afterCancel.club === 'iron');
+  log('tras cancelar', afterCancel);
+  check('el palo elegido mientras cargaba queda al cancelar', afterCancel.club === 'iron' && afterCancel.mode === 'free');
   await ballsDone(15000);
 
   // --- medidor: el alcance llega al tope y se queda; la carga rebota por todo el rango ---
@@ -431,10 +434,36 @@ if (!quick) {
   log('hielo perfecto', { normal: missed, perfecto: (await enemy(edge)).chilled });
   check('el hielo perfecto tiene más área', !missed && (await enemy(edge)).chilled);
 
+  /** Con el wedge en la mano y apuntando a (x, z): la línea del tiro, y cómo pasar a sus coordenadas. */
+  const shotLine = async (wantX, wantZ) => {
+    await page.keyboard.press('Digit3');
+    await playerFree();
+    // la cámara acompaña a la puntería: se apunta, se la deja llegar, y se vuelve a apuntar. El centro es
+    // adonde apunta el juego de verdad, no adonde se quiso apuntar
+    await aimAt(wantX, wantZ);
+    await page.waitForTimeout(900);
+    await aimAt(wantX, wantZ);
+    await page.waitForTimeout(400);
+    const [x, z] = await page.evaluate(() => window.__gk.aim);
+    const [tx, tz] = await page.evaluate(() => window.__gk.tee);
+    const len = Math.hypot(x - tx, z - tz);
+    const along = [(x - tx) / len, (z - tz) / len];
+    const side = [along[1], -along[0]];
+    return {
+      along,
+      /** punto del campo a `f` metros a lo largo de la línea y `l` hacia el costado, desde donde cae */
+      at: (f, l) => [x + along[0] * f + side[0] * l, z + along[1] * f + side[1] * l],
+      /** [a lo largo, hacia el costado] de un punto del campo */
+      of: (e) => [(e.x - x) * along[0] + (e.z - z) * along[1], (e.x - x) * side[0] + (e.z - z) * side[1]].map((v) => +v.toFixed(2)),
+    };
+  };
+
   // --- wedge: llega rápido, empuja hacia afuera sin dañar; el daño que reciben después no cambia ---
   await clearEnemies();
+  const ringLine = await shotLine(0, 24);
+  const ringAt = [[0, -1.2], [0, 1.2], [1.2, 0.4], [-1.2, -0.4]];
   const ring = [];
-  for (const [x, z] of [[-1.2, 24], [1.2, 24], [0, 25.2], [0, 22.8]]) ring.push(await still('skeleton', x, z));
+  for (const [f, l] of ringAt) ring.push(await still('skeleton', ...ringLine.at(f, l)));
   await aimAt(0, 24);
   await page.keyboard.press('Digit3');
   await playerFree();
@@ -459,18 +488,34 @@ if (!quick) {
   check('después del wedge también vuelve solo el driver', (await state()).club === 'driver');
   check('el wedge no daña', pushed.every((e) => e.hp === 4));
   check('el wedge aleja a todos del centro', pushed.every((e) => Math.hypot(e.x, e.z - 24) > 2.5));
-  check('el wedge empuja solo hacia los costados: nadie cambia de profundidad', pushed.every((e, i) => Math.abs(e.z - [24, 24, 25.2, 22.8][i]) < 0.3));
+  log('wedge: en la línea', pushed.map((e) => ringLine.of(e)));
+  check('el wedge empuja solo hacia los costados de la línea del tiro: nadie avanza ni retrocede', pushed.every((e, i) => Math.abs(ringLine.of(e)[0] - ringAt[i][0]) < 0.3));
+  check('cada uno sale para su lado', pushed.every((e, i) => Math.sign(ringLine.of(e)[1]) === Math.sign(ringAt[i][1])));
   // tres desparramados del mismo lado terminan en la misma columna, en el borde del rectángulo
   await clearEnemies();
+  const trioLine = await shotLine(0, 24);
   const trio = [];
-  for (const [x, z] of [[0.8, 22.5], [2.4, 24], [4.2, 25.5]]) trio.push(await still('skeleton', x, z));
-  await aimAt(0, 24);
+  for (const [f, l] of [[-1.5, 0.8], [0, 2.4], [1.5, 4.2]]) trio.push(await still('skeleton', ...trioLine.at(f, l)));
   await lob(3, 0.8);
   await page.waitForTimeout(900);
   const column = [];
   for (const id of trio) column.push(await enemy(id));
-  log('wedge: columna', column.map((e) => [e.x, e.z]));
-  check('el wedge deja a los de un lado alineados en el borde (x = 6)', column.every((e) => Math.abs(e.x - 6) < 0.6));
+  log('wedge: columna', column.map((e) => trioLine.of(e)));
+  check('el wedge deja a los de un lado alineados en el borde (a 6 m de la línea)', column.every((e) => Math.abs(trioLine.of(e)[1] - 6) < 0.6));
+  // el rectángulo sale de la línea del tiro: en un tiro cruzado, empuja perpendicular a esa línea y
+  // los deja en una fila paralela al tiro. Y un caballero se mueve lo mismo que un goblin.
+  await clearEnemies();
+  const crossLine = await shotLine(10, 21);
+  const slanted = [];
+  for (const [kind, f, l] of [['goblin', -2, 1], ['knight', 0, 2.5], ['skeleton', 2, 4]]) slanted.push(await still(kind, ...crossLine.at(f, l)));
+  await lob(3, 0.8);
+  await page.waitForTimeout(900);
+  const lateral = [];
+  for (const id of slanted) lateral.push(crossLine.of(await enemy(id))[1]);
+  log('wedge cruzado', { linea: crossLine.along.map((v) => +v.toFixed(2)), lateral });
+  check('en un tiro cruzado el wedge los alinea en una fila paralela al tiro', lateral.every((l) => Math.abs(l - 6) < 0.7));
+  check('el caballero se mueve lo mismo que los demás', Math.abs(lateral[1] - lateral[0]) < 0.5);
+  await page.screenshot({ path: 'logs/k5d-cruzado.png' });
   await page.screenshot({ path: 'logs/k5c-columna.png' });
   await page.screenshot({ path: 'logs/k5-wedge.png' });
   await clearEnemies();
