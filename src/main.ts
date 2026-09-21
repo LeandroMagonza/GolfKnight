@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
-import { previewPath } from './core/ballistics';
+import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
+import { heightAt, raycastTerrain, relief } from './core/terrain';
 import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_RADIUS, iceLevel, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_HALF_DEPTH, pushHalfWidth, rangeFor, type Club, type ClubId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
@@ -27,6 +28,8 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
+// Prototipo de campo con relieve: se prende con ?relieve en la URL. Tiene que decidirse antes de armar el mundo.
+relief.on = new URLSearchParams(location.search).has('relieve');
 const world = new World(scene);
 const effects = new Effects(scene);
 const horde = new Horde(scene);
@@ -109,6 +112,9 @@ landingCore.rotation.x = -Math.PI / 2;
 landingCore.position.y = 0.045;
 landingCore.visible = false;
 scene.add(landingCore);
+// sobre una pendiente las marcas del piso, que son planas, se hundirían en el terreno: con relieve se
+// dibujan siempre por encima
+if (relief.on) for (const m of [landingMat, coreMat, sweepMat, sweepEdgeMat]) m.depthTest = false;
 const teeBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x666666 }));
 teeBall.visible = false;
 scene.add(teeBall);
@@ -117,7 +123,8 @@ function updateAim(): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
   raycaster.setFromCamera(new THREE.Vector2(input.pointer.x, input.pointer.y), camera);
-  const hit = raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
+  const onTerrain = relief.on ? raycastTerrain(raycaster.ray.origin, raycaster.ray.direction) : null;
+  const hit = onTerrain ? new THREE.Vector3(onTerrain.x, 0, onTerrain.z) : raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
   if (hit) aimPoint.copy(hit);
   else {
     // el mouse está sobre el horizonte: apunta lejos en esa dirección
@@ -153,6 +160,28 @@ function shotRange(club: Club, reach: number): number {
   if (!aimsAtCursor(club)) return rangeFor(club, reach);
   player.teePosition(tee);
   return THREE.MathUtils.clamp(Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z), club.minRange, club.maxRange);
+}
+
+/**
+ * Con relieve, cómo sale el tiro. No hay control de altura: la altura sale de adónde se apunta.
+ * - Driver: sigue saliendo rasante, pero se inclina lo que sube o baja el terreno entre la pelota y el
+ *   cursor. Apuntando a alguien que está en un valle, el tiro baja; apuntando a la cima de una loma, sube.
+ * - Globos: la velocidad se calcula para caer justo en el punto, esté más alto o más bajo.
+ * Sobre piso plano devuelve null y todo vuela como siempre.
+ */
+const MAX_PITCH = 0.21;
+function shotLift(club: Club, range: number): { speed: number; angle: number } | null {
+  if (!relief.on) return null;
+  player.teePosition(tee);
+  const teeH = heightAt(tee.x, tee.z);
+  const loft = THREE.MathUtils.degToRad(club.loftDeg);
+  if (isLob(club)) {
+    const rise = heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH;
+    return { speed: launchSpeed(range, loft, club.gravity, rise), angle: loft };
+  }
+  const dist = Math.max(4, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z));
+  const pitch = THREE.MathUtils.clamp(Math.atan2(heightAt(aimPoint.x, aimPoint.z) - teeH, dist), -MAX_PITCH, MAX_PITCH);
+  return { speed: launchSpeed(range, loft, club.gravity), angle: loft + pitch };
 }
 
 /** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
@@ -215,9 +244,13 @@ function updatePreview(): void {
   if (!show) return;
   player.teePosition(tee);
   const loft = THREE.MathUtils.degToRad(club.loftDeg);
-  const path = previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity);
+  // con relieve la línea se corta donde el tiro toca el terreno: así se ve cuándo una loma tapa
+  const lift = shotLift(club, range);
+  const path = lift
+    ? previewOver(launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, player.aimDir.x, player.aimDir.z, lift.speed, lift.angle), club.gravity ?? GRAVITY, heightAt, PREVIEW_POINTS)
+    : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
-  path.forEach((p, i) => pos.setXYZ(i, p.x, charging ? p.y : 0.05, p.z));
+  path.forEach((p, i) => pos.setXYZ(i, p.x, charging ? p.y : heightAt(p.x, p.z) + 0.05, p.z));
   pos.needsUpdate = true;
   // La línea dice cuánto está cargado el tiro: cambia de color con cada nivel, y es dorada en el punto
   // justo del swing perfecto. Sin pelota en el puesto queda apagada.
@@ -231,12 +264,16 @@ function updatePreview(): void {
   if (charging && step !== lastLevel) audio.chargeTick(step);
   lastLevel = charging ? step : 0;
   const end = path[path.length - 1];
-  landing.position.set(end.x, 0.05, end.z);
+  landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
   // la punta de la línea dice con qué palo se está por pegar: su color y su ícono
   // El driver llega mucho más lejos de lo que se ve en pantalla: su punta va a la altura del cursor,
   // sobre la misma línea. La de un globo va donde cae.
   const tipAt = isLob(club) ? range : Math.min(range, Math.max(4, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z)));
-  tip.position.set(tee.x + player.aimDir.x * tipAt, 1.15, tee.z + player.aimDir.z * tipAt);
+  // con relieve, si una loma corta el tiro la punta va donde se corta
+  const tipEnd = lift ? Math.min(tipAt, Math.hypot(end.x - tee.x, end.z - tee.z)) : tipAt;
+  const tipX = tee.x + player.aimDir.x * tipEnd;
+  const tipZ = tee.z + player.aimDir.z * tipEnd;
+  tip.position.set(tipX, heightAt(tipX, tipZ) + 1.15, tipZ);
   if (tipClub !== club.id) {
     tipClub = club.id;
     tipMat.map = tipTexture(club);
@@ -248,7 +285,7 @@ function updatePreview(): void {
   sweepBox.visible = landing.visible && club.enchant === 'push';
   if (sweepBox.visible) {
     landing.visible = false;
-    sweepBox.position.set(end.x, 0.05, end.z);
+    sweepBox.position.set(end.x, heightAt(end.x, end.z) + 0.08, end.z);
     // el rectángulo sale de la línea del tiro: apuntando derecho queda de frente, y a 45 grados, a 45
     sweepBox.rotation.z = Math.atan2(player.aimDir.x, player.aimDir.z);
     sweepBox.scale.set(pushHalfWidth(charging ? player.meter.power : 0, perfectNow), PUSH_HALF_DEPTH, 1);
@@ -259,7 +296,7 @@ function updatePreview(): void {
     sweepEdgeMat.opacity = charging ? 0.95 : 0.45;
   }
   landing.scale.setScalar(club.enchant === 'ice' ? ICE_RADIUS * wide : 0.7);
-  landingCore.position.set(end.x, 0.045, end.z);
+  landingCore.position.set(end.x, heightAt(end.x, end.z) + 0.045, end.z);
   landingCore.scale.setScalar(ICE_CORE * wide);
   coreMat.opacity = charging ? 0.4 : 0.18;
   landingMat.opacity = charging ? 0.85 : 0.35;
@@ -659,7 +696,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     shots++;
     audio.tock(shot.perfect);
     if (shot.perfect) hud.feedback('¡Swing perfecto!', 'good');
-    balls.fire(shot, shotRange(shot.club, shot.reach));
+    const range = shotRange(shot.club, shot.reach);
+    balls.fire(shot, range, shotLift(shot.club, range));
   };
   // Palazo: botón aparte, con recarga. No hace daño: empuja hacia atrás a todo lo que haya alrededor de
   // un punto un paso adelante del golfista, hacia donde apunta.
@@ -878,7 +916,8 @@ addEventListener('resize', () => {
   get aim() { return [aimPoint.x, aimPoint.z].map((v) => +v.toFixed(2)); },
   get fps() { const t = performance.now(); return frameTimes.filter((x) => t - x < 1000).length; },
   /** Píxel de pantalla que corresponde a un punto del piso, para apuntar con el mouse en los tests. */
-  screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, 0, z), 0); },
+  screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, heightAt(x, z), z), 0); },
+  heightAt,
   spawn(kind: EnemyKind, x: number, z: number) { return horde.spawn(kind, new THREE.Vector3(x, 0, z)); },
   /** Tiro con el alcance exacto en metros (sin depender del timing del test). Apunta donde esté el mouse. */
   shoot(meters: number) {

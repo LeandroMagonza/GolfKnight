@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { heightAt, relief } from '../core/terrain';
 
 export const FIELD_HALF_WIDTH = 18;
 export const GATE_Z = 0;
@@ -59,6 +60,12 @@ export class World {
     sun.position.set(-10, 18, -6);
     scene.add(sun);
 
+    if (relief.on) {
+      this.buildTerrain(scene);
+      this.buildWall(scene);
+      this.buildScenery(scene);
+      return;
+    }
     const rough = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x2f6b38, roughness: 1 }));
     rough.rotation.x = -Math.PI / 2;
     rough.position.y = -0.02;
@@ -87,6 +94,50 @@ export class World {
 
     this.buildWall(scene);
     this.buildScenery(scene);
+  }
+
+  /**
+   * Campo con relieve (prototipo): una sola malla, de un metro por cuadro, con la altura de
+   * core/terrain. El color hace de mapa: franjas de fairway, rough a los costados, y más claro en las
+   * lomas y más oscuro en el valle, para que el relieve se lea desde la cámara fija.
+   */
+  private buildTerrain(scene: THREE.Scene): void {
+    const width = 240;
+    const depth = 180;
+    const centerZ = 60;
+    const geo = new THREE.PlaneGeometry(width, depth, width, depth);
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, 0, centerZ);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    const colors = new Float32Array(pos.count * 3);
+    const light = new THREE.Color(0x4a9d4f);
+    const dark = new THREE.Color(0x3f8f45);
+    const rough = new THREE.Color(0x2f6b38);
+    const high = new THREE.Color(0xa9d66b);
+    const low = new THREE.Color(0x1f4f3a);
+    const c = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const h = heightAt(x, z);
+      pos.setY(i, h);
+      const onFairway = Math.abs(x) <= FIELD_HALF_WIDTH + 2 && z >= -4 && z <= 116;
+      c.copy(onFairway ? (Math.floor(z / 5) % 2 ? dark : light) : rough);
+      if (h > 0) c.lerp(high, Math.min(1, h / 2.4) * 0.7);
+      else c.lerp(low, Math.min(1, -h / 1) * 0.7);
+      colors.set([c.r, c.g, c.b], i * 3);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+    scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })));
+    for (let z = 10; z <= 60; z += 10) {
+      for (const side of [-1, 1]) {
+        const x = side * (FIELD_HALF_WIDTH + 1.6);
+        const label = labelSprite(`${z}m`);
+        label.position.set(x, heightAt(x, z) + 1.2, z);
+        scene.add(label);
+      }
+    }
   }
 
   private buildWall(scene: THREE.Scene): void {
@@ -164,18 +215,20 @@ export class World {
       if (rand() < 0.78) {
         const h = 4 + rand() * 4;
         const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, h * 0.4, 6), trunkMat);
-        trunk.position.set(x, h * 0.2, z);
+        const base = heightAt(x, z);
+        trunk.position.set(x, base + h * 0.2, z);
         const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.6 + rand(), h * 0.8, 7), leafMats[i % leafMats.length]);
-        leaves.position.set(x, h * 0.4 + h * 0.4, z);
+        leaves.position.set(x, base + h * 0.4 + h * 0.4, z);
         scene.add(trunk, leaves);
       } else {
         const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8 + rand() * 1.2, 0), rockMat);
-        rock.position.set(x, 0.4, z);
+        rock.position.set(x, heightAt(x, z) + 0.4, z);
         rock.rotation.set(rand() * 3, rand() * 3, rand() * 3);
         scene.add(rock);
       }
     }
-    // bunkers de arena a los costados, por puro golf
+    // bunkers de arena a los costados, por puro golf (con relieve no: son discos planos)
+    if (relief.on) return;
     const sand = new THREE.MeshStandardMaterial({ color: 0xe6d3a0, roughness: 1 });
     for (const [x, z, r] of [[-13, 22, 3.2], [12, 36, 2.6], [-10, 52, 3.6]] as const) {
       const bunker = new THREE.Mesh(new THREE.CircleGeometry(r, 24), sand);

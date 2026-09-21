@@ -868,3 +868,35 @@ función de altura con un tee elevado, un valle central y dos lomas; malla; enem
 la altura; puntería contra el terreno; línea de tiro que se corta. Sin tocar las marcas del piso. Con
 eso ya se puede jugar y decidir si suma. Recién si convence, el segundo paso: marcas que copian el
 terreno, pendiente que frena, búnker y agua.
+
+### Prototipo de relieve, hecho (`?relieve`)
+
+Leandro pidió el prototipo. Está detrás de `?relieve` en la dirección; sin eso el juego no cambia.
+
+Qué tiene: dos lomas (2 m a la izquierda a 34 m; 2.2 m a la derecha a 47 m) y un valle central de 0.9 m
+de hondo y unos 8 m de ancho, entre los 22 y los 60 m, que apunta a los puestos del medio. Todo plano
+hasta los 14 m. Enemigos y pelota siguen el terreno; la puntería del mouse va contra el terreno; la
+línea de tiro se corta donde el tiro lo toca.
+
+**Cambio respecto de la evaluación: sin tee elevado.** Lo había propuesto como lo que hacía viable el
+resto, y haciendo las cuentas es al revés. Desde una terraza de 1.5 m el driver, que sale rasante, les
+pasa por arriba a los goblins del llano: hay que tirar hacia abajo, y una fila parada sobre el piso
+deja de estar sobre la línea del tiro, que es justo lo que el driver necesita. Con los puestos al
+nivel del llano, todo lo que pasa en piso plano se juega igual que hoy, y el relieve suma encima.
+
+**Sobre el control de altura** (la duda de Leandro: más golf, pero quizás más lento). No hace falta un
+control aparte: con relieve, el mouse ya apunta a un punto del terreno que tiene altura. El prototipo
+inclina el tiro lo que sube o baja el terreno entre la pelota y el cursor (hasta 12 grados) y calcula
+los globos para caer en el punto. Se apunta igual de rápido que ahora. Un control manual de altura
+(subir y bajar la mira) sumaría una tercera cosa para timear, encima del daño y de la alineación, que
+ya chocaban entre sí. Si en algún momento se quiere más golf, mejor que venga por el lado de elegir
+palo (más loft, menos loft) que por una mira vertical.
+
+Verificado con `tools/relieve.mjs`: los enemigos pisan el terreno; el driver atraviesa una fila de tres
+por el fondo del valle; a un esqueleto detrás de la loma el driver no le pega y el hierro sí le llega
+por arriba; al que está en la cima el driver le pega. La prueba general y los tests siguen pasando en
+el modo plano.
+
+Para mirar al jugar: si el driver falla demasiado seguido, si desde la cámara se entiende qué está
+tapado, y si el valle ayuda de verdad a cobrar filas. Un detalle que ya se ve: no se puede apuntar al
+piso que una loma tapa desde la cámara; el cursor cae sobre la cara de la loma.

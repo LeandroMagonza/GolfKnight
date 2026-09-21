@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { EXPLOSION_RADIUS, ICE_SLOW, KNOCK_DECAY } from '../core/clubs';
+import { heightAt } from '../core/terrain';
 import { ENEMIES, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type EnemyKind, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
@@ -386,6 +387,8 @@ export class Enemy {
     // El empujón se apaga con exp(-KNOCK_DECAY t). Se integra exacto, no con velocidad por dt: así recorre
     // velocidad / KNOCK_DECAY a cualquier cantidad de cuadros por segundo, y el wedge alinea igual en
     // una máquina lenta que en una rápida.
+    // los pies siguen al terreno (con el relieve apagado, la altura es 0)
+    this.position.y = heightAt(this.position.x, this.position.z);
     const fade = Math.exp(-KNOCK_DECAY * dt);
     this.position.addScaledVector(this.knock, (1 - fade) / KNOCK_DECAY);
     this.knock.multiplyScalar(fade);

@@ -2,11 +2,12 @@
 // encantamiento de cada palo. El driver es el único que daña; el hierro y el wedge caen en un punto
 // y ahí hacen lo suyo (hielo, empujón).
 import * as THREE from 'three';
-import { BALL_RADIUS, launch, stepBall, type BallState } from '../core/ballistics';
+import { BALL_RADIUS, launch, launchWith, stepBall, type BallState } from '../core/ballistics';
 import { chargeLevel, CRIT_DAMAGE, ICE_CORE, ICE_RADIUS, iceLevel, PUSH_HALF_DEPTH, pushHalfWidth, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
+import { heightAt, relief } from '../core/terrain';
 import { GATE_Z } from './world';
 
 const TRAIL_POINTS = 18;
@@ -52,9 +53,12 @@ export class Balls {
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
-  fire(shot: Shot, range: number): Ball {
+  /** @param lift con relieve: la velocidad y el ángulo de salida ya calculados contra el terreno */
+  fire(shot: Shot, range: number, lift: { speed: number; angle: number } | null = null): Ball {
     const loft = THREE.MathUtils.degToRad(shot.club.loftDeg);
-    const state = launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity);
+    const state = lift
+      ? launchWith({ x: shot.from.x, y: heightAt(shot.from.x, shot.from.z) + BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, lift.speed, lift.angle)
+      : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: shot.club.color, emissiveIntensity: shot.perfect ? 1.6 : 0.7 });
     const mesh = new THREE.Mesh(ballGeo, mat);
     mesh.position.set(state.pos.x, state.pos.y, state.pos.z);
@@ -127,7 +131,8 @@ export class Balls {
     const pierce = ball.club.enchant === 'pierce';
     for (const e of this.horde.enemies) {
       if (!e.alive || e.passed || ball.hitIds.has(e.id)) continue;
-      if (s.pos.y > e.height + BALL_RADIUS) continue;
+      // la altura se mide desde los pies del enemigo, que con relieve no están en y = 0
+      if (s.pos.y - e.position.y > e.height + BALL_RADIUS) continue;
       const dx = s.pos.x - e.position.x;
       const dz = s.pos.z - e.position.z;
       const r = e.radius + BALL_RADIUS;
@@ -162,7 +167,7 @@ export class Balls {
       const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
       for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
-        const landed = stepBall(s, dt / steps, ball.club);
+        const landed = stepBall(s, dt / steps, ball.club, relief.on ? heightAt : undefined);
         // la muralla devuelve la pelota
         if (s.pos.z < GATE_Z - 0.4 && s.vel.z < 0) {
           s.pos.z = GATE_Z - 0.4;

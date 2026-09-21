@@ -1,5 +1,6 @@
 // Efectos visuales de corta vida: explosiones, rayos, escarcha, chispas de impacto.
 import * as THREE from 'three';
+import { heightAt } from '../core/terrain';
 
 interface Effect {
   object: THREE.Object3D;
@@ -26,7 +27,7 @@ export class Effects {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide, depthWrite: false });
     const mesh = new THREE.Mesh(ringGeo, mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(pos.x, 0.06, pos.z);
+    mesh.position.set(pos.x, heightAt(pos.x, pos.z) + 0.06, pos.z);
     this.add(mesh, life, (u) => {
       mesh.scale.setScalar(radius * (0.2 + 0.8 * Math.sqrt(u)));
       mat.opacity = 0.9 * (1 - u);
@@ -36,7 +37,7 @@ export class Effects {
   explosion(pos: THREE.Vector3, radius: number, color = 0xff7a3c): void {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false });
     const ball = new THREE.Mesh(sphereGeo, mat);
-    ball.position.set(pos.x, Math.max(0.3, pos.y), pos.z);
+    ball.position.set(pos.x, Math.max(heightAt(pos.x, pos.z) + 0.3, pos.y), pos.z);
     this.add(ball, 0.45, (u) => {
       ball.scale.setScalar(radius * (0.25 + 0.75 * Math.sqrt(u)));
       mat.opacity = 0.75 * (1 - u) * (1 - u);
@@ -55,7 +56,7 @@ export class Effects {
     const color = solid ? 0xe8fbff : 0x7fd4ff;
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false });
     const dome = new THREE.Mesh(sphereGeo, mat);
-    dome.position.set(pos.x, 0.1, pos.z);
+    dome.position.set(pos.x, heightAt(pos.x, pos.z) + 0.1, pos.z);
     this.add(dome, 0.5, (u) => {
       dome.scale.set(radius * (0.3 + 0.7 * Math.sqrt(u)), radius * 0.45 * (0.3 + 0.7 * Math.sqrt(u)), radius * (0.3 + 0.7 * Math.sqrt(u)));
       mat.opacity = 0.5 * (1 - u);
@@ -72,7 +73,7 @@ export class Effects {
   blink(pos: THREE.Vector3, color: number): void {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false });
     const col = new THREE.Mesh(sphereGeo, mat);
-    col.position.set(pos.x, 1.2, pos.z);
+    col.position.set(pos.x, heightAt(pos.x, pos.z) + 1.2, pos.z);
     this.add(col, 0.35, (u) => {
       col.scale.set(0.9 * (1 - u) + 0.05, 1.6 + 2.5 * u, 0.9 * (1 - u) + 0.05);
       mat.opacity = 0.85 * (1 - u);

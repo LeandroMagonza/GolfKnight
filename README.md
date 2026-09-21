@@ -111,6 +111,27 @@ deshacen solas, y encontrarlas es el juego.
 
 El diseño, lo que se probó y lo que queda abierto está en `docs/diseno-combate.md`.
 
+## Prototipo: campo con relieve
+
+Agregando `?relieve` a la dirección (se puede combinar: `?relieve&palos`) el campo deja de ser un
+plano: hay dos lomas y un valle por el medio. Sin el parámetro, todo sigue como siempre.
+
+- Cerca de los puestos y de la muralla el piso es plano; el relieve entra de a poco desde los 14 m.
+- Los enemigos caminan sobre el terreno.
+- **Una loma tapa al driver**, que sale rasante: al que está detrás no le llega. La línea de tiro se
+  corta donde el tiro toca el terreno, para que se vea. Los globos pasan por arriba.
+- **El valle es un carril**: los que vienen por el fondo quedan servidos para un tiro a lo largo.
+- **No hay control de altura.** El tiro se inclina solo lo que sube o baja el terreno entre la pelota y
+  el cursor: apuntando a la cima de una loma sube, apuntando al fondo del valle baja. Los globos caen
+  en el punto apuntado aunque esté más alto o más bajo.
+- La pelota pica según la pendiente y rueda cuesta abajo.
+- Lo que falta a propósito (segundo paso, si el prototipo convence): las marcas del piso son planas y
+  se dibujan por encima del terreno en lugar de copiarlo; las pendientes no frenan a los enemigos; no
+  hay búnker ni agua; el bot no sabe jugar con relieve.
+
+La altura sale de `src/core/terrain.ts` (formas diseñadas, no ruido), y la pelota contra el terreno de
+`src/core/ballistics.ts`. `node tools/relieve.mjs` lo prueba y deja capturas en `logs/relieve-*.png`.
+
 ## Publicar
 
 El juego está en https://leandromagonza.github.io/GolfKnight/, junto a los otros juegos de la landing
