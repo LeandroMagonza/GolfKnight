@@ -1,6 +1,6 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
-import { CLUB_ORDER, CLUBS, MELEE_COOLDOWN, STREAK_MAX, type Club, type ClubId } from './core/clubs';
+import { CLUB_ORDER, CLUBS, MELEE_COOLDOWN, type Club, type ClubId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -29,7 +29,6 @@ export class Hud {
   private endEl = $('end');
   private skinBtn = $<HTMLButtonElement>('skin');
   private lobBtn = $<HTMLButtonElement>('lobaim');
-  private streakEl = $('streak');
   onSkinClick: (() => void) | null = null;
   onLobAimClick: (() => void) | null = null;
   onCardDismiss: (() => void) | null = null;
@@ -56,7 +55,7 @@ export class Hud {
       const cd = c.cooldown > 0 ? `<span class="cdlabel">⟳ ${c.cooldown} s</span>` : '';
       return `<div class="club locked${id === 'putter' ? ' space' : ''}" data-club="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${key}</span><div class="name">${c.name}</div><div class="title">${c.title}</div>${cd}<div class="cdnum"></div></div>`;
     }).join('') + `<div class="club extra" data-club="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">golpe corto</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
-    this.streakEl.innerHTML = '<div class="lbl">RACHA DRIVER</div><div class="mult">×1.0</div><div class="pips">' + '<i></i>'.repeat(STREAK_MAX) + '</div>';
+
   }
 
   private shownState = '';
@@ -100,24 +99,6 @@ export class Hud {
       if (id !== 'putter') continue;
       (el.querySelector('.title') as HTMLElement).textContent = cooldowns.putter > 0 ? 'recargando' : 'portal';
     }
-  }
-
-  private shownStreak = -1;
-
-  setStreak(streak: number, bonus: number): void {
-    if (streak === this.shownStreak) return;
-    const before = this.shownStreak;
-    this.shownStreak = streak;
-    const el = this.streakEl;
-    (el.querySelector('.mult') as HTMLElement).textContent = `×${bonus.toFixed(1)}`;
-    Array.from(el.querySelectorAll('.pips i')).forEach((pip, i) => pip.classList.toggle('on', i < streak));
-    el.classList.toggle('on', streak > 0);
-    el.classList.toggle('max', streak >= STREAK_MAX);
-    // salto al subir, sacudón rojo al perderla
-    el.classList.remove('gain', 'lost');
-    if (before < 0) return;
-    void el.offsetWidth;
-    el.classList.add(streak > before ? 'gain' : 'lost');
   }
 
   /** Cartel de palo nuevo. Se queda hasta que se lo cierre con un click. */

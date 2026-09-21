@@ -4,7 +4,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { previewPath } from './core/ballistics';
-import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_DAMAGE, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, STREAK_MAX, STREAK_PERFECT_KILL, streakBonus, type Club, type ClubId } from './core/clubs';
+import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_DAMAGE, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, type Club, type ClubId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -58,12 +58,6 @@ let closeup = false;
 let cardOpen = false;
 /** Segundos de juego transcurridos (no corre en pausa). */
 let gameClock = 0;
-/**
- * Racha del driver. Sube con cada baja del driver (tres escalones si el swing fue perfecto), se
- * mantiene cuando el tiro daña sin matar, y se corta cuando un tiro de driver no daña a nadie: no le
- * pegó a nada, o solo a escudos e inmunes.
- */
-let streak = 0;
 /** Con ?palos en la URL arrancan todos los palos habilitados, para probar sin jugar las oleadas. */
 const ALL_CLUBS = new URLSearchParams(location.search).has('palos');
 /** Con ?bot en la URL juega solo (src/bot.ts), para mirarlo o para chequear el balance. */
@@ -329,8 +323,6 @@ balls.onEvent = (e) => {
   switch (e.type) {
     case 'hit':
       audio.thud();
-      // una baja con swing perfecto vale tres escalones de racha
-      if (e.killed) addStreak(e.perfect ? STREAK_PERFECT_KILL : 1);
       break;
     case 'ice':
       audio.frost();
@@ -340,8 +332,7 @@ balls.onEvent = (e) => {
     case 'push':
       audio.explosion();
       if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.15);
-      if (e.exposed && e.hits >= 1) hud.feedback(`¡Expuestos ×${e.hits}! Reciben más daño`, 'good');
-      else if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
+      if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
       break;
     case 'bounce':
       audio.bounce();
@@ -352,21 +343,8 @@ balls.onEvent = (e) => {
       hud.float(s.x, s.y, e.warded ? 'inmune' : '¡Bloqueado!', 'hurt');
       break;
     }
-    case 'settled':
-      // pegar sin matar mantiene la racha; un tiro que no dañó a nadie la corta
-      if (e.hits === 0 && streak > 0) {
-        streak = 0;
-        hud.feedback('Racha perdida', 'bad');
-      }
-      break;
   }
 };
-
-function addStreak(n: number): void {
-  const before = streak;
-  streak = Math.min(STREAK_MAX, streak + n);
-  if (streak === STREAK_MAX && before < STREAK_MAX) hud.feedback('¡Racha al máximo!', 'good');
-}
 
 function selectClub(index: number): void {
   if (cardOpen) return;
@@ -642,10 +620,10 @@ async function makePlayer(skin: Skin): Promise<Player> {
     shots++;
     audio.tock(shot.perfect);
     if (shot.perfect) hud.feedback('¡Swing perfecto!', 'good');
-    balls.fire(shot, shotRange(shot.club, shot.reach), shot.club.enchant === 'pierce' ? streakBonus(streak) : 1);
+    balls.fire(shot, shotRange(shot.club, shot.reach));
   };
   // Palazo: botón aparte, con recarga. Pega alrededor de un punto un paso adelante del golfista, hacia
-  // donde apunta. No toca la racha del driver, ni para bien ni para mal.
+  // donde apunta.
   p.onMelee = () => {
     const center = p.position.clone().addScaledVector(p.aimDir, 1);
     const targets = horde.nearest(center, MELEE_RANGE, new Set(), MELEE_MAX_TARGETS);
@@ -827,7 +805,6 @@ function frame(): void {
 
     hud.setClub(player.club, player.pendingClub);
     hud.setClubState(player.unlocked, player.cooldowns, player.meleeCooldown);
-    hud.setStreak(streak, streakBonus(streak));
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScore(score, kills);
@@ -876,7 +853,6 @@ addEventListener('resize', () => {
     player.meter.setPower(power);
     player.releaseSwing();
   },
-  get streak() { return streak; },
   /** Color actual de la línea de tiro y palo que muestra la punta, para las pruebas. */
   get aimLine() { return { color: previewMat.color.getHex(), tip: tipClub, tipVisible: tip.visible }; },
   get cardOpen() { return cardOpen; },

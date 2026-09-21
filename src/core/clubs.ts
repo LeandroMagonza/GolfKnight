@@ -11,7 +11,7 @@ export type Enchant =
   | 'pierce'
   /** Globo de hielo: congela en un centro chico y enfría alrededor (lento, sin escudo, sin aura). */
   | 'ice'
-  /** Globo que no daña: donde cae empuja a todos hacia afuera. Perfecto: además los deja expuestos. */
+  /** Globo que no daña: donde cae empuja a todos hacia afuera. */
   | 'push'
   /** La pelota del putter queda en el piso y el golfista puede saltar hasta ella. */
   | 'portal';
@@ -50,17 +50,17 @@ export interface Club {
 // fondo les pasaba por arriba a los goblins (1.25 m) en todo el tramo medio, y cargar más era pegar peor.
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
-    id: 'driver', name: 'Driver', title: 'Rompevientos', hint: 'Recto y fuerte: atraviesa toda la fila. Cada baja lo carga; un tiro que no daña a nadie lo descarga',
+    id: 'driver', name: 'Driver', title: 'Rompevientos', hint: 'Recto y fuerte: atraviesa toda la fila. Es el único palo que hace daño',
     enchant: 'pierce', loftDeg: 3.5, minRange: 18, maxRange: 60, chargeTime: 1.0, damage: 1, knockback: 5,
     restitution: 0.3, bounceKeep: 0.8, maxHits: 99, cooldown: 0, color: 0xffb347,
   },
   iron: {
-    id: 'iron', name: 'Hierro 7', title: 'Escarcha', hint: 'Globo de hielo: congela en el centro y enfría alrededor. Frío = lento, sin escudo, sin aura, y recibe más daño',
+    id: 'iron', name: 'Hierro 7', title: 'Escarcha', hint: 'Globo de hielo: congela en el centro y enfría alrededor. Frío = lento, sin escudo y sin aura',
     enchant: 'ice', loftDeg: 40, minRange: 6, maxRange: 40, chargeTime: 0.5, damage: 0, knockback: 0,
     restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 2, gravity: 50, color: 0x7fd4ff,
   },
   wedge: {
-    id: 'wedge', name: 'Wedge', title: 'Vendaval', hint: 'Globo sin daño: empuja a todos hacia afuera. Perfecto: además quedan expuestos y reciben más daño',
+    id: 'wedge', name: 'Wedge', title: 'Vendaval', hint: 'Globo sin daño: empuja a todos hacia afuera',
     enchant: 'push', loftDeg: 45, minRange: 5, maxRange: 28, chargeTime: 0.4, damage: 0, knockback: 0,
     restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 0, gravity: 75, color: 0xff6b4a,
   },
@@ -83,8 +83,8 @@ export function isLob(club: Club): boolean {
 export const EXPLOSION_RADIUS = 3.6;
 
 /**
- * Hielo del hierro. En el centro (ICE_CORE) congela; hasta ICE_RADIUS enfría: lento, sin escudo, sin
- * aura, y recibe más daño. La duración sube con la carga. El swing perfecto agranda las dos zonas y
+ * Hielo del hierro. En el centro (ICE_CORE) congela; hasta ICE_RADIUS enfría: lento, sin escudo y sin
+ * aura. No cambia el daño que recibe. La duración sube con la carga. El swing perfecto agranda las dos zonas y
  * suma duración.
  */
 export const ICE_CORE = 1.3;
@@ -95,12 +95,6 @@ export const ICE_PERFECT_SECONDS = 1.5;
 export function iceSeconds(power: number, perfect = false): number {
   return 3 + 2 * clamp01(power) + (perfect ? ICE_PERFECT_SECONDS : 0);
 }
-/** Cuánto más daño recibe un enemigo frío (o congelado). */
-export const CHILL_DAMAGE_TAKEN = 1.25;
-
-/** Wedge perfecto: los empujados quedan expuestos (reciben más daño) durante unos segundos. */
-export const EXPOSED_SECONDS = 4;
-export const EXPOSED_DAMAGE_TAKEN = 1.5;
 
 /** Palazo (botón aparte): golpe corto alrededor del golfista, con recarga. */
 export const MELEE_RANGE = 2.4;
@@ -124,25 +118,15 @@ export function pushSpeed(power: number): number {
 /**
  * La carga va por niveles, no de forma continua: así se sabe cuánto va a pegar. Sin cargar es nivel 1
  * y cada tercio de la barra suma uno, hasta 3. Con el driver, el nivel ES el daño: 1, 2 o 3. El cuarto
- * escalón es el crítico (swing perfecto), que pega CRIT_DAMAGE. La vida de los enemigos está en la misma escala: el goblin tiene 2, así que
- * pide nivel 2; cargar de más es tiempo perdido.
+ * escalón es el crítico (swing perfecto), que pega CRIT_DAMAGE. Ese es TODO el daño: no hay racha, ni
+ * estados que lo multipliquen, ni pérdida por picar. La vida de los enemigos está en la misma escala:
+ * el goblin tiene 2, así que pide nivel 2; cargar de más es tiempo perdido.
  */
 export const CHARGE_LEVELS = 3;
 /** Daño del driver con swing perfecto (el crítico): no es un múltiplo del nivel, es este número. */
 export const CRIT_DAMAGE = 8;
 export function chargeLevel(power: number): number {
   return Math.min(CHARGE_LEVELS, 1 + Math.floor(clamp01(power) * CHARGE_LEVELS + 1e-9));
-}
-
-/**
- * Racha del driver: cada baja suma un escalón de daño, hasta un tope (tres escalones si el swing fue
- * perfecto). Pegar sin matar la mantiene. Un tiro que no daña a nadie la corta.
- */
-export const STREAK_STEP = 0.1;
-export const STREAK_MAX = 5;
-export const STREAK_PERFECT_KILL = 3;
-export function streakBonus(streak: number): number {
-  return 1 + STREAK_STEP * Math.min(STREAK_MAX, Math.max(0, streak));
 }
 
 function clamp01(v: number): number {

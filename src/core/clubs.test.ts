@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, CRIT_DAMAGE, ICE_CORE, ICE_RADIUS, iceSeconds, isLob, STREAK_MAX, streakBonus } from './clubs';
+import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, CRIT_DAMAGE, ICE_CORE, ICE_RADIUS, iceSeconds, isLob } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
 import { ENEMIES } from './waves';
 
@@ -15,13 +15,6 @@ describe('clubs', () => {
     expect(CLUB_ORDER).not.toContain('putter');
   });
 
-  it('la racha suma 10 % por escalón y se planta en el tope', () => {
-    expect(streakBonus(0)).toBe(1);
-    expect(streakBonus(3)).toBeCloseTo(1.3);
-    expect(streakBonus(STREAK_MAX)).toBeCloseTo(1.5);
-    expect(streakBonus(STREAK_MAX + 4)).toBeCloseTo(1.5);
-  });
-
   it('la carga va por niveles: 1 sin cargar y 3 al tope, un tercio de barra cada uno', () => {
     expect(CHARGE_LEVELS).toBe(3);
     expect(chargeLevel(0)).toBe(1);
@@ -34,12 +27,15 @@ describe('clubs', () => {
     expect(chargeLevel(PERFECT_FROM)).toBe(3);
   });
 
-  it('la vida de los enemigos está en la escala del daño: el crítico baja a cualquiera que no sea jefe', () => {
+  it('la vida de los enemigos está en la escala del daño: el crítico baja a todos menos al caballero y al jefe', () => {
     expect(ENEMIES.goblin.hp).toBe(2);
     expect(ENEMIES.skeleton.hp).toBe(4);
-    expect(ENEMIES.knight.hp).toBe(5);
+    expect(ENEMIES.knight.hp).toBe(10);
     expect(CRIT_DAMAGE).toBe(8);
-    for (const e of Object.values(ENEMIES)) if (!e.boss) expect(e.hp).toBeLessThanOrEqual(CRIT_DAMAGE);
+    for (const e of Object.values(ENEMIES)) if (!e.boss && e.kind !== 'knight') expect(e.hp).toBeLessThanOrEqual(CRIT_DAMAGE);
+    // el caballero aguanta un crítico, pero no dos
+    expect(ENEMIES.knight.hp).toBeGreaterThan(CRIT_DAMAGE);
+    expect(ENEMIES.knight.hp).toBeLessThanOrEqual(CRIT_DAMAGE * 2);
     // sin crítico, un esqueleto no cae de un tiro: hacer daño dejó de ser fácil
     expect(ENEMIES.skeleton.hp).toBeGreaterThan(CHARGE_LEVELS);
   });

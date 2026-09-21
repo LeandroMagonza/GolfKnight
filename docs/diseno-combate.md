@@ -674,3 +674,40 @@ El orden que pidió Leandro se mantiene (crítico, carga completa, y el toque ú
 detalle: si el fijo por tiro fuera de medio segundo o menos, el nivel 2 rendiría apenas menos que el
 toque (1.9 contra 2.0). El test lo contempla: exige el orden completo con un fijo realista, y con uno
 optimista solo exige crítico, carga completa, toque.
+
+### Solo daño base: se fueron todos los modificadores
+
+Pedido por Leandro: sacar todas las modificaciones de daño menos el daño base. La idea es que el
+crítico mate a casi todos de un golpe, con la excepción de la armadura grande y del jefe.
+
+Lo que quedó: el driver pega **1, 2 o 3** según la carga, o **8** con el crítico. El palazo pega 2.
+
+Lo que se fue:
+
+- **La racha del driver** (+10 % por baja, hasta +50 %), con su indicador en pantalla.
+- **La pérdida de daño después de picar** (la pelota que ya había picado o venía rodando pegaba entre
+  35 % y 100 %). Ahora pega lo mismo de aire que rodando.
+- **El +25 % a los enemigos fríos.** El hielo sigue frenando, sacando el escudo y apagando el aura.
+- **El estado *expuesto*** (+50 % durante 4 s), que era el premio del wedge perfecto. El wedge
+  perfecto hoy no da nada extra: queda pendiente decidir si lleva otro premio.
+
+Lo que NO se tocó, porque no son multiplicadores sino bloqueos: el escudo del guerrero (rebota el tiro
+rasante de frente) y el amparo del chamán (inmunes a 8 m). Tampoco la explosión del kamikaze, que les
+saca 4 a los otros enemigos en el centro y pierde fuerza hacia el borde: es daño entre enemigos.
+
+Vida de los enemigos:
+
+| Enemigo | Vida | Cómo cae |
+| --- | --- | --- |
+| Goblin | 2 | un nivel 2 |
+| Goblin kamikaze | 2 | un nivel 2 |
+| Alma en pena | 2 | un nivel 2 |
+| Chamán | 3 | un nivel 3 |
+| Esqueleto | 4 | crítico, o dos tiros |
+| Goblin guerrero (escudo) | 4 | crítico, o dos tiros (con el escudo abierto) |
+| Caballero esqueleto | **10** (antes 5) | crítico más un nivel 2, o cuatro cargas completas |
+| Gólem (jefe) | 80 | diez críticos |
+
+El caballero subió de 5 a 10 por mi cuenta, para que sea la excepción que aguanta un crítico. Es un
+número solo (`ENEMIES.knight.hp` en `waves.ts`). Hay un caballero en la oleada 4, uno en la 5 y tres
+en la del jefe.

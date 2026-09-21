@@ -1,6 +1,6 @@
 // Prueba automática del juego: salta la intro y prueba cada mecánica contra enemigos puestos a mano:
 // palos bloqueados, cartel de palo nuevo, palo en cola, medidor y niveles de carga, puestos y pelotas,
-// driver y racha, hielo, empujón, chamán, putter, alma en pena, vida, puerta, pausa y final.
+// driver, hielo, empujón, chamán, putter, alma en pena, vida, puerta, pausa y final.
 // Sale con error si alguna comprobación falla. Capturas en logs/.
 // uso: node tools/playtest.mjs [--quick]   (quick: solo arranque y una captura)
 import { createServer } from 'vite';
@@ -25,7 +25,7 @@ const state = () => page.evaluate(() => {
   return {
     wave: s.director.index, alive: s.horde.aliveCount, gate: s.gateHp, hp: s.player.hp,
     mode: s.player.mode, club: s.player.club.id, pos: [s.player.position.x, s.player.position.z].map((n) => +n.toFixed(1)),
-    kills: s.kills, shots: s.shots, streak: s.streak, fps: s.fps, ended: s.ended,
+    kills: s.kills, shots: s.shots, fps: s.fps, ended: s.ended,
   };
 });
 const enemies = () => page.evaluate(() => window.__gk.horde.enemies.map((e) => {
@@ -273,7 +273,7 @@ if (!quick) {
   log('carga a un tercio del tiempo', +early.toFixed(2));
   check('la carga sube lenta al principio', early < 0.2);
 
-  // --- niveles de carga: el nivel es el daño; el swing perfecto lo duplica ---
+  // --- niveles de carga: el nivel es el daño; el swing perfecto es el crítico ---
   await clearEnemies();
   const dummy = await still('golem', 0, 24);
   await aimAt(0, 24);
@@ -290,11 +290,9 @@ if (!quick) {
   check('el daño del driver es el nivel de carga: 1, 2 o 3', hits.join() === '1,2,3');
   check('el crítico pega 8', perfectHit === 8);
 
-  // --- racha del driver: sube al matar, se mantiene al pegar sin matar, se corta si no daña a nadie ---
+  // --- el driver atraviesa la fila, y ya no hay racha: el daño es el nivel y nada más ---
   // la pelota sale del tee, a un costado del golfista: la fila se arma sobre la línea tee -> cursor
   await clearEnemies();
-  await aimAt(-14, 30);
-  await drive(18, 4000);
   await aimAt(0, 40);
   await page.waitForTimeout(300);
   const onLine = async (d) => {
@@ -303,30 +301,20 @@ if (!quick) {
     return [tx + ((0 - tx) / len) * d, tz + ((40 - tz) / len) * d];
   };
   for (const d of [10, 13, 16]) await still('goblin', ...(await onLine(d)));
+  const killsBeforeRow = (await state()).kills;
   await driveLevel(2);
-  const afterRow = await state();
-  log('racha: fila', await enemies(), afterRow);
-  check('un tiro de nivel 2 atraviesa la fila de goblins y suma una baja por cada uno', afterRow.streak === 3);
-  await page.screenshot({ path: 'logs/k3-racha.png' });
+  const rowKills = (await state()).kills - killsBeforeRow;
+  log('fila de goblins', { bajas: rowKills });
+  check('un tiro de nivel 2 atraviesa la fila y mata a los tres goblins', rowKills === 3);
+  await page.screenshot({ path: 'logs/k3-fila.png' });
+  // con tres bajas encima, un nivel 2 sigue pegando 2: no hay racha que lo suba
   const tank = await still('knight', ...(await onLine(12)));
   await driveLevel(2);
-  const afterHit = await state();
-  log('racha: pega sin matar', afterHit, await enemy(tank));
-  check('pegar sin matar mantiene la racha', afterHit.streak === 3 && (await enemy(tank)).hp < 5);
-  await clearEnemies();
-  await driveLevel(2, 4000);
-  const afterMiss = await state();
-  log('racha: en blanco', afterMiss);
-  check('un tiro de driver que no daña a nadie corta la racha', afterMiss.streak === 0);
-  await still('goblin', ...(await onLine(8)));
-  await drive(60);
-  const afterPerfect = await state();
-  log('racha: baja perfecta', afterPerfect);
-  check('una baja con swing perfecto suma tres', afterPerfect.streak === 3);
-  await aimAt(-14, 30);
-  await drive(18, 4000);
+  log('sin racha', await enemy(tank));
+  check('las bajas no suben el daño: después de tres, un nivel 2 sigue sacando 2', (await enemy(tank)).hp === 8);
+  check('ya no hay indicador de racha', !(await page.evaluate(() => document.getElementById('streak'))));
 
-  // --- hielo: congela en el centro y enfría alrededor; frío = sin escudo (ni a la vista) y más daño ---
+  // --- hielo: congela en el centro y enfría alrededor; frío = sin escudo (ni a la vista); el daño no cambia ---
   await clearEnemies();
   const shield = await still('warrior', 0, 24);
   await page.waitForTimeout(900);
@@ -334,7 +322,6 @@ if (!quick) {
   await driveLevel(3, 2500);
   log('escudo vs driver', await enemy(shield));
   check('el escudo frena al driver', (await enemy(shield)).hp === 4);
-  check('un tiro que solo rebota en un escudo corta la racha', (await state()).streak === 0);
   await aimAt(2.4, 24);
   await lob(2, 0.5);
   const slowed = await enemy(shield);
@@ -365,7 +352,7 @@ if (!quick) {
   const thawed = await shieldSeen();
   log('escudo al pasar el hielo', thawed);
   check('cuando se le pasa el hielo el escudo vuelve', thawed.visible && thawed.enAlto);
-  // frío recibe 25 % más: un nivel 3 le saca 3 a un caballero, y 4 si está frío
+  // el frío no cambia el daño: un nivel 3 le saca 3 a un caballero, esté frío o no
   await clearEnemies();
   const warm = await still('knight', 0, 24);
   await aimAt(0, 24);
@@ -375,11 +362,21 @@ if (!quick) {
   const cold = await still('knight', 0, 24);
   await aimAt(2.6, 24);
   await lob(2, 0.5);
+  const coldBefore = await enemy(cold);
   await aimAt(0, 24);
   await driveLevel(3, 2500);
   const coldAfter = await enemy(cold);
   log('frío: nivel 3 al caballero', { sinFrio: warmHp, conFrio: coldAfter.hp });
-  check('un enemigo frío recibe 25 % más de daño', warmHp === 2 && coldAfter.hp === 1);
+  check('un enemigo frío recibe el mismo daño que uno sin frío', coldBefore.chilled && warmHp === 7 && coldAfter.hp === 7);
+  // el caballero es la excepción: aguanta un crítico
+  await clearEnemies();
+  const big = await still('knight', 0, 24);
+  const small = await still('skeleton', 0, 30);
+  await aimAt(0, 24);
+  await drive(60, 2500);
+  log('crítico', { caballero: await enemy(big), esqueleto: await enemy(small) });
+  check('el crítico mata a un esqueleto de un golpe', !(await enemy(small))?.alive);
+  check('el caballero aguanta un crítico: le quedan 2', (await enemy(big)).hp === 2);
   // muerto: el escudo tampoco se ve mientras cae
   await clearEnemies();
   await still('warrior', 0, 24);
@@ -398,7 +395,7 @@ if (!quick) {
   log('hielo perfecto', { normal: missed, perfecto: (await enemy(edge)).chilled });
   check('el hielo perfecto tiene más área', !missed && (await enemy(edge)).chilled);
 
-  // --- wedge: llega rápido, empuja hacia afuera sin dañar; perfecto, además deja expuestos ---
+  // --- wedge: llega rápido, empuja hacia afuera sin dañar; el daño que reciben después no cambia ---
   await clearEnemies();
   const ring = [];
   for (const [x, z] of [[-1.2, 24], [1.2, 24], [0, 25.2], [0, 22.8]]) ring.push(await still('skeleton', x, z));
@@ -426,19 +423,18 @@ if (!quick) {
   check('después del wedge también vuelve solo el driver', (await state()).club === 'driver');
   check('el wedge no daña', pushed.every((e) => e.hp === 4));
   check('el wedge aleja a todos del centro', pushed.every((e) => Math.hypot(e.x, e.z - 24) > 2.5));
-  check('sin perfecto no quedan expuestos', !(await page.evaluate(() => window.__gk.horde.enemies.some((e) => e.exposedTimer > 0))));
   await page.screenshot({ path: 'logs/k5-wedge.png' });
   await clearEnemies();
   const opened = await still('knight', 0, 24);
   await aimAt(0, 24);
   await lob(3, 0.96);
-  const exposed = await page.evaluate(() => window.__gk.horde.enemies.at(-1).exposedTimer);
+  await page.waitForTimeout(900);
+  const shovedTo = await enemy(opened);
+  await aimAt(shovedTo.x, shovedTo.z);
   await driveLevel(2, 2500);
-  const openHit = 5 - (await enemy(opened)).hp;
-  log('wedge perfecto', { expuesto: +exposed.toFixed(1), nivel2: openHit });
-  check('el wedge perfecto deja expuestos', exposed > 0);
-  check('un expuesto recibe 50 % más', openHit === 3);
-  await page.screenshot({ path: 'logs/k5b-expuesto.png' });
+  const openHit = 10 - (await enemy(opened)).hp;
+  log('wedge perfecto', { nivel2: openHit });
+  check('el wedge perfecto tampoco cambia el daño: un nivel 2 saca 2', openHit === 2);
 
   // --- chamán: los que tiene cerca son inmunes; con hielo encima se apaga el aura ---
   await clearEnemies();
@@ -568,7 +564,6 @@ if (!quick) {
   await resetPlayer();
   const close = await still('skeleton', 0.4, 10.6);
   await aimAt(0, 30);
-  const streakBefore = (await state()).streak;
   await page.keyboard.press('ShiftLeft');
   await page.waitForFunction(() => window.__gk.player.mode === 'free', null, { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(100);
@@ -584,7 +579,6 @@ if (!quick) {
   check('el palazo pega 2 de cerca', afterMelee.hp === 2);
   check('el palazo manda al enemigo unos 15 m hacia atrás', flung.z - 10.6 > 12 && flung.z - 10.6 < 18);
   check('el palazo tiene recarga', meleeCd > 0 && (await enemy(close)).hp === 2);
-  check('el palazo no toca la racha', (await state()).streak === streakBefore);
 
   // --- la puerta tiene 10: el que llega le pega una vez y desaparece ---
   await clearEnemies();

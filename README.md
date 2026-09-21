@@ -49,16 +49,14 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
   recupera 1 de vida y 2 de puerta.
 - Palos con `1`-`3`, rueda o `Q`/`E`. Después de usar el hierro o el wedge vuelve solo el driver. Si cambiás en medio de un tiro, el palo queda en cola (borde
   punteado) y entra solo cuando el tiro termina o lo cancelás.
-  - **Driver · Rompevientos**: recto y casi rasante (18-60 m), atraviesa a toda la fila. **Racha**: cada
-    baja del driver le suma +10 % de daño, hasta +50 % (tres escalones de una si el swing fue perfecto).
-    Pegar sin matar la mantiene; un tiro que no daña a nadie la corta. Con daño en números enteros casi
-    no se nota: está pendiente rehacerla.
+  - **Driver · Rompevientos**: recto y casi rasante (18-60 m), atraviesa a toda la fila. Es el único
+    palo que hace daño, y su daño es el nivel de carga o el crítico, y nada más: no hay racha, ni
+    estados que lo suban, ni pierde fuerza después de picar.
   - **Hierro 7 · Escarcha**: globo de hielo (6-40 m), sin daño, recarga de 2 s. Congela en un centro chico y enfría alrededor. *Frío*: camina al 40 %, no
-    tiene escudo (desaparece mientras dura), si es chamán se le apaga el aura, y recibe 25 % más de
-    daño. *Congelado*: además no camina ni ataca. Dura de 3 a 5 s según la carga; el swing perfecto
+    tiene escudo (desaparece mientras dura), si es chamán se le apaga el aura. *Congelado*: además no camina ni ataca. Dura de 3 a 5 s según la carga; el swing perfecto
     agranda las dos zonas y suma duración. Al jefe nunca lo congela, pero frío camina y ataca más lento.
   - **Wedge · Vendaval**: globo rápido (5-28 m, llega en medio segundo), sin daño: empuja a todos hacia
-    afuera desde donde cae. Con swing perfecto, además los deja *expuestos* 4 s: reciben 50 % más.
+    afuera desde donde cae.
 - **Putter · Portal**, en `Espacio`: te teletransporta al puesto más cercano al cursor y te deja una
   pelota ahí. Recarga de 8 s.
   Es la única salida cuando un alma en pena te tiene agarrado.
@@ -94,7 +92,7 @@ deshacen solas, y encontrarlas es el juego.
 | Esqueleto (4) | Pide un tiro bien cargado |
 | Goblin kamikaze (2) | Corre a la puerta (o a vos) y explota; su explosión también daña a la horda |
 | Goblin guerrero (4) | Su escudo devuelve el driver que le llega de frente. Con hielo encima no se cubre |
-| Caballero esqueleto (5) | Lento, mucha vida, casi no se deja empujar |
+| Caballero esqueleto (10) | Lento, casi no se deja empujar. El único, además del jefe, que aguanta un crítico |
 | Alma en pena (2) | La única que te persigue. Si te agarra no podés caminar ni pegar, y te saca vida hasta que saltás con el putter (o se cansa, a los 5 s) |
 | Chamán goblin (3) | Camina con el grupo con las manos en alto. Los enemigos a menos de 8 m son inmunes a todo. A él nunca lo protege nadie. Con hielo encima se le apaga el aura |
 | Gólem de roca (80) | Jefe. Se planta a 22 m y le tira piedras a la puerta cada 4 s; de cerca pega |
@@ -125,7 +123,7 @@ fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa e
 - `src/audio/audio.ts`: todo sintetizado con Tone.js.
 - `tools/`:
   - `playtest.mjs`: prueba automática con comprobaciones (sale con error si alguna falla): palos bloqueados,
-    cartel, puestos y pelotas, palo en cola, medidor y niveles, racha, hielo, empujón, chamán, putter,
+    cartel, puestos y pelotas, palo en cola, medidor y niveles, fila de goblins, hielo, empujón, chamán, putter,
     alma en pena, vida, puerta, pausa y
     derrota. Capturas en `logs/`.
   - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las 6 oleadas, para chequear balance. No

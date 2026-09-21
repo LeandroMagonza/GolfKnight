@@ -34,7 +34,7 @@ while (Date.now() - t0 < maxMinutes * 60000) {
   await page.waitForTimeout(watch ? 2000 : 5000);
   const s = await page.evaluate(() => {
     const g = window.__gk;
-    return { wave: g.director.index + 1, alive: g.horde.aliveCount, pending: g.director.pending, gate: g.gateHp, hp: g.player.hp, kills: g.kills, shots: g.shots, streak: g.streak, ended: g.ended, fps: g.fps, bot: window.__bot };
+    return { wave: g.director.index + 1, alive: g.horde.aliveCount, pending: g.director.pending, gate: g.gateHp, hp: g.player.hp, kills: g.kills, shots: g.shots, ended: g.ended, fps: g.fps, bot: window.__bot };
   }).catch(() => null);
   // cerraron la ventana a mano
   if (!s) break;

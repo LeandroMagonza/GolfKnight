@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { CHILL_DAMAGE_TAKEN, EXPLOSION_RADIUS, EXPOSED_DAMAGE_TAKEN, ICE_SLOW } from '../core/clubs';
+import { EXPLOSION_RADIUS, ICE_SLOW } from '../core/clubs';
 import { ENEMIES, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type EnemyKind, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
@@ -86,9 +86,6 @@ export class Enemy {
   grabbing = false;
   private grabTime = 0;
   private grabTick = 0;
-  /** Wedge perfecto: expuesto, recibe más daño mientras dure. */
-  exposedTimer = 0;
-  exposedMax = 1;
   /** Cada uno camina a su ritmo, en línea recta hacia la puerta: con eso las filas se arman y se desarman solas. */
   readonly speedMul = 1 + (Math.random() * 2 - 1) * SPEED_SPREAD;
   readonly knock = new THREE.Vector3();
@@ -114,9 +111,6 @@ export class Enemy {
   /** Cuánto hielo le queda, debajo de la barra de vida. */
   private readonly chillBg: THREE.Sprite;
   private readonly chillFill: THREE.Sprite;
-  /** Cuánto le queda de expuesto (wedge perfecto), arriba de la barra de vida. */
-  private readonly exposedBg: THREE.Sprite;
-  private readonly exposedFill: THREE.Sprite;
   private pips: { canvas: HTMLCanvasElement; tex: THREE.CanvasTexture; sprite: THREE.Sprite } | null = null;
   /** Aura del chamán, en el piso. */
   private readonly aura: THREE.Mesh | null = null;
@@ -181,13 +175,14 @@ export class Enemy {
     this.barBg.scale.set(barWidth, 0.16, 1);
     this.barFill.scale.set(barWidth, 0.1, 1);
     this.barFill.renderOrder = 11;
-    if (stats.hp <= 8) {
+    if (stats.hp <= 10) {
       const canvas = document.createElement('canvas');
       canvas.width = 32 * stats.hp;
       canvas.height = 32;
       const tex = new THREE.CanvasTexture(canvas);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-      sprite.scale.set(0.3 * stats.hp, 0.3, 1);
+      const pip = Math.min(0.3, 2.4 / stats.hp);
+      sprite.scale.set(pip * stats.hp, pip, 1);
       sprite.position.set(0, stats.height + 0.45, 0);
       sprite.renderOrder = 12;
       this.group.add(sprite);
@@ -207,19 +202,6 @@ export class Enemy {
     this.chillBg.scale.set(barWidth, 0.14, 1);
     this.chillFill.scale.set(barWidth, 0.09, 1);
     this.chillFill.renderOrder = 11;
-
-    this.exposedBg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x2a1206, transparent: true, opacity: 0.75, depthTest: false }));
-    this.exposedFill = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xff8a3c, depthTest: false }));
-    for (const s of [this.exposedBg, this.exposedFill]) {
-      s.center.set(0, 0.5);
-      s.position.set(-barWidth / 2, stats.height + 0.66, 0);
-      s.visible = false;
-      s.renderOrder = 10;
-      this.group.add(s);
-    }
-    this.exposedBg.scale.set(barWidth, 0.14, 1);
-    this.exposedFill.scale.set(barWidth, 0.09, 1);
-    this.exposedFill.renderOrder = 11;
 
     if (stats.behavior === 'shaman') {
       const mat = new THREE.MeshBasicMaterial({ color: 0xb26bff, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
@@ -317,7 +299,6 @@ export class Enemy {
       this.dyingTime = 0;
       this.grabbing = false;
       this.chillTimer = 0;
-      this.exposedTimer = 0;
       this.refreshBar();
       this.refreshChill();
       if (this.aura) this.aura.visible = false;
@@ -346,18 +327,6 @@ export class Enemy {
       this.chillTimer = s;
       this.chillMax = s;
     }
-  }
-
-  /** Cuánto se multiplica el daño que recibe: más si está frío, y más si quedó expuesto. */
-  get damageTaken(): number {
-    return (this.chilled ? CHILL_DAMAGE_TAKEN : 1) * (this.exposedTimer > 0 ? EXPOSED_DAMAGE_TAKEN : 1);
-  }
-
-  /** Wedge perfecto: queda expuesto. */
-  expose(seconds: number): void {
-    if (!this.alive) return;
-    this.exposedTimer = Math.max(this.exposedTimer, seconds);
-    this.exposedMax = this.exposedTimer;
   }
 
   /** Empujón sin daño (wedge): sale despedido y trastabilla. Los pesados apenas se mueven. */
@@ -407,7 +376,6 @@ export class Enemy {
     this.position.addScaledVector(this.knock, dt);
     this.knock.multiplyScalar(Math.exp(-6 * dt));
     if (this.chillTimer > 0) this.chillTimer = Math.max(0, this.chillTimer - dt);
-    if (this.exposedTimer > 0) this.exposedTimer = Math.max(0, this.exposedTimer - dt);
     this.refreshChill();
     const slow = this.chilled ? ICE_SLOW : 1;
     const behavior = this.stats.behavior;
@@ -664,7 +632,6 @@ export class Enemy {
       else if (this.frozen) mat.emissive.setHex(0x1c4a66);
       else if (this.chilled) mat.emissive.setHex(0x0c2a3c);
       else if (ward) mat.emissive.setRGB(0.45 * ward, 0.12 * ward, 0.8 * ward);
-      else if (this.exposedTimer > 0) mat.emissive.setRGB(0.55 + 0.25 * Math.sin(this.age * 10), 0.2, 0);
       else mat.emissive.setRGB(pulse * 0.7, pulse * 0.08, 0);
       mat.emissiveIntensity = flash ? 0.6 : 1;
       if (this.frozen) mat.color.setHex(0xbfe9ff);
@@ -674,18 +641,11 @@ export class Enemy {
   }
 
   private refreshChill(): void {
-    this.refreshExposed();
     const on = this.chilled && this.alive;
     this.chillBg.visible = this.chillFill.visible = on;
     if (!on) return;
     this.chillFill.scale.x = Math.max(0.001, this.chillBg.scale.x * (this.chillTimer / this.chillMax));
     this.chillFill.material.color.setHex(this.frozen ? 0xe8fbff : 0x58c8ff);
-  }
-
-  private refreshExposed(): void {
-    const on = this.exposedTimer > 0 && this.alive;
-    this.exposedBg.visible = this.exposedFill.visible = on;
-    if (on) this.exposedFill.scale.x = Math.max(0.001, this.exposedBg.scale.x * (this.exposedTimer / this.exposedMax));
   }
 
   dispose(): void {
@@ -698,8 +658,6 @@ export class Enemy {
       this.pips.tex.dispose();
       this.pips.sprite.material.dispose();
     }
-    this.exposedBg.material.dispose();
-    this.exposedFill.material.dispose();
     if (this.aura) (this.aura.material as THREE.Material).dispose();
   }
 }
@@ -777,9 +735,9 @@ export class Horde {
       this.emit({ type: 'immune', enemy });
       return false;
     }
-    // frío y expuesto multiplican todo el daño que recibe, venga de donde venga
-    // la vida va en números chicos y enteros: todo golpe que entra saca al menos 1
-    const dealt = amount > 0 ? Math.max(1, Math.round(amount * enemy.damageTaken)) : 0;
+    // ningún estado cambia el daño. La vida va en enteros: todo golpe que entra saca al menos 1
+    // (el redondeo es por la explosión del kamikaze, que pierde fuerza hacia el borde)
+    const dealt = amount > 0 ? Math.max(1, Math.round(amount)) : 0;
     const killed = enemy.damage(dealt, knockDir, knockback);
     this.emit({ type: 'damage', enemy, amount: dealt, killed });
     return killed;
@@ -835,10 +793,9 @@ export class Horde {
   }
 
   /**
-   * Empujón radial sin daño (wedge), más fuerte cerca del centro. Con exposeSeconds, además los
-   * deja expuestos. Devuelve a cuántos movió.
+   * Empujón radial sin daño (wedge), más fuerte cerca del centro. Devuelve a cuántos movió.
    */
-  push(pos: THREE.Vector3, radius: number, speed: number, exposeSeconds = 0): number {
+  push(pos: THREE.Vector3, radius: number, speed: number): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -848,7 +805,6 @@ export class Horde {
       if (d > radius) continue;
       if (dir.lengthSq() < 0.001) dir.set(Math.random() - 0.5, 0, Math.random() - 0.5);
       e.shove(dir.normalize(), speed * (1 - 0.55 * Math.max(0, d / radius)));
-      if (exposeSeconds > 0) e.expose(exposeSeconds);
       count++;
     }
     return count;

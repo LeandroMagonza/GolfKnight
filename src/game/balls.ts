@@ -3,7 +3,7 @@
 // y ahí hacen lo suyo (hielo, empujón).
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, stepBall, type BallState } from '../core/ballistics';
-import { chargeLevel, CRIT_DAMAGE, EXPOSED_SECONDS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, iceSeconds, PUSH_RADIUS, pushSpeed, type Club } from '../core/clubs';
+import { chargeLevel, CRIT_DAMAGE, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, iceSeconds, PUSH_RADIUS, pushSpeed, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
@@ -11,7 +11,7 @@ import { GATE_Z } from './world';
 
 const TRAIL_POINTS = 18;
 const MAX_STEP = 0.3;
-/** Segundos después de los cuales un tiro de driver ya se da por jugado, para la racha. */
+/** Segundos después de los cuales un tiro de driver ya se da por jugado. */
 const SETTLE_AFTER = 1.8;
 
 export interface Ball {
@@ -19,9 +19,6 @@ export interface Ball {
   club: Club;
   power: number;
   perfect: boolean;
-  /** Multiplicador de daño con el que salió (racha del driver). */
-  damageMul: number;
-  launchSpeed: number;
   hitIds: Set<number>;
   hits: number;
   /** Enemigos que mató esta pelota. */
@@ -39,10 +36,10 @@ export interface Ball {
 export type BallEvent =
   | { type: 'hit'; club: Club; enemy: Enemy; direct: boolean; perfect: boolean; killed: boolean }
   | { type: 'ice'; pos: THREE.Vector3; frozen: number; chilled: number; perfect: boolean }
-  | { type: 'push'; pos: THREE.Vector3; hits: number; exposed: boolean }
+  | { type: 'push'; pos: THREE.Vector3; hits: number }
   | { type: 'bounce'; pos: THREE.Vector3 }
   | { type: 'blocked'; enemy: Enemy; warded: boolean }
-  /** Un tiro de driver ya se jugó: a cuántos dañó y cuántas bajas hizo. Si no dañó a nadie, corta la racha. */
+  /** Un tiro de driver ya se jugó: a cuántos dañó y cuántas bajas hizo. */
   | { type: 'settled'; club: Club; hits: number; kills: number };
 
 const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
@@ -53,7 +50,7 @@ export class Balls {
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
-  fire(shot: Shot, range: number, damageMul = 1): Ball {
+  fire(shot: Shot, range: number): Ball {
     const loft = THREE.MathUtils.degToRad(shot.club.loftDeg);
     const state = launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: shot.club.color, emissiveIntensity: shot.perfect ? 1.6 : 0.7 });
@@ -67,22 +64,16 @@ export class Balls {
     trail.frustumCulled = false;
     this.scene.add(mesh, trail);
     const ball: Ball = {
-      state, club: shot.club, power: shot.power, perfect: shot.perfect, damageMul,
-      launchSpeed: Math.hypot(state.vel.x, state.vel.y, state.vel.z),
+      state, club: shot.club, power: shot.power, perfect: shot.perfect,
       hitIds: new Set(), hits: 0, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
     return ball;
   }
 
+  /** El daño del driver es el nivel de carga (1 a 3), o el crítico. Nada más lo modifica. */
   private damageOf(ball: Ball): number {
-    const s = ball.state;
-    // el daño del driver es el nivel de carga (1 a 3); el swing perfecto es el crítico
-    const base = ball.club.damage * (ball.perfect ? CRIT_DAMAGE : chargeLevel(ball.power)) * ball.damageMul;
-    // De aire pega con todo. Después de picar pierde fuerza con la velocidad.
-    if (s.bounces === 0 && !s.rolling) return base;
-    const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
-    return base * THREE.MathUtils.clamp(speed / (0.5 * ball.launchSpeed), 0.35, 1);
+    return ball.club.damage * (ball.perfect ? CRIT_DAMAGE : chargeLevel(ball.power));
   }
 
   /** El globo llegó (al piso o a un enemigo): hace su efecto en ese punto y desaparece. */
@@ -96,10 +87,9 @@ export class Balls {
       const r = this.horde.chillAround(pos, ICE_CORE * wide, ICE_RADIUS * wide, iceSeconds(ball.power, ball.perfect));
       this.onEvent?.({ type: 'ice', pos, frozen: r.frozen, chilled: r.chilled, perfect: ball.perfect });
     } else {
-      // el perfecto no empuja más: deja expuestos a los que alcanza
-      this.effects.explosion(pos, PUSH_RADIUS, ball.perfect ? 0xffb347 : ball.club.color);
-      const hits = this.horde.push(pos, PUSH_RADIUS, pushSpeed(ball.power), ball.perfect ? EXPOSED_SECONDS : 0);
-      this.onEvent?.({ type: 'push', pos, hits, exposed: ball.perfect });
+      this.effects.explosion(pos, PUSH_RADIUS, ball.club.color);
+      const hits = this.horde.push(pos, PUSH_RADIUS, pushSpeed(ball.power));
+      this.onEvent?.({ type: 'push', pos, hits });
     }
     ball.done = true;
   }
