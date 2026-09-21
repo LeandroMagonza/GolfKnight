@@ -253,7 +253,8 @@ function updatePreview(): void {
     ? previewOver(launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, player.aimDir.x, player.aimDir.z, lift.speed, lift.angle), club.gravity ?? GRAVITY, heightAt, PREVIEW_POINTS)
     : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
-  path.forEach((p, i) => pos.setXYZ(i, p.x, charging ? p.y : heightAt(p.x, p.z) + 0.05, p.z));
+  // el arco se ve siempre, no solo mientras se carga: si no, cambiar la altura con W/S no muestra nada
+  path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
   pos.needsUpdate = true;
   // La línea dice cuánto está cargado el tiro: cambia de color con cada nivel, y es dorada en el punto
   // justo del swing perfecto. Sin pelota en el puesto queda apagada.
@@ -995,6 +996,7 @@ addEventListener('resize', () => {
   /** Desde dónde sale la pelota ahora mismo. */
   get tee() { player.teePosition(tee); return [tee.x, tee.z]; },
   get tees() { return tees; },
+
   get traps() { return traps; },
   get aimHeight() { return aimHeight; },
   set aimHeight(v: number) { setAimHeight(v - aimHeight); },

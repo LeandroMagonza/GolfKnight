@@ -980,3 +980,75 @@ lugar de palos (o los dos: palos al principio, encantamientos después).
 
 Antes de meterse con esto conviene jugar lo que hay: el relieve y los tótems todavía no los probó una
 persona, y varias de estas dudas se contestan en cinco minutos de partida.
+
+### Por qué la altura manual no sirvió, y qué poner en su lugar
+
+Leandro la probó: quería levantar un globo por encima de una colina para pegarle a alguien que está
+detrás, y con el driver no se puede ni subiéndole la altura. Tenía razón, y los números lo explican.
+
+Altura de la trayectoria de cada palo a su alcance máximo, en metros:
+
+| Palo | Escalón | Loft | A 20 m | A 35 m | A 45 m | Vuelo |
+| --- | --- | --- | --- | --- | --- | --- |
+| Driver (60 m) | rasante | 2.5° | 0.6 | 0.6 | 0.5 | 0.49 s |
+| Driver | normal | 3.5° | 0.8 | 0.9 | 0.7 | 0.58 s |
+| Driver | globo | 17.5° | 4.2 | 4.6 | 3.5 | 1.31 s |
+| Driver | bombeado | 31.5° | 8.2 | 8.9 | 6.9 | 1.83 s |
+| Hierro (40 m) | normal | 40° | 8.4 | 3.7 | ya cayó | 1.16 s |
+| Wedge (28 m) | normal | 45° | 5.7 | ya cayó | ya cayó | 0.86 s |
+
+El driver bombeado pasa a 7-9 metros de altura: le pasa por arriba a todo, incluido el enemigo al que
+se le quería pegar. Para que baje justo ahí hay que **acortar el alcance**, y el alcance lo da la
+carga, que es lo mismo que da el daño. O sea que el driver a media distancia pega poco por definición.
+
+**Y hay algo peor, que apareció midiendo.** El crítico pide soltar con la barra arriba del 92 %, y la
+barra solo llega ahí después de haber subido casi todo: el alcance ya quedó en 56-60 m. **Con el
+driver, hoy es imposible hacer un crítico a un enemigo cercano.** No es un bug, es la consecuencia de
+que alcance y daño salgan de la misma barra.
+
+**Conclusión: sacar la altura manual.** No agrega una decisión nueva, duplica la de elegir palo, y el
+propio ejemplo de Leandro lo dice: "le puedo pegar con el wedge esperando a que caiga, o con el hierro
+7 con una trayectoria menos alta". Eso ya es elegir la trayectoria, y es más golf que una mira vertical.
+
+### La propuesta que sí lo resuelve: el daño sale de la distancia, no de la carga
+
+Idea de Leandro. Tres niveles de calidad de golpe (el timing), y cuánto vale cada nivel depende de a
+qué distancia pega y con qué palo:
+
+| Palo | Corta | Media | Larga |
+| --- | --- | --- | --- |
+| Driver | 1 / 2 / 3 | 1 / 3 / 5 | 2 / 4 / 8 |
+| Hierro | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| Wedge | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| Putter | 2 / 4 / 8 | 1 / 3 / 5 | 1 / 2 / 3 |
+
+**Esto arregla de raíz el conflicto que venimos arrastrando**, y contesta la pregunta de Leandro ("¿el
+timing define la fuerza, o se puede pegar flojo y hacer daño igual?"): la fuerza deja de existir como
+concepto. Queda así:
+
+- **El mouse dice dónde cae**, para todos los palos (hoy ya es así para los globos).
+- **La barra dice qué tan bien le pegaste**, y nada más: tres niveles de calidad, puro timing.
+- **El palo dice cómo llega** (rasante, arco medio, globo, rodando) **y cómo escala su daño** con la
+  distancia.
+- **El encantamiento dice qué efecto hace**, aparte y con recarga.
+
+Cada control tiene un solo significado. Se puede hacer un crítico cerca (con el putter) o lejos (con
+el driver), y esperar a que los enemigos se alineen ya no cuesta daño: alinear y timear dejan de
+pelearse, porque la barra no tiene que llegar a ningún lado para alcanzar lejos.
+
+**Lo que cambia de fondo, y hay que confirmar:** con esta tabla **todos los palos hacen daño**. Se cae
+la regla "el driver es el único que cobra", que venía desde el primer rediseño. A cambio, lo que
+distingue a cada palo pasa a ser la trayectoria y la curva de daño, que es más golf y combina mejor
+con los encantamientos.
+
+**Detalles a definir:**
+
+- Qué son corta, media y larga: yo las pondría en metros absolutos del campo (por ejemplo hasta 20,
+  de 20 a 40, más de 40), no en fracciones del rango de cada palo, porque el jugador piensa "está
+  lejos", no "está al 70 % de mi hierro".
+- Los rangos se ensanchan: si el mouse elige la distancia, el driver tiene que poder tirar corto
+  también (pegando poco). Algo como driver 6-66, hierro 6-50, wedge 5-40, putter 3-20.
+- El wedge y el hierro quedan iguales en daño: se diferencian por trayectoria, y con encantamientos
+  por el tamaño del efecto (más alto = más zonal).
+- Qué queda de la barra: tres niveles de calidad con la franja buena angosta. Es el medidor clásico de
+  golf, y se puede quedar el "clavar" de Espacio.
