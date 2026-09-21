@@ -10,10 +10,15 @@ import { ENEMIES, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, SHAMAN_H
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
+import { TEE_Z } from './tees';
 import { FIELD_HALF_WIDTH, GATE_HALF_WIDTH, GATE_Z, SPAWN_Z } from './world';
 
 /** A esta distancia (más su radio) un enemigo que pasa le pega al golfista. */
 const TRAMPLE_REACH = 0.55;
+/** Metros detrás de la línea de puestos a partir de los cuales un enemigo ya pasó: no se le pega más. */
+const PASSED_BEHIND = 1.6;
+/** El que pasó corre hasta la puerta a esta velocidad, para no quedarse a la vista sin poder tocarlo. */
+const PASSED_SPEED = 9;
 const BOMB_ENEMY_DAMAGE = 4;
 const KAMIKAZE_FUSE = 0.6;
 /** Segundos que tarda en caer un golpe dirigido al golfista, desde que levanta el brazo. */
@@ -82,6 +87,8 @@ export class Enemy {
   private solid = false;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
   warded = false;
+  /** Ya pasó la línea del golfista: está fuera de juego (nada lo toca) y corre hasta la puerta. */
+  passed = false;
   /** Alma en pena: tiene agarrado al golfista. */
   grabbing = false;
   private grabTime = 0;
@@ -273,7 +280,7 @@ export class Enemy {
       ctx.stroke();
     }
     p.tex.needsUpdate = true;
-    p.sprite.visible = this.alive;
+    p.sprite.visible = this.alive && !this.passed;
   }
 
   private refreshBar(): void {
@@ -283,7 +290,7 @@ export class Enemy {
     }
     const barWidth = this.barBg.scale.x;
     const f = Math.max(0, this.hp / this.maxHp);
-    this.barBg.visible = this.barFill.visible = f < 1 && this.alive;
+    this.barBg.visible = this.barFill.visible = f < 1 && this.alive && !this.passed;
     this.barFill.scale.x = Math.max(0.001, barWidth * f);
     this.barFill.material.color.setHSL(0.33 * f, 0.75, 0.55);
   }
@@ -434,6 +441,22 @@ export class Enemy {
       }
     }
 
+    // El que ya pasó la línea del golfista no se puede tocar más (tampoco se tira para atrás): se
+    // desvanece y corre hasta la puerta, en lugar de quedarse un rato a la vista sin que se le pueda pegar.
+    if (!this.passed && this.target === 'gate' && this.position.z < TEE_Z - PASSED_BEHIND) {
+      this.passed = true;
+      this.chillTimer = 0;
+      this.stunTimer = 0;
+      this.knock.set(0, 0, 0);
+      for (const { mat } of this.materials) {
+        mat.transparent = true;
+        mat.opacity = 0.4;
+        mat.needsUpdate = true;
+      }
+      this.refreshBar();
+      this.refreshChill();
+    }
+
     // dónde se para: los que pelean llegan hasta la puerta; el chamán y el gólem se plantan lejos
     const holdZ = behavior === 'shaman' ? SHAMAN_HOLD_Z : behavior === 'golem' ? GOLEM_HOLD_Z : null;
     const holding = holdZ !== null && this.target === 'gate';
@@ -487,13 +510,13 @@ export class Enemy {
         horde.emit({ type: 'attack', enemy: this });
       }
     } else {
-      const speed = this.stats.speed * this.speedMul * slow;
+      const speed = this.passed ? PASSED_SPEED : this.stats.speed * this.speedMul * slow;
       const step = Math.min(speed * dt, dist);
       this.position.x += (dx / dist) * step;
       this.position.z += (dz / dist) * step;
       // los clips de Mixamo avanzan ~1.5 m/s caminando y ~4 m/s corriendo a velocidad 1, para un modelo de 1.8 m
       const stride = this.stats.height / 1.8;
-      if (this.stats.runs) this.animator.setLocomotion('Running', speed / (4 * stride));
+      if (this.stats.runs || this.passed) this.animator.setLocomotion('Running', speed / (4 * stride));
       else this.animator.setLocomotion('Walking', speed / (1.5 * stride));
     }
 
@@ -614,7 +637,7 @@ export class Enemy {
 
   /** ¿Tiene el escudo en alto? Con hielo encima (frío o congelado) lo pierde hasta que se le pasa. */
   get shieldUp(): boolean {
-    return this.stats.shield && this.alive && !this.chilled;
+    return this.stats.shield && this.alive && !this.chilled && !this.passed;
   }
 
   private updateLook(dt: number): void {
@@ -730,7 +753,7 @@ export class Horde {
 
   /** Daña a un enemigo y avisa. Devuelve true si lo mató. */
   damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number): boolean {
-    if (!enemy.alive) return false;
+    if (!enemy.alive || enemy.passed) return false;
     if (enemy.warded) {
       this.emit({ type: 'immune', enemy });
       return false;
@@ -748,7 +771,7 @@ export class Horde {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
-      if (!e.alive || e === except) continue;
+      if (!e.alive || e.passed || e === except) continue;
       dir.set(e.position.x - pos.x, 0, e.position.z - pos.z);
       const d = dir.length() - e.radius;
       if (d > radius) continue;
@@ -782,7 +805,7 @@ export class Horde {
   chillAround(pos: THREE.Vector3, core: number, radius: number, seconds: number): { frozen: number; chilled: number } {
     const out = { frozen: 0, chilled: 0 };
     for (const e of this.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.passed) continue;
       const d = Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius;
       if (d > radius) continue;
       e.chill(seconds, d <= core);
@@ -799,7 +822,7 @@ export class Horde {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.passed) continue;
       dir.set(e.position.x - pos.x, 0, e.position.z - pos.z);
       const d = dir.length() - e.radius;
       if (d > radius) continue;
@@ -843,7 +866,7 @@ export class Horde {
   /** Enemigos vivos más cercanos a `pos`, sin contar `except`, dentro de `radius`. */
   nearest(pos: THREE.Vector3, radius: number, except: Set<number>, count: number): Enemy[] {
     return this.enemies
-      .filter((e) => e.alive && !except.has(e.id))
+      .filter((e) => e.alive && !e.passed && !except.has(e.id))
       .map((e) => ({ e, d: Math.hypot(e.position.x - pos.x, e.position.z - pos.z) }))
       .filter((x) => x.d <= radius)
       .sort((a, b) => a.d - b.d)
@@ -854,7 +877,7 @@ export class Horde {
   /** Saca a `pos` de adentro de los enemigos vivos (el golfista no los atraviesa). */
   pushOut(pos: THREE.Vector3, radius: number): void {
     for (const e of this.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.passed) continue;
       const dx = pos.x - e.position.x;
       const dz = pos.z - e.position.z;
       const d = Math.hypot(dx, dz);

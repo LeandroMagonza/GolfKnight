@@ -80,7 +80,7 @@ export function startBot(): BotStats {
     }
     // Nadie lo persigue, pero el que le pasa por encima lo atropella. Si uno viene derecho hacia su puesto:
     // palazo si está listo (lo manda 15 m atrás); si no, suelta lo que esté cargando y se corre dos puestos.
-    const threat = gk.horde.enemies.find((e: any) => e.alive && !e.frozen && e.state === 'walk' && (e.stats.behavior === 'melee' || e.stats.behavior === 'kamikaze')
+    const threat = gk.horde.enemies.find((e: any) => e.alive && !e.passed && !e.frozen && e.state === 'walk' && (e.stats.behavior === 'melee' || e.stats.behavior === 'kamikaze')
       && e.position.z > p.z - 0.5 && e.position.z - p.z < 4.5 && Math.abs(e.position.x - p.x) < 1.8);
     if (threat && pl.atSpot && performance.now() - dodgedAt > 500) {
       dodgedAt = performance.now();
@@ -110,7 +110,7 @@ export function startBot(): BotStats {
       return;
     }
 
-    const alive: any[] = gk.horde.enemies.filter((e: any) => e.alive);
+    const alive: any[] = gk.horde.enemies.filter((e: any) => e.alive && !e.passed);
     if (!alive.length) return;
 
     const ironReady = pl.unlocked.has('iron') && pl.cooldowns.iron <= 0;

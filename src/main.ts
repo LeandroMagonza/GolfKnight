@@ -4,13 +4,13 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { previewPath } from './core/ballistics';
-import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_DAMAGE, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, type Club, type ClubId } from './core/clubs';
+import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, type Club, type ClubId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
 import { Effects } from './game/effects';
 import { Horde } from './game/enemies';
-import { Tees } from './game/tees';
+import { TEE_Z, Tees } from './game/tees';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
@@ -101,6 +101,9 @@ const teeBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), new THREE
 teeBall.visible = false;
 scene.add(teeBall);
 
+/** Lo más cerca de la línea de puestos que puede caer la puntería, en metros hacia el campo. */
+const AIM_MIN_AHEAD = 2.5;
+
 function updateAim(): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
@@ -111,6 +114,8 @@ function updateAim(): void {
     // el mouse está sobre el horizonte: apunta lejos en esa dirección
     aimPoint.copy(player.position).addScaledVector(raycaster.ray.direction.clone().setY(0).normalize(), 80);
   }
+  // No se tira para atrás: la puntería nunca baja de la línea de los puestos. Los que ya pasaron, pasaron.
+  aimPoint.z = Math.max(aimPoint.z, TEE_Z + AIM_MIN_AHEAD);
   // La pelota sale desde el tee, que está a un costado del golfista y depende de hacia dónde apunta:
   // se itera un par de veces para que la línea tee -> mouse pase justo por el cursor.
   const dir = new THREE.Vector3(aimPoint.x - player.position.x, 0, aimPoint.z - player.position.z);
@@ -611,6 +616,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
     const i = tees.nearest(p.position.x);
     return Math.abs(tees.spots[i].x - p.position.x) < 0.1 && tees.take(i);
   };
+  p.canStart = () => hasBallHere();
   p.onWhiff = () => {
     audio.whoosh(0.3);
     hud.feedback('¡Sin pelota! Movete con A / D', 'bad');
@@ -622,8 +628,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     if (shot.perfect) hud.feedback('¡Swing perfecto!', 'good');
     balls.fire(shot, shotRange(shot.club, shot.reach));
   };
-  // Palazo: botón aparte, con recarga. Pega alrededor de un punto un paso adelante del golfista, hacia
-  // donde apunta.
+  // Palazo: botón aparte, con recarga. No hace daño: empuja hacia atrás a todo lo que haya alrededor de
+  // un punto un paso adelante del golfista, hacia donde apunta.
   p.onMelee = () => {
     const center = p.position.clone().addScaledVector(p.aimDir, 1);
     const targets = horde.nearest(center, MELEE_RANGE, new Set(), MELEE_MAX_TARGETS);
@@ -633,8 +639,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     for (const e of targets) {
       // los manda hacia atrás, por donde vinieron, apenas abiertos hacia el costado de donde estaban
       dir.set((e.position.x - p.position.x) * 0.25, 0, 1).normalize();
-      horde.damage(e, MELEE_DAMAGE, dir, MELEE_KNOCKBACK);
-      // es el botón de sacárselos de encima: además de dañar, les corta el ataque
+      e.shove(dir, MELEE_KNOCKBACK);
+      // es el botón de sacárselos de encima: además les corta el ataque
       e.stagger(MELEE_STAGGER);
     }
     if (targets.length) {

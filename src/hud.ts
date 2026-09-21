@@ -54,7 +54,7 @@ export class Hud {
       const key = id === 'putter' ? 'Espacio' : String(i + 1);
       const cd = c.cooldown > 0 ? `<span class="cdlabel">⟳ ${c.cooldown} s</span>` : '';
       return `<div class="club locked${id === 'putter' ? ' space' : ''}" data-club="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${key}</span><div class="name">${c.name}</div><div class="title">${c.title}</div>${cd}<div class="cdnum"></div></div>`;
-    }).join('') + `<div class="club extra" data-club="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">golpe corto</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
+    }).join('') + `<div class="club extra" data-club="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
 
   }
 

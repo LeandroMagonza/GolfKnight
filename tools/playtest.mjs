@@ -39,7 +39,7 @@ const aimAt = async (x, z) => {
 };
 const ballsDone = (maxMs = 6000) => page.waitForFunction(() => window.__gk.balls.list.length === 0, null, { timeout: maxMs }).catch(() => {});
 const playerFree = () => page.waitForFunction(() => window.__gk.player.mode === 'free' && window.__gk.player.atSpot, null, { timeout: 8000 }).catch(() => {});
-/** Deja una pelota en el puesto donde está parado el golfista: sin pelota el swing sale al aire. */
+/** Deja una pelota en el puesto donde está parado el golfista: sin pelota no se puede ni cargar. */
 const give = () => page.evaluate(() => { const g = window.__gk; g.tees.place(g.tees.nearest(g.player.position.x)); });
 /** Tiro de driver con alcance exacto en metros (18 = sin carga, 60 = a fondo y perfecto). Espera a que la pelota termine. */
 const drive = async (meters, maxMs = 6000) => {
@@ -153,7 +153,8 @@ if (!quick) {
   const oneStep = await where();
   log('un paso (D)', oneStep, { segundos: +(tArrive - t0).toFixed(2) });
   check('D lo lleva un puesto a la derecha de la pantalla (-X)', oneStep.puesto === center - 1 && oneStep.x === -4 && oneStep.z === 9);
-  check('correr un puesto lleva menos de un tercio de segundo', tArrive - t0 < 0.34);
+  // con easing: más lento que antes (0.17 s), pero sigue siendo ágil
+  check('correr un puesto lleva entre un cuarto y dos tercios de segundo', tArrive - t0 > 0.25 && tArrive - t0 < 0.67);
   await page.keyboard.press('KeyA');
   await page.keyboard.press('KeyA');
   await playerFree();
@@ -200,10 +201,19 @@ if (!quick) {
   check('con menos pelotas, la siguiente llega más rápido', refill.llegadas[0] < refill.llegadas[2] - refill.llegadas[1]);
   check('las pelotas nunca caen en el puesto del golfista', !refill.enSuPuesto);
   const shotsBefore = (await state()).shots;
-  await page.evaluate(() => window.__gk.shootPower(0.3));
-  await playerFree();
-  log('sin pelota', await state());
-  check('sin pelota en el puesto, el swing sale al aire', (await state()).shots === shotsBefore);
+  await page.mouse.down();
+  await page.waitForTimeout(200);
+  const noBall = await state();
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  log('sin pelota', noBall);
+  check('sin pelota en el puesto no se puede ni empezar a cargar', noBall.mode === 'free' && (await state()).shots === shotsBefore);
+  // no se apunta para atrás: con el mouse abajo de todo, la puntería sigue mirando al campo
+  await page.mouse.move(200, 710);
+  await page.waitForTimeout(150);
+  const backAim = await page.evaluate(() => { const g = window.__gk; return { z: +g.player.aimDir.z.toFixed(2), punto: g.aim }; });
+  log('apuntar para atrás', backAim);
+  check('no se puede apuntar para atrás', backAim.z > 0 && backAim.punto[1] > 9);
 
   // --- palo en cola: elegido en medio de un tiro, entra cuando el tiro termina o se cancela ---
   const clubs = () => page.evaluate(() => ({ club: window.__gk.player.club.id, enCola: window.__gk.player.pendingClub?.id ?? null, mode: window.__gk.player.mode }));
@@ -217,6 +227,7 @@ if (!quick) {
   await page.mouse.up();
   await playerFree();
   await page.waitForTimeout(150);
+  await give();
   const afterShot = await clubs();
   log('cola: tras el tiro', afterShot);
   check('el palo en cola entra al terminar el tiro', afterShot.club === 'wedge');
@@ -547,6 +558,19 @@ if (!quick) {
   check('el que le pasa por encima le saca 1 y muere en el choque', firstHit.hp === 2 && firstHit.vivos === 1);
   check('después de un golpe hay un respiro: el de atrás pasa de largo y llega a la puerta', firstHit.invulnerable && afterBoth.hp === 2 && afterBoth.gate === 9);
 
+  // --- el que ya pasó la línea del golfista queda fuera de juego: no se le pega, y corre a la puerta ---
+  await clearEnemies();
+  await resetPlayer();
+  const runner = await page.evaluate(() => { const g = window.__gk; g.gateHp = 10; const e = g.spawn('knight', 7, 7.2); return e.id; });
+  await page.waitForTimeout(700);
+  const gone = await page.evaluate((id) => { const g = window.__gk; const e = g.horde.enemies.find((x) => x.id === id); const before = e.hp; g.horde.damage(e, 3, null, 0); return { paso: e.passed, hp: e.hp, antes: before }; }, runner);
+  const tPass = await page.evaluate(() => window.__gk.clock);
+  await page.waitForFunction(() => window.__gk.horde.aliveCount === 0, null, { timeout: 8000 }).catch(() => {});
+  const tGate = await page.evaluate(() => window.__gk.clock);
+  log('el que pasó', gone, { segundosHastaLaPuerta: +(tGate - tPass).toFixed(1), puerta: (await state()).gate });
+  check('al que ya pasó no se le puede pegar', gone.paso && gone.hp === gone.antes);
+  check('el que pasó llega enseguida a la puerta (un caballero lento tardaría 5 s)', tGate - tPass < 2 && (await state()).gate === 8);
+
   // --- kamikazes: uno muere y se lleva a los otros ---
   await clearEnemies();
   await resetPlayer();
@@ -559,10 +583,11 @@ if (!quick) {
   log('kamikazes', await enemies(), await state());
   check('la explosión de un kamikaze se lleva a los vecinos', (await state()).kills - killsBefore === 3);
 
-  // --- palazo: botón aparte (Shift), con recarga; el swing ya no pega de cerca por sí solo ---
+  // --- palazo: botón aparte (Shift), con recarga; no hace daño, solo empuja, y llega a 4 m ---
   await clearEnemies();
   await resetPlayer();
   const close = await still('skeleton', 0.4, 10.6);
+  const farther = await still('skeleton', -2.6, 12.4);
   await aimAt(0, 30);
   await page.keyboard.press('ShiftLeft');
   await page.waitForFunction(() => window.__gk.player.mode === 'free', null, { timeout: 5000 }).catch(() => {});
@@ -576,9 +601,10 @@ if (!quick) {
   await page.waitForTimeout(900);
   const flung = await enemy(close);
   log('palazo: empujón', flung);
-  check('el palazo pega 2 de cerca', afterMelee.hp === 2);
+  check('el palazo no hace daño', afterMelee.hp === 4 && (await enemy(farther)).hp === 4);
+  check('el palazo alcanza a uno a más de 3 m', (await enemy(farther)).z - 12.4 > 8);
   check('el palazo manda al enemigo unos 15 m hacia atrás', flung.z - 10.6 > 12 && flung.z - 10.6 < 18);
-  check('el palazo tiene recarga', meleeCd > 0 && (await enemy(close)).hp === 2);
+  check('el palazo tiene recarga', meleeCd > 0);
 
   // --- la puerta tiene 10: el que llega le pega una vez y desaparece ---
   await clearEnemies();

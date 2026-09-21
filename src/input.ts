@@ -1,5 +1,5 @@
 // Teclado y mouse.
-// A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado sigue de largo), el mouse apunta, click izquierdo (o F) mantiene para cargar el swing y suelta para pegar,
+// A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite), el mouse apunta, click izquierdo (o F) mantiene para cargar el swing y suelta para pegar,
 // click derecho (o X) cancela, 1-3 / rueda / Q-E cambian de palo, Espacio es el putter (tira la pelota o salta
 // hasta ella; en la intro, avanza), Shift (o V) es el palazo, G cambia cómo se apuntan los globos, Escape pausa, R reinicia, C cambia
 // el skin, M silencia la música.

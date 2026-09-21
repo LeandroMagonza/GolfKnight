@@ -43,7 +43,9 @@ const MIN_BACKSWING = 0.3;
 /** Segundos después del impacto a partir de los cuales ya se puede cargar otro tiro. */
 const RECOVER = 0.22;
 /** Corre entre puestos así de rápido (m/s): tiene que sentirse casi como un salto. */
-const RUN_SPEED = 24;
+/** De puesto en puesto con easing: arranca y frena suave. Un puesto (4 m) lleva unos 0.4 s. */
+const RUN_SMOOTH_TIME = 0.12;
+const RUN_MAX_SPEED = 30;
 /** Segundos de invulnerabilidad después de recibir un golpe. */
 const HIT_GRACE = 1.2;
 /** Palazo: el clip de swing, desde el tope, bien rápido; y cuánto dura el gesto después del golpe. */
@@ -65,7 +67,11 @@ export class Player {
   /** Puesto al que va (o en el que está). */
   spotIndex = 0;
   /** ¿Hay pelota en este puesto? Si no, el swing sale al aire. */
+  /** Velocidad lateral actual, para el easing entre puestos. */
+  private runVel = 0;
   canFire: (() => boolean) | null = null;
+  /** ¿Se puede empezar a cargar? Sin pelota en el puesto, no: cargar para pegarle al aire solo frustraba. */
+  canStart: (() => boolean) | null = null;
   /** El swing no encontró pelota. */
   onWhiff: (() => void) | null = null;
   club: Club = CLUBS.driver;
@@ -189,6 +195,7 @@ export class Player {
   startSwing(): void {
     const recovered = this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER;
     if ((this.mode !== 'free' && !recovered) || this.grabbedBy || this.stunned || !this.alive || !this.atSpot) return;
+    if (this.canStart && !this.canStart()) return;
     // encadenar otro tiro apenas pasó el impacto también cuenta como fin del tiro anterior
     const next = this.pendingClub ?? this.club;
     if (this.cooldowns[next.id] > 0) {
@@ -397,15 +404,26 @@ export class Player {
       else this.updateSwing(dt);
       this.animator.setLocomotion('Idle', 1);
     } else {
-      // de puesto en puesto, corriendo muy rápido. Cada toque es un puesto: mantener apretado no repite
-      const dx = this.spotXs[this.spotIndex] - this.position.x;
+      // de puesto en puesto, con easing (resorte amortiguado crítico: arranca y frena suave). Cada toque
+      // es un puesto: mantener apretado no repite
+      const goal = this.spotXs[this.spotIndex];
+      const dx = goal - this.position.x;
       if (Math.abs(dx) >= 0.05) {
-        const stepX = Math.sign(dx) * Math.min(Math.abs(dx), RUN_SPEED * dt);
-        this.position.x += stepX;
-        if (Math.abs(this.spotXs[this.spotIndex] - this.position.x) < 0.05) this.position.x = this.spotXs[this.spotIndex];
+        const omega = 2 / RUN_SMOOTH_TIME;
+        const x = omega * dt;
+        const decay = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+        const change = THREE.MathUtils.clamp(-dx, -RUN_MAX_SPEED * RUN_SMOOTH_TIME, RUN_MAX_SPEED * RUN_SMOOTH_TIME);
+        const temp = (this.runVel + omega * change) * dt;
+        this.runVel = (this.runVel - omega * temp) * decay;
+        let next = this.position.x - change + (change + temp) * decay;
+        // no se pasa de largo
+        if ((goal - this.position.x > 0) === (next > goal)) { next = goal; this.runVel = 0; }
+        this.position.x = next;
+        if (Math.abs(goal - this.position.x) < 0.05) { this.position.x = goal; this.runVel = 0; }
         this.yaw = lerpAngle(this.yaw, Math.atan2(Math.sign(dx), 0), 1 - Math.exp(-30 * dt));
-        this.animator.setLocomotion('Running', 2.4);
+        this.animator.setLocomotion('Running', THREE.MathUtils.clamp(Math.abs(this.runVel) / 8, 0.9, 2.4));
       } else {
+        this.runVel = 0;
         this.yaw = lerpAngle(this.yaw, Math.atan2(this.aimDir.x, this.aimDir.z), 1 - Math.exp(-8 * dt));
         this.animator.setLocomotion('Idle', 1);
       }

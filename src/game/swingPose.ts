@@ -115,6 +115,8 @@ export class SwingRig {
   private readonly left: Arm | null;
   private readonly glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false });
   private readonly head: THREE.Object3D;
+  /** Cómo va el palo en la mano fuera del swing, en el espacio de la mano. Se calibra en el primer cuadro. */
+  private carry: { dir: THREE.Vector3; toe: THREE.Vector3 } | null = null;
 
   /** @param model modelo del palo normalizado (tools/club_to_glb.py); sin modelo se arma uno con primitivas */
   constructor(private readonly root: THREE.Object3D, scene: THREE.Scene, model: THREE.Object3D | null = null) {
@@ -200,10 +202,21 @@ export class SwingRig {
       }
     }
 
-    // fuera del swing el palo cuelga de la mano derecha, apuntando adelante y abajo
+    // Fuera del swing el palo va en la mano derecha, apuntando adelante y abajo. Esa orientación se
+    // calibra una sola vez contra la mano y después la sigue: el palo rota con el personaje y con su
+    // animación (correr, girar), en lugar de ser una aguja rígida apuntando hacia donde se apunta.
     hand.getWorldPosition(this.club.position);
-    const carryDir = new THREE.Vector3().copy(CARRY_DIR).applyQuaternion(rootQ);
-    const carryQ = clubQuaternion(carryDir, new THREE.Vector3(0, 1, 0), new THREE.Quaternion());
+    const carryHandQ = hand.getWorldQuaternion(new THREE.Quaternion());
+    if (!this.carry && w <= 0.001 && this.right) {
+      const inv = carryHandQ.clone().invert();
+      this.carry = {
+        dir: new THREE.Vector3().copy(CARRY_DIR).applyQuaternion(rootQ).applyQuaternion(inv),
+        toe: new THREE.Vector3(0, 1, 0).applyQuaternion(inv),
+      };
+    }
+    const carryDir = this.carry ? this.carry.dir.clone().applyQuaternion(carryHandQ) : new THREE.Vector3().copy(CARRY_DIR).applyQuaternion(rootQ);
+    const carryToe = this.carry ? this.carry.toe.clone().applyQuaternion(carryHandQ) : new THREE.Vector3(0, 1, 0);
+    const carryQ = clubQuaternion(carryDir, carryToe, new THREE.Quaternion());
     if (w > 0.001) {
       const swingQ = clubQuaternion(swingDirWorld, swingToe, new THREE.Quaternion());
       this.club.quaternion.copy(carryQ).slerp(swingQ, w);

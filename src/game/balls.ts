@@ -121,7 +121,7 @@ export class Balls {
     const s = ball.state;
     const pierce = ball.club.enchant === 'pierce';
     for (const e of this.horde.enemies) {
-      if (!e.alive || ball.hitIds.has(e.id)) continue;
+      if (!e.alive || e.passed || ball.hitIds.has(e.id)) continue;
       if (s.pos.y > e.height + BALL_RADIUS) continue;
       const dx = s.pos.x - e.position.x;
       const dz = s.pos.z - e.position.z;

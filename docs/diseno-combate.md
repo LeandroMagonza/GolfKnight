@@ -711,3 +711,51 @@ Vida de los enemigos:
 El caballero subió de 5 a 10 por mi cuenta, para que sea la excepción que aguanta un crítico. Es un
 número solo (`ENEMIES.knight.hp` en `waves.ts`). Hay un caballero en la oleada 4, uno en la 5 y tres
 en la del jefe.
+
+### Ajustes después de "solo daño base"
+
+Pedidos por Leandro, hechos:
+
+- **El palazo no hace daño**: solo empuja (unos 15 m hacia atrás) y corta el ataque. Radio de 2.4 a
+  4 m, y sin el tope de cuatro enemigos. El driver queda como la única fuente de daño del jugador.
+- **Sin pelota no se puede ni empezar a cargar.** Antes se cargaba y el swing salía al aire, y solo
+  frustraba.
+- **Movimiento entre puestos más lento y con easing** (resorte amortiguado): un puesto pasó de 0.17 s
+  a unos 0.4 s, arrancando y frenando suave.
+- **El que ya pasó la línea del golfista queda fuera de juego**: a 1.6 m detrás de los puestos se
+  desvanece, no se le puede pegar más (ni pelota, ni palazo, ni hielo, ni explosión) y corre hasta la
+  puerta a 9 m/s. Antes quedaba varios segundos caminando a la vista, todavía golpeable.
+- **No se puede tirar para atrás**: la puntería nunca baja de 2.5 m por delante de la línea de puestos.
+- **El palo en la mano**: fuera del swing el palo sigue a la mano derecha (rota con el personaje y con
+  su animación) en lugar de ser una aguja rígida hacia donde se apunta. Ojo: no estoy seguro de que
+  esto sea lo que Leandro quiso decir con "que el palo no siga al mouse"; está preguntado.
+
+### El conflicto: timear el daño contra esperar la fila
+
+Planteado por Leandro: controlar el daño depende de soltar en el momento justo de la barra, pero la
+otra parte divertida (esperar a que los enemigos se alineen para atravesar a varios) también pide
+soltar en un momento justo, y los dos momentos no coinciden. Si pegás cuando se alinean, hacés el daño
+que tenga la barra en ese instante. Opciones, sin decidir:
+
+1. **La barra se planta arriba.** Sube hasta el nivel 3 y se queda ahí todo lo que quieras; el crítico
+   es solo la ventana del momento en que llega al tope. Esperar la fila siempre da 3; el 8 queda como
+   el tiro de reflejos contra un enemigo gordo. Es la más simple y la que recomiendo.
+2. **Congelar la carga con un botón** (la idea de Leandro): con click derecho o Espacio mientras
+   cargás, la barra se clava en el nivel que tenga, y soltás cuando quieras. Permite guardarse un
+   crítico para la fila, que es muy potente; habría que ponerle un costo (dura 2 s, o mientras está
+   clavada no te podés mover).
+3. **Tiro en dos tiempos**: un click fija el daño (timing), y un segundo click dispara (alineación).
+   Separa del todo las dos habilidades, pero cada tiro pasa a ser dos clicks.
+4. **Rebote solo arriba**: volver a que la barra rebote entre el nivel 3 y el crítico. Nunca baja de
+   3, y el crítico vuelve cada medio segundo. Es lo que había antes y a Leandro le pareció fácil.
+5. **Que la fila pague sola**: el daño sube por cada enemigo que la pelota atraviesa (+1 por cada uno
+   ya atravesado). Así alinear rinde aunque salga un nivel bajo, y el timing pasa a ser lo de los
+   enemigos sueltos. Contradice el "solo daño base" recién pedido.
+
+### Idea: el wedge deja trampas en lugar de empujar
+
+De Leandro, porque el empujón no está funcionando. Sin implementar. Propuesta para discutir: el wedge
+tira un globo que deja una trampa en el piso (dura unos 8 s, máximo dos a la vez). El primer enemigo que
+la pisa la dispara: empuja a los de alrededor hacia atrás, o los frena un par de segundos. La gracia
+sería que se usa ANTES de que lleguen, para armar la fila que después cobra el driver: una trampa que
+frena al primero hace que los de atrás lo alcancen y queden alineados.

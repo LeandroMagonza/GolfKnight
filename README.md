@@ -26,11 +26,12 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
 
 - **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
   con un banderín, con `A` y `D`. Un toque es un puesto y dos toques son dos; mantener apretado no
-  repite, para que sea fácil de controlar. Corre muy rápido. **Solo se pega donde hay una pelota**: los guardias las van tirando desde
+  repite, para que sea fácil de controlar. Corre con easing (arranca y frena suave): un puesto lleva
+  unos 0.4 s. **Solo se pega donde hay una pelota**: los guardias las van tirando desde
   atrás. Nunca hay más de tres esperando, llegan más rápido cuantas menos quedan, y nunca caen en el
-  puesto donde estás parado, así que después de cada tiro hay que moverse. Sin pelota, el swing sale
-  al aire.
-- Mouse apunta. Mantener click (o `F`) carga el swing; soltar pega. Click derecho (o `X`) cancela.
+  puesto donde estás parado, así que después de cada tiro hay que moverse. Sin pelota no se puede ni
+  empezar a cargar (la línea de tiro queda gris).
+- Mouse apunta, siempre hacia el campo: no se puede tirar para atrás. Mantener click (o `F`) carga el swing; soltar pega. Click derecho (o `X`) cancela.
 - **La carga va por niveles: 1, 2 y 3**, y con el driver el nivel es el daño. El cuarto escalón es el
   **crítico**: soltar justo al tope (el último 8 % de la barra) pega 8. La barra sube lenta al principio
   y rápida al final, y después del tope rebota rápido por todo el rango, de 0 a 100 %. El crítico es lo
@@ -45,7 +46,8 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
 - Vos tenés 3 de vida y la puerta 10. **Nadie te persigue**: todos van derecho a la puerta. Pero el que
   te pasa por encima te atropella: te saca 1 y muere en el choque, así que ese ya no llega a la puerta.
   A la puerta cada enemigo le saca 1 (el caballero y el kamikaze, 2). Después de recibir un golpe hay un
-  segundo de respiro, titilando: el que pasa en ese momento sigue de largo. Entre oleadas se
+  segundo de respiro, titilando: el que pasa en ese momento sigue de largo. **El que ya pasó tu línea queda
+  fuera de juego**: se desvanece, no se le puede pegar más y corre hasta la puerta. Entre oleadas se
   recupera 1 de vida y 2 de puerta.
 - Palos con `1`-`3`, rueda o `Q`/`E`. Después de usar el hierro o el wedge vuelve solo el driver. Si cambiás en medio de un tiro, el palo queda en cola (borde
   punteado) y entra solo cuando el tiro termina o lo cancelás.
@@ -60,8 +62,8 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
 - **Putter · Portal**, en `Espacio`: te teletransporta al puesto más cercano al cursor y te deja una
   pelota ahí. Recarga de 8 s.
   Es la única salida cuando un alma en pena te tiene agarrado.
-- **Palazo** en `Shift` (o `V`): golpe corto de 2 de daño a lo que tengas encima, hasta cuatro
-  enemigos, con 2.5 s de recarga. Los manda unos 15 m hacia atrás (a los pesados, apenas).
+- **Palazo** en `Shift` (o `V`): no hace daño: empuja unos 15 m hacia atrás a todo lo que tengas a
+  4 m (a los pesados, apenas) y les corta el ataque. 2.5 s de recarga.
 - `G` (o el botón) cambia cómo se apuntan los globos: **al cursor** (caen donde está el mouse y la
   carga define solo la fuerza del efecto) o **por carga** (la carga es la distancia, como el driver).
 - `Esc` pausa, `R` reinicia, `M` silencia la música, `C` cambia el skin del golfista.
