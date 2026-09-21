@@ -4,7 +4,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { previewPath } from './core/ballistics';
-import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_RADIUS, rangeFor, type Club, type ClubId } from './core/clubs';
+import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, ICE_CORE, ICE_RADIUS, iceLevel, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_HALF_DEPTH, pushHalfWidth, rangeFor, type Club, type ClubId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -90,6 +90,18 @@ landing.rotation.x = -Math.PI / 2;
 landing.position.y = 0.05;
 landing.visible = false;
 scene.add(landing);
+// zona del wedge: un rectángulo con una raya en el medio, que es desde donde barre hacia cada costado
+const sweepMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+const sweepEdgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+const sweepBox = new THREE.Group();
+sweepBox.add(
+  new THREE.Mesh(new THREE.PlaneGeometry(2, 2), sweepMat),
+  new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(2, 2)), sweepEdgeMat),
+  new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 1, 0)]), sweepEdgeMat),
+);
+sweepBox.rotation.x = -Math.PI / 2;
+sweepBox.visible = false;
+scene.add(sweepBox);
 // centro del hielo: adentro de este círculo congela, afuera solo enfría
 const coreMat = new THREE.MeshBasicMaterial({ color: 0xe8fbff, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
 const landingCore = new THREE.Mesh(new THREE.CircleGeometry(1, 32), coreMat);
@@ -101,9 +113,6 @@ const teeBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), new THREE
 teeBall.visible = false;
 scene.add(teeBall);
 
-/** Lo más cerca de la línea de puestos que puede caer la puntería, en metros hacia el campo. */
-const AIM_MIN_AHEAD = 2.5;
-
 function updateAim(): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
@@ -114,15 +123,17 @@ function updateAim(): void {
     // el mouse está sobre el horizonte: apunta lejos en esa dirección
     aimPoint.copy(player.position).addScaledVector(raycaster.ray.direction.clone().setY(0).normalize(), 80);
   }
-  // No se tira para atrás: la puntería nunca baja de la línea de los puestos. Los que ya pasaron, pasaron.
-  aimPoint.z = Math.max(aimPoint.z, TEE_Z + AIM_MIN_AHEAD);
   // La pelota sale desde el tee, que está a un costado del golfista y depende de hacia dónde apunta:
   // se itera un par de veces para que la línea tee -> mouse pase justo por el cursor.
+  // No se tira para atrás: hay un arco de 180 grados, de costado a costado. Si el mouse está más atrás
+  // que la pelota, la puntería queda de costado, perpendicular a la línea de puestos.
+  aimPoint.z = Math.max(aimPoint.z, TEE_Z);
   const dir = new THREE.Vector3(aimPoint.x - player.position.x, 0, aimPoint.z - player.position.z);
   if (dir.lengthSq() < 1.5) return;
   player.aimDir.copy(dir.normalize());
   for (let i = 0; i < 2; i++) {
     player.teePosition(tee);
+    aimPoint.z = Math.max(aimPoint.z, tee.z);
     dir.set(aimPoint.x - tee.x, 0, aimPoint.z - tee.z);
     if (dir.lengthSq() > 0.25) player.aimDir.copy(dir.normalize());
   }
@@ -197,9 +208,10 @@ function updatePreview(): void {
   const ballHere = hasBallHere();
   teeBall.visible = show && charging && ballHere;
   landingCore.visible = landing.visible && club.enchant === 'ice';
-  hud.setMeter(charging, player.meter.power, cursorAim ? `${range.toFixed(0)} m · fuerza ${Math.round(player.meter.power * 100)} %` : `${range.toFixed(0)} m`);
+  hud.setMeter(charging, player.meter.power, player.meter.locked, cursorAim ? `${range.toFixed(0)} m · fuerza ${Math.round(player.meter.power * 100)} %` : `${range.toFixed(0)} m`);
   // el driver no lleva ícono: su línea ya dice todo. Los otros palos sí.
   tip.visible = show && ballHere && club.id !== 'driver';
+  if (!show) sweepBox.visible = false;
   if (!show) return;
   player.teePosition(tee);
   const loft = THREE.MathUtils.degToRad(club.loftDeg);
@@ -231,8 +243,20 @@ function updatePreview(): void {
     tipMat.needsUpdate = true;
   }
   const perfectNow = charging && player.meter.power >= PERFECT_FROM;
-  const wide = perfectNow ? ICE_PERFECT_AREA : 1;
-  landing.scale.setScalar(club.enchant === 'ice' ? ICE_RADIUS * wide : club.enchant === 'push' ? PUSH_RADIUS : 0.7);
+  const wide = iceLevel(charging ? player.meter.power : 0, perfectNow).area;
+  // el wedge barre un rectángulo, no un círculo
+  sweepBox.visible = landing.visible && club.enchant === 'push';
+  if (sweepBox.visible) {
+    landing.visible = false;
+    sweepBox.position.set(end.x, 0.05, end.z);
+    sweepBox.scale.set(pushHalfWidth(charging ? player.meter.power : 0, perfectNow), PUSH_HALF_DEPTH, 1);
+    const c = perfectNow ? 0xffd66b : club.color;
+    sweepMat.color.setHex(c);
+    sweepEdgeMat.color.setHex(c);
+    sweepMat.opacity = charging ? 0.22 : 0.1;
+    sweepEdgeMat.opacity = charging ? 0.95 : 0.45;
+  }
+  landing.scale.setScalar(club.enchant === 'ice' ? ICE_RADIUS * wide : 0.7);
   landingCore.position.set(end.x, 0.045, end.z);
   landingCore.scale.setScalar(ICE_CORE * wide);
   coreMat.opacity = charging ? 0.4 : 0.18;
@@ -459,6 +483,12 @@ const input = new Input({
   },
   swingCancel() {
     player?.cancelSwing();
+  },
+  swingLock() {
+    if (!started || paused || ended || !player?.lockSwing()) return;
+    const p = player.meter.power;
+    audio.chargeTick(p >= PERFECT_FROM ? CHARGE_LEVELS + 1 : chargeLevel(p));
+    hud.feedback(p >= PERFECT_FROM ? '¡Crítico clavado! Soltá cuando quieras' : `Clavado en ${chargeLevel(p)}: soltá cuando quieras`, p >= PERFECT_FROM ? 'good' : 'neutral');
   },
   selectClub,
   cycleClub(delta) {
@@ -796,6 +826,7 @@ function frame(): void {
     if (started) gameClock += dt;
     updateAim();
     const active = started && !ended;
+    if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere() && player.cooldowns[(player.pendingClub ?? player.club).id] <= 0) player.startSwing();
     player.update(dt);
     if (active) updateWaves(dt);
     if (started) {

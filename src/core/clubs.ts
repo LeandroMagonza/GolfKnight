@@ -11,7 +11,7 @@ export type Enchant =
   | 'pierce'
   /** Globo de hielo: congela en un centro chico y enfría alrededor (lento, sin escudo, sin aura). */
   | 'ice'
-  /** Globo que no daña: donde cae empuja a todos hacia afuera. */
+  /** Globo que no daña: donde cae barre a todos hacia los costados, en un rectángulo. */
   | 'push'
   /** La pelota del putter queda en el piso y el golfista puede saltar hasta ella. */
   | 'portal';
@@ -56,11 +56,11 @@ export const CLUBS: Record<ClubId, Club> = {
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Escarcha', hint: 'Globo de hielo: congela en el centro y enfría alrededor. Frío = lento, sin escudo y sin aura',
-    enchant: 'ice', loftDeg: 40, minRange: 6, maxRange: 40, chargeTime: 0.5, damage: 0, knockback: 0,
+    enchant: 'ice', loftDeg: 40, minRange: 6, maxRange: 40, chargeTime: 1.0, damage: 0, knockback: 0,
     restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 2, gravity: 50, color: 0x7fd4ff,
   },
   wedge: {
-    id: 'wedge', name: 'Wedge', title: 'Vendaval', hint: 'Globo sin daño: empuja a todos hacia afuera',
+    id: 'wedge', name: 'Wedge', title: 'Vendaval', hint: 'Globo sin daño: barre a todos hacia los costados, y los deja en fila en el borde',
     enchant: 'push', loftDeg: 45, minRange: 5, maxRange: 28, chargeTime: 0.4, damage: 0, knockback: 0,
     restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 0, gravity: 75, color: 0xff6b4a,
   },
@@ -83,17 +83,22 @@ export function isLob(club: Club): boolean {
 export const EXPLOSION_RADIUS = 3.6;
 
 /**
- * Hielo del hierro. En el centro (ICE_CORE) congela; hasta ICE_RADIUS enfría: lento, sin escudo y sin
- * aura. No cambia el daño que recibe. La duración sube con la carga. El swing perfecto agranda las dos zonas y
- * suma duración.
+ * Hielo del hierro. En el centro congela; alrededor enfría: lento, sin escudo y sin aura. No cambia el
+ * daño que recibe. Carga igual que el driver y cada escalón es mejor que el anterior: más área y más
+ * duración. El nivel 1 es el hielo base; el crítico es el más grande.
  */
 export const ICE_CORE = 1.3;
 export const ICE_RADIUS = 3;
 export const ICE_SLOW = 0.4;
-export const ICE_PERFECT_AREA = 1.3;
-export const ICE_PERFECT_SECONDS = 1.5;
-export function iceSeconds(power: number, perfect = false): number {
-  return 3 + 2 * clamp01(power) + (perfect ? ICE_PERFECT_SECONDS : 0);
+/** Por escalón de carga (1, 2, 3 y crítico): cuánto se agrandan las dos zonas, y cuántos segundos dura. */
+export const ICE_LEVELS: { area: number; seconds: number }[] = [
+  { area: 1, seconds: 3 },
+  { area: 1.15, seconds: 4.5 },
+  { area: 1.3, seconds: 6.5 },
+  { area: 1.7, seconds: 8 },
+];
+export function iceLevel(power: number, perfect = false): { area: number; seconds: number } {
+  return ICE_LEVELS[perfect ? CHARGE_LEVELS : chargeLevel(power) - 1];
 }
 
 /** Palazo (botón aparte): no hace daño. Empuja hacia atrás a todo lo que tenga alrededor, con recarga. */
@@ -109,10 +114,20 @@ export const MELEE_MAX_TARGETS = 12;
 export const MELEE_STAGGER = 0.7;
 
 /** Empujón del wedge: radio, y velocidad que le da a un enemigo parado en el centro. */
-export const PUSH_RADIUS = 4.2;
-export function pushSpeed(power: number): number {
-  return 27 * (0.55 + 0.45 * clamp01(power));
+/**
+ * Vendaval del wedge: barre un rectángulo alineado con el campo. Empuja SOLO hacia los costados (nunca
+ * hacia atrás ni hacia adelante), alejando del punto donde cayó, y más fuerte cuanto más cerca. El
+ * desplazamiento es exactamente lo que le falta a cada uno para llegar al borde, así que todos los de
+ * un mismo lado terminan en la misma columna: una fila servida para el driver. A los pesados apenas
+ * los mueve. El ancho crece con cada escalón de carga.
+ */
+export const PUSH_HALF_DEPTH = 3.5;
+export const PUSH_HALF_WIDTHS = [4, 5, 6, 8];
+export function pushHalfWidth(power: number, perfect = false): number {
+  return PUSH_HALF_WIDTHS[perfect ? CHARGE_LEVELS : chargeLevel(power) - 1];
 }
+/** El empujón es una velocidad que se apaga con exp(-KNOCK_DECAY t): recorre velocidad / KNOCK_DECAY. */
+export const KNOCK_DECAY = 6;
 
 /**
  * La carga va por niveles, no de forma continua: así se sabe cuánto va a pegar. Sin cargar es nivel 1

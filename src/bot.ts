@@ -147,7 +147,7 @@ export function startBot(): BotStats {
     // la barra); además la carga tiene que alcanzar para llegar hasta él.
     const minRange = club === 'driver' ? 18 : club === 'iron' ? 6 : 5;
     const maxRange = club === 'driver' ? 60 : club === 'iron' ? 40 : 28;
-    const chargeTime = club === 'driver' ? 1 : club === 'iron' ? 0.5 : 0.4;
+    const chargeTime = club === 'wedge' ? 0.4 : 1;
     const need = Math.min(3, Math.max(1, target.hp));
     const reach = Math.min(0.99, Math.max(0, (dist(target) + 4 - minRange) / (maxRange - minRange)));
     const want = club === 'iron' ? 0.3 : club === 'wedge' ? 0.5 : Math.max(reach, (need - 1) / 3 + 0.02);

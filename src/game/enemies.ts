@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { EXPLOSION_RADIUS, ICE_SLOW } from '../core/clubs';
+import { EXPLOSION_RADIUS, ICE_SLOW, KNOCK_DECAY } from '../core/clubs';
 import { ENEMIES, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type EnemyKind, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
@@ -381,7 +381,7 @@ export class Enemy {
     }
 
     this.position.addScaledVector(this.knock, dt);
-    this.knock.multiplyScalar(Math.exp(-6 * dt));
+    this.knock.multiplyScalar(Math.exp(-KNOCK_DECAY * dt));
     if (this.chillTimer > 0) this.chillTimer = Math.max(0, this.chillTimer - dt);
     this.refreshChill();
     const slow = this.chilled ? ICE_SLOW : 1;
@@ -816,7 +816,26 @@ export class Horde {
   }
 
   /**
-   * Empujón radial sin daño (wedge), más fuerte cerca del centro. Devuelve a cuántos movió.
+   * Vendaval del wedge: barre hacia los costados a los que están en el rectángulo centrado en `pos`
+   * (halfWidth a cada lado en X, halfDepth en Z). Cada uno recorre lo que le falta para llegar al borde de
+   * su lado, así que terminan todos en la misma columna. Devuelve a cuántos movió.
+   */
+  sweep(pos: THREE.Vector3, halfWidth: number, halfDepth: number): number {
+    let count = 0;
+    const dir = new THREE.Vector3();
+    for (const e of this.enemies) {
+      if (!e.alive || e.passed) continue;
+      const dx = e.position.x - pos.x;
+      if (Math.abs(dx) > halfWidth || Math.abs(e.position.z - pos.z) > halfDepth + e.radius) continue;
+      const side = Math.abs(dx) < 0.05 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(dx);
+      e.shove(dir.set(side, 0, 0), (halfWidth - Math.abs(dx)) * KNOCK_DECAY);
+      count++;
+    }
+    return count;
+  }
+
+  /**
+   * Empujón radial sin daño, más fuerte cerca del centro. Devuelve a cuántos movió.
    */
   push(pos: THREE.Vector3, radius: number, speed: number): number {
     let count = 0;

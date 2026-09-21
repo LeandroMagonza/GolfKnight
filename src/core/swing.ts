@@ -7,6 +7,10 @@
 //
 // El alcance del tiro va aparte (reach): sube con la carga y, cuando llegó al máximo, se queda ahí.
 // Lo que sigue oscilando es solo la potencia, que define el daño y el swing perfecto.
+//
+// Tiro en dos tiempos: mientras se carga se puede CLAVAR la potencia (lock). La barra deja de moverse y
+// el tiro sale con ese nivel cuando se suelte, así se puede timear el daño primero y esperar a que los
+// enemigos se alineen después. El alcance sigue creciendo aunque la potencia esté clavada.
 
 export const PERFECT_FROM = 0.92;
 /** Potencia mínima de un tiro, para que un click corto igual salga. */
@@ -22,9 +26,12 @@ export class SwingMeter {
   private elapsed = 0;
   private chargeTime = 1;
   charging = false;
+  /** Potencia clavada a mano, o null si la barra sigue corriendo. */
+  private lockedPower: number | null = null;
 
   start(chargeTime: number): void {
     this.charging = true;
+    this.lockedPower = null;
     this.elapsed = 0;
     this.chargeTime = chargeTime;
   }
@@ -36,6 +43,7 @@ export class SwingMeter {
   /** Potencia actual 0..1: sube acelerando hasta 1 y después oscila rápido entre 1 y REBOUND_FLOOR. */
   get power(): number {
     if (!this.charging) return 0;
+    if (this.lockedPower !== null) return this.lockedPower;
     const u = this.elapsed / this.chargeTime;
     if (u <= 1) return Math.pow(u, RISE_CURVE);
     const span = 1 - REBOUND_FLOOR;
@@ -49,8 +57,20 @@ export class SwingMeter {
     return Math.pow(Math.min(1, this.elapsed / this.chargeTime), RISE_CURVE);
   }
 
+  get locked(): boolean {
+    return this.charging && this.lockedPower !== null;
+  }
+
+  /** Clava la potencia donde está. Devuelve false si no se estaba cargando o ya estaba clavada. */
+  lock(): boolean {
+    if (!this.charging || this.lockedPower !== null) return false;
+    this.lockedPower = Math.max(MIN_POWER, this.power);
+    return true;
+  }
+
   /** Lleva el medidor a una potencia exacta (en la subida). Para pruebas automáticas. */
   setPower(power: number): void {
+    this.lockedPower = null;
     this.elapsed = Math.pow(Math.min(1, Math.max(0, power)), 1 / RISE_CURVE) * this.chargeTime;
   }
 
@@ -59,10 +79,12 @@ export class SwingMeter {
     const raw = this.power;
     const reach = this.reach;
     this.charging = false;
+    this.lockedPower = null;
     return { power: Math.max(MIN_POWER, raw), perfect: raw >= PERFECT_FROM, reach: Math.max(MIN_POWER, reach) };
   }
 
   cancel(): void {
     this.charging = false;
+    this.lockedPower = null;
   }
 }

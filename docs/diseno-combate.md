@@ -759,3 +759,38 @@ tira un globo que deja una trampa en el piso (dura unos 8 s, máximo dos a la ve
 la pisa la dispara: empuja a los de alrededor hacia atrás, o los frena un par de segundos. La gracia
 sería que se usa ANTES de que lleguen, para armar la fila que después cobra el driver: una trampa que
 frena al primero hace que los de atrás lo alcancen y queden alineados.
+
+### Tiro en dos tiempos, hierro por escalones y wedge en rectángulo
+
+Pedidos por Leandro, hechos:
+
+- **Arco de 180 grados**: se puede tirar de costado, perpendicular a la línea de puestos. Para atrás no.
+- **Carga apenas se puede**: si el botón de cargar ya está apretado al llegar a un puesto con pelota,
+  la carga arranca sola. Sacar el swing al aire había dejado el arranque menos responsivo.
+- **Tiro en dos tiempos** (la opción 3 del conflicto, en su versión): soltar el click pega con lo que
+  marque la barra, como siempre; pero `S` mientras se carga *clava* el daño, y el tiro sale con ese
+  nivel cuando se suelta. El alcance sigue subiendo con la barra clavada. `Espacio` queda para el
+  putter. Ojo de balance: se puede clavar un crítico y esperar la fila, que son 8 a cada uno.
+- **El hierro 7 carga igual que el driver** (1 s, antes 0.5) y **cada escalón es mejor**: el nivel 1
+  es el hielo base de antes (3 s), el nivel 2 es nuevo (4.5 s, 15 % más de área), el nivel 3 es el
+  crítico de antes (6.5 s, 30 % más) y el crítico es más grande todavía (8 s, 70 % más).
+- **El wedge barre un rectángulo hacia los costados** (idea de Leandro). Empuja solo en X, alejando
+  del punto donde cae, y más fuerte cuanto más cerca. La cuenta cierra sola: si el desplazamiento es
+  lo que le falta a cada uno para llegar al borde (medio ancho menos su distancia), todos los de un
+  mismo lado terminan en la misma columna, sin cambiar de profundidad. Tres enemigos uno al lado del
+  otro quedan en fila. Medio ancho 4, 5, 6 y 8 m según el escalón; medio fondo 3.5 m. A los pesados
+  apenas los mueve. En la prueba, tres esqueletos en x = 0.8, 2.4 y 4.2 terminaron en 6.5, 6.4 y 6.2.
+
+Ideas anotadas, sin implementar:
+
+- **Llevar pelotas encima** (tipo carcaj, como mejora): levantar pelotas de los puestos, tener un par
+  guardadas, y con pelota encima poder tirar desde cualquier puesto, o soltarla con un botón.
+- **El putter pone trampas cerca** en lugar de (o además de) teletransportar, ya que el salto hoy
+  sirve de poco. Se cruza con la idea anterior de que las trampas fueran del wedge.
+- **Más palos**: ver la lista de palos clásicos más abajo.
+
+Palos de golf que existen además de los cuatro que usamos (driver, hierro 7, wedge, putter): maderas
+de calle (madera 3, madera 5), híbridos, hierros largos (2 a 4), medios (5 a 7) y cortos (8 y 9), y
+cuatro wedges distintos: pitching, gap, sand (para el búnker) y lob (el globo más alto y corto). Una
+bolsa reglamentaria lleva hasta 14. Los nombres antiguos dan juego para un mundo de fantasía: brassie
+(madera 2), spoon (madera 3), cleek (hierro largo), mashie (hierro medio), niblick (wedge).

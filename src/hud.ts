@@ -157,8 +157,9 @@ export class Hud {
     this.hint.textContent = queued ? `Próximo: ${queued.name} · ${queued.hint}` : club.hint;
   }
 
-  setMeter(charging: boolean, power: number, label: string): void {
+  setMeter(charging: boolean, power: number, locked: boolean, label: string): void {
     this.meter.classList.toggle('on', charging);
+    this.meter.classList.toggle('locked', charging && locked);
     this.power.style.width = `${charging ? power * 100 : 0}%`;
     this.range.textContent = charging ? label : '';
   }

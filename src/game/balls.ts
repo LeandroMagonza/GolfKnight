@@ -3,7 +3,7 @@
 // y ahí hacen lo suyo (hielo, empujón).
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, stepBall, type BallState } from '../core/ballistics';
-import { chargeLevel, CRIT_DAMAGE, ICE_CORE, ICE_PERFECT_AREA, ICE_RADIUS, iceSeconds, PUSH_RADIUS, pushSpeed, type Club } from '../core/clubs';
+import { chargeLevel, CRIT_DAMAGE, ICE_CORE, ICE_RADIUS, iceLevel, PUSH_HALF_DEPTH, pushHalfWidth, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
@@ -80,15 +80,17 @@ export class Balls {
   private burst(ball: Ball): void {
     const pos = new THREE.Vector3(ball.state.pos.x, ball.state.pos.y, ball.state.pos.z);
     if (ball.club.enchant === 'ice') {
-      // congela en el centro y enfría alrededor; el perfecto agranda las dos zonas y dura más
-      const wide = ball.perfect ? ICE_PERFECT_AREA : 1;
-      this.effects.frost(pos, ICE_RADIUS * wide, false);
-      this.effects.frost(pos, ICE_CORE * wide, true);
-      const r = this.horde.chillAround(pos, ICE_CORE * wide, ICE_RADIUS * wide, iceSeconds(ball.power, ball.perfect));
+      // congela en el centro y enfría alrededor; cada escalón de carga agranda las dos zonas y dura más
+      const ice = iceLevel(ball.power, ball.perfect);
+      this.effects.frost(pos, ICE_RADIUS * ice.area, false);
+      this.effects.frost(pos, ICE_CORE * ice.area, true);
+      const r = this.horde.chillAround(pos, ICE_CORE * ice.area, ICE_RADIUS * ice.area, ice.seconds);
       this.onEvent?.({ type: 'ice', pos, frozen: r.frozen, chilled: r.chilled, perfect: ball.perfect });
     } else {
-      this.effects.explosion(pos, PUSH_RADIUS, ball.club.color);
-      const hits = this.horde.push(pos, PUSH_RADIUS, pushSpeed(ball.power));
+      // barre hacia los costados, en un rectángulo que se ensancha con la carga
+      const half = pushHalfWidth(ball.power, ball.perfect);
+      this.effects.explosion(pos, Math.min(half, PUSH_HALF_DEPTH), ball.club.color);
+      const hits = this.horde.sweep(pos, half, PUSH_HALF_DEPTH);
       this.onEvent?.({ type: 'push', pos, hits });
     }
     ball.done = true;

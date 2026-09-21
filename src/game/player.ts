@@ -42,7 +42,6 @@ const FOLLOW_SPEED = 1.35;
 const MIN_BACKSWING = 0.3;
 /** Segundos después del impacto a partir de los cuales ya se puede cargar otro tiro. */
 const RECOVER = 0.22;
-/** Corre entre puestos así de rápido (m/s): tiene que sentirse casi como un salto. */
 /** De puesto en puesto con easing: arranca y frena suave. Un puesto (4 m) lleva unos 0.4 s. */
 const RUN_SMOOTH_TIME = 0.12;
 const RUN_MAX_SPEED = 30;
@@ -66,9 +65,9 @@ export class Player {
   spotXs: number[] = [0];
   /** Puesto al que va (o en el que está). */
   spotIndex = 0;
-  /** ¿Hay pelota en este puesto? Si no, el swing sale al aire. */
   /** Velocidad lateral actual, para el easing entre puestos. */
   private runVel = 0;
+  /** ¿Hay pelota en este puesto? El tiro la consume. */
   canFire: (() => boolean) | null = null;
   /** ¿Se puede empezar a cargar? Sin pelota en el puesto, no: cargar para pegarle al aire solo frustraba. */
   canStart: (() => boolean) | null = null;
@@ -217,6 +216,11 @@ export class Player {
     this.swingFromPhi = this.rig.phi;
     const clip = this.swingClip;
     if (clip) this.animator.resumeOneShot(downswingTimeFor(clip, this.backswingTime(clip)), DOWNSWING_SPEED);
+  }
+
+  /** Clava el daño donde está la barra: el tiro sale con ese nivel cuando se suelte. */
+  lockSwing(): boolean {
+    return this.mode === 'charging' && this.meter.lock();
   }
 
   cancelSwing(): void {

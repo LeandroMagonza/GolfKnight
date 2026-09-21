@@ -213,7 +213,32 @@ if (!quick) {
   await page.waitForTimeout(150);
   const backAim = await page.evaluate(() => { const g = window.__gk; return { z: +g.player.aimDir.z.toFixed(2), punto: g.aim }; });
   log('apuntar para atrás', backAim);
-  check('no se puede apuntar para atrás', backAim.z > 0 && backAim.punto[1] > 9);
+  check('no se puede apuntar para atrás, pero sí de costado: el arco es de 180 grados', Math.abs(backAim.z) < 0.06 && backAim.punto[1] >= 9);
+  // si el botón sigue apretado, la carga arranca sola al llegar a un puesto con pelota
+  await resetPlayer();
+  await aimAt(0, 40);
+  await page.evaluate(() => { const g = window.__gk; for (const s of g.tees.spots) s.ball = false; g.tees.place(g.tees.centerIndex - 1); });
+  await page.mouse.down();
+  await page.waitForTimeout(150);
+  const heldNoBall = (await state()).mode;
+  await page.keyboard.press('KeyD');
+  await page.waitForFunction(() => window.__gk.player.mode === 'charging', null, { timeout: 3000 }).catch(() => {});
+  const heldArrived = await page.evaluate(() => ({ mode: window.__gk.player.mode, puesto: window.__gk.player.spotIndex, llego: window.__gk.player.atSpot }));
+  log('cargar apretado', { antes: heldNoBall }, heldArrived);
+  check('con el botón apretado, la carga arranca sola al llegar a un puesto con pelota', heldNoBall === 'free' && heldArrived.mode === 'charging' && heldArrived.llego);
+  // S clava el daño: la barra queda quieta y el tiro sale con ese nivel cuando se suelta
+  await page.waitForFunction(() => window.__gk.player.meter.power > 0.4, null, { timeout: 3000, polling: 'raf' }).catch(() => {});
+  await page.keyboard.press('KeyS');
+  const lockedAt = await page.evaluate(() => window.__gk.player.meter.power);
+  await page.waitForTimeout(700);
+  const lockedLater = await page.evaluate(() => ({ power: window.__gk.player.meter.power, clavada: window.__gk.player.meter.locked, reach: window.__gk.player.meter.reach, barra: document.getElementById('meter').classList.contains('locked') }));
+  log('carga clavada', { al: +lockedAt.toFixed(2) }, lockedLater);
+  check('S clava la carga: la barra no se mueve más', lockedLater.clavada && lockedLater.barra && Math.abs(lockedLater.power - lockedAt) < 1e-6 && lockedAt > 0.4 && lockedAt < 0.92);
+  check('con la carga clavada el alcance sigue subiendo hasta el tope', lockedLater.reach === 1);
+  await page.keyboard.press('KeyX');
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  await resetPlayer();
 
   // --- palo en cola: elegido en medio de un tiro, entra cuando el tiro termina o se cancela ---
   const clubs = () => page.evaluate(() => ({ club: window.__gk.player.club.id, enCola: window.__gk.player.pendingClub?.id ?? null, mode: window.__gk.player.mode }));
@@ -434,6 +459,19 @@ if (!quick) {
   check('después del wedge también vuelve solo el driver', (await state()).club === 'driver');
   check('el wedge no daña', pushed.every((e) => e.hp === 4));
   check('el wedge aleja a todos del centro', pushed.every((e) => Math.hypot(e.x, e.z - 24) > 2.5));
+  check('el wedge empuja solo hacia los costados: nadie cambia de profundidad', pushed.every((e, i) => Math.abs(e.z - [24, 24, 25.2, 22.8][i]) < 0.3));
+  // tres desparramados del mismo lado terminan en la misma columna, en el borde del rectángulo
+  await clearEnemies();
+  const trio = [];
+  for (const [x, z] of [[0.8, 22.5], [2.4, 24], [4.2, 25.5]]) trio.push(await still('skeleton', x, z));
+  await aimAt(0, 24);
+  await lob(3, 0.8);
+  await page.waitForTimeout(900);
+  const column = [];
+  for (const id of trio) column.push(await enemy(id));
+  log('wedge: columna', column.map((e) => [e.x, e.z]));
+  check('el wedge deja a los de un lado alineados en el borde (x = 6)', column.every((e) => Math.abs(e.x - 6) < 0.6));
+  await page.screenshot({ path: 'logs/k5c-columna.png' });
   await page.screenshot({ path: 'logs/k5-wedge.png' });
   await clearEnemies();
   const opened = await still('knight', 0, 24);

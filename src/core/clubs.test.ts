@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, CRIT_DAMAGE, ICE_CORE, ICE_RADIUS, iceSeconds, isLob } from './clubs';
+import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, CRIT_DAMAGE, ICE_CORE, ICE_LEVELS, ICE_RADIUS, iceLevel, isLob, KNOCK_DECAY, PUSH_HALF_WIDTHS, pushHalfWidth } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
 import { ENEMIES } from './waves';
 
@@ -40,10 +40,26 @@ describe('clubs', () => {
     expect(ENEMIES.skeleton.hp).toBeGreaterThan(CHARGE_LEVELS);
   });
 
-  it('el hielo congela en un centro más chico que la zona fría, y el perfecto dura más', () => {
+  it('el hierro carga igual que el driver, y cada escalón de hielo es mejor que el anterior', () => {
+    expect(CLUBS.iron.chargeTime).toBe(CLUBS.driver.chargeTime);
     expect(ICE_CORE).toBeLessThan(ICE_RADIUS / 2);
-    expect(iceSeconds(0)).toBeCloseTo(3);
-    expect(iceSeconds(1)).toBeCloseTo(5);
-    expect(iceSeconds(1, true)).toBeGreaterThan(iceSeconds(1));
+    expect(ICE_LEVELS).toHaveLength(CHARGE_LEVELS + 1);
+    expect(iceLevel(0)).toEqual({ area: 1, seconds: 3 });
+    for (let i = 1; i < ICE_LEVELS.length; i++) {
+      expect(ICE_LEVELS[i].area).toBeGreaterThan(ICE_LEVELS[i - 1].area);
+      expect(ICE_LEVELS[i].seconds).toBeGreaterThan(ICE_LEVELS[i - 1].seconds);
+    }
+    expect(iceLevel(0.5)).toBe(ICE_LEVELS[1]);
+    expect(iceLevel(0.8)).toBe(ICE_LEVELS[2]);
+    expect(iceLevel(1, true)).toBe(ICE_LEVELS[3]);
+  });
+
+  it('el wedge barre más ancho con cada escalón, y deja a todos los de un lado en la misma columna', () => {
+    for (let i = 1; i < PUSH_HALF_WIDTHS.length; i++) expect(PUSH_HALF_WIDTHS[i]).toBeGreaterThan(PUSH_HALF_WIDTHS[i - 1]);
+    expect(pushHalfWidth(0)).toBe(PUSH_HALF_WIDTHS[0]);
+    expect(pushHalfWidth(1, true)).toBe(PUSH_HALF_WIDTHS[3]);
+    // velocidad (ancho - distancia) * KNOCK_DECAY, que se apaga con exp(-KNOCK_DECAY t): recorre ancho - distancia
+    const half = pushHalfWidth(0.8);
+    for (const dx of [0.5, 2, 4.5]) expect(dx + ((half - dx) * KNOCK_DECAY) / KNOCK_DECAY).toBeCloseTo(half);
   });
 });
