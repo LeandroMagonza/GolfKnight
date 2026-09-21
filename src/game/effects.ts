@@ -51,9 +51,9 @@ export class Effects {
     this.ring(pos, radius, color, 0.5);
   }
 
-  /** Hielo del hierro: una cúpula celeste que se abre y un anillo en el piso. Más blanco si congela. */
-  frost(pos: THREE.Vector3, radius = 1.8, solid = false): void {
-    const color = solid ? 0xe8fbff : 0x7fd4ff;
+  /** Hielo del hierro: una cúpula celeste que se abre y un anillo en el piso. */
+  frost(pos: THREE.Vector3, radius = 1.8): void {
+    const color = 0x7fd4ff;
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false });
     const dome = new THREE.Mesh(sphereGeo, mat);
     dome.position.set(pos.x, heightAt(pos.x, pos.z) + 0.1, pos.z);
@@ -69,7 +69,7 @@ export class Effects {
     this.ring(pos, radius, 0xfff1b8, 0.22);
   }
 
-  /** Salto por el portal: una columna de luz que se afina, en el punto de salida y en el de llegada. */
+  /** Una columna de luz que se afina: el tótem que nace, y el golfista cuando cambia de lugar. */
   blink(pos: THREE.Vector3, color: number): void {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false });
     const col = new THREE.Mesh(sphereGeo, mat);

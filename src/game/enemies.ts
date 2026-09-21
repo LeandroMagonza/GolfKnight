@@ -85,7 +85,6 @@ export class Enemy {
   /** Hielo del hierro: segundos que le quedan, de cuántos, y si está congelado del todo o solo lento. */
   chillTimer = 0;
   chillMax = 1;
-  private solid = false;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
   warded = false;
   /** Ya pasó la línea del golfista: está fuera de juego (nada lo toca) y corre hasta la puerta. */
@@ -225,14 +224,9 @@ export class Enemy {
     return this.state === 'walk' || this.state === 'attack';
   }
 
-  /** Con hielo encima, congelado o solo lento: no se cubre con el escudo y, si es chamán, no conjura. */
+  /** Con hielo encima: camina lento, no se cubre con el escudo y, si es chamán, no conjura. */
   get chilled(): boolean {
     return this.chillTimer > 0;
-  }
-
-  /** Congelado del todo: no camina ni ataca. */
-  get frozen(): boolean {
-    return this.chillTimer > 0 && this.solid;
   }
 
   /** Chamán con el aura activa. */
@@ -320,17 +314,13 @@ export class Enemy {
   }
 
   /**
-   * Hielo: lento y silenciado durante `seconds`; con `solid`, congelado del todo. A los pesados les
-   * dura menos, y al jefe nunca lo congela: solo lo frena.
+   * Hielo: lento y silenciado durante `seconds`. Nunca congela del todo: el enemigo sigue caminando y
+   * atacando, solo que a paso de hombre y sin sus defensas. A los pesados les dura menos.
    */
-  chill(seconds: number, solid: boolean): void {
+  chill(seconds: number): void {
     if (!this.alive) return;
-    const s = this.stats.heavy && !this.stats.boss ? seconds * 0.6 : seconds;
-    const freeze = solid && !this.stats.boss;
-    // un hielo más flojo no pisa a uno congelado que sigue activo, y ninguno acorta al anterior
-    if (this.frozen && !freeze) return;
-    if (freeze && !this.frozen) this.chillTimer = 0;
-    this.solid = freeze;
+    const s = this.stats.heavy ? seconds * 0.6 : seconds;
+    // ningún hielo acorta al anterior
     if (s >= this.chillTimer) {
       this.chillTimer = s;
       this.chillMax = s;
@@ -401,18 +391,6 @@ export class Enemy {
       this.aura.visible = this.casting;
       this.aura.rotation.z += dt * 0.4;
       (this.aura.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.2 * Math.sin(this.age * 3);
-    }
-
-    if (this.frozen) {
-      // congelado: queda duro en la pose que tenía (se lo puede empujar igual)
-      if (this.grabbing) {
-        this.letGo(0);
-        player.release(this);
-        horde.emit({ type: 'release', enemy: this });
-      }
-      this.clampToField();
-      this.finishFrame(0, this.gesture);
-      return;
     }
 
     if (this.grabbing) {
@@ -662,13 +640,11 @@ export class Enemy {
     const ward = this.warded && this.alive ? 0.55 + 0.25 * Math.sin(this.age * 6) : 0;
     for (const { mat, color } of this.materials) {
       if (flash) mat.emissive.setHex(0xffffff);
-      else if (this.frozen) mat.emissive.setHex(0x1c4a66);
       else if (this.chilled) mat.emissive.setHex(0x0c2a3c);
       else if (ward) mat.emissive.setRGB(0.45 * ward, 0.12 * ward, 0.8 * ward);
       else mat.emissive.setRGB(pulse * 0.7, pulse * 0.08, 0);
       mat.emissiveIntensity = flash ? 0.6 : 1;
-      if (this.frozen) mat.color.setHex(0xbfe9ff);
-      else if (this.chilled) mat.color.copy(color).lerp(CHILL_TINT, 0.45);
+      if (this.chilled) mat.color.copy(color).lerp(CHILL_TINT, 0.45);
       else mat.color.copy(color);
     }
   }
@@ -678,7 +654,6 @@ export class Enemy {
     this.chillBg.visible = this.chillFill.visible = on;
     if (!on) return;
     this.chillFill.scale.x = Math.max(0.001, this.chillBg.scale.x * (this.chillTimer / this.chillMax));
-    this.chillFill.material.color.setHex(this.frozen ? 0xe8fbff : 0x58c8ff);
   }
 
   dispose(): void {
@@ -808,28 +783,23 @@ export class Horde {
     }
   }
 
-  /**
-   * Hielo en área (hierro): congela a los que toca el centro (core) y enfría al resto hasta radius.
-   * Devuelve cuántos quedaron congelados y cuántos solo fríos.
-   */
-  chillAround(pos: THREE.Vector3, core: number, radius: number, seconds: number): { frozen: number; chilled: number } {
-    const out = { frozen: 0, chilled: 0 };
+  /** Hielo en área (hierro): enfría a todos los que alcanza. Devuelve a cuántos. */
+  chillAround(pos: THREE.Vector3, radius: number, seconds: number): number {
+    let count = 0;
     for (const e of this.enemies) {
       if (!e.alive || e.passed) continue;
-      const d = Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius;
-      if (d > radius) continue;
-      e.chill(seconds, d <= core);
-      if (e.frozen) out.frozen++;
-      else out.chilled++;
+      if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
+      e.chill(seconds);
+      count++;
     }
-    return out;
+    return count;
   }
 
   /**
    * Vendaval del wedge: barre un rectángulo centrado en `pos` y orientado según la línea del tiro
-   * (`along`, unitario): halfDepth a lo largo de la línea y halfWidth a cada costado. Empuja solo hacia
-   * los costados de esa línea, y cada uno recorre lo que le falta para llegar al borde de su lado, así
-   * que terminan todos en una misma fila paralela al tiro. Devuelve a cuántos movió.
+   * (`along`, unitario): halfDepth a lo largo de la línea y halfWidth a cada costado. Empuja a cada uno
+   * hacia la línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del
+   * tiro: una fila servida para el driver. Devuelve a cuántos movió.
    */
   sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number): number {
     let count = 0;
@@ -843,8 +813,7 @@ export class Horde {
       const lateral = rx * side.x + rz * side.z;
       const forward = rx * along.x + rz * along.z;
       if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
-      const sign = Math.abs(lateral) < 0.05 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(lateral);
-      e.shove(dir.copy(side).multiplyScalar(sign), (halfWidth - Math.abs(lateral)) * KNOCK_DECAY);
+      if (Math.abs(lateral) > 0.05) e.shove(dir.copy(side).multiplyScalar(-Math.sign(lateral)), Math.abs(lateral) * KNOCK_DECAY);
       count++;
     }
     return count;

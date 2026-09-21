@@ -1,12 +1,13 @@
 // Pelotas en juego: física de core/ballistics, choques contra la horda y el efecto del
 // encantamiento de cada palo. El driver es el único que daña; el hierro y el wedge caen en un punto
-// y ahí hacen lo suyo (hielo, empujón).
+// y ahí hacen lo suyo (hielo, vendaval); la del putter rueda y deja un tótem donde para.
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, launchWith, stepBall, type BallState } from '../core/ballistics';
-import { chargeLevel, CRIT_DAMAGE, ICE_CORE, ICE_RADIUS, iceLevel, PUSH_HALF_DEPTH, pushHalfWidth, type Club } from '../core/clubs';
+import { chargeLevel, CRIT_DAMAGE, ICE_RADIUS, iceLevel, PUSH_HALF_DEPTH, pushHalfWidth, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
+import type { Traps } from './traps';
 import { heightAt, relief } from '../core/terrain';
 import { GATE_Z } from './world';
 
@@ -38,7 +39,7 @@ export interface Ball {
 
 export type BallEvent =
   | { type: 'hit'; club: Club; enemy: Enemy; direct: boolean; perfect: boolean; killed: boolean }
-  | { type: 'ice'; pos: THREE.Vector3; frozen: number; chilled: number; perfect: boolean }
+  | { type: 'ice'; pos: THREE.Vector3; chilled: number; perfect: boolean }
   | { type: 'push'; pos: THREE.Vector3; hits: number }
   | { type: 'bounce'; pos: THREE.Vector3 }
   | { type: 'blocked'; enemy: Enemy; warded: boolean }
@@ -50,15 +51,17 @@ const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
 export class Balls {
   readonly list: Ball[] = [];
   onEvent: ((e: BallEvent) => void) | null = null;
+  /** Los tótems del putter: la pelota del putter los deja, y la del driver los detona. */
+  traps: Traps | null = null;
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
-  /** @param lift con relieve: la velocidad y el ángulo de salida ya calculados contra el terreno */
+  /** @param lift velocidad y ángulo de salida ya calculados (altura de la mira, y el terreno con relieve) */
   fire(shot: Shot, range: number, lift: { speed: number; angle: number } | null = null): Ball {
     const loft = THREE.MathUtils.degToRad(shot.club.loftDeg);
     const state = lift
       ? launchWith({ x: shot.from.x, y: heightAt(shot.from.x, shot.from.z) + BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, lift.speed, lift.angle)
-      : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity);
+      : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity, shot.club.rollFriction);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: shot.club.color, emissiveIntensity: shot.perfect ? 1.6 : 0.7 });
     const mesh = new THREE.Mesh(ballGeo, mat);
     mesh.position.set(state.pos.x, state.pos.y, state.pos.z);
@@ -87,12 +90,11 @@ export class Balls {
   private burst(ball: Ball): void {
     const pos = new THREE.Vector3(ball.state.pos.x, ball.state.pos.y, ball.state.pos.z);
     if (ball.club.enchant === 'ice') {
-      // congela en el centro y enfría alrededor; cada escalón de carga agranda las dos zonas y dura más
+      // enfría a todos los que alcanza; cada escalón de carga agranda la zona y dura más
       const ice = iceLevel(ball.power, ball.perfect);
-      this.effects.frost(pos, ICE_RADIUS * ice.area, false);
-      this.effects.frost(pos, ICE_CORE * ice.area, true);
-      const r = this.horde.chillAround(pos, ICE_CORE * ice.area, ICE_RADIUS * ice.area, ice.seconds);
-      this.onEvent?.({ type: 'ice', pos, frozen: r.frozen, chilled: r.chilled, perfect: ball.perfect });
+      this.effects.frost(pos, ICE_RADIUS * ice.area);
+      const chilled = this.horde.chillAround(pos, ICE_RADIUS * ice.area, ice.seconds);
+      this.onEvent?.({ type: 'ice', pos, chilled, perfect: ball.perfect });
     } else {
       // barre hacia los costados de la línea del tiro, en un rectángulo que se ensancha con la carga
       const half = pushHalfWidth(ball.power, ball.perfect);
@@ -128,7 +130,18 @@ export class Balls {
 
   private collide(ball: Ball): void {
     const s = ball.state;
+    // la del putter va rodando a plantar su tótem: no choca con nadie
+    if (ball.club.enchant === 'trap') return;
     const pierce = ball.club.enchant === 'pierce';
+    // un tótem en el camino se lleva la pelota del driver y explota
+    if (pierce) {
+      const trap = this.traps?.hitBy(s.pos.x, s.pos.y, s.pos.z);
+      if (trap) {
+        this.traps!.detonate(trap);
+        ball.done = true;
+        return;
+      }
+    }
     for (const e of this.horde.enemies) {
       if (!e.alive || e.passed || ball.hitIds.has(e.id)) continue;
       // la altura se mide desde los pies del enemigo, que con relieve no están en y = 0
@@ -181,6 +194,11 @@ export class Balls {
           if (s.bounces === 1) this.onEvent?.({ type: 'bounce', pos: new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z) });
         }
         this.collide(ball);
+      }
+      // la del putter se planta donde queda quieta: ahí nace el tótem
+      if (s.resting && ball.club.enchant === 'trap' && !ball.done) {
+        this.traps?.place(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), ball.power, ball.perfect);
+        ball.done = true;
       }
       if (s.resting) ball.restTime += dt;
       if (ball.restTime > 1.2 || ball.age > 14 || Math.abs(s.pos.x) > 90 || s.pos.z > 150) ball.done = true;

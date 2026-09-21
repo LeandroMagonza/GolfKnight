@@ -95,10 +95,10 @@ export class Player {
   private meleeTime = 0;
   /** Se quiso usar un palo que todavía está recargando. */
   onDenied: ((club: Club) => void) | null = null;
-  /** El alma en pena que lo tiene agarrado: no puede caminar ni pegar hasta saltar por el portal. */
+  /** El alma en pena que lo tiene agarrado: no puede caminar ni tirar hasta sacársela a palazos. */
   grabbedBy: Enemy | null = null;
   private yaw = 0;
-  /** Invulnerable un instante después de saltar por el portal. */
+  /** Invulnerable un instante después de recibir un golpe. */
   private blinkTimer = 0;
   private knockTimer = 0;
   private readonly knockDir = new THREE.Vector3();
@@ -245,10 +245,10 @@ export class Player {
 
   /**
    * Palazo: golpe corto a lo que tenga encima, con recarga propia. Corta la carga de un tiro, pero no
-   * un swing que ya está bajando.
+   * un swing que ya está bajando. Es también la única forma de sacarse de encima a un alma en pena.
    */
   startMelee(): boolean {
-    if (this.meleeCooldown > 0 || this.grabbedBy || this.stunned || !this.alive) return false;
+    if (this.meleeCooldown > 0 || this.stunned || !this.alive) return false;
     if (this.mode === 'charging') this.cancelSwing();
     if (this.mode !== 'free') return false;
     this.mode = 'melee';
@@ -299,33 +299,13 @@ export class Player {
     this.position.set(this.spotXs[this.spotIndex], 0, TEE_Z);
   }
 
-  /** El salto del putter está listo. */
-  get portalReady(): boolean {
-    return this.cooldowns.putter <= 0;
-  }
-
-  /**
-   * Salta por el portal hasta un puesto. No interrumpe la carga ni el swing: solo cambia de lugar.
-   * Suelta cualquier agarre, da un instante de invulnerabilidad y arranca la recarga.
-   */
-  teleport(index: number): boolean {
-    if (!this.alive || !this.portalReady) return false;
-    this.placeAt(index);
-    this.grabbedBy = null;
-    this.knockTimer = 0;
-    this.blinkTimer = 0.45;
-    this.cooldowns.putter = CLUBS.putter.cooldown;
-    return true;
-  }
-
-  /** Un alma en pena lo agarra: corta lo que estuviera haciendo y deja el salto listo para escapar. */
+  /** Un alma en pena lo agarra: corta lo que estuviera haciendo. Se sale a palazos. */
   grab(by: Enemy): void {
     this.grabbedBy = by;
     this.meter.cancel();
     this.swingShot = null;
     if (this.mode !== 'free') this.animator.clearOneShot();
     this.mode = 'free';
-    this.cooldowns.putter = 0;
   }
 
   release(by: Enemy): void {
@@ -393,6 +373,11 @@ export class Player {
       this.animator.setLocomotion('Idle', 1);
     } else if (!this.alive) {
       // queda en el piso
+    } else if (this.mode === 'melee') {
+      stance = true;
+      this.yaw = lerpAngle(this.yaw, this.stanceYaw(), 1 - Math.exp(-30 * dt));
+      this.updateMelee(dt);
+      this.animator.setLocomotion('Idle', 1);
     } else if (this.grabbedBy) {
       // agarrado: forcejea en el lugar, mirando a quien lo tiene
       const g = this.grabbedBy.position;
@@ -405,11 +390,6 @@ export class Player {
       const clip = this.swingClip;
       if (clip) this.animator.poseOneShot(clip.name, this.backswingTime(clip));
       else this.rig.phi = -(0.6 + 3.0 * this.backswing);
-      this.animator.setLocomotion('Idle', 1);
-    } else if (this.mode === 'melee') {
-      stance = true;
-      this.yaw = lerpAngle(this.yaw, this.stanceYaw(), 1 - Math.exp(-30 * dt));
-      this.updateMelee(dt);
       this.animator.setLocomotion('Idle', 1);
     } else if (this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER && !this.atSpot) {
       // ya pegó y quiere irse: corta el final del gesto y sale corriendo

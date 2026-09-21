@@ -1,15 +1,19 @@
 // Teclado y mouse.
-// A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite), el mouse apunta, click izquierdo (o F) mantiene para cargar el swing y suelta para pegar,
-// S clava el daño de la carga (el tiro sale cuando se suelta), click derecho (o X) cancela, 1-3 / rueda / Q-E cambian de palo, Espacio es el putter (tira la pelota o salta
-// hasta ella; en la intro, avanza), Shift (o V) es el palazo, G cambia cómo se apuntan los globos, Escape pausa, R reinicia, C cambia
-// el skin, M silencia la música.
+// A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite) y el mouse
+// apunta. Click izquierdo mantiene para cargar el swing y suelta para pegar; click derecho (o X)
+// cancela. W y S suben y bajan la altura del tiro, un escalón por toque. Espacio clava el daño de la
+// carga, y el tiro sale cuando se suelta el click (en la intro, avanza). 1-3 / rueda / Q-E cambian de
+// palo y F saca el putter. Shift (o V) es el palazo, G cambia cómo se apuntan los globos, Escape
+// pausa, R reinicia, C cambia el skin, M silencia la música.
 
 export interface InputEvents {
   swingStart(): void;
   swingRelease(): void;
   swingCancel(): void;
-  /** Clava el daño de la carga en curso (S o flecha abajo). */
-  swingLock(): void;
+  /** Saca el putter (F). */
+  putter(): void;
+  /** Sube (+1) o baja (-1) un escalón la altura del tiro (W y S). */
+  aimHeight(delta: number): void;
   selectClub(index: number): void;
   cycleClub(delta: number): void;
   space(): void;
@@ -27,7 +31,7 @@ export class Input {
   readonly keys = new Set<string>();
   /** Posición del mouse en coordenadas normalizadas (-1..1), para el raycast de puntería. */
   readonly pointer = { x: 0, y: 0.3 };
-  /** El botón de cargar (click o F) sigue apretado: si llega a un puesto con pelota, la carga arranca sola. */
+  /** El botón de cargar sigue apretado: si llega a un puesto con pelota, la carga arranca sola. */
   swingHeld = false;
 
   constructor(private ev: InputEvents, target: HTMLElement) {
@@ -70,9 +74,10 @@ export class Input {
         break;
       case 'KeyQ': this.ev.cycleClub(-1); break;
       case 'KeyE': this.ev.cycleClub(1); break;
-      case 'KeyF': this.swingHeld = true; this.ev.swingStart(); break;
+      case 'KeyF': this.ev.putter(); break;
       case 'KeyX': this.swingHeld = false; this.ev.swingCancel(); break;
-      case 'KeyS': case 'ArrowDown': this.ev.swingLock(); break;
+      case 'KeyW': case 'ArrowUp': this.ev.aimHeight(1); break;
+      case 'KeyS': case 'ArrowDown': this.ev.aimHeight(-1); break;
       case 'Space': this.ev.space(); e.preventDefault(); break;
       case 'KeyR': this.ev.restart(); break;
       case 'Escape': this.ev.pause(); break;
@@ -87,10 +92,6 @@ export class Input {
 
   private keyup(e: KeyboardEvent): void {
     this.keys.delete(e.code);
-    if (e.code === 'KeyF') {
-      this.swingHeld = false;
-      this.ev.swingRelease();
-    }
   }
 
   private down(...codes: string[]): boolean {

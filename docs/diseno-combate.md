@@ -900,3 +900,83 @@ el modo plano.
 Para mirar al jugar: si el driver falla demasiado seguido, si desde la cámara se entiende qué está
 tapado, y si el valle ayuda de verdad a cobrar filas. Un detalle que ya se ve: no se puede apuntar al
 piso que una loma tapa desde la cámara; el cursor cae sobre la cara de la loma.
+
+### Altura del tiro, tótems del putter, y el hielo que ya no congela
+
+Pedidos por Leandro, hechos:
+
+- **Altura del tiro con `W` y `S`**, por escalones (rasante, normal, globo, bombeado), no analógica, y
+  se mantiene de un tiro al siguiente. El escalón se suma al loft del palo.
+- **El putter pasó a la `F`** y **clavar la carga pasó a `Espacio`**.
+- **El wedge acerca en vez de alejar**: cada uno recorre lo que lo separa de la línea del tiro, así que
+  terminan parados sobre ella. Los que quedan a la misma profundidad no se enciman: se frenan hombro
+  con hombro, porque los enemigos ya se empujaban entre sí.
+- **El putter siembra tótems.** La pelota rueda lento (fricción propia, 3 en vez de 9) y donde para deja
+  un tótem con el daño de la carga escrito encima: 2, 3, 4 y 10 con el crítico. Explota cuando le pega
+  una pelota de driver: daño en 5 m con caída hacia el borde, y a todos hacia afuera. Hasta tres a la
+  vez, 25 s de vida. **Se fue el teletransporte**, así que la salida de un agarre ahora es el palazo.
+- **El hierro ya no congela**: deja el frío (camina al 40 %, sin escudo, sin aura del chamán) y nada
+  más. Desapareció el estado "congelado" y el círculo del centro.
+
+**Sobre el control de altura, y la duda de que "muy alto y muy fuerte se va".** No pasa, porque la
+altura **no cambia dónde cae la pelota**: la velocidad se recalcula para llegar al mismo punto. Subir
+la mira cambia el arco, no el alcance. O sea que sí se puede pegarle con un driver cargado a fondo a
+algo que está detrás de una loma: se sube a globo y llega igual, con el mismo daño. Lo que se paga es
+que tarda más en llegar y que **deja de atravesar la fila**, porque pasa por encima de los del medio.
+Ese es el canje, y me parece el correcto: el driver rasante sigue siendo el tiro de las filas.
+
+**Sobre subir y bajar la altura con el mouse** (acercándolo o alejándolo del personaje): no lo haría.
+La distancia del cursor ya *es* dónde cae la pelota con los globos. Si además fuera la altura, no se
+podría tirar un globo alto lejos ni uno rasante cerca: se acoplan justo las dos cosas que conviene
+tener separadas. Y apuntar movería la altura sin querer. `W`/`S` no tiene ese problema.
+
+### La idea grande: el palo es la entrega, el encantamiento es el efecto
+
+Propuesta de Leandro, sin implementar. **Me parece la mejor idea de diseño que apareció hasta ahora**,
+porque resuelve de un saque varias cosas que venían trabadas:
+
+- Contesta "¿para qué uso el hierro si el driver llega más lejos?": porque *entrega* distinto, no
+  porque tenga un efecto exclusivo.
+- Contesta "¿y si quiero un vendaval al fondo?": lo tirás con un palo que llegue al fondo.
+- Da profundidad combinatoria sin sumar botones: 3 palos × 3 encantamientos son 9 tiros distintos.
+- Encaja con la fantasía: un golfista con la bolsa encantada.
+
+**La regla que lo hace entendible.** Lo que diferencia a los palos en golf no es la distancia sino la
+trayectoria, y acá eso ya significa algo mecánico: qué tan rasante viene el tiro decide a quién toca.
+Entonces, una sola regla explica las nueve combinaciones: **cuanto más rasante, más lineal y preciso;
+cuanto más alto, más zonal y amplio.**
+
+| Palo | Cómo entrega | Con hielo | Con vendaval | Con explosión |
+| --- | --- | --- | --- | --- |
+| Driver (rasante, 18-60 m) | a cada uno que atraviesa | congela a los de la línea, uno por uno | los junta sobre la línea del tiro | daño extra a cada uno que toca |
+| Hierro (arco medio, 6-40 m) | donde pica | hielo en área mediana | junta en un rectángulo mediano | explota donde pica |
+| Wedge (globo alto, 5-28 m) | donde cae, en picada | hielo en área grande | junta en un rectángulo grande | explosión grande |
+| Putter (rueda, 4-24 m) | **diferido**: deja un tótem | tótem de escarcha | tótem que los atrae | tótem que explota (lo de hoy) |
+
+El putter así tiene un rol propio, que es la otra pregunta de Leandro ("¿para qué lo uso si puedo
+tirar más lejos?"): no entrega ahora, entrega **cuando vos querés**. Sembrás y detonás. Eso no es una
+versión peor del driver, es otra cosa. Y el "pega más de base pero poco rango" también sirve como
+segunda ventaja.
+
+**Cómo lo armaría.** El palo se sigue eligiendo con 1-3 y F. El encantamiento sería un modificador con
+recarga que se activa aparte (`Q`/`E`/`R`, o 4/5/6) y vale para **el próximo tiro**: "apretás Q y el
+próximo tiro sale con hielo". El daño del driver y el encantamiento se suman, y el balance lo pone la
+recarga: un tiro encantado siempre es mejor, pero solo lo tenés cada tantos segundos. Así no hay
+elecciones tontas, pero sí decisiones de cuándo. Las oleadas pasarían a desbloquear encantamientos en
+lugar de palos (o los dos: palos al principio, encantamientos después).
+
+**Lo que hay que resolver antes.**
+
+- *El alcance de los efectos "al caer".* Hoy el vendaval y el hielo caen en un punto. Si el driver los
+  puede llevar, hay que decidir si con el driver el efecto es lineal (mi propuesta) o si igual cae en
+  un punto lejano. Lineal es más interesante y más fácil de leer.
+- *Que el tiro más fuerte no sobre.* Leandro tiene razón: el driver a fondo tiene que morir dentro del
+  campo. Hoy llega a 60 m y el campo empieza a los 68, así que entra justo; conviene revisarlo si se
+  agrandan los alcances.
+- *Cuántos palos.* Con la regla de arriba, tres de tiro más el putter alcanzan y cada uno tiene una
+  identidad clara. Bajar a tres en total dejaría un hueco entre el rasante y el globo.
+- *Cuánto es refactor.* Es la quinta vez que se rehace el reparto de roles. Lo haría por partes y
+  detrás de un parámetro en la URL (como `?relieve`), para no romper lo que ya funciona.
+
+Antes de meterse con esto conviene jugar lo que hay: el relieve y los tótems todavía no los probó una
+persona, y varias de estas dudas se contestan en cinco minutos de partida.

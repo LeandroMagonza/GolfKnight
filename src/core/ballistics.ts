@@ -29,6 +29,8 @@ export interface BallState {
 export interface BounceParams {
   restitution: number;
   bounceKeep: number;
+  /** Cuánto la frena el pasto al rodar, en m/s². Menos fricción = rueda lento y tarda en parar. */
+  rollFriction?: number;
   /** Gravedad propia, si el palo vuela con otra que la normal (el wedge, para llegar rápido). */
   gravity?: number;
 }
@@ -40,8 +42,8 @@ export type Ground = (x: number, z: number) => number;
  * Velocidad de salida para volar `range` metros con ángulo `loftRad`. `rise` es cuánto más alto (o más
  * bajo, si es negativo) está el punto de caída que el de salida: 0 sobre piso plano.
  */
-export function launchSpeed(range: number, loftRad: number, gravity = GRAVITY, rise = 0): number {
-  if (loftRad <= 0.001) return Math.sqrt(2 * ROLL_FRICTION * range);
+export function launchSpeed(range: number, loftRad: number, gravity = GRAVITY, rise = 0, rollFriction = ROLL_FRICTION): number {
+  if (loftRad <= 0.001) return Math.sqrt(2 * rollFriction * range);
   if (rise === 0) return Math.sqrt((range * gravity) / Math.sin(2 * loftRad));
   // y = x tan(a) - g x² / (2 v² cos²(a)), despejando v para que pase por (range, rise)
   const cos = Math.cos(loftRad);
@@ -56,8 +58,8 @@ export function launchWith(from: Vec3, dirX: number, dirZ: number, speed: number
 }
 
 /** Estado inicial de una pelota que sale desde `from` hacia `dirX, dirZ` (unitario en el plano). */
-export function launch(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number, gravity = GRAVITY): BallState {
-  const v = launchSpeed(range, loftRad, gravity);
+export function launch(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number, gravity = GRAVITY, rollFriction = ROLL_FRICTION): BallState {
+  const v = launchSpeed(range, loftRad, gravity, 0, rollFriction);
   const h = v * Math.cos(loftRad);
   const rolling = loftRad <= 0.001;
   return {
@@ -77,7 +79,7 @@ export function stepBall(s: BallState, dt: number, p: BounceParams, ground?: Gro
   if (ground) return stepOnTerrain(s, dt, p, ground);
   if (s.rolling) {
     const speed = Math.hypot(s.vel.x, s.vel.z);
-    const next = speed - ROLL_FRICTION * dt;
+    const next = speed - (p.rollFriction ?? ROLL_FRICTION) * dt;
     if (next <= REST_SPEED) {
       s.vel.x = s.vel.z = 0;
       s.resting = true;
@@ -150,7 +152,7 @@ function stepOnTerrain(s: BallState, dt: number, p: BounceParams, ground: Ground
     s.vel.x -= g * sx * dt;
     s.vel.z -= g * sz * dt;
     const speed = Math.hypot(s.vel.x, s.vel.z);
-    const next = speed - ROLL_FRICTION * dt;
+    const next = speed - (p.rollFriction ?? ROLL_FRICTION) * dt;
     if (next <= REST_SPEED) {
       s.vel.x = s.vel.z = 0;
       s.resting = true;

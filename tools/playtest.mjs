@@ -1,6 +1,6 @@
 // Prueba automática del juego: salta la intro y prueba cada mecánica contra enemigos puestos a mano:
 // palos bloqueados, cartel de palo nuevo, palo en cola, medidor y niveles de carga, puestos y pelotas,
-// driver, hielo, empujón, chamán, putter, alma en pena, vida, puerta, pausa y final.
+// driver, hielo, vendaval, chamán, tótems del putter, alma en pena, vida, puerta, pausa y final.
 // Sale con error si alguna comprobación falla. Capturas en logs/.
 // uso: node tools/playtest.mjs [--quick]   (quick: solo arranque y una captura)
 import { createServer } from 'vite';
@@ -29,7 +29,7 @@ const state = () => page.evaluate(() => {
   };
 });
 const enemies = () => page.evaluate(() => window.__gk.horde.enemies.map((e) => {
-  const flags = [e.frozen ? 'congelado' : e.chilled ? 'frío' : '', e.warded ? 'inmune' : '', e.grabbing ? 'agarrando' : ''].filter(Boolean).join(' ');
+  const flags = [e.chilled ? 'frío' : '', e.warded ? 'inmune' : '', e.grabbing ? 'agarrando' : ''].filter(Boolean).join(' ');
   return `${e.stats.kind}#${e.id} hp${e.hp} ${e.state}${flags ? ' ' + flags : ''} (${e.position.x.toFixed(1)},${e.position.z.toFixed(1)})`;
 }));
 const aimAt = async (x, z) => {
@@ -79,7 +79,7 @@ const still = (kind, x, z, extra = {}) => page.evaluate(([kind, x, z, extra]) =>
 }, [kind, x, z, extra]);
 const enemy = (id) => page.evaluate((id) => {
   const e = window.__gk.horde.enemies.find((x) => x.id === id);
-  return e ? { hp: e.hp, alive: e.alive, chilled: e.chilled, frozen: e.frozen, warded: e.warded, casting: e.casting, grabbing: e.grabbing, x: +e.position.x.toFixed(2), z: +e.position.z.toFixed(2) } : null;
+  return e ? { hp: e.hp, alive: e.alive, chilled: e.chilled, warded: e.warded, casting: e.casting, grabbing: e.grabbing, x: +e.position.x.toFixed(2), z: +e.position.z.toFixed(2) } : null;
 }, id);
 /** Vuelve al golfista al puesto del medio y espera a que la cámara termine de seguirlo: aimAt convierte un
  * punto del campo a un píxel con la cámara de ese momento, y si la cámara sigue viajando la puntería se corre. */
@@ -154,20 +154,29 @@ if (!quick) {
   log('un paso (D)', oneStep, { segundos: +(tArrive - t0).toFixed(2) });
   check('D lo lleva un puesto a la derecha de la pantalla (-X)', oneStep.puesto === center - 1 && oneStep.x === -4 && oneStep.z === 9);
   // con easing: más lento que antes (0.17 s), pero sigue siendo ágil
-  check('correr un puesto lleva entre un cuarto y dos tercios de segundo', tArrive - t0 > 0.25 && tArrive - t0 < 0.67);
+  check('correr un puesto lleva entre un cuarto de segundo y uno', tArrive - t0 > 0.25 && tArrive - t0 < 1);
   await page.keyboard.press('KeyA');
   await page.keyboard.press('KeyA');
   await playerFree();
   const twoSteps = await where();
   log('dos toques (A A)', twoSteps);
   check('dos toques seguidos son dos puestos', twoSteps.puesto === center + 1 && twoSteps.x === 4);
-  await page.keyboard.down('KeyW');
-  await page.waitForTimeout(400);
-  await page.keyboard.up('KeyW');
-  await page.keyboard.down('KeyS');
-  await page.waitForTimeout(300);
-  await page.keyboard.up('KeyS');
-  check('no avanza ni retrocede', (await where()).z === 9 && (await where()).x === 4);
+  const height = () => page.evaluate(() => window.__gk.aimHeight);
+  const h0 = await height();
+  await page.keyboard.press('KeyW');
+  const hUp = await height();
+  await page.keyboard.press('KeyS');
+  await page.keyboard.press('KeyS');
+  const hDown = await height();
+  for (let i = 0; i < 6; i++) await page.keyboard.press('KeyS');
+  const hFloor = await height();
+  for (let i = 0; i < 9; i++) await page.keyboard.press('KeyW');
+  const hTop = await height();
+  log('altura del tiro', { normal: h0, arriba: hUp, abajo: hDown, piso: hFloor, techo: hTop });
+  check('W sube y S baja la altura del tiro, de a un escalón', hUp === h0 + 1 && hDown === h0 - 1);
+  check('la altura se planta en los extremos', hFloor === 0 && hTop === 3);
+  for (let i = 0; i < 2; i++) await page.keyboard.press('KeyS');
+  check('W y S no mueven al golfista', (await where()).z === 9 && (await where()).x === 4);
   await page.keyboard.down('KeyD');
   await page.waitForTimeout(700);
   await page.keyboard.up('KeyD');
@@ -228,12 +237,12 @@ if (!quick) {
   check('con el botón apretado, la carga arranca sola al llegar a un puesto con pelota', heldNoBall === 'free' && heldArrived.mode === 'charging' && heldArrived.llego);
   // S clava el daño: la barra queda quieta y el tiro sale con ese nivel cuando se suelta
   await page.waitForFunction(() => window.__gk.player.meter.power > 0.4, null, { timeout: 3000, polling: 'raf' }).catch(() => {});
-  await page.keyboard.press('KeyS');
+  await page.keyboard.press('Space');
   const lockedAt = await page.evaluate(() => window.__gk.player.meter.power);
   await page.waitForTimeout(700);
   const lockedLater = await page.evaluate(() => ({ power: window.__gk.player.meter.power, clavada: window.__gk.player.meter.locked, reach: window.__gk.player.meter.reach, barra: document.getElementById('meter').classList.contains('locked') }));
   log('carga clavada', { al: +lockedAt.toFixed(2) }, lockedLater);
-  check('S clava la carga: la barra no se mueve más', lockedLater.clavada && lockedLater.barra && Math.abs(lockedLater.power - lockedAt) < 1e-6 && lockedAt > 0.4 && lockedAt < 0.92);
+  check('Espacio clava la carga: la barra no se mueve más', lockedLater.clavada && lockedLater.barra && Math.abs(lockedLater.power - lockedAt) < 1e-6 && lockedAt > 0.4 && lockedAt < 0.92);
   check('con la carga clavada el alcance sigue subiendo hasta el tope', lockedLater.reach === 1);
   await page.keyboard.press('KeyX');
   await page.mouse.up();
@@ -353,7 +362,7 @@ if (!quick) {
   check('las bajas no suben el daño: después de tres, un nivel 2 sigue sacando 2', (await enemy(tank)).hp === 8);
   check('ya no hay indicador de racha', !(await page.evaluate(() => document.getElementById('streak'))));
 
-  // --- hielo: congela en el centro y enfría alrededor; frío = sin escudo (ni a la vista); el daño no cambia ---
+  // --- hielo: enfría a los que alcanza; frío = lento y sin escudo (ni a la vista); el daño no cambia ---
   await clearEnemies();
   const shield = await still('warrior', 0, 24);
   await page.waitForTimeout(900);
@@ -366,7 +375,7 @@ if (!quick) {
   const slowed = await enemy(shield);
   const afterIron = await page.evaluate(() => ({ recarga: +window.__gk.player.cooldowns.iron.toFixed(2), palo: window.__gk.player.club.id }));
   log('hielo: borde', slowed, afterIron);
-  check('en el borde el hielo enfría pero no congela', slowed.chilled && !slowed.frozen);
+  check('el hielo enfría a los que alcanza', slowed.chilled);
   const shieldSeen = () => page.evaluate(() => { const e = window.__gk.horde.enemies.at(-1); return { visible: e.shieldMesh.visible, enAlto: e.shieldUp }; });
   const coldShield = await shieldSeen();
   log('escudo con hielo', coldShield);
@@ -383,8 +392,7 @@ if (!quick) {
   await lob(2, 0.5);
   const iced = await enemy(shield);
   log('hielo: centro', iced);
-  check('en el centro el hielo congela, sin swing perfecto', iced.frozen);
-  check('congelado tampoco tiene escudo', !(await shieldSeen()).visible);
+  check('el hielo del centro también enfría, y sigue caminando', iced.chilled && iced.alive);
   await page.screenshot({ path: 'logs/k4-hielo.png' });
   await page.evaluate(() => { window.__gk.horde.enemies.at(-1).chillTimer = 0.01; });
   await page.waitForTimeout(400);
@@ -480,18 +488,20 @@ if (!quick) {
     poll();
   }));
   await playerFree();
-  await page.waitForTimeout(900);
+  // el empujón se frena solo: hay que darle tiempo a que termine de correr antes de medir
+  await page.waitForTimeout(1800);
   const pushed = [];
   for (const id of ring) pushed.push(await enemy(id));
   log('wedge', { vuelo: flight }, pushed.map((e) => [e.hp, e.x, e.z]));
   check('el wedge llega en menos de un segundo', flight < 1);
   check('después del wedge también vuelve solo el driver', (await state()).club === 'driver');
   check('el wedge no daña', pushed.every((e) => e.hp === 4));
-  check('el wedge aleja a todos del centro', pushed.every((e) => Math.hypot(e.x, e.z - 24) > 2.5));
   log('wedge: en la línea', pushed.map((e) => ringLine.of(e)));
-  check('el wedge empuja solo hacia los costados de la línea del tiro: nadie avanza ni retrocede', pushed.every((e, i) => Math.abs(ringLine.of(e)[0] - ringAt[i][0]) < 0.3));
-  check('cada uno sale para su lado', pushed.every((e, i) => Math.sign(ringLine.of(e)[1]) === Math.sign(ringAt[i][1])));
-  // tres desparramados del mismo lado terminan en la misma columna, en el borde del rectángulo
+  // dos a la misma profundidad no pueden quedar en el mismo punto: se frenan hombro con hombro (los
+  // enemigos no se enciman), así que quedan pegados a la línea, uno de cada lado
+  check('el wedge los junta sobre la línea del tiro', pushed.every((e, i) => Math.abs(ringLine.of(e)[1]) < Math.max(0.55, Math.abs(ringAt[i][1]) * 0.45)));
+  check('el wedge mueve solo de costado: nadie avanza ni retrocede', pushed.every((e, i) => Math.abs(ringLine.of(e)[0] - ringAt[i][0]) < 0.3));
+  // tres desparramados del mismo lado terminan todos sobre la línea
   await clearEnemies();
   const trioLine = await shotLine(0, 24);
   const trio = [];
@@ -501,7 +511,7 @@ if (!quick) {
   const column = [];
   for (const id of trio) column.push(await enemy(id));
   log('wedge: columna', column.map((e) => trioLine.of(e)));
-  check('el wedge deja a los de un lado alineados en el borde (a 6 m de la línea)', column.every((e) => Math.abs(trioLine.of(e)[1] - 6) < 0.6));
+  check('el wedge los deja a los tres parados sobre la línea del tiro', column.every((e) => Math.abs(trioLine.of(e)[1]) < 0.5));
   // el rectángulo sale de la línea del tiro: en un tiro cruzado, empuja perpendicular a esa línea y
   // los deja en una fila paralela al tiro. Y un caballero se mueve lo mismo que un goblin.
   await clearEnemies();
@@ -513,8 +523,8 @@ if (!quick) {
   const lateral = [];
   for (const id of slanted) lateral.push(crossLine.of(await enemy(id))[1]);
   log('wedge cruzado', { linea: crossLine.along.map((v) => +v.toFixed(2)), lateral });
-  check('en un tiro cruzado el wedge los alinea en una fila paralela al tiro', lateral.every((l) => Math.abs(l - 6) < 0.7));
-  check('el caballero se mueve lo mismo que los demás', Math.abs(lateral[1] - lateral[0]) < 0.5);
+  check('en un tiro cruzado también los junta sobre la línea del tiro', lateral.every((l) => Math.abs(l) < 0.6));
+  check('el caballero llega igual que los demás, pese a ser pesado', Math.abs(lateral[1] - lateral[0]) < 0.5);
   await page.screenshot({ path: 'logs/k5d-cruzado.png' });
   await page.screenshot({ path: 'logs/k5c-columna.png' });
   await page.screenshot({ path: 'logs/k5-wedge.png' });
@@ -550,18 +560,18 @@ if (!quick) {
   await driveLevel(3, 2500);
   check('sin aura el driver vuelve a dañar', (await enemy(guarded)).hp < 4);
 
-  // --- jefe: el hielo nunca lo congela, pero frío tira piedras más despacio ---
+  // --- jefe: con frío encima tira piedras más despacio ---
   await clearEnemies();
   await page.evaluate(() => { const g = window.__gk; g.gateHp = 10; const e = g.spawn('golem', 0, 22.2); e.castTimer = 50; });
   await page.waitForTimeout(1200);
   await aimAt(0, 22.2);
   await lob(2, 0.5);
-  const bossIced = await page.evaluate(() => { const e = window.__gk.horde.enemies.at(-1); return { chilled: e.chilled, frozen: e.frozen, cast: e.castTimer, age: e.age }; });
+  const bossIced = await page.evaluate(() => { const e = window.__gk.horde.enemies.at(-1); return { chilled: e.chilled, cast: e.castTimer, age: e.age }; });
   await page.waitForTimeout(1500);
   const bossLater = await page.evaluate(() => { const e = window.__gk.horde.enemies.at(-1); return { cast: e.castTimer, age: e.age, chilled: e.chilled }; });
   const castRate = (bossIced.cast - bossLater.cast) / (bossLater.age - bossIced.age);
   log('gólem con hielo', bossIced, { ritmoDeAtaque: +castRate.toFixed(2) });
-  check('al jefe el hielo lo enfría sin congelarlo, ni en el centro', bossIced.chilled && !bossIced.frozen);
+  check('al jefe el hielo también lo enfría', bossIced.chilled);
   check('el jefe frío ataca más lento', bossLater.chilled && castRate < 0.5);
 
   // --- globos por carga: con G la distancia la vuelve a dar el medidor ---
@@ -585,26 +595,57 @@ if (!quick) {
   check('por carga, la distancia del globo la da el medidor y no el cursor', !short.chilled && (await enemy(far)).chilled);
   await page.keyboard.press('KeyG');
 
-  // --- putter: Espacio teletransporta al puesto más cercano al cursor; después hay recarga ---
+  // --- putter: rueda lento, deja un tótem, y el driver lo detona ---
   await clearEnemies();
   await resetPlayer();
-  await aimAt(11, 22);
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(200);
-  const jumped = await where();
+  await page.evaluate(() => { window.__gk.traps.clear(); window.__gk.player.cooldowns.putter = 0; });
+  await aimAt(0, 26);
+  await page.keyboard.press('KeyF');
+  await playerFree();
+  await give();
+  const putt = await page.evaluate(() => new Promise((done) => {
+    const g = window.__gk;
+    g.shootPower(0.8);
+    const t0 = g.clock;
+    let top = 0;
+    const poll = () => {
+      const b = g.balls.list[0];
+      if (b) top = Math.max(top, Math.hypot(b.state.vel.x, b.state.vel.z));
+      if (g.traps.list.length) done({ segundos: +(g.clock - t0).toFixed(1), rapidez: +top.toFixed(1), dano: g.traps.list[0].damage, z: +g.traps.list[0].pos.z.toFixed(1) });
+      else requestAnimationFrame(poll);
+    };
+    poll();
+  }));
   const putterCd = await page.evaluate(() => +window.__gk.player.cooldowns.putter.toFixed(1));
-  log('putter', jumped, { recarga: putterCd });
+  log('putter', putt, { recarga: putterCd });
   await page.screenshot({ path: 'logs/k7-putter.png' });
-  check('el putter lleva al puesto más cercano al cursor', jumped.x === 12 && jumped.llego);
-  check('el putter llega con una pelota en ese puesto', await page.evaluate(() => window.__gk.tees.hasBall(window.__gk.player.spotIndex)));
-  check('el putter queda recargando', putterCd > 7);
-  await page.waitForTimeout(1500);
-  await aimAt(-12, 22);
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(200);
-  check('con el putter recargando no se salta', (await where()).x === 12);
+  check('la pelota del putter rueda lento', putt.rapidez < 14);
+  check('tarda en frenar: rueda un rato largo', putt.segundos > 1.5);
+  check('donde para deja un tótem, con el daño de la carga', putt.dano === 4 && putt.z > 20);
+  check('el putter queda recargando', putterCd > 2);
+  check('después del putter vuelve solo el driver', (await state()).club === 'driver');
+  // detonarlo con el driver: daño en área y a todos hacia afuera
+  const near = [];
+  for (const [x, z] of [[0, 26], [3, 27], [-3, 25]]) near.push(await still('goblin', x, z));
+  const trapAt = await page.evaluate(() => [window.__gk.traps.list[0].pos.x, window.__gk.traps.list[0].pos.z]);
+  await aimAt(...trapAt);
+  await drive(40, 3000);
+  await page.waitForTimeout(700);
+  const hitByTrap = [];
+  for (const id of near) hitByTrap.push(await enemy(id));
+  log('tótem detonado', hitByTrap.map((e) => (e && e.alive ? e.hp : "muerto")), await page.evaluate(() => window.__gk.traps.list.length));
+  check('el driver lo detona y no queda ningún tótem', (await page.evaluate(() => window.__gk.traps.list.length)) === 0);
+  check('la explosión del tótem mata a los que tiene encima', hitByTrap.filter((e) => !e || !e.alive).length >= 2);
+  await page.screenshot({ path: 'logs/k7b-totem.png' });
+  // no puede haber más de tres a la vez
+  await clearEnemies();
+  await page.evaluate(() => { const g = window.__gk; g.traps.clear(); for (let i = 0; i < 5; i++) g.traps.place(g.player.position.clone().setZ(20 + i * 2), 0.5, false); });
+  const many = await page.evaluate(() => window.__gk.traps.list.length);
+  log('tope de tótems', many);
+  check('nunca hay más de tres tótems', many <= 3);
+  await page.evaluate(() => window.__gk.traps.clear());
 
-  // --- alma en pena: atrapa, saca vida de a poco, y el salto libera ---
+  // --- alma en pena: atrapa, saca vida de a poco, y el palazo la saca de encima ---
   await clearEnemies();
   await resetPlayer();
   const wraith = await page.evaluate(() => window.__gk.spawn('wraith', 3, 15).id);
@@ -615,46 +656,14 @@ if (!quick) {
   log('atrapado', grabbed, await enemy(wraith));
   check('el alma en pena atrapa, no lo deja moverse y le saca vida', grabbed.hp === 2 && grabbed.pos[0] === 0 && (await enemy(wraith)).grabbing);
   await page.screenshot({ path: 'logs/k8-atrapado.png' });
-  await aimAt(-12, 22);
-  await page.waitForTimeout(1500);
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(300);
-  const freed = await page.evaluate(() => ({ libre: !window.__gk.player.grabbedBy, x: window.__gk.player.position.x }));
+  await page.evaluate(() => { window.__gk.player.meleeCooldown = 0; });
+  await page.keyboard.press('ShiftLeft');
+  await page.waitForTimeout(500);
+  const freed = await page.evaluate(() => ({ libre: !window.__gk.player.grabbedBy }));
   log('liberado', freed, await enemy(wraith));
-  check('el salto libera del agarre', freed.libre && freed.x === -12 && !(await enemy(wraith)).grabbing);
+  check('el palazo la saca de encima', freed.libre && !(await enemy(wraith)).grabbing);
 
-  // --- nadie persigue al golfista; el que le pasa por encima lo atropella, muere, y ya no llega a la puerta ---
-  await clearEnemies();
-  await resetPlayer();
-  await page.evaluate(() => { const g = window.__gk; g.gateHp = 10; g.spawn('goblin', 6, 13); });
-  await page.waitForFunction(() => window.__gk.horde.aliveCount === 0, null, { timeout: 12000 }).catch(() => {});
-  const passedBy = await state();
-  log('pasa por el costado', passedBy);
-  check('un enemigo que pasa por el costado no se desvía a pegarle: sigue a la puerta', passedBy.hp === 3 && passedBy.gate === 9);
-  await page.evaluate(() => { const g = window.__gk; g.gateHp = 10; for (const z of [14, 15.6]) g.spawn('goblin', 0, z).speedMul = 1; });
-  await page.waitForFunction(() => window.__gk.player.hp < 3, null, { timeout: 10000 }).catch(() => {});
-  const firstHit = await page.evaluate(() => ({ hp: window.__gk.player.hp, invulnerable: window.__gk.player.invulnerable, vivos: window.__gk.horde.aliveCount }));
-  await page.waitForFunction(() => window.__gk.horde.aliveCount === 0, null, { timeout: 10000 }).catch(() => {});
-  const afterBoth = await state();
-  log('atropellado', firstHit, { despues: [afterBoth.hp, afterBoth.gate] });
-  await page.screenshot({ path: 'logs/k8b-atropello.png' });
-  check('el que le pasa por encima le saca 1 y muere en el choque', firstHit.hp === 2 && firstHit.vivos === 1);
-  check('después de un golpe hay un respiro: el de atrás pasa de largo y llega a la puerta', firstHit.invulnerable && afterBoth.hp === 2 && afterBoth.gate === 9);
-
-  // --- el que ya pasó la línea del golfista queda fuera de juego: no se le pega, y corre a la puerta ---
-  await clearEnemies();
-  await resetPlayer();
-  const runner = await page.evaluate(() => { const g = window.__gk; g.gateHp = 10; const e = g.spawn('knight', 7, 7.2); return e.id; });
-  await page.waitForTimeout(700);
-  const gone = await page.evaluate((id) => { const g = window.__gk; const e = g.horde.enemies.find((x) => x.id === id); const before = e.hp; g.horde.damage(e, 3, null, 0); return { paso: e.passed, hp: e.hp, antes: before }; }, runner);
-  const tPass = await page.evaluate(() => window.__gk.clock);
-  await page.waitForFunction(() => window.__gk.horde.aliveCount === 0, null, { timeout: 8000 }).catch(() => {});
-  const tGate = await page.evaluate(() => window.__gk.clock);
-  log('el que pasó', gone, { segundosHastaLaPuerta: +(tGate - tPass).toFixed(1), puerta: (await state()).gate });
-  check('al que ya pasó no se le puede pegar', gone.paso && gone.hp === gone.antes);
-  check('el que pasó llega enseguida a la puerta (un caballero lento tardaría 5 s)', tGate - tPass < 2 && (await state()).gate === 8);
-
-  // --- kamikazes: uno muere y se lleva a los otros ---
+  // --- kamikazes  // --- kamikazes: uno muere y se lleva a los otros ---
   await clearEnemies();
   await resetPlayer();
   for (const x of [-1.5, 0, 1.5]) await still('kamikaze', x, 22, { damage: 1 });

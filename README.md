@@ -34,9 +34,12 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
 - Mouse apunta en un arco de 180 grados: de costado a costado, pero no para atrás. Mantener click (o
   `F`) carga el swing; soltar pega. Click derecho (o `X`) cancela. Si llegás a un puesto con el botón
   ya apretado, la carga arranca sola apenas hay pelota.
-- **Tiro en dos tiempos:** mientras cargás, `S` *clava* el daño. La barra queda quieta en ese nivel (el
+- **Altura del tiro**, con `W` y `S`: cuatro escalones (rasante, normal, globo, bombeado). Cambia el
+  arco, **no dónde cae**: sirve para pasar por encima de una loma o de los que están en el medio, a
+  cambio de tardar más y de dejar de atravesar la fila. Se mantiene de un tiro al siguiente.
+- **Tiro en dos tiempos:** mientras cargás, `Espacio` *clava* el daño. La barra queda quieta en ese nivel (el
   alcance sigue subiendo) y el tiro sale cuando soltás el click. Sirve para timear el daño primero y
-  esperar a que se alineen después. Sin `S`, soltar pega con lo que marque la barra, como siempre.
+  esperar a que se alineen después. Sin clavarlo, soltar pega con lo que marque la barra.
 - **La carga va por niveles: 1, 2 y 3**, y con el driver el nivel es el daño. El cuarto escalón es el
   **crítico**: soltar justo al tope (el último 8 % de la barra) pega 8. La barra sube lenta al principio
   y rápida al final, y después del tope rebota rápido por todo el rango, de 0 a 100 %. El crítico es lo
@@ -60,20 +63,24 @@ el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
     palo que hace daño, y su daño es el nivel de carga o el crítico, y nada más: no hay racha, ni
     estados que lo suban, ni pierde fuerza después de picar.
   - **Hierro 7 · Escarcha**: globo de hielo (6-40 m), sin daño, recarga de 2 s. Congela en un centro chico y enfría alrededor. *Frío*: camina al 40 %, no
-    tiene escudo (desaparece mientras dura), si es chamán se le apaga el aura. *Congelado*: además no camina ni ataca. Carga igual que el driver
+    tiene escudo (desaparece mientras dura) y, si es chamán, se le apaga el aura. **No congela**: el
+    enemigo sigue caminando y atacando, solo que lento y sin defensas. Carga igual que el driver
     y cada escalón es mejor: nivel 1, 3 s; nivel 2, 4.5 s y 15 % más de área; nivel 3, 6.5 s y 30 % más;
     crítico, 8 s y 70 % más. Al jefe nunca lo congela, pero frío camina y ataca más lento.
   - **Wedge · Vendaval**: globo rápido (5-28 m, llega en medio segundo), sin daño: barre un rectángulo
-    que sale de la línea del tiro (apuntando derecho queda de frente; a 45 grados, a 45). Empuja hacia
-    los costados de esa línea, alejando del punto donde cae y más fuerte cuanto más cerca. Cada uno
-    recorre justo lo que le falta para llegar al borde, así que los de un mismo lado quedan en una fila
-    paralela al tiro, servidos para el driver. Mueve a todos lo mismo, pesen lo que pesen. Medio ancho de 4, 5, 6 y 8 m según el escalón de carga; 3.5 m de
+    que sale de la línea del tiro (apuntando derecho queda de frente; a 45 grados, a 45). Empuja a cada
+    uno **hacia la línea**, justo lo que lo separa de ella, así que terminan todos parados sobre la
+    línea del tiro: una fila servida para el driver. Los que quedan a la misma profundidad no se
+    enciman: se paran hombro con hombro. Mueve a todos lo mismo, pesen lo que pesen. Medio ancho de 4, 5, 6 y 8 m según el escalón de carga; 3.5 m de
     medio fondo.
-- **Putter · Portal**, en `Espacio`: te teletransporta al puesto más cercano al cursor y te deja una
-  pelota ahí. Recarga de 8 s.
-  Es la única salida cuando un alma en pena te tiene agarrado.
+- **Putter · Tótem**, en `F`: la pelota rueda lento (4-24 m) y donde para deja un **tótem**. El tótem
+  no hace nada solo: explota cuando le pegás con el driver, y ahí hace daño en un radio de 5 m y manda
+  a todos hacia afuera. Cuánto pega lo decide la carga del putt: 2, 3, 4 y **10** con el crítico, y se
+  ve escrito sobre el tótem. Hasta tres a la vez, y duran 25 s. Recarga de 6 s.
+  Es la única forma de hacer daño lejos de la línea de tiro: se siembra antes y se cobra después.
 - **Palazo** en `Shift` (o `V`): no hace daño: empuja unos 14 m hacia atrás a todo lo que tengas a
-  4 m, a todos por igual, y les corta el ataque. 2.5 s de recarga.
+  4 m, a todos por igual, y les corta el ataque. 2.5 s de recarga. Es la única salida cuando un alma en
+  pena te tiene agarrado.
 - `G` (o el botón) cambia cómo se apuntan los globos: **al cursor** (caen donde está el mouse y la
   carga define solo la fuerza del efecto) o **por carga** (la carga es la distancia, como el driver).
 - `Esc` pausa, `R` reinicia, `M` silencia la música, `C` cambia el skin del golfista.

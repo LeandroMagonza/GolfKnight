@@ -1,6 +1,6 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
-import { CLUB_ORDER, CLUBS, MELEE_COOLDOWN, type Club, type ClubId } from './core/clubs';
+import { CLUB_ORDER, CLUBS, HEIGHT_LEVELS, MELEE_COOLDOWN, type Club, type ClubId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -29,6 +29,7 @@ export class Hud {
   private endEl = $('end');
   private skinBtn = $<HTMLButtonElement>('skin');
   private lobBtn = $<HTMLButtonElement>('lobaim');
+  private heightEl = $('height');
   onSkinClick: (() => void) | null = null;
   onLobAimClick: (() => void) | null = null;
   onCardDismiss: (() => void) | null = null;
@@ -46,12 +47,14 @@ export class Hud {
       this.lobBtn.blur();
       this.onLobAimClick?.();
     });
-    // los palos de la rueda y, aparte, el putter (barra espaciadora) y el palazo (Shift)
+    // la altura del tiro, al lado de los palos: se sube con W y se baja con S
+    this.heightEl.innerHTML = '<div class="lbl">ALTURA W/S</div><div class="lvl"></div><div class="pips">' + '<i></i>'.repeat(HEIGHT_LEVELS.length) + '</div>';
+    // los palos de la rueda y, aparte, el putter (F) y el palazo (Shift)
     const slots: ClubId[] = [...CLUB_ORDER, 'putter'];
     this.clubsEl.innerHTML = slots.map((id, i) => {
       const c = CLUBS[id];
       const color = '#' + c.color.toString(16).padStart(6, '0');
-      const key = id === 'putter' ? 'Espacio' : String(i + 1);
+      const key = id === 'putter' ? 'F' : String(i + 1);
       const cd = c.cooldown > 0 ? `<span class="cdlabel">⟳ ${c.cooldown} s</span>` : '';
       return `<div class="club locked${id === 'putter' ? ' space' : ''}" data-club="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${key}</span><div class="name">${c.name}</div><div class="title">${c.title}</div>${cd}<div class="cdnum"></div></div>`;
     }).join('') + `<div class="club extra" data-club="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
@@ -97,8 +100,25 @@ export class Hud {
       }
       el.classList.toggle('locked', !unlocked.has(id));
       if (id !== 'putter') continue;
-      (el.querySelector('.title') as HTMLElement).textContent = cooldowns.putter > 0 ? 'recargando' : 'portal';
+      (el.querySelector('.title') as HTMLElement).textContent = cooldowns.putter > 0 ? 'recargando' : 'tótem';
     }
+  }
+
+  private shownHeight = -1;
+
+  /** Altura del tiro (W/S): en qué escalón está y cómo se llama. */
+  setHeight(index: number): void {
+    if (index === this.shownHeight) return;
+    const before = this.shownHeight;
+    this.shownHeight = index;
+    const el = this.heightEl;
+    (el.querySelector('.lvl') as HTMLElement).textContent = HEIGHT_LEVELS[index].name;
+    Array.from(el.querySelectorAll('.pips i')).forEach((pip, i) => pip.classList.toggle('on', i <= index));
+    el.classList.toggle('high', index >= 2);
+    el.classList.remove('bump');
+    if (before < 0) return;
+    void el.offsetWidth;
+    el.classList.add('bump');
   }
 
   /** Cartel de palo nuevo. Se queda hasta que se lo cierre con un click. */

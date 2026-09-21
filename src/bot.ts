@@ -18,7 +18,7 @@ export interface BotStats {
   jumps: number;
 }
 
-const KEYS: Record<string, string> = { driver: 'Digit1', iron: 'Digit2', wedge: 'Digit3' };
+const KEYS: Record<string, string> = { driver: 'Digit1', iron: 'Digit2', wedge: 'Digit3', putter: 'KeyF' };
 
 function key(code: string): void {
   dispatchEvent(new KeyboardEvent('keydown', { code }));
@@ -65,22 +65,19 @@ export function startBot(): BotStats {
     const p = pl.position;
     const dist = (e: any) => Math.hypot(e.position.x - p.x, e.position.z - p.z);
 
-    // agarrado: apunta al otro lado del campo y salta con el putter
+    // agarrado: la única salida es el palazo, que la suelta y la deja aturdida
     if (pl.grabbedBy) {
-      if (escaping || !pl.unlocked.has('putter')) return;
+      if (escaping || pl.meleeCooldown > 0) return;
       escaping = true;
       stats.grabs++;
-      aim(p.x > 0 ? -12 : 12, 20);
-      setTimeout(() => {
-        key('Space');
-        stats.jumps++;
-        escaping = false;
-      }, 120);
+      key('ShiftLeft');
+      stats.melee++;
+      setTimeout(() => { escaping = false; }, 200);
       return;
     }
     // Nadie lo persigue, pero el que le pasa por encima lo atropella. Si uno viene derecho hacia su puesto:
     // palazo si está listo (lo manda 15 m atrás); si no, suelta lo que esté cargando y se corre dos puestos.
-    const threat = gk.horde.enemies.find((e: any) => e.alive && !e.passed && !e.frozen && e.state === 'walk' && (e.stats.behavior === 'melee' || e.stats.behavior === 'kamikaze')
+    const threat = gk.horde.enemies.find((e: any) => e.alive && !e.passed && e.state === 'walk' && (e.stats.behavior === 'melee' || e.stats.behavior === 'kamikaze')
       && e.position.z > p.z - 0.5 && e.position.z - p.z < 4.5 && Math.abs(e.position.x - p.x) < 1.8);
     if (threat && pl.atSpot && performance.now() - dodgedAt > 500) {
       dodgedAt = performance.now();
@@ -154,8 +151,8 @@ export function startBot(): BotStats {
 
     // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
     // (en diagonal, no derecho). Se apunta a donde va a estar.
-    const speed = target.frozen ? 0 : target.stats.speed * target.speedMul * (target.chilled ? 0.4 : 1);
-    if (target.stats.behavior === 'grabber' && !target.frozen && dist(target) > 3) {
+    const speed = target.stats.speed * target.speedMul * (target.chilled ? 0.4 : 1);
+    if (target.stats.behavior === 'grabber' && dist(target) > 3) {
       // viene hacia el golfista: se apunta un poco más acá sobre esa misma línea
       const k = Math.max(0.2, 1 - (speed * (0.6 + want)) / dist(target));
       aim(p.x + (target.position.x - p.x) * k, p.z + (target.position.z - p.z) * k);

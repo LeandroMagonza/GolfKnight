@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, CRIT_DAMAGE, ICE_CORE, ICE_LEVELS, ICE_RADIUS, iceLevel, isLob, KNOCK_DECAY, PUSH_HALF_WIDTHS, pushHalfWidth } from './clubs';
+import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, CRIT_DAMAGE, HEIGHT_DEFAULT, HEIGHT_LEVELS, ICE_LEVELS, ICE_RADIUS, iceLevel, isLob, KNOCK_DECAY, LOFT_MAX, LOFT_MIN, loftFor, PUSH_HALF_WIDTHS, pushHalfWidth, TRAP_DAMAGE, trapDamage } from './clubs';
+import { ROLL_FRICTION } from './ballistics';
 import { MIN_POWER, PERFECT_FROM } from './swing';
 import { ENEMIES } from './waves';
 
 describe('clubs', () => {
   it('solo el driver hace daño; el hierro y el wedge son globos', () => {
+    expect(CLUBS.putter.enchant).toBe('trap');
     for (const id of CLUB_ORDER) expect(CLUBS[id].damage > 0).toBe(id === 'driver');
     expect(isLob(CLUBS.driver)).toBe(false);
     expect(isLob(CLUBS.iron)).toBe(true);
@@ -42,7 +44,7 @@ describe('clubs', () => {
 
   it('el hierro carga igual que el driver, y cada escalón de hielo es mejor que el anterior', () => {
     expect(CLUBS.iron.chargeTime).toBe(CLUBS.driver.chargeTime);
-    expect(ICE_CORE).toBeLessThan(ICE_RADIUS / 2);
+    expect(ICE_RADIUS).toBeGreaterThan(1);
     expect(ICE_LEVELS).toHaveLength(CHARGE_LEVELS + 1);
     expect(iceLevel(0)).toEqual({ area: 1, seconds: 3 });
     for (let i = 1; i < ICE_LEVELS.length; i++) {
@@ -52,6 +54,32 @@ describe('clubs', () => {
     expect(iceLevel(0.5)).toBe(ICE_LEVELS[1]);
     expect(iceLevel(0.8)).toBe(ICE_LEVELS[2]);
     expect(iceLevel(1, true)).toBe(ICE_LEVELS[3]);
+  });
+
+  it('la altura del tiro va por escalones y no cambia el alcance, solo el loft', () => {
+    expect(HEIGHT_LEVELS[HEIGHT_DEFAULT].delta).toBe(0);
+    // cada escalón levanta más que el anterior, y el normal es el loft del palo
+    for (let i = 1; i < HEIGHT_LEVELS.length; i++) expect(HEIGHT_LEVELS[i].delta).toBeGreaterThan(HEIGHT_LEVELS[i - 1].delta);
+    expect(loftFor(CLUBS.driver, HEIGHT_DEFAULT)).toBe(CLUBS.driver.loftDeg);
+    expect(loftFor(CLUBS.wedge, HEIGHT_DEFAULT)).toBe(CLUBS.wedge.loftDeg);
+    // el driver rasante está en el piso del loft: no se puede aplastar más
+    expect(loftFor(CLUBS.driver, 0)).toBe(LOFT_MIN);
+    // bombeado, hasta el driver se levanta de verdad, pero nadie pasa del techo
+    expect(loftFor(CLUBS.driver, 3)).toBeGreaterThan(25);
+    expect(loftFor(CLUBS.wedge, 3)).toBeLessThanOrEqual(LOFT_MAX);
+    // el putter nunca se levanta: rueda
+    for (let i = 0; i < HEIGHT_LEVELS.length; i++) expect(loftFor(CLUBS.putter, i)).toBe(0);
+  });
+
+  it('el tótem del putter pega más cuanto mejor cargado sale el putt', () => {
+    expect(TRAP_DAMAGE).toHaveLength(CHARGE_LEVELS + 1);
+    for (let i = 1; i < TRAP_DAMAGE.length; i++) expect(TRAP_DAMAGE[i]).toBeGreaterThan(TRAP_DAMAGE[i - 1]);
+    expect(trapDamage(0)).toBe(2);
+    expect(trapDamage(0.5)).toBe(3);
+    expect(trapDamage(0.8)).toBe(4);
+    expect(trapDamage(1, true)).toBe(10);
+    // el putter rueda lento: menos fricción que el pasto normal
+    expect(CLUBS.putter.rollFriction).toBeLessThan(ROLL_FRICTION);
   });
 
   it('el wedge barre más ancho con cada escalón, y deja a todos los de un lado en la misma columna', () => {

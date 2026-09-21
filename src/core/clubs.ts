@@ -2,19 +2,19 @@
 // cargarse el swing y qué hace el encantamiento.
 //
 // Reparto de roles: el driver es el único que hace daño de verdad (el que cobra). El hierro abre
-// defensas, el wedge acomoda enemigos y el putter mueve al golfista.
+// defensas, el wedge arma las filas y el putter siembra tótems que después detona el driver.
 
 export type ClubId = 'driver' | 'iron' | 'wedge' | 'putter';
 
 export type Enchant =
   /** Atraviesa a todos los enemigos de la línea. */
   | 'pierce'
-  /** Globo de hielo: congela en un centro chico y enfría alrededor (lento, sin escudo, sin aura). */
+  /** Globo de hielo: enfría a los que toca (lentos, sin escudo, sin aura). No los congela. */
   | 'ice'
-  /** Globo que no daña: donde cae barre a todos hacia los costados, en un rectángulo. */
+  /** Globo que no daña: donde cae, barre a todos hacia la línea del tiro. */
   | 'push'
-  /** La pelota del putter queda en el piso y el golfista puede saltar hasta ella. */
-  | 'portal';
+  /** Rueda lento y, donde para, deja un tótem que explota cuando el driver le pega. */
+  | 'trap';
 
 export interface Club {
   id: ClubId;
@@ -43,6 +43,8 @@ export interface Club {
   cooldown: number;
   /** Gravedad propia del vuelo. Más gravedad = mismo globo, pero llega mucho antes. */
   gravity?: number;
+  /** Cuánto lo frena el pasto al rodar, en m/s². Menos que lo normal = rueda lento y tarda en parar. */
+  rollFriction?: number;
   color: number;
 }
 
@@ -55,23 +57,23 @@ export const CLUBS: Record<ClubId, Club> = {
     restitution: 0.3, bounceKeep: 0.8, maxHits: 99, cooldown: 0, color: 0xffb347,
   },
   iron: {
-    id: 'iron', name: 'Hierro 7', title: 'Escarcha', hint: 'Globo de hielo: congela en el centro y enfría alrededor. Frío = lento, sin escudo y sin aura',
+    id: 'iron', name: 'Hierro 7', title: 'Escarcha', hint: 'Globo de hielo: los enfría. Frío = camina lento, sin escudo y sin aura',
     enchant: 'ice', loftDeg: 40, minRange: 6, maxRange: 40, chargeTime: 1.0, damage: 0, knockback: 0,
     restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 2, gravity: 50, color: 0x7fd4ff,
   },
   wedge: {
-    id: 'wedge', name: 'Wedge', title: 'Vendaval', hint: 'Globo sin daño: barre a todos hacia los costados, y los deja en fila en el borde',
+    id: 'wedge', name: 'Wedge', title: 'Vendaval', hint: 'Globo sin daño: junta a todos sobre la línea del tiro, en fila',
     enchant: 'push', loftDeg: 45, minRange: 5, maxRange: 28, chargeTime: 0.4, damage: 0, knockback: 0,
     restitution: 0, bounceKeep: 0, maxHits: 1, cooldown: 0, gravity: 75, color: 0xff6b4a,
   },
   putter: {
-    id: 'putter', name: 'Putter', title: 'Portal', hint: 'Espacio te teletransporta al puesto más cercano al cursor',
-    enchant: 'portal', loftDeg: 0, minRange: 3, maxRange: 22, chargeTime: 0, damage: 0, knockback: 0,
-    restitution: 0, bounceKeep: 1, maxHits: 0, cooldown: 8, color: 0xc9a2ff,
+    id: 'putter', name: 'Putter', title: 'Tótem', hint: 'Rueda lento y deja un tótem donde para. Pegale con el driver para detonarlo',
+    enchant: 'trap', loftDeg: 0, minRange: 4, maxRange: 24, chargeTime: 0.9, damage: 0, knockback: 0,
+    restitution: 0, bounceKeep: 1, maxHits: 0, cooldown: 6, rollFriction: 3, color: 0xc9a2ff,
   },
 };
 
-/** Palos que se eligen con 1-3 y la rueda. El putter va aparte, en la barra espaciadora. */
+/** Palos que se eligen con 1-3 y la rueda. El putter va aparte, en la F. */
 export const CLUB_ORDER: ClubId[] = ['driver', 'iron', 'wedge'];
 
 /** Un globo cae en un punto del piso; el driver no. */
@@ -79,18 +81,41 @@ export function isLob(club: Club): boolean {
   return club.enchant === 'ice' || club.enchant === 'push';
 }
 
+/**
+ * Control de altura (W sube, S baja), por escalones y no continuo, igual que la carga y que el daño.
+ * El escalón se suma al loft del palo, pero **no cambia dónde cae la pelota**: la velocidad se
+ * recalcula para llegar al mismo punto. Subir la altura levanta la pelota por encima de una loma o de
+ * los que están en el medio, a cambio de que tarde más y de que deje de atravesar la fila. Se mantiene
+ * de un tiro al siguiente: es una forma de tirar, no un gesto.
+ */
+export const HEIGHT_LEVELS: { name: string; delta: number }[] = [
+  { name: 'Rasante', delta: -8 },
+  { name: 'Normal', delta: 0 },
+  { name: 'Globo', delta: 14 },
+  { name: 'Bombeado', delta: 28 },
+];
+export const HEIGHT_DEFAULT = 1;
+/** Un driver no se puede aplastar más de esto, ni un wedge levantar más. */
+export const LOFT_MIN = 2.5;
+export const LOFT_MAX = 80;
+/** Loft final de un tiro en grados: el del palo más el escalón de altura. El putter siempre rueda. */
+export function loftFor(club: Club, height: number): number {
+  if (club.loftDeg <= 0.001) return 0;
+  const level = HEIGHT_LEVELS[Math.min(HEIGHT_LEVELS.length - 1, Math.max(0, height))];
+  return Math.min(LOFT_MAX, Math.max(LOFT_MIN, club.loftDeg + level.delta));
+}
+
 /** Radio de la explosión de los kamikazes. */
 export const EXPLOSION_RADIUS = 3.6;
 
 /**
- * Hielo del hierro. En el centro congela; alrededor enfría: lento, sin escudo y sin aura. No cambia el
- * daño que recibe. Carga igual que el driver y cada escalón es mejor que el anterior: más área y más
- * duración. El nivel 1 es el hielo base; el crítico es el más grande.
+ * Hielo del hierro. Enfría a los que toca: caminan lento, no se cubren con el escudo y, si son
+ * chamanes, se les apaga el aura. No los congela (no los deja duros) y no cambia el daño que reciben.
+ * Carga igual que el driver y cada escalón es mejor que el anterior: más área y más duración.
  */
-export const ICE_CORE = 1.3;
 export const ICE_RADIUS = 3;
 export const ICE_SLOW = 0.4;
-/** Por escalón de carga (1, 2, 3 y crítico): cuánto se agrandan las dos zonas, y cuántos segundos dura. */
+/** Por escalón de carga (1, 2, 3 y crítico): cuánto se agranda la zona, y cuántos segundos dura. */
 export const ICE_LEVELS: { area: number; seconds: number }[] = [
   { area: 1, seconds: 3 },
   { area: 1.15, seconds: 4.5 },
@@ -101,11 +126,26 @@ export function iceLevel(power: number, perfect = false): { area: number; second
   return ICE_LEVELS[perfect ? CHARGE_LEVELS : chargeLevel(power) - 1];
 }
 
+/**
+ * Tótem del putter. La pelota rueda lento y donde para deja un tótem. No hace nada por sí solo: explota
+ * cuando le pega una pelota de driver, y ahí hace daño en área y empuja a todos en círculo. Cuanto mejor
+ * cargado sale el putt, más fuerte explota. Es la única forma de hacer daño lejos de la línea del tiro.
+ */
+export const TRAP_RADIUS = 5;
+export const TRAP_DAMAGE = [2, 3, 4, 10];
+export const TRAP_KNOCKBACK = 40;
+/** Segundos que aguanta un tótem sin detonar, y cuántos puede haber a la vez. */
+export const TRAP_LIFE = 25;
+export const TRAP_MAX = 3;
+export function trapDamage(power: number, perfect = false): number {
+  return TRAP_DAMAGE[perfect ? CHARGE_LEVELS : chargeLevel(power) - 1];
+}
+
 /** Palazo (botón aparte): no hace daño. Empuja hacia atrás a todo lo que tenga alrededor, con recarga. */
 export const MELEE_RANGE = 4;
 /**
  * Impulso del palazo en m/s. El empujón se frena solo (decae a razón de 6 por segundo), así que el
- * enemigo recorre impulso / 6: con 84 son 14 m, que con el paso de simulación terminan siendo unos 15. Los pesados, una octava parte.
+ * enemigo recorre impulso / 6: con 84 son 14 m.
  */
 export const MELEE_KNOCKBACK = 84;
 export const MELEE_COOLDOWN = 2.5;
@@ -113,13 +153,12 @@ export const MELEE_MAX_TARGETS = 12;
 /** Segundos que quedan trastabillando los golpeados (les corta el ataque en curso). */
 export const MELEE_STAGGER = 0.7;
 
-/** Empujón del wedge: radio, y velocidad que le da a un enemigo parado en el centro. */
 /**
  * Vendaval del wedge: barre un rectángulo orientado según la línea del tiro. Empuja SOLO hacia los
- * costados de esa línea, alejando del punto donde cayó, y más fuerte cuanto más cerca. El
- * desplazamiento es exactamente lo que le falta a cada uno para llegar al borde, así que todos los de
- * un mismo lado terminan en una misma fila paralela al tiro, servida para el driver. Mueve a todos lo
- * mismo, pesen lo que pesen. El ancho crece con cada escalón de carga.
+ * costados de esa línea, y **hacia adentro**: cada uno recorre exactamente lo que lo separa de ella, así
+ * que todos terminan sobre la línea del tiro, en fila, servidos para el driver. Los que están a la misma
+ * profundidad no se enciman: quedan hombro con hombro, pegados a la línea. Mueve a todos lo mismo,
+ * pesen lo que pesen. El ancho crece con cada escalón de carga.
  */
 export const PUSH_HALF_DEPTH = 3.5;
 export const PUSH_HALF_WIDTHS = [4, 5, 6, 8];
