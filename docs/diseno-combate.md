@@ -823,3 +823,48 @@ Ideas anotadas, sin implementar:
   teletransporte del putter y sin salto su agarre no tiene salida.
 - **Enemigo de 1 de vida, más rápido**, quizás con esquive: corre, y cada unos segundos hace un roll
   más rápido en diagonal.
+
+### Evaluación: campo con relieve, como una cancha de golf
+
+Pedido por Leandro: evaluar que el campo no sea un plano. Sin implementar.
+
+**Qué cambia de verdad.** El driver sale casi rasante (3.5 grados: a 60 m no sube más de 0.9 m). Con
+relieve, cualquier loma de más de medio metro entre el golfista y el enemigo le frena el tiro. O sea
+que el relieve no es decorado: es **cobertura**. Eso puede ser lo mejor de la idea (los globos pasan
+por arriba, así que el hierro y el wedge ganan otro uso; una fila que viene por el fondo de un valle
+queda servida) o lo peor (atravesar filas ya es difícil, y con ondulaciones al azar falla más seguido).
+Por eso tiene que ser relieve **diseñado**, no ruido.
+
+**Qué formas sirven.**
+
+- *Tee elevado*: los puestos sobre una terraza de 1.5 m, como un tee de salida. El driver tira apenas
+  hacia abajo y tolera mucho más relieve adelante. Es lo que hace viable todo lo demás.
+- *Valles que apuntan a los puestos*: los enemigos que bajan por un valle se alinean solos, y el tiro a
+  lo largo del valle queda limpio. Es la versión con relieve de los pasillos que ya estaban anotados.
+- *Lomas como cobertura*: los que vienen detrás de una loma no se pueden cobrar con el driver hasta que
+  asoman; el globo sí les llega.
+- *Subidas que frenan*: si caminan más lento cuesta arriba, se amontonan al pie de cada subida, y eso
+  también arma filas.
+- Más adelante: búnker (arena que frena a los enemigos y mata el pique) y agua (hay que rodearla).
+
+**Qué hay que tocar en el código.**
+
+| Parte | Hoy | Con relieve | Tamaño |
+| --- | --- | --- | --- |
+| Altura del terreno | no existe | una función h(x, z) (suma de lomas y valles) y una malla subdividida | chico |
+| Enemigos | caminan en y = 0 | y = h(x, z); opcional, velocidad según la pendiente | chico |
+| Puntería | rayo del mouse contra un plano | rayo contra el terreno (marchando el rayo) | chico |
+| Pelota | pica contra y = 0 (`core/ballistics.ts`, con tests) | choca contra el terreno, pica según la pendiente y rueda cuesta abajo | mediano |
+| Línea de tiro | parábola hasta el alcance | tiene que cortarse donde toca el terreno, si no miente | chico a mediano |
+| Marcas en el piso | anillos y el rectángulo del wedge, planos a 5 cm | tienen que copiar el terreno (el rectángulo mide hasta 16 x 7 m) | mediano |
+| Cámara | fija, detrás del golfista | una loma puede tapar a los de atrás: hay que subirla o limitar las alturas | a probar |
+
+**Riesgos.** Que el driver falle demasiado seguido y frustre; que desde la cámara no se lea qué está
+tapado y qué no (hay que ayudar con la línea de tiro cortándose en la loma); y que el wedge, que
+alinea en el plano, quede raro sobre pendientes.
+
+**Cómo lo haría.** En dos pasos. Primero un prototipo detrás de un parámetro en la URL (`?relieve`):
+función de altura con un tee elevado, un valle central y dos lomas; malla; enemigos y pelota siguiendo
+la altura; puntería contra el terreno; línea de tiro que se corta. Sin tocar las marcas del piso. Con
+eso ya se puede jugar y decidir si suma. Recién si convence, el segundo paso: marcas que copian el
+terreno, pendiente que frena, búnker y agua.
