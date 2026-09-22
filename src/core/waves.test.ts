@@ -26,11 +26,16 @@ describe('waves', () => {
     }
   });
 
-  it('cada oleada suma como mucho un palo, y la primera es solo driver', () => {
-    expect(unlockedAt(-1)).toEqual(['driver']);
-    expect(unlockedAt(0)).toEqual(['driver']);
-    expect(unlockedAt(1)).toEqual(['driver', 'iron']);
-    expect(unlockedAt(WAVES.length - 1).sort()).toEqual(['driver', 'iron', 'putter', 'wedge']);
+  it('lo que dan las oleadas son poderes, no palos: los cuatro palos están desde el principio', () => {
+    // el golpe está desde el arranque; la escarcha y el vendaval se ganan jugando, de a uno
+    expect(unlockedAt(-1)).toEqual(['damage']);
+    expect(unlockedAt(0)).toEqual(['damage']);
+    expect(unlockedAt(1)).toEqual(['damage', 'ice']);
+    expect(unlockedAt(WAVES.length - 1).sort()).toEqual(['damage', 'ice', 'push']);
+    // ninguna oleada estrena dos poderes a la vez
+    for (let i = 0; i < WAVES.length; i++) {
+      expect(unlockedAt(i).length - unlockedAt(i - 1).length, `oleada ${i + 1}`).toBeLessThanOrEqual(1);
+    }
   });
 
   it('todos los enemigos de las oleadas están definidos', () => {

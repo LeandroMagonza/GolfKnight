@@ -1083,10 +1083,10 @@ pasillo angosto a lo largo de todo el tiro.
 
 **Lo que falta decidir, para cuando se juegue:**
 
-- Si las oleadas tienen que desbloquear encantamientos en vez de palos. Por ahora llegan juntos: la
-  escarcha viene con el hierro y el vendaval con el wedge, así el cartel de oleada no cambió.
-- Si el golpe seco tiene que competir de verdad con los otros dos, o está bien que sea el que siempre
-  está.
+- ~~Si las oleadas tienen que desbloquear encantamientos en vez de palos.~~ **Resuelto**: sí. Ver
+  "Los palos desde el principio, y los poderes como premio", al final.
+- ~~Si el golpe seco tiene que competir de verdad con los otros dos.~~ **Resuelto**: no. Es el estado
+  de reposo y no tiene recarga.
 - Si el putter, sin tótem, alcanza con ser "el que cobra de cerca".
 
 ## Hecho: teclas directas, el hierro con arco propio, y el campo que cambia
@@ -1337,3 +1337,30 @@ porque el tiempo de carga volvió a ser de cada palo. Es el palo de cerca, sin v
   hierro, no del wedge.
 - Las pruebas del hielo pasaron a tirar con el **wedge**: es el único que abre su área por caer al
   piso, así que es el único con el que se puede enfriar un punto del campo sin conectar con nadie.
+
+## Hecho: los palos desde el principio, y los poderes como premio
+
+Queda resuelta la pregunta que estaba abierta desde el rediseño («¿las oleadas tienen que desbloquear
+encantamientos en vez de palos?»). La respuesta de Leandro fue sí, y tiene sentido: **elegir palo es
+una decisión táctica, no un premio**. Que el juego arranque con un solo palo obligaba a jugar la
+primera oleada sin la mecánica central, que es elegir la entrega según la distancia.
+
+- **Los cuatro palos están desde la oleada 1.**
+- **Lo que se gana jugando son los poderes**: el golpe está desde el principio, la escarcha llega en la
+  oleada 2 («Escudos al frente», que es justo lo que abre) y el vendaval en la 3 («La estampida», que es
+  justo lo que junta). `Wave.unlock` pasó de `ClubId` a `EnchantId`, y `Player` ganó un `powers` aparte
+  del `unlocked` de palos, que ahora arranca completo.
+- El cartel entre oleadas muestra el **poder** nuevo, con su tecla y su recarga.
+
+### Los palos comparten color
+
+Cada palo tenía el suyo, y el del hierro era **celeste, el mismo de la escarcha**: parecía que el palo
+traía el poder, cuando son cosas independientes. Ahora los cuatro usan `CLUB_COLOR`, un hueso neutro.
+Los colores quedaron para los poderes, que es donde significan algo.
+
+### Cada palo tiene su ícono
+
+Leandro pasó una imagen por palo (venían al revés y con fondo blanco opaco). Se rotan 180° y se
+convierten en siluetas blancas con transparencia, para que se puedan teñir y no se vean como stickers
+sobre la barra oscura. Viven en `web/public/clubs/`. Lo que distingue a un palo de otro en el HUD es
+ahora el ícono y la tecla, no el color.

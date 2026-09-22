@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -378,7 +378,7 @@ horde.onEvent = (e) => {
     }
     case 'grab':
       audio.growl();
-      hud.feedback(player.unlocked.has('putter') ? '¡Te atrapó! Espacio para saltar' : '¡Te atrapó! Aguantá hasta que se canse', 'bad');
+      hud.feedback('¡Te atrapó! Shift para sacártela de encima', 'bad');
       break;
     case 'release':
       break;
@@ -449,11 +449,9 @@ function selectClub(index: number): void {
   player.setClub(CLUBS[id]);
 }
 
-/** Qué poderes se tienen: el golpe desde el principio, y los otros llegan con su palo hermano. */
+/** Qué poderes se tienen: el golpe desde el principio, y los otros los van dando las oleadas. */
 function enchantOwned(id: EnchantId): boolean {
-  if (id === 'ice') return player.unlocked.has('iron');
-  if (id === 'push') return player.unlocked.has('wedge');
-  return true;
+  return player.powers.has(id);
 }
 
 /** Listo para usar: se lo tiene y no está recargando. */
@@ -486,23 +484,25 @@ function lockSwing(): void {
 }
 
 /**
- * Si la oleada que viene estrena un palo, lo habilita ya y muestra el cartel. El juego queda frenado
- * hasta que se lo cierre con un click, pero el descanso entre oleadas sigue corriendo: si se leyó con
- * calma, la oleada arranca apenas se cierra.
+ * Si la oleada que viene estrena un **poder**, lo habilita ya y muestra el cartel. El juego queda
+ * frenado hasta que se lo cierre con un click, pero el descanso entre oleadas sigue corriendo: si se
+ * leyó con calma, la oleada arranca apenas se cierra. Los palos no se desbloquean: están los cuatro
+ * desde la primera oleada.
  */
 function offerUnlock(): boolean {
   const id = director.nextUnlock;
-  if (!id || player.unlocked.has(id)) return false;
-  player.unlocked.add(id);
+  if (!id || player.powers.has(id)) return false;
+  player.powers.add(id);
   player.cancelSwing();
   cardOpen = true;
-  const club = CLUBS[id];
+  const power = ENCHANTS[id];
   hud.showCard({
-    name: club.name,
-    title: club.title,
-    key: CLUB_KEYS[CLUB_ORDER.indexOf(id)],
-    hint: club.hint,
-    color: club.color,
+    name: power.name,
+    title: power.title,
+    key: ENCHANT_KEYS[ENCHANT_ORDER.indexOf(id)],
+    hint: power.hint,
+    cooldown: power.cooldown,
+    color: power.color,
     next: director.nextTitle,
   });
   return true;
@@ -547,7 +547,7 @@ function makeDebugPanel(): DebugPanel {
     },
     goToWave(index) {
       for (const e of horde.enemies) e.state = 'gone';
-      for (const id of unlockedAt(index)) player.unlocked.add(id);
+      for (const id of unlockedAt(index)) player.powers.add(id);
       director.goTo(index);
       hud.showBanner(`Oleada ${index + 1}`, 'saltada desde el panel', 2);
     },
@@ -732,7 +732,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
   scene.add(root);
   playerClips = gltf.animations;
   const p = new Player(root, gltf.animations, scene, clubModel ? clubModel.clone() : null);
-  if (ALL_CLUBS) for (const id of Object.keys(CLUBS) as ClubId[]) p.unlocked.add(id);
+  if (ALL_CLUBS) for (const id of ENCHANT_ORDER) p.powers.add(id);
   p.spotXs = tees.spots.map((s) => s.x);
   p.canFire = () => {
     const i = tees.nearest(p.anchor.x);
@@ -917,7 +917,7 @@ function updateWaves(dt: number): void {
         audio.waveHorn();
         // cada oleada estrena, como mucho, un palo: el que resuelve al enemigo nuevo
         // el palo nuevo ya se presentó con su cartel al terminar la oleada anterior; esto es la red de seguridad
-        for (const id of unlockedAt(e.index)) player.unlocked.add(id);
+        for (const id of unlockedAt(e.index)) player.powers.add(id);
         hud.showBanner(`Oleada ${e.index + 1}`, e.wave.title);
         break;
       }
@@ -927,7 +927,7 @@ function updateWaves(dt: number): void {
         horde.spawn(e.kind);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. El hielo no lo congela, pero lo frena');
         else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: apagalo con hielo', 'bad');
-        else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, saltá con el putter', 'bad');
+        else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacátela con el palazo (Shift)', 'bad');
         break;
       case 'cleared':
         if (e.index + 1 < director.waveCount) {
@@ -1042,7 +1042,7 @@ addEventListener('resize', () => {
   get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },
   get debug() { return debugPanel; },
   godMode,
-  unlockAll() { for (const id of Object.keys(CLUBS) as ClubId[]) player.unlocked.add(id); },
+  unlockAll() { for (const id of ENCHANT_ORDER) player.powers.add(id); },
   /** Recorrido de la mano derecha en un clip y sus fases, para revisar los clips de golf. */
   sampleClip(name: string, hz = 20) {
     const clip = playerClips.find((c) => c.name === name);

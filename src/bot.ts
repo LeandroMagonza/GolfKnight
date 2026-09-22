@@ -114,8 +114,8 @@ export function startBot(): BotStats {
     const alive: any[] = gk.horde.enemies.filter((e: any) => e.alive && !e.passed);
     if (!alive.length) return;
 
-    const iceReady = pl.unlocked.has('iron') && pl.cooldowns.ice <= 0;
-    const pushReady = pl.unlocked.has('wedge') && pl.cooldowns.push <= 0;
+    const iceReady = pl.powers.has('ice') && pl.cooldowns.ice <= 0;
+    const pushReady = pl.powers.has('push') && pl.cooldowns.push <= 0;
     let enchant = 'damage';
     let target: any = null;
 
@@ -145,12 +145,13 @@ export function startBot(): BotStats {
 
     // El palo lo decide la distancia, que es de donde sale el daño. Con un efecto en área conviene el
     // palo que más abre, mientras llegue.
+    // Los cuatro palos están desde la primera oleada, así que la elección es solo táctica. Con un
+    // efecto en área conviene el wedge, que además es el único que lo abre sin tener que conectar.
     const d = dist(target);
     let club = 'driver';
-    if (enchant !== 'damage') club = pl.unlocked.has('wedge') && d < 54 ? 'wedge' : 'iron';
-    else if (d <= 12 && pl.unlocked.has('putter')) club = 'putter';
-    else if (d <= 40 && pl.unlocked.has('iron')) club = 'iron';
-    if (!pl.unlocked.has(club)) club = 'driver';
+    if (enchant !== 'damage') club = d < 54 ? 'wedge' : 'iron';
+    else if (d <= 12) club = 'putter';
+    else if (d <= 40) club = 'iron';
     // los tres poderes tienen recarga: si el elegido no está listo, espera en vez de gastar otro
     if (!gk.enchantReady(enchant)) return;
     // cada palo tiene su tecla: un toque y ya
@@ -160,7 +161,7 @@ export function startBot(): BotStats {
     // La barra ya no tiene nada que ver con la distancia: apunta a soltar en el nivel 2, que es lo que
     // haría alguien sin clavarla. El alcance lo da el mouse.
     const want = 0.78;
-    const chargeTime = club === 'wedge' ? 0.7 : club === 'putter' ? 0.6 : club === 'iron' ? 0.85 : 1;
+    const chargeTime = gk.player.club.chargeTime;
 
     // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
     // (en diagonal, no derecho). Se apunta a donde va a estar.

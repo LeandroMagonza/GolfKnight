@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CLUBS, ENCHANTS, MELEE_COOLDOWN, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from '../core/clubs';
+import { CLUB_ORDER, CLUBS, ENCHANTS, MELEE_COOLDOWN, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from '../core/clubs';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
@@ -101,8 +101,13 @@ export class Player {
   readonly swingClips = new Map<string, SwingClip>();
   /** Palo elegido durante un tiro, esperando a que el tiro termine o se cancele. */
   pendingClub: Club | null = null;
-  /** Palos que ya se pueden usar. Las oleadas los van habilitando. */
-  readonly unlocked = new Set<ClubId>(['driver']);
+  /**
+   * Los cuatro palos están desde el principio: elegir palo es una decisión táctica, no un premio.
+   * Lo que las oleadas van dando son los **poderes** (ver `powers`).
+   */
+  readonly unlocked = new Set<ClubId>(CLUB_ORDER);
+  /** Poderes ya ganados. El golpe está desde el principio; los otros los dan las oleadas. */
+  readonly powers = new Set<EnchantId>(['damage']);
   /** Segundos de recarga que le quedan a cada poder. Los palos no tienen recarga: la tienen los poderes. */
   readonly cooldowns: Record<EnchantId, number> = { damage: 0, ice: 0, push: 0 };
   /** ¿Ya se tiene este poder? Lo decide el juego (las oleadas). */

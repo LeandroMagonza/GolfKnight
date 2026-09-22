@@ -1,5 +1,5 @@
 // Prueba automática del juego: salta la intro y prueba cada mecánica contra enemigos puestos a mano:
-// palos bloqueados, cartel de palo nuevo, palo en cola, medidor y niveles de carga, puestos y pelotas,
+// palos desde el arranque, cartel de poder nuevo, palo en cola, medidor y carga, puestos y pelotas,
 // driver, hielo, vendaval, chamán, putter, alma en pena, vida, puerta, pausa y final.
 // Sale con error si alguna comprobación falla. Capturas en logs/.
 // uso: node tools/playtest.mjs [--quick] [--ver]
@@ -171,21 +171,27 @@ log('inicio', await state());
 await page.screenshot({ path: 'logs/k1-inicio.png' });
 
 if (!quick) {
-  // --- palos bloqueados: al empezar solo está el driver; ni el 2 ni Espacio hacen nada ---
+  // --- al empezar están los cuatro palos y un solo poder: lo que dan las oleadas son los poderes ---
   await page.keyboard.press('Digit2');
-  await page.keyboard.press('Space');
   await page.waitForTimeout(200);
-  const locked = await page.evaluate(() => ({ club: window.__gk.player.club.id, palos: [...window.__gk.player.unlocked], x: window.__gk.player.anchor.x }));
-  log('bloqueados', locked);
-  check('al empezar solo hay driver', locked.club === 'driver' && locked.palos.length === 1 && locked.x === 0);
+  const start = await page.evaluate(() => ({ club: window.__gk.player.club.id, palos: [...window.__gk.player.unlocked], poderes: [...window.__gk.player.powers], x: window.__gk.player.anchor.x }));
+  log('al empezar', start);
+  check('los cuatro palos están desde la primera oleada', start.palos.length === 4 && start.x === 0);
+  check('la tecla 2 cambia de palo desde el arranque', start.club === 'iron');
+  check('al empezar el único poder es el golpe', start.poderes.join() === 'damage');
+  await page.keyboard.press('Digit1');
   const shownSlots = await page.evaluate(() => ({
     slots: [...document.querySelectorAll('#clubs .club')].filter((el) => getComputedStyle(el).display !== 'none').map((el) => el.dataset.club),
+    iconos: [...document.querySelectorAll('#clubs .club .clubicon')].map((el) => el.getAttribute('src').split('/').pop()),
     efectos: [...document.querySelectorAll('#enchants .club')].filter((el) => !el.classList.contains('locked')).map((el) => el.dataset.ench),
+    colores: new Set([...document.querySelectorAll('#clubs .club')].map((el) => el.style.getPropertyValue('--c'))).size,
   }));
   log('barra al empezar', shownSlots);
-  check('lo que no se desbloqueó no se muestra', shownSlots.slots.join() === 'driver' && shownSlots.efectos.join() === 'damage,melee');
+  check('los cuatro palos se muestran, cada uno con su ícono', shownSlots.slots.join() === 'driver,iron,wedge,putter' && shownSlots.iconos.join() === 'driver.png,iron.png,wedge.png,putter.png');
+  check('el poder que todavía no se ganó no se muestra', shownSlots.efectos.join() === 'damage,melee');
+  check('los cuatro palos comparten color', shownSlots.colores === 1);
 
-  // --- cartel de palo nuevo: frena el juego hasta el click, pero el descanso entre oleadas sigue corriendo ---
+  // --- cartel de poder nuevo: frena el juego hasta el click, pero el descanso entre oleadas sigue corriendo ---
   const walker = await page.evaluate(() => window.__gk.spawn('skeleton', 0, 40).id);
   await page.evaluate(() => { const g = window.__gk; g.director.index = 0; g.director.timer = 6; g.offerUnlock(); });
   const before = await page.evaluate((id) => { const g = window.__gk; return { clock: g.clock, z: g.horde.enemies.find((e) => e.id === id).position.z, rest: g.director.restLeft }; }, walker);
@@ -193,18 +199,18 @@ if (!quick) {
   await page.keyboard.press('Digit2');
   const during = await page.evaluate((id) => {
     const g = window.__gk;
-    return { abierto: g.cardOpen, visible: !document.getElementById('card').hidden, clock: g.clock, z: g.horde.enemies.find((e) => e.id === id).position.z, rest: g.director.restLeft, palos: [...g.player.unlocked], palo: g.player.club.id };
+    return { abierto: g.cardOpen, visible: !document.getElementById('card').hidden, clock: g.clock, z: g.horde.enemies.find((e) => e.id === id).position.z, rest: g.director.restLeft, poderes: [...g.player.powers], palo: g.player.club.id };
   }, walker);
   await page.screenshot({ path: 'logs/k1a-cartel.png' });
   log('cartel', before, during);
-  check('el cartel de palo nuevo frena el juego', during.abierto && during.visible && during.clock === before.clock && during.z === before.z && during.palo === 'driver');
+  check('el cartel de poder nuevo frena el juego', during.abierto && during.visible && during.clock === before.clock && during.z === before.z && during.palo === 'driver');
   check('con el cartel abierto el descanso entre oleadas sigue corriendo', during.rest < before.rest - 0.5);
-  check('el cartel ya habilita el palo', during.palos.includes('iron'));
+  check('el cartel ya habilita el poder', during.poderes.includes('ice'));
   await page.mouse.click(640, 360);
   await page.waitForTimeout(300);
-  const after = await page.evaluate(() => ({ abierto: window.__gk.cardOpen, visible: !document.getElementById('card').hidden, hierro: getComputedStyle(document.querySelector('#clubs .club[data-club=iron]')).display !== 'none' }));
+  const after = await page.evaluate(() => ({ abierto: window.__gk.cardOpen, visible: !document.getElementById('card').hidden, escarcha: !document.querySelector('#enchants .club[data-ench=ice]').classList.contains('locked') }));
   log('cartel cerrado', after);
-  check('un click cierra el cartel y el palo aparece en la barra', !after.abierto && !after.visible && after.hierro);
+  check('un click cierra el cartel y el poder aparece en la barra', !after.abierto && !after.visible && after.escarcha);
   await page.evaluate(() => { const g = window.__gk; g.director.index = -1; g.director.timer = 9999; });
   await clearEnemies();
   await page.evaluate(() => window.__gk.unlockAll());

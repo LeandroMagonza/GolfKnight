@@ -42,10 +42,11 @@ export class Hud {
     });
     this.cardEl.addEventListener('click', () => this.onCardDismiss?.());
     // los palos: la distancia y la trayectoria. Uno por tecla, 1 a 4
+    // los cuatro comparten color: lo que los distingue es el ícono del palo y la tecla
     this.clubsEl.innerHTML = CLUB_ORDER.map((id, i) => {
       const c = CLUBS[id];
       const color = '#' + c.color.toString(16).padStart(6, '0');
-      return `<div class="club locked" data-club="${id}" style="--c:${color}"><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">${c.minRange}-${c.maxRange} m</div></div>`;
+      return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">${c.minRange}-${c.maxRange} m</div></div>`;
     }).join('');
     // los poderes: qué hace la pelota cuando llega. Y el palazo, que va aparte
     this.enchantsEl.innerHTML = ENCHANT_ORDER.map((id, i) => {

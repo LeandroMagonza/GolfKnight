@@ -92,13 +92,20 @@ export function bandOf(meters: number): number {
  */
 export const CHARGE_TIME = 0.85;
 
+/**
+ * **Los cuatro palos comparten color.** Antes cada uno tenía el suyo y el del hierro era celeste, el
+ * mismo de la escarcha: parecía que el palo traía el poder, cuando son cosas independientes. Los
+ * colores son de los poderes; los palos se distinguen por su ícono y su tecla.
+ */
+export const CLUB_COLOR = 0xe6e2d3;
+
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
     id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
     loftDeg: 3.5, minRange: 4, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
     pierces: true, burstsOnGround: false, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
-    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, color: 0xffb347,
+    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, color: CLUB_COLOR,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
@@ -107,7 +114,7 @@ export const CLUBS: Record<ClubId, Club> = {
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
     areaDamage: [[1, 2, 4], [1, 2, 4], [1, 2, 4]],
-    knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: 6, color: 0x7fd4ff,
+    knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: 6, color: CLUB_COLOR,
   },
   wedge: {
     id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no',
@@ -115,7 +122,7 @@ export const CLUBS: Record<ClubId, Club> = {
     pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto
     damage: [[1, 2, 5], [1, 2, 5], [1, 2, 5]],
-    knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, color: 0xff6b4a,
+    knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, color: CLUB_COLOR,
   },
   putter: {
     id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno y se carga rápido',
@@ -124,7 +131,7 @@ export const CLUBS: Record<ClubId, Club> = {
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
     // rollFriction alto = sale más fuerte y llega antes (la velocidad de salida se calcula para que la
     // pelota pare justo en el punto apuntado). Con 3 tardaba casi 4 s en cruzar 20 m
-    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 7, color: 0xc9a2ff,
+    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 7, color: CLUB_COLOR,
   },
 };
 
