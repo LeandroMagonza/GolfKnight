@@ -8,7 +8,7 @@
 // caída, el viento pasa como un pasillo angosto a lo largo de todo el tiro.
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, launchWith, stepBall, type BallState } from '../core/ballistics';
-import { damageFor, ICE_LINE_SECONDS, ICE_SECONDS, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, type Club, type Enchant, type EnchantId } from '../core/clubs';
+import { areaDamageFor, damageFor, ICE_LINE_SECONDS, ICE_SECONDS, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, type Club, type Enchant, type EnchantId } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
@@ -129,7 +129,8 @@ export class Balls {
       hits = this.horde.sweep(pos, ball.dir, radius * 1.5, radius, skip);
     } else {
       this.effects.explosion(pos, radius, ball.club.color);
-      const damage = damageFor(ball.club, this.metersTo(ball, pos), ball.quality);
+      // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie
+      const damage = areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality);
       hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, skip);
     }
     this.onEvent?.({ type: 'land', enchant: ball.enchant.id, pos, hits, quality: ball.quality });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  bandOf, BAND_LIMITS, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS,
+  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS,
   ICE_SECONDS, isLob, KNOCK_DECAY, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
@@ -132,12 +132,37 @@ describe('encantamientos', () => {
     for (const id of ENCHANT_ORDER) expect(ENCHANTS[id].id).toBe(id);
   });
 
-  it('los tres se pagan con recarga, y la del golpe es la más corta', () => {
-    for (const id of ENCHANT_ORDER) expect(ENCHANTS[id].cooldown).toBeGreaterThan(0);
-    expect(ENCHANTS.damage.cooldown).toBeLessThan(ENCHANTS.ice.cooldown);
-    expect(ENCHANTS.damage.cooldown).toBeLessThan(ENCHANTS.push.cooldown);
-    // la del golpe no puede ser más larga que cargar el tiro, o el juego se frena entre tiro y tiro
-    expect(ENCHANTS.damage.cooldown).toBeLessThanOrEqual(Math.max(...CLUB_ORDER.map((id) => CLUBS[id].chargeTime)) + 0.3);
+  it('el golpe no tiene recarga: es el estado de reposo; los otros dos se pagan', () => {
+    // sin esto el juego se frena entre tiro y tiro, y peor: al ir a pegar habría que cambiar solo a
+    // otro poder, que era justo lo que sorprendía
+    expect(ENCHANTS.damage.cooldown).toBe(0);
+    expect(ENCHANTS.ice.cooldown).toBeGreaterThan(0);
+    expect(ENCHANTS.push.cooldown).toBeGreaterThan(0);
+  });
+
+  it('la barra tarda lo mismo con los cuatro palos: mide timing, no potencia', () => {
+    for (const id of CLUB_ORDER) expect(CLUBS[id].chargeTime, id).toBe(CHARGE_TIME);
+  });
+
+  it('el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie', () => {
+    // el hierro es el único que hace las dos cosas, así que es el único con dos tablas
+    expect(CLUBS.iron.areaDamage).toBeDefined();
+    for (const meters of [10, 30, 50]) {
+      for (let q = 1; q <= QUALITY_LEVELS; q++) {
+        expect(areaDamageFor(CLUBS.iron, meters, q)).toBeLessThanOrEqual(damageFor(CLUBS.iron, meters, q));
+      }
+    }
+    // el wedge y el putter solo hacen área: su tabla de siempre ya es la del área
+    for (const id of ['wedge', 'putter'] as const) {
+      expect(CLUBS[id].areaDamage).toBeUndefined();
+      expect(areaDamageFor(CLUBS[id], 10, 3)).toBe(damageFor(CLUBS[id], 10, 3));
+    }
+    // y el wedge, que abre la más grande de todas, pega menos que el área del hierro con el mejor golpe
+    expect(damageFor(CLUBS.wedge, 30, 3)).toBeLessThan(damageFor(CLUBS.iron, 30, 3));
+  });
+
+  it('se puede pegar cerca: ningún palo pide más de 4 m para salir', () => {
+    for (const id of CLUB_ORDER) expect(CLUBS[id].minRange, id).toBeLessThanOrEqual(4);
   });
 
   it('cada poder tiene su ícono para la punta de la línea; los palos ya no tienen', () => {

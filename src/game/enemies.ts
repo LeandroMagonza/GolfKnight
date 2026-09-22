@@ -250,13 +250,15 @@ export class Enemy {
   }
 
   /**
-   * ¿El escudo frena una pelota que viene con velocidad (vx, vy, vz)? Solo los tiros rasantes que
-   * llegan de frente; congelado o aturdido no se cubre.
+   * ¿El escudo frena una pelota que viene con velocidad (vx, vy, vz)? Frena **la pelota que le llega de
+   * frente**, venga rasante o en arco: solo lo pasa lo que cae casi a plomo. Congelado o aturdido no se
+   * cubre. Esto lo pregunta solo la pelota que atraviesa (driver y hierro): lo que abre área donde cae
+   * no le pega al escudo, le cae al lado, y por eso al del escudo se lo resuelve con un globo.
    */
   blocks(vx: number, vy: number, vz: number): boolean {
     if (!this.shieldUp || this.stunTimer > 0) return false;
     const h = Math.hypot(vx, vz);
-    if (h < 0.5 || Math.abs(vy) > h * 0.5) return false;
+    if (h < 0.5 || Math.abs(vy) > h * 2) return false;
     const f = this.facing;
     return (vx * f.x + vz * f.z) / h < -0.55;
   }
@@ -476,7 +478,7 @@ export class Enemy {
         lookZ = GATE_Z - this.position.z;
         if (behavior === 'golem') {
           this.castTimer -= dt * slow;
-          if (this.castTimer <= 0) this.startAttack(GOLEM_THROW_EVERY);
+          if (this.castTimer <= 0) this.startAttack(this.stats.attackEvery ?? GOLEM_THROW_EVERY);
         }
         this.animator.setLocomotion('Idle', 1);
       } else if (behavior === 'grabber') {

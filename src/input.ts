@@ -2,9 +2,10 @@
 // A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite) y el mouse
 // apunta y decide a qué distancia cae. Click izquierdo mantiene para cargar el swing y suelta para
 // pegar; click derecho (o X) cancela. Espacio clava la calidad del golpe, y el tiro sale cuando se
-// suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo** (y la rueda del mouse los
-// recorre en círculo); **Q, W y E eligen el poder**. Shift (o V) es el palazo, B abre el panel de
-// balance, Escape pausa, R reinicia, C cambia el skin, M silencia la música.
+// suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo**; **Q, W y E eligen el poder**.
+// La rueda del mouse inclina la cámara y las flechas arriba y abajo la suben y bajan, para probar
+// ángulos. Shift (o V) es el palazo, B abre el panel de balance, Escape pausa, R reinicia, C cambia el
+// skin, M silencia la música.
 
 export interface InputEvents {
   swingStart(): void;
@@ -14,8 +15,10 @@ export interface InputEvents {
   selectEnchant(index: number): void;
   /** Elige palo por posición: 0 = driver, 1 = hierro, 2 = wedge, 3 = putter. */
   selectClub(index: number): void;
-  /** Pasa al palo anterior (-1) o al siguiente (+1), en círculo (la rueda del mouse). */
-  cycleClub(delta: number): void;
+  /** Rueda del mouse: inclina la cámara (+1 más alta, -1 más baja). */
+  tiltCamera(delta: number): void;
+  /** Flechas arriba y abajo: sube y baja la cámara sin girarla. */
+  raiseCamera(delta: number): void;
   /** Abre o cierra el panel de balance. */
   debugPanel(): void;
   space(): void;
@@ -63,14 +66,21 @@ export class Input {
       }
     });
     target.addEventListener('contextmenu', (e) => e.preventDefault());
-    addEventListener('wheel', (e) => this.ev.cycleClub(e.deltaY > 0 ? 1 : -1), { passive: true });
+    // la rueda ya no cambia de palo (cada palo tiene su tecla): inclina la cámara, para probar ángulos
+    addEventListener('wheel', (e) => this.ev.tiltCamera(e.deltaY > 0 ? -1 : 1), { passive: true });
   }
 
   private keydown(e: KeyboardEvent): void {
-    if (e.repeat) return;
     // escribiendo en el panel de balance el teclado es del panel, no del juego
     const el = e.target as HTMLElement | null;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+    // la altura de la cámara sí repite al mantener apretado: se está buscando un valor, no dando una orden
+    if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+      this.ev.raiseCamera(e.code === 'ArrowUp' ? 1 : -1);
+      e.preventDefault();
+      return;
+    }
+    if (e.repeat) return;
     this.keys.add(e.code);
     switch (e.code) {
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4':

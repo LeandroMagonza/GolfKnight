@@ -1175,3 +1175,66 @@ es que ajustar el balance no requiera tocar código: se juega, se mueve, se copi
 
 Los cambios no se guardan: al recargar vuelve el balance del código. Es a propósito, para que un
 experimento no quede pegado sin que nadie se entere.
+
+## Hecho: la pelota quieta, el escudo que sí frena, y el área que pega menos
+
+Segunda tanda de correcciones sobre lo anterior, todas reportadas jugando.
+
+### El golfista se mueve alrededor de la pelota, no al revés
+
+Antes la pelota salía de un offset girado respecto del cuerpo: apuntabas y **la pelota orbitaba al
+personaje**, que es justo lo que nadie hace en el golf. Se dio vuelta la relación: ahora el **ancla es
+el puesto** (`Player.anchor`, donde está la pelota) y el cuerpo se calcula alrededor
+(`stancePosition`). `position` sigue siendo el cuerpo, así que la cámara y los enemigos no se enteran;
+lo que cambió es quién manda.
+
+De yapa, la puntería se simplificó: la línea del tiro es de la pelota al cursor, sin iterar. Antes
+había que iterar dos veces porque el tee dependía de la dirección, que dependía del tee.
+
+### Se podía pegar demasiado lejos y nada cerca
+
+`minRange` era 6 m en driver y hierro: apuntando más cerca el tiro salía igual de largo. Bajó a 4 / 4 /
+3 / 2. Y el guardia de la puntería pedía 1.2 m de separación para actualizar la dirección; ahora 0.3.
+
+### El escudo dejaba pasar al hierro
+
+El escudo solo frenaba pelotas **casi horizontales** (pedía caída vertical < mitad de la horizontal).
+El driver entraba; el hierro, que baja a unos 27°, quedaba apenas afuera y le pasaba por el medio.
+Ahora frena lo que le llega **de frente, venga rasante o en arco**: solo lo pasa lo que cae casi a
+plomo. Como el wedge y el putter no atraviesan (abren el área al lado del escudo, no contra él), la
+regla queda como la quería Leandro: al del escudo se lo resuelve con un globo, con hielo, o pegándole
+de costado.
+
+### El marcador del piso volvía para adelante
+
+Apuntando **detrás** de una loma, el driver se inclinaba hacia la altura del cursor, que es más baja, y
+entonces se clavaba más abajo en la misma loma: la marca, en vez de quedarse en la cima, bajaba. Ahora
+el tiro rasante se inclina hacia **lo más alto que se cruza en el camino** (el máximo de `atan2(h, s)`
+a lo largo de la línea), no hacia la altura del cursor. Apuntar más lejos ya no lo hace bajar.
+
+### El área pega menos que el impacto
+
+Regla nueva de Leandro: **un golpe en área tiene que pegar menos**, porque agarra a varios y no hay que
+apuntarle a nadie. El wedge y el putter solo hacen área, así que su tabla ya *es* la del área y
+alcanzaba con bajarle los números al wedge (1/3/7 → 1/2/5, que abre la más grande de todas). El hierro
+era el caso dudoso porque hace las dos cosas, y la respuesta fue **dos tablas**: `damage` es lo que saca
+la pelota al pegarle a alguien (1/3/7) y `areaDamage` lo que reparte donde cae (1/2/4). El driver no
+tiene área y no necesita la segunda.
+
+En el medidor, con el hierro en la mano, se ven los dos números: «3 al pegarle · 2 en área».
+
+### Lo demás de esta tanda
+
+- **El golpe no tiene recarga.** Con recarga, al ir a pegar el juego te metía otro poder listo, y eso se
+  sentía como que se activaban poderes solos. Ahora el golpe es el estado de reposo y nunca se cambia
+  solo a *otro* poder: después de gastar escarcha o vendaval, la mano vuelve al golpe.
+- **La carga es la misma para los cuatro palos** (0.85 s; estaba en 1.0 / 0.85 / 0.7 / 0.6). La barra
+  mide timing: si cada palo tuviera su ritmo, elegir palo sería también elegir qué tan difícil es
+  clavar el golpe, que es otra cosa.
+- **Buffer de movimiento, no cola.** Apretar A o D durante un tiro guardaba *todos* los toques y al
+  terminar te movías dos o tres puestos de golpe. Ahora se guarda uno solo, el último, y vence a los
+  0.4 s.
+- **Cámara ajustable**: la rueda del mouse inclina y las flechas arriba y abajo la suben y bajan sin
+  girarla. Los valores salen en «copiar configuración», que es para lo que están.
+- **Panel**: cambiar de campo (recarga la partida), prender y apagar cada tipo de enemigo, velocidad de
+  ataque del gólem, y el panel por encima de la pausa para poder tocarlo con el juego frenado.

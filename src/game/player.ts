@@ -42,6 +42,8 @@ const FOLLOW_SPEED = 1.35;
 const MIN_BACKSWING = 0.3;
 /** Segundos después del impacto a partir de los cuales ya se puede cargar otro tiro. */
 const RECOVER = 0.22;
+/** Cuánto vale un toque de movimiento apretado durante un tiro. Es un buffer, no una cola. */
+const STEP_BUFFER = 0.4;
 /** De puesto en puesto con easing: arranca y frena suave. Un puesto (4 m) lleva unos 0.4 s. */
 const RUN_SMOOTH_TIME = 0.12;
 const RUN_MAX_SPEED = 30;
@@ -55,7 +57,14 @@ const MELEE_WINDUP = 0.09;
 
 export class Player {
   readonly root: THREE.Object3D;
+  /**
+   * Dónde está parado el golfista. **Sale de la pelota, no al revés**: el ancla es el puesto (donde
+   * está la pelota) y el cuerpo se acomoda alrededor según hacia dónde apunta. Antes era al revés y se
+   * veía la pelota girando alrededor del personaje, que es lo que nadie hace en el golf.
+   */
   readonly position: THREE.Vector3;
+  /** El puesto: dónde está apoyada la pelota. Quieta mientras no te movés de puesto. */
+  readonly anchor = new THREE.Vector3(0, 0, TEE_Z);
   readonly animator: LayeredAnimator;
   readonly rig: SwingRig;
   readonly meter = new SwingMeter();
@@ -114,6 +123,9 @@ export class Player {
   /** Avance del backswing, 0..1, suavizado detrás del medidor. */
   private backswing = 0;
   private sinceImpact = 0;
+  /** Toque de movimiento apretado durante un tiro: se guarda uno solo y vence solo. */
+  private bufferedStep = 0;
+  private bufferLeft = 0;
 
   constructor(model: THREE.Object3D, clips: THREE.AnimationClip[], scene: THREE.Scene, clubModel: THREE.Object3D | null = null) {
     this.root = model;
@@ -156,14 +168,19 @@ export class Player {
     return new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
   }
 
-  /** Dónde está apoyada la pelota en la postura de golf. */
+  /** Dónde está apoyada la pelota: en el puesto, quieta. Apuntar mueve al golfista, no a la pelota. */
   teePosition(out: THREE.Vector3): THREE.Vector3 {
+    return out.set(this.anchor.x, 0, this.anchor.z);
+  }
+
+  /** Dónde tiene que pararse el cuerpo para que la pelota le quede en el lugar de la postura. */
+  private stancePosition(out: THREE.Vector3): THREE.Vector3 {
     const yaw = this.stanceYaw();
     const s = Math.sin(yaw);
     const c = Math.cos(yaw);
     const tee = this.swingClip?.tee ?? TEE_OFFSET;
-    // local (x, z) -> mundo, rotando por el yaw
-    return out.set(this.position.x + tee.x * c + tee.z * s, 0, this.position.z - tee.x * s + tee.z * c);
+    // el offset local (x, z) rotado al mundo, restado: es el inverso de "la pelota respecto del cuerpo"
+    return out.set(this.anchor.x - (tee.x * c + tee.z * s), 0, this.anchor.z - (-tee.x * s + tee.z * c));
   }
 
   /** Yaw de la postura: el que hace que la pelota salga hacia aimDir. */
@@ -213,11 +230,6 @@ export class Player {
     return this.cooldowns[id] <= 0 && (this.enchantAvailable?.(id) ?? true);
   }
 
-  /** El primer poder listo, o null si están los tres recargando. */
-  get firstReady(): Enchant | null {
-    for (const id of Object.keys(ENCHANTS) as EnchantId[]) if (this.enchantReady(id)) return ENCHANTS[id];
-    return null;
-  }
 
   private applyClub(club: Club): void {
     this.pendingClub = null;
@@ -231,16 +243,9 @@ export class Player {
     if ((this.mode !== 'free' && !recovered) || this.grabbedBy || this.stunned || !this.alive || !this.atSpot) return;
     if (this.canStart && !this.canStart()) return;
     // encadenar otro tiro apenas pasó el impacto también cuenta como fin del tiro anterior.
-    // Los tres poderes tienen recarga: si el que está en la mano no está listo, entra el primero que sí,
-    // y si no hay ninguno todavía no se puede pegar.
-    if (!this.enchantReady(this.enchant.id)) {
-      const ready = this.firstReady;
-      if (!ready) {
-        this.onDenied?.(this.enchant);
-        return;
-      }
-      this.enchant = ready;
-    }
+    // El golpe no tiene recarga, así que siempre hay con qué pegar: si el poder en la mano está
+    // recargando, se vuelve al golpe. Nunca se cambia solo a *otro* poder, que sorprendía.
+    if (!this.enchantReady(this.enchant.id)) this.enchant = ENCHANTS.damage;
     if (this.pendingClub) this.applyClub(this.pendingClub);
     this.mode = 'charging';
     this.backswing = 0;
@@ -311,19 +316,40 @@ export class Player {
 
   /** Ya llegó al puesto al que iba. */
   get atSpot(): boolean {
-    return Math.abs(this.position.x - this.spotXs[this.spotIndex]) < 0.05;
+    return Math.abs(this.anchor.x - this.spotXs[this.spotIndex]) < 0.05;
   }
 
-  /** Pide moverse `delta` puestos. Se acumula: dos toques seguidos son dos puestos. */
+  /**
+   * Pide moverse `delta` puestos. Con el golfista libre se acumula: dos toques seguidos son dos puestos.
+   * **Durante un tiro, no.** Ahí se guarda un solo toque, el último, y vale poco tiempo: apretar dos
+   * veces mientras cargás no te tiene que mandar dos puestos cuando el tiro termina, tres segundos
+   * después. Es un buffer para el toque que llega justo sobre el final, no una cola.
+   */
   step(delta: number): void {
     if (!this.alive) return;
+    if (this.busy) {
+      this.bufferedStep = delta;
+      this.bufferLeft = STEP_BUFFER;
+      return;
+    }
     this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, this.spotIndex + delta));
+  }
+
+  /** Está en medio de un tiro o no se puede mover por otra razón. */
+  private get busy(): boolean {
+    return this.grabbedBy !== null || this.stunned || (this.mode !== 'free' && !this.shotDone);
+  }
+
+  /** El tiro ya salió y el gesto está terminando: desde acá ya se puede empezar a correr. */
+  private get shotDone(): boolean {
+    return this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER;
   }
 
   /** Lo planta en un puesto, sin correr (arranque, cambio de skin). */
   placeAt(index: number): void {
     this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, index));
-    this.position.set(this.spotXs[this.spotIndex], 0, TEE_Z);
+    this.anchor.set(this.spotXs[this.spotIndex], 0, TEE_Z);
+    this.stancePosition(this.position);
   }
 
   /** Un alma en pena lo agarra: corta lo que estuviera haciendo. Se sale a palazos. */
@@ -393,6 +419,14 @@ export class Player {
     if (this.grabbedBy && (!this.grabbedBy.alive || !this.grabbedBy.grabbing)) this.grabbedBy = null;
     // el tiro terminó o se canceló (por el jugador o por un golpe recibido): entra el palo en cola
     if (this.mode === 'free' && this.pendingClub) this.applyClub(this.pendingClub);
+    // el toque de movimiento guardado durante el tiro: entra apenas se puede, y si tardó mucho se pierde
+    if (this.bufferLeft > 0) {
+      this.bufferLeft -= dt;
+      if (!this.busy) {
+        this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, this.spotIndex + this.bufferedStep));
+        this.bufferLeft = 0;
+      }
+    }
 
     let stance = false;
     if (this.stunned) {
@@ -431,7 +465,7 @@ export class Player {
       // de puesto en puesto, con easing (resorte amortiguado crítico: arranca y frena suave). Cada toque
       // es un puesto: mantener apretado no repite
       const goal = this.spotXs[this.spotIndex];
-      const dx = goal - this.position.x;
+      const dx = goal - this.anchor.x;
       if (Math.abs(dx) >= 0.05) {
         const omega = 2 / RUN_SMOOTH_TIME;
         const x = omega * dt;
@@ -439,11 +473,11 @@ export class Player {
         const change = THREE.MathUtils.clamp(-dx, -RUN_MAX_SPEED * RUN_SMOOTH_TIME, RUN_MAX_SPEED * RUN_SMOOTH_TIME);
         const temp = (this.runVel + omega * change) * dt;
         this.runVel = (this.runVel - omega * temp) * decay;
-        let next = this.position.x - change + (change + temp) * decay;
+        let next = this.anchor.x - change + (change + temp) * decay;
         // no se pasa de largo
-        if ((goal - this.position.x > 0) === (next > goal)) { next = goal; this.runVel = 0; }
-        this.position.x = next;
-        if (Math.abs(goal - this.position.x) < 0.05) { this.position.x = goal; this.runVel = 0; }
+        if ((goal - this.anchor.x > 0) === (next > goal)) { next = goal; this.runVel = 0; }
+        this.anchor.x = next;
+        if (Math.abs(goal - this.anchor.x) < 0.05) { this.anchor.x = goal; this.runVel = 0; }
         this.yaw = lerpAngle(this.yaw, Math.atan2(Math.sign(dx), 0), 1 - Math.exp(-30 * dt));
         this.animator.setLocomotion('Running', THREE.MathUtils.clamp(Math.abs(this.runVel) / 8, 0.9, 2.4));
       } else {
@@ -461,7 +495,8 @@ export class Player {
       this.rig.phi = 0;
     }
 
-    this.position.z = TEE_Z;
+    // el cuerpo se acomoda alrededor de la pelota, que se queda en el puesto
+    this.stancePosition(this.position);
     // mientras es invulnerable, titila
     this.root.visible = !(this.alive && this.blinkTimer > 0 && Math.floor(this.blinkTimer * 14) % 2 === 1);
     this.root.rotation.y = this.yaw;
@@ -490,8 +525,9 @@ export class Player {
     }
     const enchant = this.enchant;
     this.cooldowns[enchant.id] = enchant.cooldown;
-    // el poder queda elegido: si se quiere otro se cambia con Q, W o E. Cuando llegue el momento de
-    // cargar el próximo tiro, si este todavía recarga, entra solo el que esté listo.
+    // después de gastar un poder la mano vuelve sola al golpe, que no tiene recarga: los poderes se
+    // arman para un tiro, y el golpe es el estado de reposo
+    if (enchant.cooldown > 0) this.enchant = ENCHANTS.damage;
     this.onShot?.({ club: this.club, enchant, quality: qualityOf(shot.power), power: shot.power, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
   }
 

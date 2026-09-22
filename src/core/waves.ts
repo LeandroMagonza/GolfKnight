@@ -35,12 +35,20 @@ export interface EnemyStats {
   shield: boolean;
   /** Jefe: el hielo lo ralentiza pero nunca lo congela. */
   boss: boolean;
+  /**
+   * Segundos entre ataques, para los que atacan a distancia (hoy, el gólem). Los cuerpo a cuerpo no lo
+   * usan: su ritmo lo marca la animación del golpe.
+   */
+  attackEvery?: number;
   /** Color con el que se tiñe el modelo (0 = sin teñir). */
   tint: number;
   score: number;
 }
 
 const base = { behavior: 'melee' as Behavior, runs: false, heavy: false, shield: false, boss: false, tint: 0 };
+
+/** Segundos entre piedras del gólem (valor de partida; se ajusta en el panel de balance). */
+export const GOLEM_THROW_EVERY = 4;
 
 export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   goblin: { ...base, kind: 'goblin', name: 'Goblin', mesh: 'Character_Goblin_Male', height: 1.25, radius: 0.45, hp: 2, speed: 3.6, runs: true, damage: 1, gateDamage: 1, score: 10 },
@@ -50,7 +58,7 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 10, speed: 1.5, damage: 1, gateDamage: 2, heavy: true, score: 50 },
   shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', height: 1.45, radius: 0.5, hp: 3, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
   wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
-  golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, score: 500 },
+  golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, attackEvery: GOLEM_THROW_EVERY, score: 500 },
 };
 
 /** Cada enemigo camina entre (1 - x) y (1 + x) veces la velocidad de su tipo. */
@@ -60,8 +68,6 @@ export const SHAMAN_HOLD_Z = 10;
 export const GOLEM_HOLD_Z = 22;
 /** Radio del aura del chamán: los enemigos que están adentro son inmunes mientras él conjure. */
 export const SHAMAN_WARD_RADIUS = 8;
-/** Segundos entre piedras del gólem. */
-export const GOLEM_THROW_EVERY = 4;
 /** Alma en pena: cada cuánto lastima mientras tiene agarrado al golfista, y cuánto aguanta agarrada. */
 export const GRAB_TICK = 1.6;
 export const GRAB_MAX = 5;

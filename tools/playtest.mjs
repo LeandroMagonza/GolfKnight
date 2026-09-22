@@ -287,6 +287,30 @@ if (!quick) {
   await page.waitForTimeout(200);
   await resetPlayer();
 
+  // --- moverse mientras se carga: se guarda UN toque, no una cola ---
+  // Antes se acumulaban: apretabas dos veces mientras cargabas y, al terminar el tiro tres segundos
+  // después, te movías dos puestos de golpe.
+  await resetPlayer();
+  const spot = () => page.evaluate(() => ({ puesto: window.__gk.player.spotIndex, mode: window.__gk.player.mode }));
+  const spotBefore = (await spot()).puesto;
+  await give();
+  await page.mouse.down();
+  await page.waitForFunction(() => window.__gk.player.mode === 'charging', null, { timeout: 3000 }).catch(() => {});
+  await page.keyboard.press('KeyA');
+  await page.keyboard.press('KeyA');
+  const whileCharging = await spot();
+  // el tiro tarda: para cuando termina, el toque guardado ya venció
+  await page.waitForTimeout(1200);
+  await page.mouse.up();
+  await playerFree();
+  await page.waitForTimeout(400);
+  const spotAfter = (await spot()).puesto;
+  await ballsDone(8000);
+  log('mover cargando', { antes: spotBefore, cargando: whileCharging.puesto, despues: spotAfter });
+  check('apretar para moverse mientras se carga no mueve en el acto', whileCharging.puesto === spotBefore);
+  check('dos toques mientras cargás no son dos puestos al terminar', Math.abs(spotAfter - spotBefore) <= 1);
+  await resetPlayer();
+
   // --- cambiar de palo mientras se carga: cambia en el acto y la carga arranca de nuevo ---
   const clubs = () => page.evaluate(() => ({ club: window.__gk.player.club.id, enCola: window.__gk.player.pendingClub?.id ?? null, mode: window.__gk.player.mode, power: +window.__gk.player.meter.power.toFixed(2) }));
   await aimAt(0, 30);

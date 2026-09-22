@@ -4,8 +4,8 @@
 // - El **palo** (1, 2, 3, 4) decide cómo llega la pelota: rasante y atravesando, en arco bajo que cae
 //   y rueda, en globo alto que se queda donde cae, o rodando. Y decide cuánto daño hace según a qué
 //   distancia pega.
-// - El **poder** (Q, W, E) decide qué hace cuando llega: golpear, enfriar o barrer. Los tres tienen
-//   recarga, así que cada tiro es elegir cuál gastar.
+// - El **poder** (Q, W, E) decide qué hace cuando llega: golpear, enfriar o barrer. El golpe es el
+//   estado de reposo y no tiene recarga; los otros dos se arman para un tiro y después recargan.
 //
 // De ahí sale una regla sola que explica las doce combinaciones: **cuanto más rasante, más lineal y
 // preciso; cuanto más alto, más zonal y amplio.** El driver le aplica el efecto a cada uno que
@@ -28,7 +28,11 @@ export interface Club {
   loftDeg: number;
   minRange: number;
   maxRange: number;
-  /** Segundos que tarda el medidor en ir de 0 a 100 %. */
+  /**
+   * Segundos que tarda el medidor en ir de 0 a 100 %. **Es el mismo para los cuatro palos** (ver
+   * CHARGE_TIME): la barra mide timing, y si cada palo tuviera su ritmo, elegir palo cambiaría también
+   * la dificultad de clavar el golpe, que es otra cosa.
+   */
   chargeTime: number;
   /**
    * Radio del efecto donde toca el piso, en metros. **0 = no abre área** (el driver). Cuanto más alto
@@ -42,8 +46,17 @@ export interface Club {
   pierces: boolean;
   /** Al tocar el piso y abrir su área, la pelota muere. Sin esto sigue rodando (el hierro). */
   stopsOnLand: boolean;
-  /** Daño por banda de distancia (corta, media, larga) y nivel de calidad (1, 2, 3). */
+  /**
+   * Daño por banda de distancia (corta, media, larga) y nivel de calidad (1, 2, 3). Es lo que hace la
+   * pelota **al pegarle a alguien**. En los palos que no atraviesan (wedge y putter) el único daño que
+   * hacen es el del área, así que esta tabla *es* la del área.
+   */
   damage: number[][];
+  /**
+   * Daño del **área**, para el palo que hace las dos cosas (el hierro). Pega menos que el impacto: el
+   * área agarra a varios y no hay que apuntarle a nadie. Sin esto, el área usa la tabla de arriba.
+   */
+  areaDamage?: number[][];
   /** Impulso que recibe el enemigo golpeado, en m/s. */
   knockback: number;
   restitution: number;
@@ -68,31 +81,39 @@ export function bandOf(meters: number): number {
   return meters <= BAND_LIMITS[0] ? 0 : meters <= BAND_LIMITS[1] ? 1 : 2;
 }
 
+/**
+ * Lo que tarda la barra en llegar arriba, igual para los cuatro palos. La barra mide **timing**: si
+ * cada palo tuviera su ritmo, elegir palo sería también elegir qué tan difícil es clavar el golpe.
+ */
+export const CHARGE_TIME = 0.85;
+
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
     id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
-    loftDeg: 3.5, minRange: 6, maxRange: 66, chargeTime: 1.0, spread: 0,
+    loftDeg: 3.5, minRange: 4, maxRange: 66, chargeTime: CHARGE_TIME, spread: 0,
     pierces: true, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
     knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, color: 0xffb347,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Sube, baja y sigue rodando: atraviesa como el driver y abre un área chica donde cae. Pasa por arriba de las lomas',
-    loftDeg: 27, minRange: 6, maxRange: 55, chargeTime: 0.85, spread: 1.8,
+    loftDeg: 27, minRange: 4, maxRange: 55, chargeTime: CHARGE_TIME, spread: 1.8,
     pierces: true, stopsOnLand: false,
     damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
+    areaDamage: [[1, 2, 4], [1, 2, 4], [1, 2, 4]],
     knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: 6, color: 0x7fd4ff,
   },
   wedge: {
     id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada y se queda ahí, abriendo un área grande',
-    loftDeg: 55, minRange: 5, maxRange: 55, chargeTime: 0.7, spread: 4.2,
+    loftDeg: 55, minRange: 3, maxRange: 55, chargeTime: CHARGE_TIME, spread: 4.2,
     pierces: false, stopsOnLand: true,
-    damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
+    // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto
+    damage: [[1, 2, 5], [1, 2, 5], [1, 2, 5]],
     knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, color: 0xff6b4a,
   },
   putter: {
     id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda lento por el piso y para en el primero que toca. Cobra de cerca como ninguno, pero no llega lejos',
-    loftDeg: 0, minRange: 3, maxRange: 22, chargeTime: 0.6, spread: 1.6,
+    loftDeg: 0, minRange: 2, maxRange: 22, chargeTime: CHARGE_TIME, spread: 1.6,
     pierces: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
     knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 3, color: 0xc9a2ff,
@@ -110,12 +131,21 @@ export function damageFor(club: Club, meters: number, quality: number): number {
   return club.damage[bandOf(meters)][Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1];
 }
 
+/**
+ * Daño del área donde cae. Pega menos que el impacto en el palo que hace las dos cosas: el área agarra
+ * a varios y no hay que apuntarle a nadie. En los que solo hacen área, es su tabla de siempre.
+ */
+export function areaDamageFor(club: Club, meters: number, quality: number): number {
+  const table = club.areaDamage ?? club.damage;
+  return table[bandOf(meters)][Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1];
+}
+
 export interface Enchant {
   id: EnchantId;
   name: string;
   title: string;
   hint: string;
-  /** Segundos de recarga: los tres la tienen, así que elegir uno es no tener los otros un rato. */
+  /** Segundos de recarga. El golpe no tiene: es el que siempre está. */
   cooldown: number;
   /** Símbolo que se dibuja en la punta de la línea de tiro. Los palos no tienen: tapaban la puntería. */
   icon: string;
@@ -123,13 +153,14 @@ export interface Enchant {
 }
 
 /**
- * Los poderes se eligen con Q, W y E, y valen para cualquier palo. Los tres tienen recarga: el golpe
- * la tiene corta (es el de siempre) y los otros dos larga, así que la decisión es cuándo gastarlos.
+ * Los poderes se eligen con Q, W y E, y valen para cualquier palo. **El golpe no tiene recarga: es el
+ * estado de reposo.** Los otros dos sí, así que la decisión es cuándo gastarlos; después de usar uno
+ * la mano vuelve sola al golpe, que siempre está.
  */
 export const ENCHANTS: Record<EnchantId, Enchant> = {
   damage: {
-    id: 'damage', name: 'Golpe', title: 'daño', hint: 'Puro daño, el del palo a esa distancia. Recarga corta',
-    cooldown: 1.2, icon: '✦', color: 0xffb347,
+    id: 'damage', name: 'Golpe', title: 'daño', hint: 'Puro daño, el del palo a esa distancia. Siempre listo',
+    cooldown: 0, icon: '✦', color: 0xffb347,
   },
   ice: {
     id: 'ice', name: 'Escarcha', title: 'los enfría', hint: 'Frío: camina lento, sin escudo y sin aura. No hace daño',

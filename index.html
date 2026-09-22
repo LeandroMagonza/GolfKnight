@@ -118,9 +118,10 @@
       #hint { font-size: 13px; color: #e4e9f0; text-shadow: 0 1px 3px #000; min-height: 17px; }
 
       /* panel de balance y pruebas: columna a la derecha, con el juego corriendo detrás */
-      #balancebtn { position: absolute; top: 118px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      /* por encima de la pausa y del final: el panel tiene que poder usarse con el juego frenado */
+      #balancebtn { position: absolute; top: 118px; right: 14px; z-index: 6; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
       #balancebtn:hover { background: rgba(0,0,0,0.75); }
-      #balance { position: absolute; top: 0; right: 0; bottom: 0; width: 380px; box-sizing: border-box; overflow-y: auto; background: rgba(8, 12, 18, 0.93); border-left: 2px solid #4a5666; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
+      #balance { position: absolute; top: 0; right: 0; bottom: 0; width: 380px; box-sizing: border-box; z-index: 6; overflow-y: auto; background: rgba(8, 12, 18, 0.93); border-left: 2px solid #4a5666; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
       #balance[hidden] { display: none; }
       #balance h3 { margin: 0 0 4px; font-size: 20px; color: #ffd66b; }
       #balance h4 { margin: 16px 0 6px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #9aa4b2; border-bottom: 1px solid #2c3644; padding-bottom: 4px; }

@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
-import { bandOf, BAND_NAMES, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -73,6 +73,8 @@ const ALL_CLUBS = params.has('palos');
 const BOT = params.has('bot');
 /** Trucos del panel de balance: el golfista o la puerta no reciben daño. */
 const godMode = { godPlayer: false, godGate: false };
+/** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
+const disabledKinds = new Set<EnemyKind>();
 
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
@@ -123,20 +125,15 @@ function updateAim(): void {
     // el mouse está sobre el horizonte: apunta lejos en esa dirección
     aimPoint.copy(player.position).addScaledVector(raycaster.ray.direction.clone().setY(0).normalize(), 80);
   }
-  // La pelota sale desde el tee, que está a un costado del golfista y depende de hacia dónde apunta:
-  // se itera un par de veces para que la línea tee -> mouse pase justo por el cursor.
-  // No se tira para atrás: hay un arco de 180 grados, de costado a costado. Si el mouse está más atrás
-  // que la pelota, la puntería queda de costado, perpendicular a la línea de puestos.
-  aimPoint.z = Math.max(aimPoint.z, TEE_Z);
-  const dir = new THREE.Vector3(aimPoint.x - player.position.x, 0, aimPoint.z - player.position.z);
-  if (dir.lengthSq() < 1.5) return;
+  // La pelota está quieta en el puesto y el que se acomoda alrededor es el golfista, así que la línea
+  // del tiro es, simplemente, de la pelota al cursor. No se tira para atrás: hay un arco de 180 grados,
+  // de costado a costado.
+  player.teePosition(tee);
+  aimPoint.z = Math.max(aimPoint.z, tee.z);
+  const dir = new THREE.Vector3(aimPoint.x - tee.x, 0, aimPoint.z - tee.z);
+  // muy encima de la pelota no hay dirección que valga: se deja la última
+  if (dir.lengthSq() < 0.09) return;
   player.aimDir.copy(dir.normalize());
-  for (let i = 0; i < 2; i++) {
-    player.teePosition(tee);
-    aimPoint.z = Math.max(aimPoint.z, tee.z);
-    dir.set(aimPoint.x - tee.x, 0, aimPoint.z - tee.z);
-    if (dir.lengthSq() > 0.25) player.aimDir.copy(dir.normalize());
-  }
 }
 
 /**
@@ -163,9 +160,16 @@ function shotLift(club: Club, range: number): { speed: number; angle: number } |
     const rise = heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH;
     return { speed: launchSpeed(range, angle, club.gravity, rise), angle };
   }
+  // El tiro rasante se inclina hacia **lo más alto que se cruza en el camino**, no hacia la altura del
+  // cursor. Si no, apuntando detrás de una loma el tiro bajaba y se clavaba más abajo en la misma loma:
+  // la marca del piso, en vez de quedarse en la cima, se volvía para adelante.
   const dist = Math.max(4, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z));
-  const pitch = THREE.MathUtils.clamp(Math.atan2(heightAt(aimPoint.x, aimPoint.z) - teeH, dist), -MAX_PITCH, MAX_PITCH);
-  return { speed: launchSpeed(range, angle, club.gravity), angle: angle + pitch };
+  let pitch = Math.atan2(heightAt(aimPoint.x, aimPoint.z) - teeH, dist);
+  for (let s = 4; s < dist; s += 1) {
+    const h = heightAt(tee.x + player.aimDir.x * s, tee.z + player.aimDir.z * s);
+    pitch = Math.max(pitch, Math.atan2(h - teeH, s));
+  }
+  return { speed: launchSpeed(range, angle, club.gravity), angle: angle + THREE.MathUtils.clamp(pitch, -MAX_PITCH, MAX_PITCH) };
 }
 
 /** Último nivel de carga que sonó,/** Último nivel de carga que sonó,/** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
@@ -176,8 +180,8 @@ let lastQuality = 0;
 
 /** ¿El golfista está parado en un puesto que tiene pelota? */
 function hasBallHere(): boolean {
-  const i = tees.nearest(player.position.x);
-  return Math.abs(tees.spots[i].x - player.position.x) < 0.1 && tees.hasBall(i);
+  const i = tees.nearest(player.anchor.x);
+  return Math.abs(tees.spots[i].x - player.anchor.x) < 0.1 && tees.hasBall(i);
 }
 
 /**
@@ -227,9 +231,12 @@ function updatePreview(): void {
   teeBall.visible = show && charging && ballHere;
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
+  // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
   const damage = damageFor(club, range, quality);
+  const areaHit = areaDamageFor(club, range, quality);
+  const dmgLabel = club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
   hud.setMeter(charging, player.meter.power, player.meter.locked,
-    `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]}${enchant.id === 'damage' ? ` · ${damage} de daño` : ` · ${enchant.name}`}`);
+    `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]}${enchant.id === 'damage' ? ` · ${dmgLabel}` : ` · ${enchant.name}`}`);
   tip.visible = show && ballHere;
   if (!show) {
     sweepBox.visible = false;
@@ -534,6 +541,17 @@ function makeDebugPanel(): DebugPanel {
       director.goTo(index);
       hud.showBanner(`Oleada ${index + 1}`, 'saltada desde el panel', 2);
     },
+    disabled: disabledKinds,
+    setCourse(index) {
+      // el terreno se arma una sola vez al cargar, así que cambiar de campo es volver a entrar
+      const url = new URL(location.href);
+      if (index === null) url.searchParams.delete('campo');
+      else url.searchParams.set('campo', String(index + 1));
+      url.searchParams.delete('plano');
+      location.href = url.toString();
+    },
+    courseIndex: () => relief.index,
+    camera: () => ({ pitch: cam.pitch, rise: cam.rise, dist: cam.dist }),
   });
 }
 
@@ -561,7 +579,8 @@ const input = new Input({
   },
   selectEnchant,
   selectClub,
-  cycleClub,
+  tiltCamera,
+  raiseCamera,
   debugPanel() {
     debugPanel?.toggle();
   },
@@ -706,8 +725,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
   if (ALL_CLUBS) for (const id of Object.keys(CLUBS) as ClubId[]) p.unlocked.add(id);
   p.spotXs = tees.spots.map((s) => s.x);
   p.canFire = () => {
-    const i = tees.nearest(p.position.x);
-    return Math.abs(tees.spots[i].x - p.position.x) < 0.1 && tees.take(i);
+    const i = tees.nearest(p.anchor.x);
+    return Math.abs(tees.spots[i].x - p.anchor.x) < 0.1 && tees.take(i);
   };
   p.canStart = () => hasBallHere();
   p.enchantAvailable = enchantOwned;
@@ -826,6 +845,24 @@ const camLook = new THREE.Vector3();
 const camLookNow = new THREE.Vector3(0, 0, 18);
 camera.position.set(0, 11, -2);
 
+/**
+ * La cámara, para poder probar ángulos sin tocar código: la rueda del mouse cambia la **inclinación**
+ * (más alto = ves más lejos, más bajo = ves más el campo de frente) y las flechas arriba y abajo la
+ * **suben y bajan sin girarla**. Los valores salen en "copiar configuración".
+ */
+const cam = { pitch: 32, dist: 18.9, rise: 0, ahead: 5.5 };
+const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
+
+function tiltCamera(delta: number): void {
+  cam.pitch = THREE.MathUtils.clamp(cam.pitch + delta * 2.5, CAM_LIMITS.pitch[0], CAM_LIMITS.pitch[1]);
+  hud.feedback(`Cámara: ${cam.pitch.toFixed(0)}° de inclinación`, 'neutral');
+}
+
+function raiseCamera(delta: number): void {
+  cam.rise = THREE.MathUtils.clamp(cam.rise + delta * 0.6, CAM_LIMITS.rise[0], CAM_LIMITS.rise[1]);
+  hud.feedback(`Cámara: ${cam.rise >= 0 ? '+' : ''}${cam.rise.toFixed(1)} m de altura`, 'neutral');
+}
+
 function updateCamera(dt: number): void {
   // cámara fija en orientación: detrás y arriba del golfista, mirando hacia donde viene la horda
   if (closeup) {
@@ -839,8 +876,13 @@ function updateCamera(dt: number): void {
   }
   // nunca se mete detrás de la muralla: cerca de la puerta mira más desde arriba
   const x = player.position.x * 0.75;
-  camPos.set(x, 10, Math.max(player.position.z - 10.5, GATE_Z - 0.5));
-  camLook.set(x, 0, player.position.z + 5.5);
+  // La cámara se arma desde el punto que mira: se aleja `dist` con una inclinación de `pitch` grados.
+  // Así la rueda cambia el ángulo sin cambiar qué tan lejos está, y las flechas suben las dos cosas a
+  // la vez, que es mover la cámara para arriba sin girarla.
+  const pitch = THREE.MathUtils.degToRad(cam.pitch);
+  const lookZ = player.position.z + cam.ahead;
+  camLook.set(x, cam.rise, lookZ);
+  camPos.set(x, cam.rise + Math.sin(pitch) * cam.dist, Math.max(lookZ - Math.cos(pitch) * cam.dist, GATE_Z - 0.5));
   const k = 1 - Math.exp(-5 * dt);
   camera.position.lerp(camPos, k);
   camLookNow.lerp(camLook, k);
@@ -864,6 +906,8 @@ function updateWaves(dt: number): void {
         break;
       }
       case 'spawn':
+        // apagado desde el panel de balance: la oleada sigue igual, pero este tipo no sale
+        if (disabledKinds.has(e.kind)) break;
         horde.spawn(e.kind);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. El hielo no lo congela, pero lo frena');
         else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: apagalo con hielo', 'bad');
@@ -895,7 +939,7 @@ function frame(): void {
     if (started) gameClock += dt;
     updateAim();
     const active = started && !ended;
-    if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere() && player.firstReady) player.startSwing();
+    if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
     player.update(dt);
     if (active) updateWaves(dt);
     if (started) {
@@ -909,6 +953,7 @@ function frame(): void {
     world.update(dt);
     updateCamera(dt);
     updatePreview();
+    debugPanel?.showCamera();
 
     hud.setClub(player.club, player.pendingClub);
     hud.setEnchant(player.enchant, player.cooldowns, enchantOwned);

@@ -30,6 +30,7 @@ decir una sola cosa:
 | **Barra de carga** | **qué tan bien** le pegaste: tres niveles de calidad, puro timing |
 | **Palo** (`1`, `2`, `3`, `4`) | **cómo llega** la pelota, y cuánto pega a esa distancia |
 | **Poder** (`Q`, `W`, `E`) | **qué hace** cuando llega |
+| **Rueda** del mouse / `↑` `↓` | inclinar la cámara / subirla y bajarla sin girarla |
 
 - **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
   con un banderín, con `A` y `D`. Un toque es un puesto y dos toques son dos; mantener apretado no
@@ -57,13 +58,19 @@ Ninguno es el mejor siempre.
 
 | Palo | Cómo llega | Alcance | Corta (≤20 m) | Media (20-40 m) | Larga (+40 m) |
 | --- | --- | --- | --- | --- | --- |
-| **1 · Driver** | rasante, atraviesa la fila entera | 6-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
-| **2 · Hierro 7** | arco bajo: sube, baja y sigue rodando | 6-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
-| **3 · Wedge** | globo alto, cae en picada y se queda ahí | 5-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
-| **4 · Putter** | rueda lento y para en el primero que toca | 3-22 m | **2 / 4 / 8** | 1 / 3 / 5 | — |
+| **1 · Driver** | rasante, atraviesa la fila entera | 4-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
+| **2 · Hierro 7** | arco bajo: sube, baja y sigue rodando | 4-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| **3 · Wedge** | globo alto, cae en picada y se queda ahí | 3-55 m | 1 / 2 / 5 | 1 / 2 / 5 | 1 / 2 / 5 |
+| **4 · Putter** | rueda lento y para en el primero que toca | 2-22 m | **2 / 4 / 8** | 1 / 3 / 5 | — |
 
 Los tres números de cada casilla son el daño según la calidad del golpe. El putter no llega más allá
 de sus 22 m, así que su banda larga no existe.
+
+**El área pega menos que el impacto**, porque agarra a varios y no hay que apuntarle a nadie. El hierro
+es el único que hace las dos cosas, así que es el único con dos números: la tabla de arriba es lo que
+saca cuando la pelota le pega a alguien, y el área que abre donde cae saca **1 / 2 / 4**. El wedge y el
+putter solo hacen área, así que su tabla ya *es* la del área; por eso la del wedge, que abre la más
+grande de todas, es la más baja.
 
 **Atravesar y abrir área son dos cosas distintas**, y el hierro es el único que hace las dos:
 
@@ -85,9 +92,8 @@ El poder vale para cualquier palo, y **cómo se reparte lo decide el palo**. La 
 | **W · Escarcha** | enfría a cada uno de la línea | enfría la línea y donde cae | enfría un área grande | enfría donde para |
 | **E · Vendaval** | un pasillo angosto a lo largo del tiro | barre la línea y donde cae | los junta en un rectángulo grande | los junta donde para |
 
-- **Los tres tienen recarga**: el golpe 1.2 s, el vendaval 3 s y la escarcha 4 s. El poder queda
-  elegido hasta que elijas otro; si el que tenés no está listo cuando vas a pegar, entra solo el que sí
-  lo esté.
+- **El golpe no tiene recarga: es el estado de reposo.** El vendaval recarga 3 s y la escarcha 4 s;
+  se arman para un tiro y después la mano vuelve sola al golpe. Nunca se cambia solo a *otro* poder.
 - *Frío*: camina al 40 %, no se cubre con el escudo y, si es chamán, se le apaga el aura. No congela
   ni cambia el daño que recibe. Dura 3, 5 u 8 s según la calidad.
 - *Vendaval*: empuja a cada uno **hacia la línea del tiro**, justo lo que lo separa de ella, así que

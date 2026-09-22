@@ -8,6 +8,7 @@
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
 import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, QUALITY_LEVELS } from './core/clubs';
+import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
 
 export interface DebugFlags {
@@ -24,6 +25,14 @@ export interface DebugHooks {
   refreshEnemies(): void;
   /** Salta a una oleada (0 = la primera) y habilita lo que corresponda. */
   goToWave(index: number): void;
+  /** Tipos de enemigo apagados: no aparecen más en las oleadas. */
+  disabled: Set<EnemyKind>;
+  /** Cambia de campo. Recarga la página: la malla del terreno se arma una sola vez. */
+  setCourse(index: number | null): void;
+  /** Qué campo está en juego, para marcarlo. */
+  courseIndex(): number;
+  /** Cómo está la cámara ahora, para mostrarla y copiarla. */
+  camera(): { pitch: number; rise: number; dist: number };
 }
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -71,6 +80,14 @@ export class DebugPanel {
   private readonly el = $('balance');
   private readonly btn = $<HTMLButtonElement>('balancebtn');
   private readonly fields: HTMLInputElement[] = [];
+  private camLine: HTMLElement | null = null;
+
+  /** La cámara se mueve con la rueda mientras el panel está abierto: se relee en cada cuadro. */
+  showCamera(): void {
+    if (!this.camLine || !this.open) return;
+    const c = this.hooks.camera();
+    this.camLine.textContent = `inclinación ${c.pitch.toFixed(0)}° · altura ${c.rise >= 0 ? '+' : ''}${c.rise.toFixed(1)} m · distancia ${c.dist.toFixed(1)} m`;
+  }
 
   constructor(private readonly hooks: DebugHooks) {
     this.btn.addEventListener('click', () => {
@@ -125,31 +142,51 @@ export class DebugPanel {
         th.textContent = b;
         head.appendChild(th);
       }
-      for (let q = 1; q <= QUALITY_LEVELS; q++) {
-        const row = table.insertRow();
-        cell(row, `golpe ${q}`, 'l');
-        for (let band = 0; band < BAND_NAMES.length; band++) {
-          cell(row, this.field(() => club.damage[band][q - 1], (v) => { club.damage[band][q - 1] = v; }));
+      // en el que atraviesa y además abre área, el impacto y el área son dos números distintos
+      const rows: [string, () => number[][]][] = club.areaDamage
+        ? [['al pegar', () => club.damage], ['en área', () => club.areaDamage!]]
+        : [['golpe', () => club.damage]];
+      for (const [label, get] of rows) {
+        for (let q = 1; q <= QUALITY_LEVELS; q++) {
+          const row = table.insertRow();
+          cell(row, `${label} ${q}`, 'l');
+          for (let band = 0; band < BAND_NAMES.length; band++) {
+            cell(row, this.field(() => get()[band][q - 1], (v) => { get()[band][q - 1] = v; }));
+          }
         }
       }
       const rangeRow = table.insertRow();
-      cell(rangeRow, 'alcance m', 'l');
+      cell(rangeRow, 'llega de / a', 'l').title = 'metros mínimo y máximo a los que puede caer este palo';
       cell(rangeRow, this.field(() => club.minRange, (v) => { club.minRange = v; }));
       cell(rangeRow, this.field(() => club.maxRange, (v) => { club.maxRange = v; }));
-      cell(rangeRow, this.field(() => club.spread, (v) => { club.spread = v; }, 0.2)).title = 'radio del área donde cae';
+      cell(rangeRow, this.field(() => club.spread, (v) => { club.spread = v; }, 0.2)).title = 'radio del área que abre donde cae, en metros';
       el.append(table);
     }
-    el.append(note('La tercera casilla de la última fila es el radio del área. El putter llega hasta su alcance máximo: más lejos que eso no pega, así que su banda larga no se usa.'));
+    el.append(note(
+      'Ojo, son dos cosas distintas. «llega de / a» es hasta dónde alcanza ese palo: el cursor más lejos que eso no lo estira. '
+      + 'Las bandas de acá abajo son dónde cambia cuánto pega, y valen para todos los palos por igual. '
+      + 'Por eso el putter, que llega a 22 m, nunca usa su banda larga. La tercera casilla de esa fila es el radio del área. '
+      + 'El hierro tiene dos bloques porque hace las dos cosas: «al pegar» es cuando la pelota le da a alguien y «en área» lo que reparte donde cae. '
+      + 'El wedge y el putter solo hacen área, así que su tabla ya es la del área.',
+    ));
 
     // ---- bandas ----
-    el.append(heading('Bandas de distancia'));
+    el.append(heading('Bandas de distancia (iguales para todos los palos)'));
     const bands = document.createElement('table');
     const bandRow = bands.insertRow();
     cell(bandRow, 'corta hasta', 'l');
     cell(bandRow, this.field(() => BAND_LIMITS[0], (v) => { BAND_LIMITS[0] = v; }));
     cell(bandRow, 'media hasta', 'l');
     cell(bandRow, this.field(() => BAND_LIMITS[1], (v) => { BAND_LIMITS[1] = v; }));
-    el.append(bands, note('Son metros desde la línea de los puestos, la que dice 0 en el campo.'));
+    const chargeRow = bands.insertRow();
+    cell(chargeRow, 'carga 0 a 100', 'l').title = 'segundos que tarda la barra en llegar arriba';
+    cell(chargeRow, this.field(
+      () => CLUBS.driver.chargeTime,
+      (v) => { for (const id of CLUB_ORDER) CLUBS[id].chargeTime = Math.max(0.1, v); },
+      0.05,
+    ));
+    cell(chargeRow, 'segundos', 'l');
+    el.append(bands, note('Los metros se cuentan desde la línea de los puestos, la que dice 0 en el campo. La carga es una sola para los cuatro palos: la barra mide timing, no potencia.'));
 
     // ---- poderes ----
     el.append(heading('Poderes: recarga'));
@@ -167,7 +204,7 @@ export class DebugPanel {
     el.append(heading('Enemigos'));
     const enemies = document.createElement('table');
     const eHead = enemies.insertRow();
-    for (const h of ['', 'vida', 'vel.', 'daño']) {
+    for (const h of ['', 'sale', 'vida', 'vel.', 'daño', 'ataca c/']) {
       const th = document.createElement('th');
       th.textContent = h;
       if (!h) th.className = 'l';
@@ -177,11 +214,57 @@ export class DebugPanel {
       const s = ENEMIES[kind];
       const row = enemies.insertRow();
       cell(row, s.name, 'l');
+      // apagar un tipo lo saca de las oleadas, sin tocar su composición: sirve para aislar a uno
+      const on = document.createElement('button');
+      on.type = 'button';
+      const paint = () => {
+        const alive = !this.hooks.disabled.has(kind);
+        on.textContent = alive ? 'sí' : 'no';
+        on.classList.toggle('on', alive);
+      };
+      on.addEventListener('click', () => {
+        on.blur();
+        if (this.hooks.disabled.has(kind)) this.hooks.disabled.delete(kind);
+        else this.hooks.disabled.add(kind);
+        paint();
+      });
+      paint();
+      cell(row, on);
       cell(row, this.field(() => s.hp, (v) => { s.hp = v; this.hooks.refreshEnemies(); }));
       cell(row, this.field(() => s.speed, (v) => { s.speed = v; this.hooks.refreshEnemies(); }, 0.1));
       cell(row, this.field(() => s.damage, (v) => { s.damage = v; this.hooks.refreshEnemies(); }));
+      // solo los que atacan a distancia tienen ritmo propio; a los demás se lo marca la animación
+      if (s.attackEvery === undefined) cell(row, '—', 'l');
+      else cell(row, this.field(() => s.attackEvery ?? 0, (v) => { s.attackEvery = Math.max(0.2, v); }, 0.5)).title = 'segundos entre ataques';
     }
-    el.append(enemies, note('La vida y la velocidad se le pasan también a los que ya están en el campo.'));
+    el.append(enemies, note('«sale» lo saca de todas las oleadas sin cambiar el resto. La vida y la velocidad se les pasan también a los que ya están en el campo.'));
+
+    // ---- campo ----
+    el.append(heading('Campo'));
+    const courses = document.createElement('div');
+    courses.className = 'row';
+    for (let i = 0; i < COURSES.length; i++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = COURSES[i].name;
+      b.classList.toggle('on', this.hooks.courseIndex() === i);
+      b.addEventListener('click', () => { b.blur(); this.hooks.setCourse(i); });
+      courses.append(b);
+    }
+    const anyCourse = document.createElement('button');
+    anyCourse.type = 'button';
+    anyCourse.textContent = 'Sortear';
+    anyCourse.addEventListener('click', () => { anyCourse.blur(); this.hooks.setCourse(null); });
+    courses.append(anyCourse);
+    el.append(courses, note('Cambiar de campo reinicia la partida: el terreno se arma una sola vez, al cargar.'));
+
+    // ---- cámara ----
+    el.append(heading('Cámara'));
+    const camLine = document.createElement('p');
+    camLine.className = 'note';
+    this.camLine = camLine;
+    this.showCamera();
+    el.append(camLine, note('Rueda del mouse: inclinación. Flechas arriba y abajo: altura, sin girarla. Los valores van en «copiar configuración».'));
 
     // ---- pruebas ----
     el.append(heading('Pruebas'));
@@ -246,17 +329,29 @@ export class DebugPanel {
 
   /** Todo el balance como texto, para pegarlo en el chat y llevarlo al código. */
   config(): string {
-    const lines = ['// Golf Knight · balance', `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`, '', 'palos (daño [corta, media, larga] x [golpe 1, 2, 3]):'];
+    const c = this.hooks.camera();
+    const lines = [
+      '// Golf Knight · balance',
+      `campo: ${COURSES[this.hooks.courseIndex()].name}`,
+      `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}`,
+      `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
+      `carga: ${CLUBS.driver.chargeTime} s para los cuatro palos`,
+      '',
+      'palos (daño [corta, media, larga] x [golpe 1, 2, 3]):',
+    ];
     for (const id of CLUB_ORDER) {
-      const c = CLUBS[id];
-      lines.push(`  ${id}: alcance ${c.minRange}-${c.maxRange} m, area ${c.spread}, damage ${JSON.stringify(c.damage)}`);
+      const club = CLUBS[id];
+      const area = club.areaDamage ? `, areaDamage ${JSON.stringify(club.areaDamage)}` : '';
+      lines.push(`  ${id}: llega ${club.minRange}-${club.maxRange} m, radio ${club.spread}, damage ${JSON.stringify(club.damage)}${area}`);
     }
     lines.push('', 'poderes (recarga en segundos):');
     for (const id of ENCHANT_ORDER) lines.push(`  ${id}: ${ENCHANTS[id].cooldown}`);
     lines.push('', 'enemigos (vida, velocidad, daño):');
     for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
       const s = ENEMIES[kind];
-      lines.push(`  ${kind}: hp ${s.hp}, speed ${s.speed}, damage ${s.damage}`);
+      const off = this.hooks.disabled.has(kind) ? ', APAGADO' : '';
+      const rate = s.attackEvery === undefined ? '' : `, ataca cada ${s.attackEvery} s`;
+      lines.push(`  ${kind}: hp ${s.hp}, speed ${s.speed}, damage ${s.damage}${rate}${off}`);
     }
     return lines.join('\n');
   }
