@@ -35,6 +35,91 @@ export interface DebugHooks {
   camera(): { pitch: number; rise: number; dist: number };
 }
 
+/**
+ * El balance ajustado se guarda en el navegador y vuelve al recargar. Hace falta porque cambiar de
+ * campo recarga la página: sin esto, tocar diez números y probarlos en otro campo era imposible. El
+ * botón «Restaurar» lo borra y devuelve los valores del código.
+ */
+const STORE_KEY = 'gk.balance';
+
+/** Lo que no vive en CLUBS ni en ENEMIES pero igual se guarda. */
+export interface SavedExtras {
+  camera?: { pitch: number; rise: number };
+  disabled?: string[];
+}
+
+type Saved = SavedExtras & {
+  bands?: number[];
+  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'spread' | 'chargeTime' | 'rollFriction', number> & { damage: number[][]; areaDamage: number[][] }>>;
+  enchants?: Record<string, number>;
+  enemies?: Record<string, { hp: number; speed: number; damage: number; attackEvery?: number }>;
+};
+
+/** Aplica el balance guardado. Tiene que correr antes de armar el mundo: las bandas dibujan el campo. */
+export function loadBalance(): SavedExtras {
+  let saved: Saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}') as Saved;
+  } catch {
+    return {};
+  }
+  if (saved.bands?.length === BAND_LIMITS.length) BAND_LIMITS.splice(0, BAND_LIMITS.length, ...saved.bands);
+  for (const id of CLUB_ORDER) {
+    const from = saved.clubs?.[id];
+    if (!from) continue;
+    const club = CLUBS[id];
+    for (const k of ['minRange', 'maxRange', 'spread', 'chargeTime', 'rollFriction'] as const) {
+      if (typeof from[k] === 'number') club[k] = from[k];
+    }
+    if (from.damage) club.damage = from.damage;
+    if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
+  }
+  for (const id of ENCHANT_ORDER) {
+    const cd = saved.enchants?.[id];
+    if (typeof cd === 'number') ENCHANTS[id].cooldown = cd;
+  }
+  for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
+    const from = saved.enemies?.[kind];
+    if (!from) continue;
+    const s = ENEMIES[kind];
+    s.hp = from.hp;
+    s.speed = from.speed;
+    s.damage = from.damage;
+    if (typeof from.attackEvery === 'number' && s.attackEvery !== undefined) s.attackEvery = from.attackEvery;
+  }
+  return { camera: saved.camera, disabled: saved.disabled };
+}
+
+/** Guarda todo lo tocado. Se llama en cada cambio: son pocos bytes. */
+export function saveBalance(extras: SavedExtras): void {
+  const out: Saved = { bands: [...BAND_LIMITS], clubs: {}, enchants: {}, enemies: {}, ...extras };
+  for (const id of CLUB_ORDER) {
+    const c = CLUBS[id];
+    out.clubs![id] = {
+      minRange: c.minRange, maxRange: c.maxRange, spread: c.spread, chargeTime: c.chargeTime,
+      rollFriction: c.rollFriction, damage: c.damage,
+      ...(c.areaDamage ? { areaDamage: c.areaDamage } : {}),
+    };
+  }
+  for (const id of ENCHANT_ORDER) out.enchants![id] = ENCHANTS[id].cooldown;
+  for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
+    const s = ENEMIES[kind];
+    out.enemies![kind] = { hp: s.hp, speed: s.speed, damage: s.damage, attackEvery: s.attackEvery };
+  }
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(out));
+  } catch {
+    // sin localStorage (modo privado) el panel sigue andando, solo que no recuerda
+  }
+}
+
+/** Borra lo guardado: al recargar vuelven los valores del código. */
+export function clearBalance(): void {
+  try {
+    localStorage.removeItem(STORE_KEY);
+  } catch { /* nada que borrar */ }
+}
+
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
   if (!el) throw new Error(`falta #${id}`);
@@ -115,7 +200,13 @@ export class DebugPanel {
   }
 
   private field(get: () => number, set: (v: number) => void, step = 1): HTMLInputElement {
-    return this.track(numberField(get, set, step), get);
+    return this.track(numberField(get, (v) => { set(v); this.save(); }, step), get);
+  }
+
+  /** Guarda el balance tocado, con lo que vive fuera de CLUBS y ENEMIES. */
+  save(): void {
+    const c = this.hooks.camera();
+    saveBalance({ camera: { pitch: c.pitch, rise: c.rise }, disabled: [...this.hooks.disabled] });
   }
 
   private build(): void {
@@ -178,6 +269,10 @@ export class DebugPanel {
     cell(bandRow, this.field(() => BAND_LIMITS[0], (v) => { BAND_LIMITS[0] = v; }));
     cell(bandRow, 'media hasta', 'l');
     cell(bandRow, this.field(() => BAND_LIMITS[1], (v) => { BAND_LIMITS[1] = v; }));
+    const puttRow = bands.insertRow();
+    cell(puttRow, 'putter: rapidez', 'l').title = 'cuánto sale de fuerte la pelota rodada; más alto = llega antes';
+    cell(puttRow, this.field(() => CLUBS.putter.rollFriction ?? 0, (v) => { CLUBS.putter.rollFriction = Math.max(1, v); }, 1));
+    cell(puttRow, 'más = más rápido', 'l');
     const chargeRow = bands.insertRow();
     cell(chargeRow, 'carga 0 a 100', 'l').title = 'segundos que tarda la barra en llegar arriba';
     cell(chargeRow, this.field(
@@ -227,6 +322,7 @@ export class DebugPanel {
         if (this.hooks.disabled.has(kind)) this.hooks.disabled.delete(kind);
         else this.hooks.disabled.add(kind);
         paint();
+        this.save();
       });
       paint();
       cell(row, on);
@@ -310,8 +406,17 @@ export class DebugPanel {
       }
       setTimeout(() => { said.textContent = ''; }, 2500);
     });
-    copyRow.append(copy, said);
-    el.append(copyRow, note('Pegámelo y lo incorporo al juego.'));
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.textContent = 'Restaurar';
+    reset.title = 'Borra lo guardado y vuelve a los valores del código';
+    reset.addEventListener('click', () => {
+      reset.blur();
+      clearBalance();
+      location.reload();
+    });
+    copyRow.append(copy, reset, said);
+    el.append(copyRow, note('Pegámelo y lo incorporo al juego. Lo que toques se guarda en este navegador y vuelve al recargar; «Restaurar» lo borra.'));
   }
 
   private toggleButton(label: string, get: () => boolean, set: (v: boolean) => void): HTMLButtonElement {

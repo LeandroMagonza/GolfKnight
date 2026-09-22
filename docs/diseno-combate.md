@@ -1238,3 +1238,49 @@ En el medidor, con el hierro en la mano, se ven los dos números: «3 al pegarle
   girarla. Los valores salen en «copiar configuración», que es para lo que están.
 - **Panel**: cambiar de campo (recarga la partida), prender y apagar cada tipo de enemigo, velocidad de
   ataque del gólem, y el panel por encima de la pausa para poder tocarlo con el juego frenado.
+
+## Hecho: la postura que no pisa el campo, y el balance que se guarda
+
+### El golfista corría de un lado y del otro de la línea
+
+Se veía "a veces corre por detrás de la línea y a veces por adelante": al apuntar, el cuerpo rotaba
+alrededor de la pelota y para ciertos ángulos terminaba **adentro del campo**, delante de la línea de
+los puestos. Ahora la pose se clampea, y el límite **sale de la geometría, no de un número a ojo**: el
+cuerpo queda detrás de la pelota cuando `-tee.x·sin(y) + tee.z·cos(y) >= STANCE_BEHIND`, que es
+`R·sin(y + φ) >= d`, y de ahí salen los dos extremos del arco permitido (`Player.stanceYaw`).
+
+Ojo con un detalle que costó: **en la postura de golf el cuerpo queda al costado de la pelota, no
+atrás**. El primer intento pedía 25 cm por detrás y dejaba al golfista girado siempre para el mismo
+lado, sin rodear nunca la pelota. `STANCE_BEHIND` es casi cero a propósito: solo impide meterse
+adelante. Para un lado el cuerpo rodea la pelota de verdad; para el otro, la pose se clava. Eso es el
+clamp que se pidió.
+
+### La pelota estaba 0.7 m adelante de la línea
+
+La pelota y su anillo se dibujaban en `TEE_Z + 0.7`, pero el tiro sale del puesto. Al empezar a cargar,
+la pelota saltaba para atrás y el anillo se quedaba donde estaba. Ahora las tres cosas —pelota, anillo y
+ancla— están en el mismo punto, y las distancias se miden desde ahí.
+
+### El putter era lentísimo
+
+`rollFriction` 3 hacía que saliera flojo y tardara casi 4 s en cruzar 20 m (la velocidad de salida se
+calcula para que pare justo en el punto apuntado, así que **más fricción = sale más fuerte y llega
+antes**). Subió a 10, y es un número del panel: «putter: rapidez».
+
+### El balance se guarda
+
+Cambiar de campo recarga la página, así que perder todo lo ajustado en el panel hacía imposible probar
+un balance en varios campos. Ahora se guarda en el navegador y vuelve al recargar, con un botón
+«Restaurar» que lo borra. No se guarda en el código: para eso está «copiar configuración».
+
+### Lo que rompió y por qué
+
+Dos regresiones que encontraron las pruebas, y que valen como nota:
+
+- **Mover el cuerpo rompió media prueba.** Muchas comprobaciones leían `player.position.x` como si
+  fuera el puesto. Ahora el puesto es `player.anchor` y el cuerpo está al costado; el palazo, en
+  cambio, sale del cuerpo, así que sus blancos se ponen respecto de `position`.
+- **Inclinar el tiro hacia lo más alto del camino rompió los valles.** Apuntando al fondo de una
+  hondonada, el punto plano de adelante "ganaba" y levantaba el driver, que les pasaba por encima a los
+  que estaban abajo. Se arregló con `RISE_BLOCKS`: solo cuentan los desniveles de más de 60 cm. Una
+  loma tapa; un montículo, no.

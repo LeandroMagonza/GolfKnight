@@ -17,7 +17,7 @@ import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
 import { GATE_Z, GUARD_POSTS, World } from './game/world';
-import { DebugPanel } from './debug';
+import { DebugPanel, loadBalance } from './debug';
 import { Hud } from './hud';
 import { Input } from './input';
 import { Intro } from './intro';
@@ -34,6 +34,9 @@ const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 30
 // que decidirse antes de armar el mundo, porque la malla del terreno se construye una sola vez.
 const params = new URLSearchParams(location.search);
 const gameCourse = pickCourse(params.has('plano') ? 'plano' : params.get('campo'));
+// el balance ajustado en el panel vuelve al recargar: cambiar de campo recarga la página, así que sin
+// esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
+const savedBalance = loadBalance();
 const world = new World(scene);
 const effects = new Effects(scene);
 const horde = new Horde(scene);
@@ -74,7 +77,7 @@ const BOT = params.has('bot');
 /** Trucos del panel de balance: el golfista o la puerta no reciben daño. */
 const godMode = { godPlayer: false, godGate: false };
 /** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
-const disabledKinds = new Set<EnemyKind>();
+const disabledKinds = new Set<EnemyKind>((savedBalance.disabled ?? []) as EnemyKind[]);
 
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
@@ -151,6 +154,8 @@ function shotRange(club: Club): number {
  * devuelve null y la pelota vuela como siempre.
  */
 const MAX_PITCH = 0.21;
+/** Cuánto tiene que levantarse el terreno para que el tiro rasante lo esquive, en metros. */
+const RISE_BLOCKS = 0.6;
 function shotLift(club: Club, range: number): { speed: number; angle: number } | null {
   if (!relief.on || club.loftDeg <= 0.001) return null;
   const angle = THREE.MathUtils.degToRad(club.loftDeg);
@@ -167,6 +172,9 @@ function shotLift(club: Club, range: number): { speed: number; angle: number } |
   let pitch = Math.atan2(heightAt(aimPoint.x, aimPoint.z) - teeH, dist);
   for (let s = 4; s < dist; s += 1) {
     const h = heightAt(tee.x + player.aimDir.x * s, tee.z + player.aimDir.z * s);
+    // solo cuentan las lomas de verdad: un desnivel chico no tapa nada, y si contara, apuntar al fondo
+    // de un valle levantaría el tiro y les pasaría por encima a los que están abajo
+    if (h - teeH < RISE_BLOCKS) continue;
     pitch = Math.max(pitch, Math.atan2(h - teeH, s));
   }
   return { speed: launchSpeed(range, angle, club.gravity), angle: angle + THREE.MathUtils.clamp(pitch, -MAX_PITCH, MAX_PITCH) };
@@ -850,17 +858,19 @@ camera.position.set(0, 11, -2);
  * (más alto = ves más lejos, más bajo = ves más el campo de frente) y las flechas arriba y abajo la
  * **suben y bajan sin girarla**. Los valores salen en "copiar configuración".
  */
-const cam = { pitch: 32, dist: 18.9, rise: 0, ahead: 5.5 };
+const cam = { pitch: savedBalance.camera?.pitch ?? 32, dist: 18.9, rise: savedBalance.camera?.rise ?? 0, ahead: 5.5 };
 const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
 
 function tiltCamera(delta: number): void {
   cam.pitch = THREE.MathUtils.clamp(cam.pitch + delta * 2.5, CAM_LIMITS.pitch[0], CAM_LIMITS.pitch[1]);
   hud.feedback(`Cámara: ${cam.pitch.toFixed(0)}° de inclinación`, 'neutral');
+  debugPanel?.save();
 }
 
 function raiseCamera(delta: number): void {
   cam.rise = THREE.MathUtils.clamp(cam.rise + delta * 0.6, CAM_LIMITS.rise[0], CAM_LIMITS.rise[1]);
   hud.feedback(`Cámara: ${cam.rise >= 0 ? '+' : ''}${cam.rise.toFixed(1)} m de altura`, 'neutral');
+  debugPanel?.save();
 }
 
 function updateCamera(dt: number): void {
@@ -1023,6 +1033,7 @@ addEventListener('resize', () => {
   cycleClub, selectEnchant, selectClub, enchantReady,
   /** Qué campo salió esta partida, y el panel de balance. */
   get course() { return { index: relief.index, name: gameCourse.name, relieve: relief.on }; },
+  get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },
   get debug() { return debugPanel; },
   godMode,
   unlockAll() { for (const id of Object.keys(CLUBS) as ClubId[]) player.unlocked.add(id); },

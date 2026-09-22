@@ -158,15 +158,18 @@ recargar:
 - el **daño de cada palo** en cada banda de distancia y para cada nivel de golpe, más su alcance y el
   radio de su área;
 - dónde **cortan las bandas** (20 y 40 m por defecto);
-- la **recarga de cada poder**;
-- la **vida, velocidad y daño de cada enemigo** (a los que ya están en el campo se les empareja);
+- la **recarga de cada poder**, el **tiempo de carga** y la **rapidez del putter**;
+- la **vida, velocidad, daño y ritmo de ataque de cada enemigo** (a los que ya están en el campo se les
+  empareja), y **prender o apagar** un tipo entero sin cambiar la composición de las oleadas;
+- **cambiar de campo** (reinicia la partida: el terreno se arma una sola vez);
 - botones de prueba: **oleada infinita** (repite la composición de la oleada en curso, no se termina
   nunca), **vida infinita**, **puerta infinita** y **saltar a la oleada 1 a 6**;
 - **Copiar configuración**, que deja en el portapapeles todo el balance como texto para pasarlo y
   llevarlo al código.
 
-Los cambios valen desde el tiro siguiente y desde el enemigo siguiente. No se guardan: al recargar
-vuelve el balance del código.
+Los cambios valen desde el tiro siguiente y desde el enemigo siguiente, y **se guardan en el navegador**:
+al recargar vuelven. Hace falta porque cambiar de campo recarga la página. El botón *Restaurar* los
+borra y devuelve los valores del código.
 
 ## Publicar
 

@@ -24,7 +24,8 @@ describe('palos', () => {
     // el putter rueda: no es un globo, aunque abra un área chica donde para
     expect(CLUBS.putter.loftDeg).toBe(0);
     expect(isLob(CLUBS.putter)).toBe(false);
-    expect(CLUBS.putter.rollFriction).toBeLessThan(ROLL_FRICTION);
+    // rueda de verdad, pero no lento: con poca fricción salía flojo y tardaba una eternidad en llegar
+    expect(CLUBS.putter.rollFriction).toBeGreaterThanOrEqual(ROLL_FRICTION);
   });
 
   it('atravesar y abrir área son cosas aparte, y el hierro hace las dos', () => {

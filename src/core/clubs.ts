@@ -116,7 +116,9 @@ export const CLUBS: Record<ClubId, Club> = {
     loftDeg: 0, minRange: 2, maxRange: 22, chargeTime: CHARGE_TIME, spread: 1.6,
     pierces: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
-    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 3, color: 0xc9a2ff,
+    // rollFriction alto = sale más fuerte y llega antes (la velocidad de salida se calcula para que la
+    // pelota pare justo en el punto apuntado). Con 3 tardaba casi 4 s en cruzar 20 m
+    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 10, color: 0xc9a2ff,
   },
 };
 

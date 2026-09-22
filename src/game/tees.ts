@@ -62,12 +62,15 @@ export class Tees {
       stick.position.set(x, 0.45, TEE_Z - 1.1);
       const flag = new THREE.Mesh(flagGeo, flagMat);
       flag.position.set(x + 0.19, 0.78, TEE_Z - 1.1);
+      // la pelota y su anillo van **exactamente** en el puesto: es desde donde sale el tiro y desde
+      // donde se miden las distancias. Estaban 0.7 m adelante, así que al empezar a cargar la pelota
+      // saltaba para atrás y el anillo se quedaba donde estaba
       const ballMesh = new THREE.Mesh(ballGeo, this.ballMat);
-      ballMesh.position.set(x, BALL_RADIUS * 1.35, TEE_Z + 0.7);
+      ballMesh.position.set(x, BALL_RADIUS * 1.35, TEE_Z);
       ballMesh.visible = false;
       const ring = new THREE.Mesh(ringGeo, this.ringMat);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(x, 0.05, TEE_Z + 0.7);
+      ring.position.set(x, 0.05, TEE_Z);
       ring.visible = false;
       scene.add(stick, flag, ballMesh, ring);
       this.spots.push({ x, ball: false, incoming: false, ballMesh, ring });
@@ -146,7 +149,7 @@ export class Tees {
       t.t += dt / TOSS_TIME;
       const u = Math.min(1, t.t);
       const s = this.spots[t.spot];
-      t.mesh.position.set(t.from.x + (s.x - t.from.x) * u, t.from.y * (1 - u) + BALL_RADIUS * 1.35 * u + Math.sin(u * Math.PI) * 2.4, t.from.z + (TEE_Z + 0.7 - t.from.z) * u);
+      t.mesh.position.set(t.from.x + (s.x - t.from.x) * u, t.from.y * (1 - u) + BALL_RADIUS * 1.35 * u + Math.sin(u * Math.PI) * 2.4, t.from.z + (TEE_Z - t.from.z) * u);
       if (u < 1) continue;
       s.ball = true;
       s.incoming = false;

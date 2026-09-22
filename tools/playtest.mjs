@@ -28,7 +28,7 @@ const state = () => page.evaluate(() => {
   const s = window.__gk;
   return {
     wave: s.director.index, alive: s.horde.aliveCount, gate: s.gateHp, hp: s.player.hp,
-    mode: s.player.mode, club: s.player.club.id, pos: [s.player.position.x, s.player.position.z].map((n) => +n.toFixed(1)),
+    mode: s.player.mode, club: s.player.club.id, pos: [s.player.anchor.x, s.player.anchor.z].map((n) => +n.toFixed(1)),
     kills: s.kills, shots: s.shots, fps: s.fps, ended: s.ended,
   };
 });
@@ -44,9 +44,26 @@ const aimAt = async (x, z) => {
 const ballsDone = (maxMs = 6000) => page.waitForFunction(() => window.__gk.balls.list.length === 0, null, { timeout: maxMs }).catch(() => {});
 const playerFree = () => page.waitForFunction(() => window.__gk.player.mode === 'free' && window.__gk.player.atSpot, null, { timeout: 8000 }).catch(() => {});
 /** Deja una pelota en el puesto donde está parado el golfista: sin pelota no se puede ni cargar. */
-const give = () => page.evaluate(() => { const g = window.__gk; g.tees.place(g.tees.nearest(g.player.position.x)); });
+const give = () => page.evaluate(() => { const g = window.__gk; g.tees.place(g.tees.nearest(g.player.anchor.x)); });
 /** Calidad de golpe por nivel: flojo, bueno, perfecto. */
 const QPOWER = [0.2, 0.7, 0.96];
+/**
+ * Cómo quedaron las recargas justo después de pegar. Se mide acá y no al final del tiro porque el
+ * hierro ahora sigue rodando: esperar a que la pelota muera podía tardar más que la recarga entera.
+ */
+let shotSnapshot = { cooldowns: { damage: 0, ice: 0, push: 0 }, hud: { numero: '', etiqueta: '', recargando: false } };
+const snapshotAfterShot = async () => {
+  const snap = await page.evaluate(() => {
+    const el = document.querySelector('#enchants .club[data-ench=ice]');
+    return {
+      cooldowns: { ...window.__gk.player.cooldowns },
+      hud: el
+        ? { numero: el.querySelector('.cdnum').textContent, etiqueta: el.querySelector('.cdlabel').textContent, recargando: el.classList.contains('cooling') }
+        : { numero: '', etiqueta: '', recargando: false },
+    };
+  }).catch((e) => { console.log('  (no se pudo medir la recarga:', e.message, ')'); return null; });
+  if (snap?.cooldowns) shotSnapshot = snap;
+};
 /** Tira con el palo que ya está en la mano, sin re-apuntar. */
 const shootHere = async (club, power, maxMs = 6000) => {
   await useClub(club);
@@ -55,6 +72,7 @@ const shootHere = async (club, power, maxMs = 6000) => {
   await give();
   await page.evaluate((p) => window.__gk.shootPower(p), power);
   await playerFree();
+  await snapshotAfterShot();
   await ballsDone(maxMs);
 };
 /** Driver a donde apunte el mouse. `meters` ya no fija el alcance (lo da el cursor): solo la calidad. */
@@ -111,6 +129,7 @@ const shootAt = async (club, x, z, power = 0.7, maxMs = 6000) => {
   await give();
   await page.evaluate((p) => window.__gk.shootPower(p), power);
   await playerFree();
+  await snapshotAfterShot();
   await ballsDone(maxMs);
 };
 const log = (label, ...parts) => console.log(label.padEnd(22), '->', parts.map((p) => JSON.stringify(p)).join('  '));
@@ -156,7 +175,7 @@ if (!quick) {
   await page.keyboard.press('Digit2');
   await page.keyboard.press('Space');
   await page.waitForTimeout(200);
-  const locked = await page.evaluate(() => ({ club: window.__gk.player.club.id, palos: [...window.__gk.player.unlocked], x: window.__gk.player.position.x }));
+  const locked = await page.evaluate(() => ({ club: window.__gk.player.club.id, palos: [...window.__gk.player.unlocked], x: window.__gk.player.anchor.x }));
   log('bloqueados', locked);
   check('al empezar solo hay driver', locked.club === 'driver' && locked.palos.length === 1 && locked.x === 0);
   const shownSlots = await page.evaluate(() => ({
@@ -191,7 +210,7 @@ if (!quick) {
   await page.evaluate(() => window.__gk.unlockAll());
 
   // --- puestos: solo se mueve de costado, un toque = un puesto, dos toques = dos; W y S no hacen nada ---
-  const where = () => page.evaluate(() => { const p = window.__gk.player; return { x: +p.position.x.toFixed(2), z: +p.position.z.toFixed(2), puesto: p.spotIndex, llego: p.atSpot }; });
+  const where = () => page.evaluate(() => { const p = window.__gk.player; return { x: +p.anchor.x.toFixed(2), z: +p.anchor.z.toFixed(2), puesto: p.spotIndex, llego: p.atSpot }; });
   const center = await page.evaluate(() => window.__gk.tees.centerIndex);
   const t0 = await page.evaluate(() => window.__gk.clock);
   await page.keyboard.press('KeyD');
@@ -207,13 +226,15 @@ if (!quick) {
   const twoSteps = await where();
   log('dos toques (A A)', twoSteps);
   check('dos toques seguidos son dos puestos', twoSteps.puesto === center + 1 && twoSteps.x === 4);
-  await page.keyboard.down('KeyW');
-  await page.waitForTimeout(300);
-  await page.keyboard.up('KeyW');
-  await page.keyboard.down('KeyS');
-  await page.waitForTimeout(300);
-  await page.keyboard.up('KeyS');
-  check('W y S ya no hacen nada: el palo define la trayectoria', (await where()).z === 9 && (await where()).x === 4);
+  // W y E son poderes y las flechas arriba y abajo mueven la cámara: ninguna mueve al golfista
+  const camBefore = await page.evaluate(() => window.__gk.camera);
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await page.waitForTimeout(200);
+  const camAfter = await page.evaluate(() => window.__gk.camera);
+  log('cámara con flechas', camBefore, camAfter);
+  check('el golfista no se mueve para adelante ni para atrás', (await where()).z === 9 && (await where()).x === 4);
+  check('las flechas arriba y abajo suben la cámara sin girarla', camAfter.rise > camBefore.rise && camAfter.pitch === camBefore.pitch);
 
   await page.keyboard.down('KeyD');
   await page.waitForTimeout(700);
@@ -287,15 +308,54 @@ if (!quick) {
   await page.waitForTimeout(200);
   await resetPlayer();
 
+  // --- la pelota queda quieta y el golfista se acomoda alrededor, sin pisar la línea ---
+  await resetPlayer();
+  await give();
+  const stance = async (x, z) => {
+    await aimAt(x, z);
+    await page.waitForTimeout(250);
+    return page.evaluate(() => {
+      const p = window.__gk.player;
+      const t = p.teePosition(new (Object.getPrototypeOf(p.position).constructor)());
+      return { cuerpo: [+p.position.x.toFixed(2), +p.position.z.toFixed(2)], pelota: [+t.x.toFixed(2), +t.z.toFixed(2)], ancla: [+p.anchor.x.toFixed(2), +p.anchor.z.toFixed(2)] };
+    });
+  };
+  // puntos bien adentro de la pantalla: si el cursor cae fuera del viewport, el mouse se clampea y la
+  // puntería no se mueve (así se me escapó la primera vez)
+  const frente = await stance(0, 40);
+  const derecha = await stance(14, 30);
+  const aimR = await page.evaluate(() => window.__gk.aim);
+  const izquierda = await stance(-14, 30);
+  const aimL = await page.evaluate(() => window.__gk.aim);
+  log('postura', frente, derecha, izquierda);
+  log('puntería', aimR, aimL);
+  check('la prueba apunta de verdad a cada lado', aimR[0] > 5 && aimL[0] < -5);
+  check('la pelota no se mueve al apuntar: se acomoda el golfista', [derecha, izquierda].every((s) => s.pelota[0] === frente.pelota[0] && s.pelota[1] === frente.pelota[1]));
+  // girando hacia el lado que lo deja detrás de la pelota, el cuerpo la rodea de verdad
+  check('el golfista sí se mueve alrededor de la pelota', Math.hypot(derecha.cuerpo[0] - frente.cuerpo[0], derecha.cuerpo[1] - frente.cuerpo[1]) > 0.3);
+  // para el otro lado la pose se clava antes de meterse en el campo: eso es el clamp
+  check('el golfista nunca se para delante de la pelota: no pisa la línea', [frente, derecha, izquierda].every((s) => s.cuerpo[1] <= s.pelota[1]));
+  // la pelota que espera en el puesto está en la línea, no medio metro adelante
+  const waiting = await page.evaluate(() => {
+    const g = window.__gk;
+    const i = g.tees.nearest(g.player.anchor.x);
+    return { pelota: +g.tees.spots[i].ballMesh.position.z.toFixed(2), anillo: +g.tees.spots[i].ring.position.z.toFixed(2), ancla: +g.player.anchor.z.toFixed(2) };
+  });
+  log('pelota en el puesto', waiting);
+  check('la pelota que espera está justo en el puesto, alineada con el anillo', waiting.pelota === waiting.ancla && waiting.anillo === waiting.ancla);
+
   // --- moverse mientras se carga: se guarda UN toque, no una cola ---
   // Antes se acumulaban: apretabas dos veces mientras cargabas y, al terminar el tiro tres segundos
   // después, te movías dos puestos de golpe.
   await resetPlayer();
   const spot = () => page.evaluate(() => ({ puesto: window.__gk.player.spotIndex, mode: window.__gk.player.mode }));
+  await aimAt(0, 30);
+  await page.waitForTimeout(200);
   const spotBefore = (await spot()).puesto;
   await give();
   await page.mouse.down();
-  await page.waitForFunction(() => window.__gk.player.mode === 'charging', null, { timeout: 3000 }).catch(() => {});
+  const charging = await page.waitForFunction(() => window.__gk.player.mode === 'charging', null, { timeout: 4000 }).then(() => true).catch(() => false);
+  check('la carga arranca (si no, el resto de esta prueba no dice nada)', charging);
   await page.keyboard.press('KeyA');
   await page.keyboard.press('KeyA');
   const whileCharging = await spot();
@@ -415,7 +475,7 @@ if (!quick) {
       const s = g.screenOf(0, z);
       dispatchEvent(new MouseEvent('mousemove', { clientX: s.x, clientY: s.y }));
       await new Promise((r) => setTimeout(r, 300));
-      g.tees.place(g.tees.nearest(g.player.position.x));
+      g.tees.place(g.tees.nearest(g.player.anchor.x));
       const before = dummy.hp;
       const info = g.shotInfo;
       g.shootPower(power);
@@ -478,7 +538,7 @@ if (!quick) {
   await aimAt(1.2, 24);
   await lob(2, 0.96);
   const slowed = await enemy(shield);
-  const afterIron = await page.evaluate(() => ({ recarga: +window.__gk.player.cooldowns.ice.toFixed(2), efecto: window.__gk.player.enchant.id }));
+  const afterIron = { recarga: +shotSnapshot.cooldowns.ice.toFixed(2), efecto: await page.evaluate(() => window.__gk.player.enchant.id) };
   log('hielo: borde', slowed, afterIron);
   check('el hielo enfría a los que alcanza', slowed.chilled);
   const shieldSeen = () => page.evaluate(() => { const e = window.__gk.horde.enemies.at(-1); return { visible: e.shieldMesh.visible, enAlto: e.shieldUp }; });
@@ -486,7 +546,7 @@ if (!quick) {
   log('escudo con hielo', coldShield);
   check('con hielo encima el escudo desaparece', !coldShield.visible && !coldShield.enAlto);
   check('el hierro queda recargando', afterIron.recarga > 0);
-  const cdShown = await page.evaluate(() => { const el = document.querySelector('#enchants .club[data-ench=ice]'); return { numero: el.querySelector('.cdnum').textContent, etiqueta: el.querySelector('.cdlabel').textContent, recargando: el.classList.contains('cooling') }; });
+  const cdShown = shotSnapshot.hud;
   log('recarga en la barra', cdShown);
   check('la barra muestra la recarga de la escarcha y el número bajando', cdShown.recargando && cdShown.numero !== '');
   check('después de gastar la escarcha vuelve solo el golpe seco', afterIron.efecto === 'damage');
@@ -713,7 +773,7 @@ if (!quick) {
     const s = g.screenOf(0, 15);
     dispatchEvent(new MouseEvent('mousemove', { clientX: s.x, clientY: s.y }));
     await new Promise((r) => setTimeout(r, 300));
-    g.tees.place(g.tees.nearest(g.player.position.x));
+    g.tees.place(g.tees.nearest(g.player.anchor.x));
     const t0 = g.clock;
     let top = 0;
     let alto = 0;
@@ -772,8 +832,13 @@ if (!quick) {
   // --- palazo: botón aparte (Shift), con recarga; no hace daño, solo empuja, y llega a 4 m ---
   await clearEnemies();
   await resetPlayer();
-  const close = await still('skeleton', 0.4, 10.6);
-  const farther = await still('skeleton', -2.6, 12.4);
+  // el palazo sale del cuerpo, que está al costado de la pelota: los blancos se ponen respecto del cuerpo
+  await aimAt(0, 30);
+  await page.waitForTimeout(300);
+  const [bodyX, bodyZ] = await page.evaluate(() => [window.__gk.player.position.x, window.__gk.player.position.z]);
+  const close = await still('skeleton', bodyX + 0.4, bodyZ + 1.6);
+  const farther = await still('skeleton', bodyX - 1.2, bodyZ + 3.4);
+  const fartherZ = bodyZ + 3.4;
   await aimAt(0, 30);
   await page.keyboard.press('ShiftLeft');
   await page.waitForFunction(() => window.__gk.player.mode === 'free', null, { timeout: 5000 }).catch(() => {});
@@ -788,7 +853,7 @@ if (!quick) {
   const flung = await enemy(close);
   log('palazo: empujón', flung);
   check('el palazo no hace daño', afterMelee.hp === 4 && (await enemy(farther)).hp === 4);
-  check('el palazo alcanza a uno a más de 3 m', (await enemy(farther)).z - 12.4 > 8);
+  check('el palazo alcanza a uno a más de 3 m', (await enemy(farther)).z - fartherZ > 8);
   check('el palazo manda al enemigo unos 15 m hacia atrás', flung.z - 10.6 > 12 && flung.z - 10.6 < 18);
   check('el palazo tiene recarga', meleeCd > 0);
 
@@ -834,7 +899,7 @@ if (!quick) {
     await page.waitForFunction((l) => document.getElementById('skin').textContent !== l, beforeLabel, { timeout: 30000 });
     await page.waitForTimeout(500);
     const label = await page.textContent('#skin');
-    const info = await page.evaluate(() => ({ clips: [...window.__gk.player.swingClips.keys()].length, hp: window.__gk.player.hp, palos: window.__gk.player.unlocked.size, x: window.__gk.player.position.x }));
+    const info = await page.evaluate(() => ({ clips: [...window.__gk.player.swingClips.keys()].length, hp: window.__gk.player.hp, palos: window.__gk.player.unlocked.size, x: window.__gk.player.anchor.x }));
     console.log('skin ->', label, JSON.stringify(info));
     check('el cambio de skin conserva palos, vida y puesto', info.palos === 4 && info.hp === 3 && info.x === 0);
     await page.screenshot({ path: `logs/k13-skin${i}.png` });

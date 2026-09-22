@@ -44,6 +44,13 @@ const MIN_BACKSWING = 0.3;
 const RECOVER = 0.22;
 /** Cuánto vale un toque de movimiento apretado durante un tiro. Es un buffer, no una cola. */
 const STEP_BUFFER = 0.4;
+/**
+ * El golfista nunca queda delante de la pelota: la línea de los puestos es el borde del campo y no la
+ * pisa. Es casi cero a propósito: en la postura de golf el cuerpo queda **al costado** de la pelota, no
+ * atrás, así que pedirle más lo dejaba girado siempre para el mismo lado. De acá sale hasta dónde puede
+ * girar la pose (ver `stanceYaw`).
+ */
+const STANCE_BEHIND = 0.05;
 /** De puesto en puesto con easing: arranca y frena suave. Un puesto (4 m) lleva unos 0.4 s. */
 const RUN_SMOOTH_TIME = 0.12;
 const RUN_MAX_SPEED = 30;
@@ -173,22 +180,41 @@ export class Player {
     return out.set(this.anchor.x, 0, this.anchor.z);
   }
 
-  /** Dónde tiene que pararse el cuerpo para que la pelota le quede en el lugar de la postura. */
+  /**
+   * Dónde tiene que pararse el cuerpo para que la pelota le quede en el lugar de la postura. Nunca
+   * delante de la pelota: la línea de los puestos es el borde del campo y el golfista no lo pisa.
+   */
   private stancePosition(out: THREE.Vector3): THREE.Vector3 {
     const yaw = this.stanceYaw();
     const s = Math.sin(yaw);
     const c = Math.cos(yaw);
     const tee = this.swingClip?.tee ?? TEE_OFFSET;
     // el offset local (x, z) rotado al mundo, restado: es el inverso de "la pelota respecto del cuerpo"
-    return out.set(this.anchor.x - (tee.x * c + tee.z * s), 0, this.anchor.z - (-tee.x * s + tee.z * c));
+    const z = this.anchor.z - (-tee.x * s + tee.z * c);
+    return out.set(this.anchor.x - (tee.x * c + tee.z * s), 0, Math.min(z, this.anchor.z - STANCE_BEHIND));
   }
 
-  /** Yaw de la postura: el que hace que la pelota salga hacia aimDir. */
+  /**
+   * Yaw de la postura. **Se clampea para que el cuerpo nunca quede delante de la pelota**: la línea de
+   * los puestos es el borde del campo y el golfista no lo pisa. Pasado ese ángulo la pose se queda
+   * quieta aunque el tiro siga abriéndose; la pelota igual sale hacia `aimDir`, porque el tiro no
+   * depende de la pose.
+   *
+   * El límite sale de la geometría, no de un número a ojo. El cuerpo queda detrás de la pelota cuando
+   * `-tee.x·sin(y) + tee.z·cos(y) >= STANCE_BEHIND`, que es `R·sin(y + φ) >= d`: de ahí salen los dos
+   * extremos del arco permitido.
+   */
   private stanceYaw(): number {
-    const clip = this.swingClip;
-    // con clip, el modelo mira a flightYaw de la línea de tiro; sin clip, el objetivo queda a su izquierda (+X local)
-    if (clip) return Math.atan2(this.aimDir.x, this.aimDir.z) - clip.flightYaw;
-    return Math.atan2(-this.aimDir.z, this.aimDir.x);
+    const aim = Math.atan2(this.aimDir.x, this.aimDir.z);
+    const yaw = aim - (this.swingClip?.flightYaw ?? Math.PI / 2);
+    const tee = this.swingClip?.tee ?? TEE_OFFSET;
+    const r = Math.hypot(tee.x, tee.z);
+    if (r < 0.01) return yaw;
+    const phi = Math.atan2(tee.z, -tee.x);
+    const asinArg = Math.min(1, STANCE_BEHIND / r);
+    const lo = Math.asin(asinArg) - phi;
+    const hi = Math.PI - Math.asin(asinArg) - phi;
+    return THREE.MathUtils.clamp(yaw, lo, hi);
   }
 
   /**
