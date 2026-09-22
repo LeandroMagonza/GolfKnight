@@ -35,16 +35,21 @@ export interface Club {
    */
   chargeTime: number;
   /**
-   * Radio del efecto donde toca el piso, en metros. **0 = no abre área** (el driver). Cuanto más alto
-   * vuela el palo, más grande.
+   * Radio del área que abre, en metros, **uno por nivel de golpe**. Todo en cero = no abre área (el
+   * driver y el putter). Cuanto más alto vuela el palo, más grande.
    */
-  spread: number;
+  spread: number[];
   /**
-   * La pelota le aplica el efecto a cada uno que atraviesa en el aire, y sigue (driver y hierro). Sin
-   * esto, el primero que toca es donde cae: ahí abre el área y se termina (wedge y putter).
+   * La pelota le aplica el efecto a cada uno que atraviesa en el aire, y sigue. Sin esto, el primero
+   * que toca es donde termina el tiro.
    */
   pierces: boolean;
-  /** Al tocar el piso y abrir su área, la pelota muere. Sin esto sigue rodando (el hierro). */
+  /**
+   * Abre su área al tocar el piso, sin necesidad de pegarle a nadie (el wedge, que es un globo que cae
+   * donde se apunta). Sin esto, el área solo sale si la pelota conecta con un enemigo.
+   */
+  burstsOnGround: boolean;
+  /** Al abrir su área, la pelota muere. Sin esto sigue rodando. */
   stopsOnLand: boolean;
   /**
    * Daño por banda de distancia (corta, media, larga) y nivel de calidad (1, 2, 3). Es lo que hace la
@@ -90,37 +95,66 @@ export const CHARGE_TIME = 0.85;
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
     id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
-    loftDeg: 3.5, minRange: 4, maxRange: 66, chargeTime: CHARGE_TIME, spread: 0,
-    pierces: true, stopsOnLand: false,
+    loftDeg: 3.5, minRange: 4, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
+    pierces: true, burstsOnGround: false, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
     knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, color: 0xffb347,
   },
   iron: {
-    id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Sube, baja y sigue rodando: atraviesa como el driver y abre un área chica donde cae. Pasa por arriba de las lomas',
-    loftDeg: 27, minRange: 4, maxRange: 55, chargeTime: CHARGE_TIME, spread: 1.8,
-    pierces: true, stopsOnLand: false,
+    id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
+    loftDeg: 27, minRange: 4, maxRange: 55, chargeTime: CHARGE_TIME, spread: [1.8, 2.2, 2.7],
+    // modo por defecto: no atraviesa, y el área sale solo si le pega a alguien (ver IRON_MODES)
+    pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
     areaDamage: [[1, 2, 4], [1, 2, 4], [1, 2, 4]],
     knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: 6, color: 0x7fd4ff,
   },
   wedge: {
-    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada y se queda ahí, abriendo un área grande',
-    loftDeg: 55, minRange: 3, maxRange: 55, chargeTime: CHARGE_TIME, spread: 4.2,
-    pierces: false, stopsOnLand: true,
+    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no',
+    loftDeg: 55, minRange: 3, maxRange: 55, chargeTime: CHARGE_TIME, spread: [4.2, 5, 6.3],
+    pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto
     damage: [[1, 2, 5], [1, 2, 5], [1, 2, 5]],
     knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, color: 0xff6b4a,
   },
   putter: {
-    id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda lento por el piso y para en el primero que toca. Cobra de cerca como ninguno, pero no llega lejos',
-    loftDeg: 0, minRange: 2, maxRange: 22, chargeTime: CHARGE_TIME, spread: 1.6,
-    pierces: false, stopsOnLand: true,
+    id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno y se carga rápido',
+    loftDeg: 0, minRange: 2, maxRange: 20, chargeTime: 0.5, spread: [0, 0, 0],
+    pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
     // rollFriction alto = sale más fuerte y llega antes (la velocidad de salida se calcula para que la
     // pelota pare justo en el punto apuntado). Con 3 tardaba casi 4 s en cruzar 20 m
-    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 10, color: 0xc9a2ff,
+    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 7, color: 0xc9a2ff,
   },
 };
+
+/** Radio del área de un palo para un nivel de golpe (1, 2, 3). 0 = no abre área. */
+export function spreadFor(club: Club, quality: number): number {
+  return club.spread[Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1] ?? 0;
+}
+
+/** ¿Este palo abre área en algún nivel? */
+export function hasArea(club: Club): boolean {
+  return club.spread.some((r) => r > 0);
+}
+
+/**
+ * Los dos modos del hierro, para probar cuál le da identidad propia. Se cambia en el panel (tecla B).
+ * - **revienta**: no atraviesa; el primero que toca es donde explota, al ras del piso. Si cae al piso
+ *   sin tocar a nadie, no hace nada. Hay que conectar.
+ * - **atraviesa**: pasa de largo hasta a tres y además abre su área donde cae, le pegue a alguien o no.
+ */
+export type IronMode = 'revienta' | 'atraviesa';
+export const IRON_MODES: Record<IronMode, Pick<Club, 'pierces' | 'burstsOnGround' | 'stopsOnLand'>> = {
+  revienta: { pierces: false, burstsOnGround: false, stopsOnLand: true },
+  atraviesa: { pierces: true, burstsOnGround: true, stopsOnLand: false },
+};
+export function setIronMode(mode: IronMode): void {
+  Object.assign(CLUBS.iron, IRON_MODES[mode]);
+}
+export function ironMode(): IronMode {
+  return CLUBS.iron.pierces ? 'atraviesa' : 'revienta';
+}
 
 /** Los cuatro palos, en el orden de las teclas 1, 2, 3 y 4. */
 export const CLUB_ORDER: ClubId[] = ['driver', 'iron', 'wedge', 'putter'];
@@ -192,9 +226,9 @@ export function qualityOf(power: number): number {
   return q;
 }
 
-/** Un globo cae en un punto del piso y hace su efecto ahí; el driver, no. */
+/** Un globo se calcula para caer en el punto apuntado; el rasante y el rodado, no. */
 export function isLob(club: Club): boolean {
-  return club.spread > 0 && club.loftDeg > 0.001;
+  return hasArea(club) && club.loftDeg > 0.001;
 }
 
 /** Radio de la explosión de los kamikazes. */

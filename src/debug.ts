@@ -7,7 +7,7 @@
 // siguiente tiro y desde el siguiente enemigo que aparece; a los que ya están en el campo se les
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, QUALITY_LEVELS } from './core/clubs';
+import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, hasArea, IRON_MODES, ironMode, QUALITY_LEVELS, setIronMode, type IronMode } from './core/clubs';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
 
@@ -50,7 +50,8 @@ export interface SavedExtras {
 
 type Saved = SavedExtras & {
   bands?: number[];
-  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'spread' | 'chargeTime' | 'rollFriction', number> & { damage: number[][]; areaDamage: number[][] }>>;
+  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'rollFriction', number> & { spread: number[]; damage: number[][]; areaDamage: number[][] }>>;
+  iron?: IronMode;
   enchants?: Record<string, number>;
   enemies?: Record<string, { hp: number; speed: number; damage: number; attackEvery?: number }>;
 };
@@ -68,12 +69,14 @@ export function loadBalance(): SavedExtras {
     const from = saved.clubs?.[id];
     if (!from) continue;
     const club = CLUBS[id];
-    for (const k of ['minRange', 'maxRange', 'spread', 'chargeTime', 'rollFriction'] as const) {
+    for (const k of ['minRange', 'maxRange', 'chargeTime', 'rollFriction'] as const) {
       if (typeof from[k] === 'number') club[k] = from[k];
     }
+    if (from.spread?.length === club.spread.length) club.spread = from.spread;
     if (from.damage) club.damage = from.damage;
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
   }
+  if (saved.iron && IRON_MODES[saved.iron]) setIronMode(saved.iron);
   for (const id of ENCHANT_ORDER) {
     const cd = saved.enchants?.[id];
     if (typeof cd === 'number') ENCHANTS[id].cooldown = cd;
@@ -100,6 +103,7 @@ export function saveBalance(extras: SavedExtras): void {
       rollFriction: c.rollFriction, damage: c.damage,
       ...(c.areaDamage ? { areaDamage: c.areaDamage } : {}),
     };
+    out.iron = ironMode();
   }
   for (const id of ENCHANT_ORDER) out.enchants![id] = ENCHANTS[id].cooldown;
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
@@ -246,12 +250,49 @@ export class DebugPanel {
           }
         }
       }
+      // el radio del área, uno por nivel de golpe
+      if (hasArea(club)) {
+        const areaRow = table.insertRow();
+        cell(areaRow, 'área (radio m)', 'l').title = 'radio del área que abre, por nivel de golpe';
+        for (let q = 1; q <= QUALITY_LEVELS; q++) {
+          cell(areaRow, this.field(() => club.spread[q - 1], (v) => { club.spread[q - 1] = Math.max(0, v); }, 0.2));
+        }
+      }
       const rangeRow = table.insertRow();
       cell(rangeRow, 'llega de / a', 'l').title = 'metros mínimo y máximo a los que puede caer este palo';
       cell(rangeRow, this.field(() => club.minRange, (v) => { club.minRange = v; }));
       cell(rangeRow, this.field(() => club.maxRange, (v) => { club.maxRange = v; }));
-      cell(rangeRow, this.field(() => club.spread, (v) => { club.spread = v; }, 0.2)).title = 'radio del área que abre donde cae, en metros';
+      cell(rangeRow, this.field(() => club.chargeTime, (v) => { club.chargeTime = Math.max(0.1, v); }, 0.05)).title = 'segundos que tarda la barra en llegar arriba, para este palo';
+      const legend = table.insertRow();
+      cell(legend, '', 'l');
+      cell(legend, 'mín');
+      cell(legend, 'máx');
+      cell(legend, 'carga');
       el.append(table);
+      // el hierro tiene dos formas de entregar: se prueban acá
+      if (club.id === 'iron') {
+        const modes = document.createElement('div');
+        modes.className = 'row';
+        const buttons: HTMLButtonElement[] = [];
+        for (const mode of Object.keys(IRON_MODES) as IronMode[]) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = mode;
+          b.title = mode === 'revienta'
+            ? 'No atraviesa: explota en el piso, abajo del primero que toca. Si cae al piso sin tocar a nadie, no hace nada'
+            : 'Atraviesa hasta a tres y además abre su área donde cae, le pegue a alguien o no';
+          b.addEventListener('click', () => {
+            b.blur();
+            setIronMode(mode);
+            for (const other of buttons) other.classList.toggle('on', other.textContent === ironMode());
+            this.save();
+          });
+          buttons.push(b);
+          modes.append(b);
+        }
+        for (const b of buttons) b.classList.toggle('on', b.textContent === ironMode());
+        el.append(modes);
+      }
     }
     el.append(note(
       'Ojo, son dos cosas distintas. «llega de / a» es hasta dónde alcanza ese palo: el cursor más lejos que eso no lo estira. '
@@ -273,15 +314,7 @@ export class DebugPanel {
     cell(puttRow, 'putter: rapidez', 'l').title = 'cuánto sale de fuerte la pelota rodada; más alto = llega antes';
     cell(puttRow, this.field(() => CLUBS.putter.rollFriction ?? 0, (v) => { CLUBS.putter.rollFriction = Math.max(1, v); }, 1));
     cell(puttRow, 'más = más rápido', 'l');
-    const chargeRow = bands.insertRow();
-    cell(chargeRow, 'carga 0 a 100', 'l').title = 'segundos que tarda la barra en llegar arriba';
-    cell(chargeRow, this.field(
-      () => CLUBS.driver.chargeTime,
-      (v) => { for (const id of CLUB_ORDER) CLUBS[id].chargeTime = Math.max(0.1, v); },
-      0.05,
-    ));
-    cell(chargeRow, 'segundos', 'l');
-    el.append(bands, note('Los metros se cuentan desde la línea de los puestos, la que dice 0 en el campo. La carga es una sola para los cuatro palos: la barra mide timing, no potencia.'));
+    el.append(bands, note('Los metros se cuentan desde la línea de los puestos, la que dice 0 en el campo. El tiempo de carga es de cada palo y está arriba, en su tabla.'));
 
     // ---- poderes ----
     el.append(heading('Poderes: recarga'));

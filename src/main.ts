@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -272,14 +272,16 @@ function updatePreview(): void {
   const area = QUALITY_AREA[quality - 1];
   // dónde cae y qué agarra: un anillo del tamaño del efecto, o el rectángulo del vendaval
   const rect = enchant.id === 'push';
-  const half = club.spread === 0 ? PUSH_LINE_HALF_WIDTH * area : club.spread * area * 1.5;
-  const depth = club.spread === 0 ? range / 2 : club.spread * area;
+  const radius = spreadFor(club, quality);
+  const linear = !hasArea(club);
+  const half = linear ? PUSH_LINE_HALF_WIDTH * area : radius * 1.5;
+  const depth = linear ? range / 2 : radius;
   sweepBox.visible = rect;
   landing.visible = !rect;
   if (rect) {
     // el rectángulo sale de la línea del tiro. Con un palo lineal es un pasillo a lo largo de todo el tiro
-    const cx = club.spread === 0 ? tee.x + player.aimDir.x * depth : end.x;
-    const cz = club.spread === 0 ? tee.z + player.aimDir.z * depth : end.z;
+    const cx = linear ? tee.x + player.aimDir.x * depth : end.x;
+    const cz = linear ? tee.z + player.aimDir.z * depth : end.z;
     sweepBox.position.set(cx, heightAt(cx, cz) + 0.08, cz);
     sweepBox.rotation.z = Math.atan2(player.aimDir.x, player.aimDir.z);
     sweepBox.scale.set(half, depth, 1);
@@ -289,7 +291,7 @@ function updatePreview(): void {
     sweepEdgeMat.opacity = charging ? 0.95 : 0.45;
   } else {
     landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
-    landing.scale.setScalar(Math.max(0.7, club.spread * area));
+    landing.scale.setScalar(Math.max(0.7, radius));
     landingMat.opacity = charging ? 0.85 : 0.35;
     landingMat.color.setHex(enchant.id === 'damage' ? club.color : enchant.color);
   }
@@ -1030,7 +1032,7 @@ addEventListener('resize', () => {
   get traps() { return traps; },
   get enchant() { return player.enchant.id; },
   set enchant(id: EnchantId) { player.setEnchant(ENCHANTS[id]); },
-  cycleClub, selectEnchant, selectClub, enchantReady,
+  cycleClub, selectEnchant, selectClub, enchantReady, setIronMode, ironMode,
   /** Qué campo salió esta partida, y el panel de balance. */
   get course() { return { index: relief.index, name: gameCourse.name, relieve: relief.on }; },
   get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },

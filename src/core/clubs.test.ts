@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS,
+  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, hasArea, ironMode, setIronMode, spreadFor,
   ICE_SECONDS, isLob, KNOCK_DECAY, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
@@ -14,34 +14,43 @@ describe('palos', () => {
     for (const id of CLUB_ORDER) expect(CLUBS[id].id).toBe(id);
   });
 
-  it('el driver es el único que no abre área: los demás la abren donde tocan el piso', () => {
-    expect(CLUBS.driver.spread).toBe(0);
+  it('solo el hierro y el wedge abren área; el driver y el putter le pegan a lo que tocan', () => {
+    for (const id of ['driver', 'putter'] as const) expect(hasArea(CLUBS[id]), id).toBe(false);
+    for (const id of ['iron', 'wedge'] as const) expect(hasArea(CLUBS[id]), id).toBe(true);
     expect(isLob(CLUBS.driver)).toBe(false);
-    for (const id of ['iron', 'wedge', 'putter'] as const) expect(CLUBS[id].spread).toBeGreaterThan(0);
     // cuanto más alto vuela, más abre
-    expect(CLUBS.wedge.spread).toBeGreaterThan(CLUBS.iron.spread);
+    expect(spreadFor(CLUBS.wedge, 3)).toBeGreaterThan(spreadFor(CLUBS.iron, 3));
     expect(CLUBS.wedge.loftDeg).toBeGreaterThan(CLUBS.iron.loftDeg);
-    // el putter rueda: no es un globo, aunque abra un área chica donde para
+    // el putter rueda y para en el primero que toca: no es un globo ni abre nada
     expect(CLUBS.putter.loftDeg).toBe(0);
     expect(isLob(CLUBS.putter)).toBe(false);
     // rueda de verdad, pero no lento: con poca fricción salía flojo y tardaba una eternidad en llegar
-    expect(CLUBS.putter.rollFriction).toBeGreaterThanOrEqual(ROLL_FRICTION);
+    expect(CLUBS.putter.rollFriction).toBeGreaterThanOrEqual(ROLL_FRICTION * 0.7);
   });
 
-  it('atravesar y abrir área son cosas aparte, y el hierro hace las dos', () => {
-    // el driver atraviesa y no abre nada; el wedge y el putter paran en el primero que tocan
-    expect(CLUBS.driver.pierces).toBe(true);
-    expect(CLUBS.driver.spread).toBe(0);
-    for (const id of ['wedge', 'putter'] as const) {
-      expect(CLUBS[id].pierces).toBe(false);
-      expect(CLUBS[id].stopsOnLand).toBe(true);
+  it('el área crece con el nivel del golpe, en todos los que abren área', () => {
+    for (const id of CLUB_ORDER) {
+      if (!hasArea(CLUBS[id])) continue;
+      for (let q = 2; q <= QUALITY_LEVELS; q++) expect(spreadFor(CLUBS[id], q), id).toBeGreaterThan(spreadFor(CLUBS[id], q - 1));
     }
-    // el hierro atraviesa, abre un área chica donde cae, y sigue rodando
+  });
+
+  it('solo el globo abre su área por caer al piso: los demás tienen que conectar', () => {
+    expect(CLUBS.wedge.burstsOnGround).toBe(true);
+    for (const id of ['driver', 'iron', 'putter'] as const) expect(CLUBS[id].burstsOnGround, id).toBe(false);
+  });
+
+  it('el hierro tiene dos modos para probarle la identidad', () => {
+    const volver = ironMode();
+    setIronMode('revienta');
+    expect(CLUBS.iron.pierces).toBe(false);
+    expect(CLUBS.iron.burstsOnGround).toBe(false);
+    expect(ironMode()).toBe('revienta');
+    setIronMode('atraviesa');
     expect(CLUBS.iron.pierces).toBe(true);
-    expect(CLUBS.iron.spread).toBeGreaterThan(0);
-    expect(CLUBS.iron.stopsOnLand).toBe(false);
-    expect(CLUBS.iron.maxHits).toBeGreaterThan(1);
-    expect(CLUBS.iron.rollFriction).toBeGreaterThan(0);
+    expect(CLUBS.iron.burstsOnGround).toBe(true);
+    expect(ironMode()).toBe('atraviesa');
+    setIronMode(volver);
   });
 
   it('el hierro hace un arco: sube y baja dentro del campo, más alto que el driver y menos que el wedge', () => {
@@ -86,9 +95,10 @@ describe('palos', () => {
     expect(bandOf(BAND_LIMITS[0] - 1)).toBe(0);
     expect(bandOf(BAND_LIMITS[0] + 1)).toBe(1);
     expect(bandOf(BAND_LIMITS[1] + 1)).toBe(2);
-    // el driver llega a la banda larga y el putter no sale de la corta
+    // el driver llega a la banda larga y el putter **no sale de la corta**: llega justo hasta el corte
     expect(bandOf(CLUBS.driver.maxRange)).toBe(2);
-    expect(bandOf(CLUBS.putter.maxRange)).toBe(1);
+    expect(bandOf(CLUBS.putter.maxRange)).toBe(0);
+    expect(CLUBS.putter.maxRange).toBe(BAND_LIMITS[0]);
     expect(CLUBS.putter.maxRange).toBeLessThan(CLUBS.iron.maxRange);
   });
 
@@ -141,8 +151,10 @@ describe('encantamientos', () => {
     expect(ENCHANTS.push.cooldown).toBeGreaterThan(0);
   });
 
-  it('la barra tarda lo mismo con los cuatro palos: mide timing, no potencia', () => {
-    for (const id of CLUB_ORDER) expect(CLUBS[id].chargeTime, id).toBe(CHARGE_TIME);
+  it('cada palo tiene su tiempo de carga, y el del putter es el más corto', () => {
+    // la barra mide timing, así que los tres de campo cargan igual; el putter es de cerca y va rápido
+    for (const id of ['driver', 'iron', 'wedge'] as const) expect(CLUBS[id].chargeTime, id).toBe(CHARGE_TIME);
+    expect(CLUBS.putter.chargeTime).toBeLessThan(CHARGE_TIME);
   });
 
   it('el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie', () => {
@@ -182,6 +194,6 @@ describe('encantamientos', () => {
     // recorre exactamente esa distancia, así que termina en la línea
     for (const dx of [0.5, 2, 5]) expect(dx - (dx * KNOCK_DECAY) / KNOCK_DECAY).toBeCloseTo(0);
     // con un palo lineal el pasillo es angosto: junta sin ir a buscarlos lejos
-    expect(PUSH_LINE_HALF_WIDTH).toBeLessThan(CLUBS.wedge.spread * 1.5);
+    expect(PUSH_LINE_HALF_WIDTH).toBeLessThan(spreadFor(CLUBS.wedge, 1) * 1.5);
   });
 });

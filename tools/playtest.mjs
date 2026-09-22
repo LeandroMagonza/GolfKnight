@@ -81,23 +81,23 @@ const drive = (meters, maxMs = 6000) => shootHere('driver', meters >= 55 ? 0.96 
 const driveLevel = (level, maxMs = 6000) => shootHere('driver', QPOWER[level - 1], maxMs);
 /** Espera a que un encantamiento esté listo: si no, elegirlo se rechaza y el tiro sale seco. */
 const waitEnchant = (id) => page.waitForFunction((n) => window.__gk.player.cooldowns[n] <= 0, id, { timeout: 12000 }).catch(() => {});
-/** Globo encantado apuntando a un punto del campo. */
+/**
+ * Globo encantado con el wedge: 2 = escarcha, 3 = vendaval. Va con el wedge y no con el hierro porque
+ * **el wedge es el único que abre su área por caer al piso**; el hierro tiene que conectar con alguien.
+ */
 const lobAt = async (digit, x, z, power) => {
-  const club = digit === 2 ? 'iron' : 'wedge';
-  await useClub(club);
+  await useClub('wedge');
   await waitEnchant(digit === 2 ? 'ice' : 'push');
   await useEnchant(digit);
-  await shootAt(club, x, z, power);
+  await shootAt('wedge', x, z, power);
   await useEnchant(1);
 };
-/** Globo encantado: 2 = hierro con escarcha, 3 = wedge con vendaval. Cae donde apunta el mouse. */
+/** Lo mismo, pero sin re-apuntar: cae donde ya apunta el mouse. */
 const lob = async (digit, power) => {
-  const club = digit === 2 ? 'iron' : 'wedge';
-  const id = digit === 2 ? 'ice' : 'push';
-  await useClub(club);
-  await waitEnchant(id);
+  await useClub('wedge');
+  await waitEnchant(digit === 2 ? 'ice' : 'push');
   await useEnchant(digit);
-  await shootHere(club, power);
+  await shootHere('wedge', power);
   await useEnchant(1);
 };
 
@@ -534,8 +534,8 @@ if (!quick) {
   await driveLevel(3, 2500);
   log('escudo vs driver', await enemy(shield));
   check('el escudo frena al driver', (await enemy(shield)).hp === 4);
-  // el área del hierro es chica (1.8 m): a 1.2 m del centro todavía alcanza
-  await aimAt(1.2, 24);
+  // el área del wedge es grande (4.2 m): a 2 m del centro entra de sobra
+  await aimAt(2, 24);
   await lob(2, 0.96);
   const slowed = await enemy(shield);
   const afterIron = { recarga: +shotSnapshot.cooldowns.ice.toFixed(2), efecto: await page.evaluate(() => window.__gk.player.enchant.id) };
@@ -545,7 +545,7 @@ if (!quick) {
   const coldShield = await shieldSeen();
   log('escudo con hielo', coldShield);
   check('con hielo encima el escudo desaparece', !coldShield.visible && !coldShield.enAlto);
-  check('el hierro queda recargando', afterIron.recarga > 0);
+  check('la escarcha queda recargando', afterIron.recarga > 0);
   const cdShown = shotSnapshot.hud;
   log('recarga en la barra', cdShown);
   check('la barra muestra la recarga de la escarcha y el número bajando', cdShown.recargando && cdShown.numero !== '');
@@ -593,10 +593,10 @@ if (!quick) {
   const dying = await page.evaluate(() => { const e = window.__gk.horde.enemies.find((x) => x.stats.kind === 'warrior'); return { estado: e.state, escudo: e.shieldMesh.visible }; });
   log('escudo al morir', dying);
   check('el escudo desaparece cuando el guerrero muere', dying.estado === 'dying' && !dying.escudo);
-  // el perfecto llega más lejos: con el área del hierro (1.8 m, x1.5 en el perfecto) y midiendo desde el
-  // borde del enemigo, uno a 2.9 m del centro queda afuera del normal y adentro del perfecto
+  // el perfecto llega más lejos: con el área del wedge (4.2 m, 6.3 en el perfecto) y midiendo desde el
+  // borde del enemigo, uno a 5.5 m del centro queda afuera del normal y adentro del perfecto
   await clearEnemies();
-  const edge = await still('skeleton', 2.9, 24);
+  const edge = await still('skeleton', 5.5, 24);
   await aimAt(0, 24);
   await lob(2, 0.5);
   const missed = (await enemy(edge)).chilled;
@@ -760,14 +760,14 @@ if (!quick) {
   check('al jefe el hielo también lo enfría', bossIced.chilled);
   check('el jefe frío ataca más lento', bossLater.chilled && castRate < 0.5);
 
-  // --- putter: rueda lento por el piso y para en el primero que toca, cobrando de cerca ---
+  // --- putter: rueda hasta 20 m y le pega al primero que toca, a él solo ---
   await clearEnemies();
   await resetPlayer();
   await useClub('putter');
   await useEnchant(1);
   const puttTarget = await still('goblin', 0, 15);
-  // el putter abre un área chica donde para: uno a 2 m también cae, uno a 6 m ya no
-  const puttBehind = await still('goblin', 0, 21);
+  // el que está apenas atrás no cobra nada: el putter ya no abre área
+  const puttBehind = await still('goblin', 0, 17);
   const putt = await page.evaluate(async () => {
     const g = window.__gk;
     const s = g.screenOf(0, 15);
@@ -794,10 +794,50 @@ if (!quick) {
   });
   log('putter', putt, await enemy(puttTarget), await enemy(puttBehind));
   await page.screenshot({ path: 'logs/k7-putter.png' });
-  check('la pelota del putter rueda lento', putt.rapidez < 14);
+  check('la pelota del putter rueda a velocidad media', putt.rapidez > 6 && putt.rapidez < 18);
   check('no se levanta del piso: rueda', putt.alto < 0.3);
   check('de cerca el putter cobra como ninguno', !(await enemy(puttTarget))?.alive);
-  check('para en el primero que toca: al que está más atrás no le llega', (await enemy(puttBehind))?.hp === 2);
+  check('para en el primero que toca y no salpica: el de atrás queda entero', (await enemy(puttBehind))?.hp === 2);
+  const puttReach = await page.evaluate(() => { const g = window.__gk; g.selectClub(3); const s = g.screenOf(0, 60); dispatchEvent(new MouseEvent('mousemove', { clientX: s.x, clientY: s.y })); return null; });
+  await page.waitForTimeout(200);
+  const puttFar = await page.evaluate(() => window.__gk.shotInfo.range);
+  log('alcance del putter', { pedido: 51, real: puttFar }, puttReach);
+  check('el putter no pasa de la línea de 20 m por más que apuntes lejos', puttFar <= 20.5);
+
+  // --- hierro: los dos modos, que es lo que se está probando para darle identidad ---
+  await clearEnemies();
+  await resetPlayer();
+  await useClub('iron');
+  await useEnchant(1);
+  /** Tira el hierro a (x, z) y devuelve la vida de los muñecos que se le pasen. */
+  const ironShot = async (mode, x, z, ids) => {
+    await page.evaluate((m) => window.__gk.setIronMode(m), mode);
+    await shootAt('iron', x, z, 0.7, 4000);
+    await page.waitForTimeout(300);
+    const out = [];
+    for (const id of ids) out.push((await enemy(id))?.hp ?? 'muerto');
+    return out;
+  };
+  // «revienta»: si cae al piso sin tocar a nadie, no pasa nada; si le pega a uno, salpica a los de al lado
+  const lonely = await still('skeleton', 6, 26);
+  const suelo = await ironShot('revienta', 0, 26, [lonely]);
+  log('hierro revienta: al piso', suelo);
+  check('modo revienta: cayendo al piso no hace nada', suelo[0] === 4);
+  const centro = await still('skeleton', 0, 26);
+  const vecino = await still('skeleton', 1.6, 26);
+  const pegado = await ironShot('revienta', 0, 26, [centro, vecino]);
+  log('hierro revienta: al enemigo', pegado);
+  check('modo revienta: le pega al que toca y salpica al de al lado', pegado[0] !== 4 && pegado[1] !== 4);
+  // el mismo enemigo no cobra dos veces por un tiro: era el bug de la explosión más el pelotazo
+  check('modo revienta: el que recibe el pelotazo cobra una sola vez', pegado[0] === 'muerto' || pegado[0] >= 4 - 4);
+  // «atraviesa»: pasa de largo y además abre su área al caer, le pegue a alguien o no
+  await clearEnemies();
+  const solo2 = await still('skeleton', 6, 26);
+  const suelo2 = await ironShot('atraviesa', 6, 26, [solo2]);
+  log('hierro atraviesa: al piso', suelo2);
+  check('modo atraviesa: abre su área donde cae', suelo2[0] !== 4);
+  await page.evaluate(() => window.__gk.setIronMode('revienta'));
+  await clearEnemies();
 
   // --- alma en pena: atrapa, saca vida de a poco, y el palazo la saca de encima ---
   await clearEnemies();

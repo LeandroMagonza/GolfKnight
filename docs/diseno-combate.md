@@ -1284,3 +1284,56 @@ Dos regresiones que encontraron las pruebas, y que valen como nota:
   hondonada, el punto plano de adelante "ganaba" y levantaba el driver, que les pasaba por encima a los
   que estaban abajo. Se arregló con `RISE_BLOCKS`: solo cuentan los desniveles de más de 60 cm. Una
   loma tapa; un montículo, no.
+
+## Hecho: buscándole identidad al hierro
+
+### El bug que destapó todo
+
+Leandro lo vio jugando: si la pelota del hierro **picaba justo antes** de un guerrero con escudo, la
+explosión lo dañaba y después el pelotazo lo dañaba otra vez; pegándole directo, en cambio, decía
+"bloqueado". Dos cosas mal a la vez:
+
+1. **El mismo enemigo cobraba dos veces por un tiro.** El área y el pelotazo eran caminos separados.
+   Ahora `blast`, `chillAround` y `sweep` **anotan en `skip` a quién alcanzaron**, así que una pelota
+   nunca le cobra dos veces al mismo, en ningún orden.
+2. **El escudo solo frenaba la pelota que atraviesa.** Por eso el hierro reventaba contra el escudo y
+   lo mataba igual. Ahora frena **cualquiera** que le llegue de frente; lo único que lo pasa es lo que
+   cae a más de 45°, que es el globo del wedge. Con eso vuelve a valer la regla: al del escudo se lo
+   resuelve con un globo, con hielo, o de costado.
+
+### Los dos modos del hierro
+
+«Me está costando encontrarle identidad al palo, más allá de las colinas», y tenía razón: el hierro era
+*driver con salpicadura*, hacía un poco de todo y no era el mejor en nada. Hay un toggle en el panel:
+
+- **revienta** (el nuevo, por defecto): no atraviesa. Explota al ras del piso, **abajo del primero que
+  toca**. Si cae al piso sin tocar a nadie, **no pasa nada**.
+- **atraviesa** (el anterior): pasa de largo hasta a tres y abre su área donde cae, conecte o no.
+
+La identidad que propone *revienta*: **es el único palo que exige acertarle a alguien.** El driver
+perdona (atraviesa la fila entera), el wedge perdona (cae adonde apuntaste). El hierro no: fallás y no
+pasa nada; conectás y salpica. Es el palo de la puntería. Y como el escudo ahora lo frena, dejó de ser
+la respuesta cómoda a los escudos, que era lo que le borroneaba el rol.
+
+Sobre ese palo, **el que recibe el pelotazo cobra el impacto** (1/3/7) y los de alrededor el área
+(1/2/4) — los dos números que pidió Leandro. Nadie cobra los dos.
+
+### El putter
+
+Se simplificó: llega **hasta la línea de 20 m** y nada más, no explota ni abre área, le pega al primero
+que toca y listo. Velocidad media (`rollFriction` 10 → 7) y **carga rápida (0.5 s)**, que ahora se puede
+porque el tiempo de carga volvió a ser de cada palo. Es el palo de cerca, sin vueltas.
+
+### Detalles del panel
+
+- El **radio del área son tres números por palo**, uno por nivel de golpe, en vez de un radio único
+  multiplicado por una tabla global.
+- El **tiempo de carga es de cada palo** otra vez, en su propia tabla.
+
+### Notas para la próxima
+
+- El globo detona **donde cae**, no sobre el enemigo que toca. Reventarlo sobre el enemigo descentraba
+  el rectángulo del vendaval respecto de la línea del tiro. La explosión sobre el enemigo es regla del
+  hierro, no del wedge.
+- Las pruebas del hielo pasaron a tirar con el **wedge**: es el único que abre su área por caer al
+  piso, así que es el único con el que se puede enfriar un punto del campo sin conectar con nadie.

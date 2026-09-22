@@ -257,8 +257,10 @@ export class Enemy {
    */
   blocks(vx: number, vy: number, vz: number): boolean {
     if (!this.shieldUp || this.stunTimer > 0) return false;
+    // más empinado que 45 grados le entra por arriba del escudo: ese es el globo del wedge. El arco del
+    // hierro (unos 27 grados) no llega a tanto, así que el escudo sí lo frena
     const h = Math.hypot(vx, vz);
-    if (h < 0.5 || Math.abs(vy) > h * 2) return false;
+    if (h < 0.5 || Math.abs(vy) > h) return false;
     const f = this.facing;
     return (vx * f.x + vz * f.z) / h < -0.55;
   }
@@ -760,7 +762,7 @@ export class Horde {
    * que esa misma pelota ya golpeó al atravesarlos: el hierro atraviesa y además abre un área donde
    * cae, y nadie tiene que cobrar las dos cosas por un solo tiro.
    */
-  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: ReadonlySet<number>): number {
+  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -771,6 +773,7 @@ export class Horde {
       const f = 1 - 0.6 * Math.max(0, d / radius);
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
       this.damage(e, damage * f, dir.normalize(), knockback * f);
+      skip?.add(e.id);
       count++;
     }
     return count;
@@ -792,12 +795,13 @@ export class Horde {
   }
 
   /** Hielo en área: enfría a todos los que alcanza, menos los de `skip`. Devuelve a cuántos. */
-  chillAround(pos: THREE.Vector3, radius: number, seconds: number, skip?: ReadonlySet<number>): number {
+  chillAround(pos: THREE.Vector3, radius: number, seconds: number, skip?: Set<number>): number {
     let count = 0;
     for (const e of this.enemies) {
       if (!e.alive || e.passed || skip?.has(e.id)) continue;
       if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
       e.chill(seconds);
+      skip?.add(e.id);
       count++;
     }
     return count;
@@ -809,7 +813,7 @@ export class Horde {
    * hacia la línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del
    * tiro: una fila servida para el driver. Devuelve a cuántos movió.
    */
-  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: ReadonlySet<number>): number {
+  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>): number {
     let count = 0;
     // el costado de la línea del tiro, en el piso
     const side = new THREE.Vector3(along.z, 0, -along.x);
@@ -822,6 +826,7 @@ export class Horde {
       const forward = rx * along.x + rz * along.z;
       if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
       if (Math.abs(lateral) > 0.05) e.shove(dir.copy(side).multiplyScalar(-Math.sign(lateral)), Math.abs(lateral) * KNOCK_DECAY);
+      skip?.add(e.id);
       count++;
     }
     return count;

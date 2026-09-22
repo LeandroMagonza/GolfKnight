@@ -59,38 +59,44 @@ Ninguno es el mejor siempre.
 | Palo | Cómo llega | Alcance | Corta (≤20 m) | Media (20-40 m) | Larga (+40 m) |
 | --- | --- | --- | --- | --- | --- |
 | **1 · Driver** | rasante, atraviesa la fila entera | 4-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
-| **2 · Hierro 7** | arco bajo: sube, baja y sigue rodando | 4-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| **2 · Hierro 7** | arco bajo que revienta en el que toca | 4-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
 | **3 · Wedge** | globo alto, cae en picada y se queda ahí | 3-55 m | 1 / 2 / 5 | 1 / 2 / 5 | 1 / 2 / 5 |
-| **4 · Putter** | rueda lento y para en el primero que toca | 2-22 m | **2 / 4 / 8** | 1 / 3 / 5 | — |
+| **4 · Putter** | rueda y le pega al primero que toca | 2-20 m | **2 / 4 / 8** | — | — |
 
-Los tres números de cada casilla son el daño según la calidad del golpe. El putter no llega más allá
-de sus 22 m, así que su banda larga no existe.
+Los tres números de cada casilla son el daño según la calidad del golpe. El putter llega justo hasta la
+línea de 20 m, así que nunca sale de la banda corta.
 
 **El área pega menos que el impacto**, porque agarra a varios y no hay que apuntarle a nadie. El hierro
-es el único que hace las dos cosas, así que es el único con dos números: la tabla de arriba es lo que
-saca cuando la pelota le pega a alguien, y el área que abre donde cae saca **1 / 2 / 4**. El wedge y el
-putter solo hacen área, así que su tabla ya *es* la del área; por eso la del wedge, que abre la más
-grande de todas, es la más baja.
+es el único que hace las dos cosas: **el que se come el pelotazo cobra el impacto** (1 / 3 / 7) y los de
+alrededor cobran el área (**1 / 2 / 4**). Nadie cobra las dos por un mismo tiro. El wedge solo hace
+área, así que su tabla ya *es* la del área; por eso, abriendo la más grande de todas, es la más baja.
 
-**Atravesar y abrir área son dos cosas distintas**, y el hierro es el único que hace las dos:
+**Quién abre área y cuándo:**
 
-| Palo | ¿Atraviesa en el aire? | ¿Abre área donde toca el piso? | ¿Después? |
+| Palo | ¿Atraviesa? | ¿Abre área? | ¿Y si cae al piso sin tocar a nadie? |
 | --- | --- | --- | --- |
 | Driver | sí, a todos los de la fila | no | pica y sigue |
-| Hierro 7 | sí, hasta a tres | sí, chica (1.8 m) | sigue rodando |
-| Wedge | no | sí, grande (4.2 m) | se queda donde cayó |
-| Putter | no | sí, chica (1.6 m), donde para | se queda |
+| Hierro 7 | no | sí, al contacto (1.8 / 2.2 / 2.7 m) | **no pasa nada: hay que conectar** |
+| Wedge | no | sí, donde cae (4.2 / 5 / 6.3 m) | igual explota: cae adonde apuntaste |
+| Putter | no | no: le pega al que toca, a él solo | se queda ahí |
+
+El **escudo** frena cualquier pelota que le llegue de frente, venga rasante o en arco. Lo único que lo
+pasa es lo que cae a más de 45°, o sea el globo del wedge. Al del escudo se lo resuelve con un globo,
+enfriándolo, o pegándole de costado.
+
+El hierro tiene **dos modos** en el panel de balance, para probarle la identidad: *revienta* (el de
+arriba) y *atraviesa* (pasa de largo hasta a tres y abre su área donde cae, le pegue a alguien o no).
 
 ### Los poderes (`Q`, `W`, `E`)
 
 El poder vale para cualquier palo, y **cómo se reparte lo decide el palo**. La regla es una sola:
 *cuanto más rasante, más lineal y preciso; cuanto más alto, más zonal y amplio.*
 
-| | Con el driver (lineal) | Con el hierro (línea + área chica) | Con el wedge (área grande) | Con el putter (área chica) |
+| | Con el driver (lineal) | Con el hierro (revienta al contacto) | Con el wedge (área grande) | Con el putter (uno solo) |
 | --- | --- | --- | --- | --- |
-| **Q · Golpe** | daña a cada uno que atraviesa | daña a los que atraviesa y donde cae | daña donde cae, a muchos | daña al que frena la pelota |
-| **W · Escarcha** | enfría a cada uno de la línea | enfría la línea y donde cae | enfría un área grande | enfría donde para |
-| **E · Vendaval** | un pasillo angosto a lo largo del tiro | barre la línea y donde cae | los junta en un rectángulo grande | los junta donde para |
+| **Q · Golpe** | daña a cada uno que atraviesa | impacto al que toca, área a los de al lado | daña donde cae, a muchos | daña al que frena la pelota |
+| **W · Escarcha** | enfría a cada uno de la línea | enfría alrededor del que toca | enfría un área grande | enfría al que frena la pelota |
+| **E · Vendaval** | un pasillo angosto a lo largo del tiro | barre alrededor del que toca | los junta en un rectángulo grande | empuja al que frena la pelota |
 
 - **El golpe no tiene recarga: es el estado de reposo.** El vendaval recarga 3 s y la escarcha 4 s;
   se arman para un tiro y después la mano vuelve sola al golpe. Nunca se cambia solo a *otro* poder.
