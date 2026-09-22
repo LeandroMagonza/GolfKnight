@@ -196,8 +196,13 @@ describe('encantamientos', () => {
     for (const id of CLUB_ORDER) expect(CLUBS[id].minRange, id).toBeLessThanOrEqual(4);
   });
 
-  it('cada poder tiene su ícono para la punta de la línea; los palos ya no tienen', () => {
-    const icons = ENCHANT_ORDER.map((id) => ENCHANTS[id].icon);
+  it('cerca del mouse solo aparece el símbolo de lo que cambia el tiro y no se ve de otra forma', () => {
+    // el golpe es el estado de reposo, así que su símbolo estaría en todos los tiros; el vendaval ya se
+    // anuncia con su rectángulo en el piso. Los palos no tienen ninguno: tapaban la puntería
+    expect(ENCHANTS.damage.icon).toBe('');
+    expect(ENCHANTS.push.icon).toBe('');
+    expect(ENCHANTS.ice.icon).not.toBe('');
+    const icons = ENCHANT_ORDER.map((id) => ENCHANTS[id].icon).filter((s) => s !== '');
     expect(new Set(icons).size).toBe(icons.length);
     for (const id of CLUB_ORDER) expect(CLUBS[id]).not.toHaveProperty('icon');
   });

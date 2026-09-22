@@ -205,7 +205,12 @@ export interface Enchant {
   hint: string;
   /** Segundos de recarga. El golpe no tiene: es el que siempre está. */
   cooldown: number;
-  /** Símbolo que se dibuja en la punta de la línea de tiro. Los palos no tienen: tapaban la puntería. */
+  /**
+   * Símbolo que se dibuja en la punta de la línea de tiro, cerca del mouse. **Vacío = no se dibuja
+   * nada**, y es el caso normal: el golpe es el estado de reposo, así que un símbolo en cada tiro es
+   * ruido permanente, y el vendaval ya se anuncia con su rectángulo. El símbolo queda para lo que
+   * cambia el tiro y no se ve de otra forma. Los palos nunca tienen: tapaban la puntería.
+   */
   icon: string;
   color: number;
 }
@@ -218,17 +223,24 @@ export interface Enchant {
 export const ENCHANTS: Record<EnchantId, Enchant> = {
   damage: {
     id: 'damage', name: 'Golpe', title: 'daño', hint: 'Puro daño, el del palo a esa distancia. Siempre listo',
-    cooldown: 0, icon: '✦', color: 0xffb347,
+    cooldown: 0, icon: '', color: 0xffb347,
   },
   ice: {
     id: 'ice', name: 'Escarcha', title: 'los enfría', hint: 'Frío: camina lento, sin escudo y sin aura. No hace daño',
     cooldown: 4, icon: '❄', color: 0x7fd4ff,
   },
   push: {
-    id: 'push', name: 'Vendaval', title: 'los junta', hint: 'Los junta sobre la línea del tiro, en fila. No hace daño',
-    cooldown: 3, icon: '➤', color: 0xff6b4a,
+    id: 'push', name: 'Vendaval', title: 'los junta', hint: 'El viento va detrás de la pelota: los junta sobre la línea del tiro una vez que pasó. No hace daño',
+    cooldown: 3, icon: '', color: 0xff6b4a,
   },
 };
+
+/**
+ * Pelota de reserva (tecla S): la deja a los pies, en el puesto donde está parado. Es la salida para
+ * cuando los guardias tiran las pelotas lejos y quedás mirando llegar a la horda sin nada que pegarle.
+ * Se recarga sola, de a una, y se pueden guardar unas pocas: es un respiro, no una fuente infinita.
+ */
+export const RESERVE = { cooldown: 10, max: 2 };
 
 export const ENCHANT_ORDER: EnchantId[] = ['damage', 'ice', 'push'];
 

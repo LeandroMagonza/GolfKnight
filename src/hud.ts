@@ -1,6 +1,6 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
-import { CLUB_KEYS, CLUB_ORDER, CLUBS, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, MELEE_COOLDOWN, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { CLUB_KEYS, CLUB_ORDER, CLUBS, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, MELEE_COOLDOWN, RESERVE, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -53,7 +53,32 @@ export class Hud {
       const e = ENCHANTS[id];
       const color = '#' + e.color.toString(16).padStart(6, '0');
       return `<div class="club locked" data-ench="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${ENCHANT_KEYS[i]}</span><div class="name">${e.name}</div><div class="title">${e.title}</div><span class="cdlabel">⟳ ${e.cooldown} s</span><div class="cdnum"></div></div>`;
-    }).join('') + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
+    }).join('')
+      + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`
+      // la reserva: no es un poder, es de dónde sacás una pelota cuando no te queda ninguna cerca
+      + `<div class="club extra" data-ench="ball" style="--c:#fff1b8"><div class="cd"></div><span class="key">S</span><div class="name">Pelota</div><div class="title">×${RESERVE.max}</div><span class="cdlabel">llena</span><div class="cdnum"></div></div>`;
+  }
+
+  private shownReserve = '';
+
+  /**
+   * Pelotas de reserva (S): cuántas quedan y cuánto falta para la próxima. Con el cargador lleno no
+   * cuenta nada; con el cargador vacío el número grande es la espera, como en las recargas.
+   * @param left segundos que faltan para la próxima carga
+   */
+  setReserve(charges: number, left: number, total: number, max: number): void {
+    const el = this.enchantsEl.querySelector('[data-ench="ball"]') as HTMLElement | null;
+    if (!el) return;
+    const full = charges >= max;
+    const bar = el.querySelector('.cd') as HTMLElement;
+    bar.style.height = full || total <= 0 ? '0%' : `${(100 * left) / total}%`;
+    const key = `${charges}/${max}|${full ? '' : Math.ceil(left)}`;
+    if (key === this.shownReserve) return;
+    this.shownReserve = key;
+    (el.querySelector('.title') as HTMLElement).textContent = `×${charges}`;
+    (el.querySelector('.cdlabel') as HTMLElement).textContent = full ? 'llena' : `⟳ ${Math.ceil(left)} s`;
+    (el.querySelector('.cdnum') as HTMLElement).textContent = charges > 0 ? '' : String(Math.ceil(left));
+    el.classList.toggle('cooling', charges === 0);
   }
 
   private shownState = '';
@@ -106,8 +131,9 @@ export class Hud {
     if (key === this.shownEnchant) return;
     this.shownEnchant = key;
     for (const el of Array.from(this.enchantsEl.children) as HTMLElement[]) {
+      // en la fila también viven el palazo y la reserva, que no son poderes: no se les toca el estado
       const id = el.dataset.ench as EnchantId | undefined;
-      if (!id || id === ('melee' as EnchantId)) continue;
+      if (!id || !ENCHANT_ORDER.includes(id)) continue;
       el.classList.toggle('locked', !ready(id));
       el.classList.toggle('active', id === current.id);
     }

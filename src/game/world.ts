@@ -20,6 +20,17 @@ export const GUARD_POSTS: readonly (readonly [number, number, number])[] = [[-14
 export const PLAYER_MIN_Z = 1.5;
 export const PLAYER_MAX_Z = 48;
 const WALL_HEIGHT = 5;
+/** Plano de la muralla, y las torres que la flanquean, medio metro más adelante. */
+const WALL_Z = GATE_Z - 1.6;
+const TOWER_Z = WALL_Z + 0.4;
+const TOWER_RADIUS = 2.1;
+const TOWER_CAP_RADIUS = 2.4;
+/**
+ * Lo más adelantado que asoma de la muralla: el techo de las torres. **La cámara no pasa de acá.** Las
+ * torres están a x = ±4.2 y son anchas, así que desde un puesto del costado, con la cámara baja, la
+ * cámara quedaba adentro de una y le tapaba media pantalla al jugador.
+ */
+export const WALL_FRONT_Z = TOWER_Z + TOWER_CAP_RADIUS;
 
 function fairwayTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
@@ -171,7 +182,7 @@ export class World {
     const stone = new THREE.MeshStandardMaterial({ color: 0xa9a294, roughness: 0.95 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x7d776b, roughness: 0.95 });
     const roof = new THREE.MeshStandardMaterial({ color: 0x9c3b2e, roughness: 0.8 });
-    const wallZ = GATE_Z - 1.6;
+    const wallZ = WALL_Z;
     const span = 60;
     for (const side of [-1, 1]) {
       const len = span - GATE_HALF_WIDTH - 1.2;
@@ -186,9 +197,9 @@ export class World {
       // torres a los lados de la puerta
       // (bajas, para que no tapen la cámara cuando el golfista está cerca de la muralla)
       const towerH = WALL_HEIGHT + 1.2;
-      const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 2.1, towerH, 12), stone);
-      tower.position.set(side * (GATE_HALF_WIDTH + 1.6), towerH / 2, wallZ + 0.4);
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.6, 12), roof);
+      const tower = new THREE.Mesh(new THREE.CylinderGeometry(TOWER_RADIUS - 0.2, TOWER_RADIUS, towerH, 12), stone);
+      tower.position.set(side * (GATE_HALF_WIDTH + 1.6), towerH / 2, TOWER_Z);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(TOWER_CAP_RADIUS, 1.6, 12), roof);
       cap.position.set(tower.position.x, towerH + 0.8, tower.position.z);
       scene.add(tower, cap);
       // banderín de golf sobre la muralla, lejos de la puerta

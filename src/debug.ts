@@ -7,7 +7,7 @@
 // siguiente tiro y desde el siguiente enemigo que aparece; a los que ya están en el campo se les
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, hasArea, IRON_MODES, ironMode, QUALITY_LEVELS, setIronMode, type IronMode } from './core/clubs';
+import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, hasArea, IRON_MODES, ironMode, QUALITY_LEVELS, RESERVE, setIronMode, type IronMode } from './core/clubs';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
 
@@ -52,6 +52,7 @@ type Saved = SavedExtras & {
   bands?: number[];
   clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
   iron?: IronMode;
+  reserve?: { cooldown: number; max: number };
   enchants?: Record<string, number>;
   enemies?: Record<string, { hp: number; speed: number; damage: number; attackEvery?: number }>;
 };
@@ -78,6 +79,10 @@ export function loadBalance(): SavedExtras {
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
   }
   if (saved.iron && IRON_MODES[saved.iron]) setIronMode(saved.iron);
+  if (saved.reserve) {
+    if (typeof saved.reserve.cooldown === 'number') RESERVE.cooldown = saved.reserve.cooldown;
+    if (typeof saved.reserve.max === 'number') RESERVE.max = saved.reserve.max;
+  }
   for (const id of ENCHANT_ORDER) {
     const cd = saved.enchants?.[id];
     if (typeof cd === 'number') ENCHANTS[id].cooldown = cd;
@@ -107,6 +112,7 @@ export function saveBalance(extras: SavedExtras): void {
     };
     out.iron = ironMode();
   }
+  out.reserve = { cooldown: RESERVE.cooldown, max: RESERVE.max };
   for (const id of ENCHANT_ORDER) out.enchants![id] = ENCHANTS[id].cooldown;
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
     const s = ENEMIES[kind];
@@ -359,6 +365,16 @@ export class DebugPanel {
     }
     el.append(ench);
 
+    // ---- pelota de reserva ----
+    el.append(heading('Pelota de reserva (S)'));
+    const res = document.createElement('table');
+    const resRow = res.insertRow();
+    cell(resRow, 'recarga', 'l');
+    cell(resRow, this.field(() => RESERVE.cooldown, (v) => { RESERVE.cooldown = Math.max(0.5, v); }, 1)).title = 'segundos que tarda en reponerse una carga';
+    cell(resRow, 'cargas', 'l');
+    cell(resRow, this.field(() => RESERVE.max, (v) => { RESERVE.max = Math.max(1, Math.round(v)); }, 1)).title = 'cuántas pelotas se pueden tener guardadas a la vez';
+    el.append(res, note('S apoya una pelota en el puesto donde estás parado, si no hay una ya. Se repone de a una.'));
+
     // ---- enemigos ----
     el.append(heading('Enemigos'));
     const enemies = document.createElement('table');
@@ -515,6 +531,7 @@ export class DebugPanel {
     }
     lines.push('', 'poderes (recarga en segundos):');
     for (const id of ENCHANT_ORDER) lines.push(`  ${id}: ${ENCHANTS[id].cooldown}`);
+    lines.push('', `pelota de reserva (S): ${RESERVE.max} cargas, una cada ${RESERVE.cooldown} s`);
     lines.push('', 'enemigos (vida, velocidad, daño):');
     for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
       const s = ENEMIES[kind];

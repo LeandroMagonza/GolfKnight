@@ -59,6 +59,13 @@ describe('ballistics', () => {
     expect(Math.max(...path.map((p) => p.y))).toBeGreaterThan(8);
   });
 
+  it('la vista previa del rodado va pegada al piso, suba o baje el terreno', () => {
+    // el putter no vuela: su línea tiene que seguir la loma, no quedar colgada a la altura del puesto
+    const ground = (_x: number, z: number) => Math.sin(z / 7) * 2;
+    const path = previewPath({ x: 0, y: 0, z: 0 }, 0, 1, 20, 0, 12, undefined, ground);
+    for (const p of path) expect(p.y).toBeCloseTo(ground(p.x, p.z) + BALL_RADIUS, 6);
+  });
+
   it('launchSpeed crece con el alcance', () => {
     expect(launchSpeed(40, rad(30))).toBeGreaterThan(launchSpeed(20, rad(30)));
   });

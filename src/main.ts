@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, RESERVE, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -16,7 +16,7 @@ import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
-import { GATE_Z, GUARD_POSTS, World } from './game/world';
+import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, World } from './game/world';
 import { DebugPanel, loadBalance } from './debug';
 import { Hud } from './hud';
 import { Input } from './input';
@@ -78,6 +78,11 @@ const BOT = params.has('bot');
 const godMode = { godPlayer: false, godGate: false };
 /** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
 const disabledKinds = new Set<EnemyKind>((savedBalance.disabled ?? []) as EnemyKind[]);
+/**
+ * Pelotas de reserva (tecla S). Arranca con el cargador lleno y se repone de a una; los números están
+ * en core/clubs y se tocan en el panel de balance. `timer` cuenta hacia la próxima carga.
+ */
+const reserve = { charges: RESERVE.max, timer: 0 };
 
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
@@ -208,8 +213,35 @@ function hasBallHere(): boolean {
 }
 
 /**
- * La punta de la línea de tiro lleva el ícono del **poder**, no el del palo: el del palo tapaba justo el
- * punto al que se apunta y estorbaba. Va chico y levantado sobre el punto de caída, que queda libre.
+ * S: saca una pelota de la reserva y la apoya en el puesto donde está parado. Es la salida para cuando
+ * los guardias las tiran todas lejos y te toca mirar cómo llega la horda sin nada que pegarle. Se
+ * recarga sola, de a una, y guarda pocas: es un respiro, no una fuente infinita.
+ */
+function dropBall(): void {
+  if (!started || paused || ended || cardOpen || !player?.alive) return;
+  const i = tees.nearest(player.anchor.x);
+  if (Math.abs(tees.spots[i].x - player.anchor.x) >= 0.1) {
+    hud.feedback('Llegá al puesto primero', 'neutral');
+    return;
+  }
+  if (tees.hasBall(i)) {
+    hud.feedback('Acá ya hay pelota', 'neutral');
+    return;
+  }
+  if (reserve.charges <= 0) {
+    hud.feedback(`Reserva: ${Math.ceil(RESERVE.cooldown - reserve.timer)} s para la próxima`, 'neutral');
+    return;
+  }
+  reserve.charges--;
+  tees.place(i);
+  audio.bounce();
+  hud.feedback(reserve.charges ? `Pelota de la reserva · queda ${reserve.charges}` : 'Última pelota de la reserva', 'good');
+}
+
+/**
+ * La punta de la línea de tiro lleva el ícono del **poder**, y solo de los poderes que tienen uno (ver
+ * `Enchant.icon`): el golpe y el vendaval no dibujan nada. El del palo no va nunca, que tapaba justo el
+ * punto al que se apunta. Va chico y levantado sobre el punto de caída, que queda libre.
  */
 const tipTextures = new Map<EnchantId, THREE.CanvasTexture>();
 function tipTexture(enchant: Enchant): THREE.CanvasTexture {
@@ -260,7 +292,7 @@ function updatePreview(): void {
   const dmgLabel = club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
   hud.setMeter(charging, player.meter.power, player.meter.locked,
     `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]}${enchant.id === 'damage' ? ` · ${dmgLabel}` : ` · ${enchant.name}`}`);
-  tip.visible = show && ballHere;
+  tip.visible = show && ballHere && enchant.icon !== '';
   if (!show) {
     sweepBox.visible = false;
     return;
@@ -271,7 +303,8 @@ function updatePreview(): void {
   const lift = shotLift(club, range);
   const path = lift
     ? previewOver(launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, player.aimDir.x, player.aimDir.z, lift.speed, lift.angle), club.gravity ?? GRAVITY, heightAt, PREVIEW_POINTS)
-    : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity);
+    // el rodado no tiene vuelo que calcular, pero sí tiene que ir pegado al piso: se le pasa el terreno
+    : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity, relief.on ? heightAt : undefined);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
   // el arco se ve siempre, no solo mientras se carga
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
@@ -317,7 +350,7 @@ function updatePreview(): void {
   const tipX = tee.x + player.aimDir.x * tipAt;
   const tipZ = tee.z + player.aimDir.z * tipAt;
   tip.position.set(tipX, heightAt(tipX, tipZ) + 2.3, tipZ);
-  if (tipEnchant !== enchant.id) {
+  if (tip.visible && tipEnchant !== enchant.id) {
     tipEnchant = enchant.id;
     tipMat.map = tipTexture(enchant);
     tipMat.needsUpdate = true;
@@ -619,6 +652,7 @@ const input = new Input({
   step(right) {
     if (started && !paused && !ended && !cardOpen && player) player.step(-right);
   },
+  dropBall,
   melee() {
     if (!started || paused || ended || cardOpen || !player) return;
     if (player.meleeCooldown > 0) hud.feedback(`Palazo recargando: ${player.meleeCooldown.toFixed(1)} s`, 'neutral');
@@ -915,7 +949,9 @@ function updateCamera(dt: number): void {
   const pitch = THREE.MathUtils.degToRad(cam.pitch);
   const lookZ = player.anchor.z + cam.ahead;
   camLook.set(x, cam.rise, lookZ);
-  camPos.set(x, cam.rise + Math.sin(pitch) * cam.dist, Math.max(lookZ - Math.cos(pitch) * cam.dist, GATE_Z - 0.5));
+  // nunca se retrasa más allá de la cara de las torres: bajándola desde un puesto del costado, la
+  // cámara quedaba adentro de una torre y el techo tapaba un pedazo de pantalla
+  camPos.set(x, cam.rise + Math.sin(pitch) * cam.dist, Math.max(lookZ - Math.cos(pitch) * cam.dist, WALL_FRONT_Z + 0.6));
   const k = 1 - Math.exp(-5 * dt);
   camera.position.lerp(camPos, k);
   camLookNow.lerp(camLook, k);
@@ -970,6 +1006,16 @@ function frame(): void {
   if (player && !paused && !cardOpen) {
 
     if (started) gameClock += dt;
+    // la reserva se repone de a una, y solo con la partida en curso
+    if (started && !ended && reserve.charges < RESERVE.max) {
+      reserve.timer += dt;
+      if (reserve.timer >= RESERVE.cooldown) {
+        reserve.timer = 0;
+        reserve.charges++;
+      }
+    } else if (reserve.charges >= RESERVE.max) {
+      reserve.timer = 0;
+    }
     updateAim();
     const active = started && !ended;
     if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
@@ -991,6 +1037,7 @@ function frame(): void {
     hud.setClub(player.club, player.pendingClub);
     hud.setEnchant(player.enchant, player.cooldowns, enchantOwned);
     hud.setClubState(player.unlocked, player.meleeCooldown);
+    hud.setReserve(reserve.charges, Math.max(0, RESERVE.cooldown - reserve.timer), RESERVE.cooldown, RESERVE.max);
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScore(score, kills);
@@ -1053,7 +1100,9 @@ addEventListener('resize', () => {
   get traps() { return traps; },
   get enchant() { return player.enchant.id; },
   set enchant(id: EnchantId) { player.setEnchant(ENCHANTS[id]); },
-  cycleClub, selectEnchant, selectClub, enchantReady, setIronMode, ironMode,
+  cycleClub, selectEnchant, selectClub, enchantReady, setIronMode, ironMode, dropBall,
+  /** Pelotas de reserva (S): cuántas quedan y cuánto falta para la próxima. */
+  get reserve() { return { charges: reserve.charges, left: +Math.max(0, RESERVE.cooldown - reserve.timer).toFixed(1), max: RESERVE.max, cooldown: RESERVE.cooldown }; },
   /** Qué campo salió esta partida, y el panel de balance. */
   get course() { return { index: relief.index, name: gameCourse.name, relieve: relief.on }; },
   get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },

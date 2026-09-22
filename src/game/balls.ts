@@ -35,6 +35,12 @@ export interface Ball {
   dir: THREE.Vector3;
   hitIds: Set<number>;
   hits: number;
+  /**
+   * Vendaval con un palo lineal: el pasillo de viento que va **detrás** de la pelota. `swept` es hasta
+   * dónde llegó el viento, que nunca pasa a la pelota, y `hits` lleva la cuenta para avisar una sola
+   * vez al final.
+   */
+  wind?: { half: number; range: number; swept: number; hits: number; toldAt: number; reported: boolean };
   /** Ya abrió su área: no la vuelve a abrir aunque siga rodando. */
   burst: boolean;
   /** Enemigos que mató esta pelota. */
@@ -101,14 +107,11 @@ export class Balls {
     };
     this.list.push(ball);
     // El vendaval con el driver, que es lineal y no abre área, no tiene punto de caída: el viento pasa
-    // por todo el tiro, en un pasillo angosto, y deja en fila a los que estaban cerca de la línea.
+    // por todo el tiro, en un pasillo angosto, y deja en fila a los que estaban cerca de la línea. Va
+    // **detrás** de la pelota, no antes: arrastraba a los enemigos hacia la línea en el mismo instante
+    // en que se soltaba el tiro, así que la pelota salía hacia un campo que ya se había reacomodado.
     if (ball.club.pierces && !hasArea(ball.club) && ball.enchant.id === 'push') {
-      const half = PUSH_LINE_HALF_WIDTH * QUALITY_AREA[ball.quality - 1];
-      const mid = ball.from.clone().addScaledVector(ball.dir, range / 2);
-      mid.y = heightAt(mid.x, mid.z);
-      const hits = this.horde.sweep(mid, ball.dir, half, range / 2);
-      this.effects.swipe(mid, half);
-      this.onEvent?.({ type: 'land', enchant: 'push', pos: mid, hits, quality: ball.quality });
+      ball.wind = { half: PUSH_LINE_HALF_WIDTH * QUALITY_AREA[ball.quality - 1], range, swept: 0, hits: 0, toldAt: 0, reported: false };
     }
     return ball;
   }
@@ -211,8 +214,41 @@ export class Balls {
     }
   }
 
+  /**
+   * El pasillo de viento que sigue a la pelota del vendaval lineal. Barre **solo el tramo que la pelota
+   * ya dejó atrás**, así que a cada uno lo acomoda después de pasarle por al lado, nunca antes. Los que
+   * va agarrando quedan marcados en `hitIds`, así que el viento no los vuelve a mover.
+   */
+  private blowWind(ball: Ball): void {
+    const w = ball.wind!;
+    const s = ball.state;
+    const gone = Math.min(w.range, (s.pos.x - ball.from.x) * ball.dir.x + (s.pos.z - ball.from.z) * ball.dir.z);
+    if (gone > w.swept) {
+      const mid = ball.from.clone().addScaledVector(ball.dir, (w.swept + gone) / 2);
+      mid.y = heightAt(mid.x, mid.z);
+      w.hits += this.horde.sweep(mid, ball.dir, w.half, (gone - w.swept) / 2, ball.hitIds);
+      // el remolino cada tantos metros: uno por cuadro sería una nube continua
+      if (gone - w.toldAt >= 6) {
+        w.toldAt = gone;
+        this.effects.swipe(new THREE.Vector3(s.pos.x, heightAt(s.pos.x, s.pos.z), s.pos.z), w.half);
+      }
+      w.swept = gone;
+    }
+    // el aviso sale una sola vez, cuando el viento ya terminó de pasar
+    if (!w.reported && (ball.done || s.resting || w.swept >= w.range - 0.05)) {
+      w.reported = true;
+      ball.hits += w.hits;
+      const mid = ball.from.clone().addScaledVector(ball.dir, w.swept / 2);
+      mid.y = heightAt(mid.x, mid.z);
+      this.onEvent?.({ type: 'land', enchant: 'push', pos: mid, hits: w.hits, quality: ball.quality });
+    }
+  }
+
   private collide(ball: Ball): void {
     const s = ball.state;
+    // la pelota del vendaval no golpea a nadie: es el viento que va atrás el que los acomoda. Si además
+    // los atravesara, quedarían marcados antes de que el viento les llegue y no los movería ninguno
+    if (ball.wind) return;
     for (const e of this.horde.enemies) {
       if (!e.alive || e.passed || ball.hitIds.has(e.id)) continue;
       // la altura se mide desde los pies del enemigo, que con relieve no están en y = 0
@@ -268,6 +304,8 @@ export class Balls {
         }
         this.collide(ball);
       }
+      // el viento del vendaval lineal va detrás: barre lo que la pelota ya pasó
+      if (ball.wind) this.blowWind(ball);
       // la que para sin haber tocado a nadie y abre área por el piso (el globo) hace su efecto ahí
       if (s.resting && !ball.done && !ball.burst && ball.club.burstsOnGround && hasArea(ball.club)) this.burst(ball);
       if (s.resting) ball.restTime += dt;

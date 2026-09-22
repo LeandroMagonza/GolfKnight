@@ -118,13 +118,21 @@ export function stepBall(s: BallState, dt: number, p: BounceParams, ground?: Gro
   return true;
 }
 
-/** Puntos de la trayectoria hasta el primer contacto con el piso (o hasta frenar, si rueda). */
-export function previewPath(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number, points = 24, gravity = GRAVITY): Vec3[] {
+/**
+ * Puntos de la trayectoria hasta el primer contacto con el piso (o hasta frenar, si rueda).
+ *
+ * @param ground altura del piso, para el tiro rodado. **La pelota que rueda va siempre contra el
+ * piso**, así que sin esto la línea del putter salía plana a la altura del puesto: sobre un campo con
+ * relieve quedaba colgada en el aire donde el terreno baja, como si el tiro terminara elevado.
+ */
+export function previewPath(from: Vec3, dirX: number, dirZ: number, range: number, loftRad: number, points = 24, gravity = GRAVITY, ground?: Ground): Vec3[] {
   const out: Vec3[] = [];
   if (loftRad <= 0.001) {
     for (let i = 0; i <= points; i++) {
       const d = (range * i) / points;
-      out.push({ x: from.x + dirX * d, y: BALL_RADIUS, z: from.z + dirZ * d });
+      const x = from.x + dirX * d;
+      const z = from.z + dirZ * d;
+      out.push({ x, y: (ground?.(x, z) ?? 0) + BALL_RADIUS, z });
     }
     return out;
   }
