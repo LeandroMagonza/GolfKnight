@@ -793,6 +793,8 @@ async function cycleSkin(delta = 1): Promise<void> {
     const next = (skinIndex + delta + SKINS.length) % SKINS.length;
     const fresh = await makePlayer(SKINS[next]);
     fresh.placeAt(player.spotIndex);
+    // el puesto es el ancla: copiarlo deja al golfista nuevo exactamente donde estaba, aun a mitad de camino
+    fresh.anchor.copy(player.anchor);
     fresh.position.copy(player.position);
     fresh.hp = player.hp;
     for (const id of player.unlocked) fresh.unlocked.add(id);
@@ -886,13 +888,15 @@ function updateCamera(dt: number): void {
     camera.lookAt(player.position.x + f.x * 0.6, 0.8, player.position.z + f.z * 0.6);
     return;
   }
-  // nunca se mete detrás de la muralla: cerca de la puerta mira más desde arriba
-  const x = player.position.x * 0.75;
+  // La cámara sigue al **puesto**, no al cuerpo. Apuntar mueve al golfista alrededor de la pelota, y si
+  // la cámara lo seguía, moverse el mouse movía la cámara: el foco es dónde está la pelota.
+  // Nunca se mete detrás de la muralla: cerca de la puerta mira más desde arriba.
+  const x = player.anchor.x * 0.75;
   // La cámara se arma desde el punto que mira: se aleja `dist` con una inclinación de `pitch` grados.
   // Así la rueda cambia el ángulo sin cambiar qué tan lejos está, y las flechas suben las dos cosas a
   // la vez, que es mover la cámara para arriba sin girarla.
   const pitch = THREE.MathUtils.degToRad(cam.pitch);
-  const lookZ = player.position.z + cam.ahead;
+  const lookZ = player.anchor.z + cam.ahead;
   camLook.set(x, cam.rise, lookZ);
   camPos.set(x, cam.rise + Math.sin(pitch) * cam.dist, Math.max(lookZ - Math.cos(pitch) * cam.dist, GATE_Z - 0.5));
   const k = 1 - Math.exp(-5 * dt);
