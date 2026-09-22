@@ -7,8 +7,8 @@
 // después sigue rodando. El vendaval con el driver es la excepción prolija: como no tiene punto de
 // caída, el viento pasa como un pasillo angosto a lo largo de todo el tiro.
 import * as THREE from 'three';
-import { BALL_RADIUS, launch, launchWith, stepBall, type BallState } from '../core/ballistics';
-import { areaDamageFor, damageFor, hasArea, ICE_LINE_SECONDS, ICE_SECONDS, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, spreadFor, type Club, type Enchant, type EnchantId } from '../core/clubs';
+import { BALL_RADIUS, launch, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
+import { areaDamageFor, damageFor, hasArea, rollFrictionFor, ICE_LINE_SECONDS, ICE_SECONDS, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, spreadFor, type Club, type Enchant, type EnchantId } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
@@ -24,6 +24,8 @@ const SETTLE_AFTER = 1.8;
 export interface Ball {
   state: BallState;
   club: Club;
+  /** Rebote y rodado ya resueltos para este tiro: la fricción depende del nivel del golpe. */
+  bounce: BounceParams;
   enchant: Enchant;
   /** Nivel de calidad del golpe: 1, 2 o 3. */
   quality: number;
@@ -70,9 +72,16 @@ export class Balls {
   /** @param lift velocidad y ángulo de salida ya calculados contra el terreno, con relieve */
   fire(shot: Shot, range: number, lift: { speed: number; angle: number } | null = null): Ball {
     const loft = THREE.MathUtils.degToRad(shot.club.loftDeg);
+    // la fricción del rodado sale del nivel del golpe: con el putter, cuanto mejor le pegás, más rápido va
+    const bounce: BounceParams = {
+      restitution: shot.club.restitution,
+      bounceKeep: shot.club.bounceKeep,
+      gravity: shot.club.gravity,
+      rollFriction: rollFrictionFor(shot.club, shot.quality),
+    };
     const state = lift
       ? launchWith({ x: shot.from.x, y: heightAt(shot.from.x, shot.from.z) + BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, lift.speed, lift.angle)
-      : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity, shot.club.rollFriction);
+      : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity, bounce.rollFriction);
     const color = shot.enchant.id === 'damage' ? shot.club.color : shot.enchant.color;
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: color, emissiveIntensity: shot.quality >= 3 ? 1.6 : 0.7 });
     const mesh = new THREE.Mesh(ballGeo, mat);
@@ -85,7 +94,7 @@ export class Balls {
     trail.frustumCulled = false;
     this.scene.add(mesh, trail);
     const ball: Ball = {
-      state, club: shot.club, enchant: shot.enchant, quality: shot.quality,
+      state, club: shot.club, bounce, enchant: shot.enchant, quality: shot.quality,
       from: shot.from.clone(),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(),
       hitIds: new Set(), hits: 0, burst: false, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
@@ -243,7 +252,7 @@ export class Balls {
       const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
       for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
-        const landed = stepBall(s, dt / steps, ball.club, relief.on ? heightAt : undefined);
+        const landed = stepBall(s, dt / steps, ball.bounce, relief.on ? heightAt : undefined);
         // la muralla devuelve la pelota
         if (s.pos.z < GATE_Z - 0.4 && s.vel.z < 0) {
           s.pos.z = GATE_Z - 0.4;

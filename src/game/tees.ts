@@ -6,11 +6,17 @@
 // acumula. Nunca caen en el puesto donde está parado el golfista: después de cada tiro hay que moverse.
 import * as THREE from 'three';
 import { BALL_RADIUS } from '../core/ballistics';
-import { FIELD_HALF_WIDTH, TEE_LINE_Z } from './world';
+import { TEE_LINE_Z } from './world';
 
 /** Línea de los puestos, y separación entre ellos. La define world: es el 0 de las marcas del campo. */
 export const TEE_Z = TEE_LINE_Z;
 export const TEE_SPACING = 4;
+/**
+ * Puestos a cada lado del central: 3 y 3, o sea 7 en total. Los dos de los extremos (a 16 m) se
+ * sacaron: quedaban tan al costado que desde ahí casi todo el campo era un tiro cruzado, y para el
+ * golfista eran un viaje de cuatro puestos para ir a buscar una pelota.
+ */
+const SPOTS_PER_SIDE = 3;
 export const MAX_BALLS = 3;
 /** Segundos hasta que sale la próxima pelota, según cuántas hay (contando las que vienen en el aire). */
 const REFILL_DELAY = [0.2, 0.7, 1.5];
@@ -53,7 +59,7 @@ export class Tees {
   constructor(private readonly scene: THREE.Scene) {
     const stickMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cf, roughness: 0.8 });
     const flagMat = new THREE.MeshStandardMaterial({ color: 0xd8413a, side: THREE.DoubleSide, roughness: 0.9 });
-    const count = Math.floor((FIELD_HALF_WIDTH - 2) / TEE_SPACING) * 2 + 1;
+    const count = SPOTS_PER_SIDE * 2 + 1;
     const half = (count - 1) / 2;
     for (let i = 0; i < count; i++) {
       const x = (i - half) * TEE_SPACING;

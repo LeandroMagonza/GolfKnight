@@ -70,8 +70,18 @@ export interface Club {
   maxHits: number;
   /** Gravedad propia del vuelo. Más gravedad = mismo globo, pero llega mucho antes. */
   gravity?: number;
-  /** Cuánto lo frena el pasto al rodar. Menos que lo normal = rueda lento y tarda en parar. */
-  rollFriction?: number;
+  /**
+   * Cuánto lo frena el pasto al rodar, **uno por nivel de golpe**. La velocidad de salida se calcula
+   * para que la pelota pare justo en el punto pedido, así que **más fricción = sale más fuerte y llega
+   * antes**: por eso cargar más sube este número. Vacío = la fricción normal del pasto.
+   */
+  rollFriction?: number[];
+  /**
+   * Distancia fija, en metros: el mouse decide **solo la dirección** y el tiro siempre llega igual de
+   * lejos. 0 = la distancia la da el cursor, como siempre. Nació del putter: apuntando cerca del
+   * enemigo la pelota frenaba antes de llegar, así que había que apuntar más atrás que el blanco.
+   */
+  fixedRange: number;
   color: number;
 }
 
@@ -105,7 +115,7 @@ export const CLUBS: Record<ClubId, Club> = {
     loftDeg: 3.5, minRange: 4, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
     pierces: true, burstsOnGround: false, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
-    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, color: CLUB_COLOR,
+    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 50, color: CLUB_COLOR,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
@@ -114,7 +124,7 @@ export const CLUBS: Record<ClubId, Club> = {
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
     areaDamage: [[1, 2, 4], [1, 2, 4], [1, 2, 4]],
-    knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: 6, color: CLUB_COLOR,
+    knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: [6, 6, 6], fixedRange: 0, color: CLUB_COLOR,
   },
   wedge: {
     id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no',
@@ -122,22 +132,27 @@ export const CLUBS: Record<ClubId, Club> = {
     pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto
     damage: [[1, 2, 5], [1, 2, 5], [1, 2, 5]],
-    knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, color: CLUB_COLOR,
+    knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, fixedRange: 0, color: CLUB_COLOR,
   },
   putter: {
     id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno y se carga rápido',
     loftDeg: 0, minRange: 2, maxRange: 20, chargeTime: 0.5, spread: [0, 0, 0],
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
-    // rollFriction alto = sale más fuerte y llega antes (la velocidad de salida se calcula para que la
-    // pelota pare justo en el punto apuntado). Con 3 tardaba casi 4 s en cruzar 20 m
-    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: 7, color: CLUB_COLOR,
+    // siempre rueda los 20 m: apuntando cerca del enemigo frenaba antes de llegar. Y cuanto mejor el
+    // golpe, más rápido va (la fricción decide la velocidad de salida, no la distancia)
+    knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: [20, 50, 80], fixedRange: 20, color: CLUB_COLOR,
   },
 };
 
 /** Radio del área de un palo para un nivel de golpe (1, 2, 3). 0 = no abre área. */
 export function spreadFor(club: Club, quality: number): number {
   return club.spread[Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1] ?? 0;
+}
+
+/** Cuánto lo frena el pasto para un nivel de golpe. Sin tabla propia, la fricción normal del pasto. */
+export function rollFrictionFor(club: Club, quality: number): number | undefined {
+  return club.rollFriction?.[Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1];
 }
 
 /** ¿Este palo abre área en algún nivel? */

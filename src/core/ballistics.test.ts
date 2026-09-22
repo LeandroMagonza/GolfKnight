@@ -37,7 +37,8 @@ describe('ballistics', () => {
     let top = 0;
     for (let i = 0; i < 5000; i++) {
       top = Math.max(top, s.pos.y);
-      if (stepBall(s, 1 / 240, club)) break;
+      // la fricción del rodado es por nivel de golpe, así que el paso recibe los parámetros ya resueltos
+      if (stepBall(s, 1 / 240, { restitution: club.restitution, bounceKeep: club.bounceKeep, gravity: club.gravity })) break;
     }
     expect(top).toBeLessThan(2.2);
   });

@@ -50,7 +50,7 @@ export interface SavedExtras {
 
 type Saved = SavedExtras & {
   bands?: number[];
-  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'rollFriction', number> & { spread: number[]; damage: number[][]; areaDamage: number[][] }>>;
+  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
   iron?: IronMode;
   enchants?: Record<string, number>;
   enemies?: Record<string, { hp: number; speed: number; damage: number; attackEvery?: number }>;
@@ -69,10 +69,11 @@ export function loadBalance(): SavedExtras {
     const from = saved.clubs?.[id];
     if (!from) continue;
     const club = CLUBS[id];
-    for (const k of ['minRange', 'maxRange', 'chargeTime', 'rollFriction'] as const) {
+    for (const k of ['minRange', 'maxRange', 'chargeTime', 'fixedRange'] as const) {
       if (typeof from[k] === 'number') club[k] = from[k];
     }
     if (from.spread?.length === club.spread.length) club.spread = from.spread;
+    if (from.rollFriction?.length && club.rollFriction) club.rollFriction = from.rollFriction;
     if (from.damage) club.damage = from.damage;
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
   }
@@ -100,7 +101,8 @@ export function saveBalance(extras: SavedExtras): void {
     const c = CLUBS[id];
     out.clubs![id] = {
       minRange: c.minRange, maxRange: c.maxRange, spread: c.spread, chargeTime: c.chargeTime,
-      rollFriction: c.rollFriction, damage: c.damage,
+      fixedRange: c.fixedRange, damage: c.damage,
+      ...(c.rollFriction ? { rollFriction: c.rollFriction } : {}),
       ...(c.areaDamage ? { areaDamage: c.areaDamage } : {}),
     };
     out.iron = ironMode();
@@ -250,6 +252,14 @@ export class DebugPanel {
           }
         }
       }
+      // la rapidez del rodado, una por nivel de golpe: cuanto mejor el golpe, más rápido va
+      if (club.rollFriction) {
+        const speedRow = table.insertRow();
+        cell(speedRow, 'rapidez', 'l').title = 'cuánto sale de fuerte la pelota rodada, por nivel de golpe; más alto = llega antes';
+        for (let q = 1; q <= QUALITY_LEVELS; q++) {
+          cell(speedRow, this.field(() => club.rollFriction![q - 1], (v) => { club.rollFriction![q - 1] = Math.max(1, v); }, 5));
+        }
+      }
       // el radio del área, uno por nivel de golpe
       if (hasArea(club)) {
         const areaRow = table.insertRow();
@@ -269,6 +279,31 @@ export class DebugPanel {
       cell(legend, 'máx');
       cell(legend, 'carga');
       el.append(table);
+      // distancia fija: el mouse decide solo la dirección
+      const fixedRow = document.createElement('div');
+      fixedRow.className = 'row';
+      const fixed = document.createElement('button');
+      fixed.type = 'button';
+      fixed.title = 'El mouse decide solo la dirección: el tiro siempre llega igual de lejos';
+      const box = numberField(() => club.fixedRange || club.maxRange, (v) => { club.fixedRange = Math.max(1, v); paintFixed(); this.save(); }, 1);
+      const paintFixed = () => {
+        const on = club.fixedRange > 0;
+        fixed.textContent = on ? `distancia fija: ${club.fixedRange} m` : 'distancia por el cursor';
+        fixed.classList.toggle('on', on);
+        box.style.display = on ? '' : 'none';
+      };
+      fixed.addEventListener('click', () => {
+        fixed.blur();
+        club.fixedRange = club.fixedRange > 0 ? 0 : Math.round(club.maxRange * 0.75);
+        box.value = String(club.fixedRange || club.maxRange);
+        paintFixed();
+        this.save();
+      });
+      paintFixed();
+      this.track(box, () => club.fixedRange || club.maxRange);
+      box.style.width = '70px';
+      fixedRow.append(fixed, box);
+      el.append(fixedRow);
       // el hierro tiene dos formas de entregar: se prueban acá
       if (club.id === 'iron') {
         const modes = document.createElement('div');
@@ -310,10 +345,6 @@ export class DebugPanel {
     cell(bandRow, this.field(() => BAND_LIMITS[0], (v) => { BAND_LIMITS[0] = v; }));
     cell(bandRow, 'media hasta', 'l');
     cell(bandRow, this.field(() => BAND_LIMITS[1], (v) => { BAND_LIMITS[1] = v; }));
-    const puttRow = bands.insertRow();
-    cell(puttRow, 'putter: rapidez', 'l').title = 'cuánto sale de fuerte la pelota rodada; más alto = llega antes';
-    cell(puttRow, this.field(() => CLUBS.putter.rollFriction ?? 0, (v) => { CLUBS.putter.rollFriction = Math.max(1, v); }, 1));
-    cell(puttRow, 'más = más rápido', 'l');
     el.append(bands, note('Los metros se cuentan desde la línea de los puestos, la que dice 0 en el campo. El tiempo de carga es de cada palo y está arriba, en su tabla.'));
 
     // ---- poderes ----

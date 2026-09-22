@@ -121,9 +121,21 @@ function updateAim(): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
   raycaster.setFromCamera(new THREE.Vector2(input.pointer.x, input.pointer.y), camera);
-  const onTerrain = relief.on ? raycastTerrain(raycaster.ray.origin, raycaster.ray.direction) : null;
-  const hit = onTerrain ? new THREE.Vector3(onTerrain.x, 0, onTerrain.z) : raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
-  if (hit) aimPoint.copy(hit);
+  // El punto apuntado sale de cortar el rayo con **el plano a la altura del terreno de ahí**, y se
+  // itera un par de veces para que converja. No se usa el choque contra el terreno: ese se traba en la
+  // cara de una loma y, al pasarla, el cursor pegaba un salto de varios metros.
+  const hit = raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
+  if (hit) {
+    if (relief.on) {
+      for (let i = 0; i < 3; i++) {
+        groundPlane.constant = -heightAt(hit.x, hit.z);
+        if (!raycaster.ray.intersectPlane(groundPlane, hit)) break;
+      }
+      groundPlane.constant = 0;
+      hit.y = 0;
+    }
+    aimPoint.copy(hit);
+  }
   else {
     // el mouse está sobre el horizonte: apunta lejos en esa dirección
     aimPoint.copy(player.position).addScaledVector(raycaster.ray.direction.clone().setY(0).normalize(), 80);
@@ -144,6 +156,9 @@ function updateAim(): void {
  * ver con la distancia; solo dice qué tan bien se le pegó.
  */
 function shotRange(club: Club): number {
+  // con distancia fija el mouse decide solo la dirección: el tiro siempre llega igual de lejos. El
+  // putter lo necesita porque, apuntando cerca del enemigo, la pelota frenaba antes de llegar
+  if (club.fixedRange > 0) return THREE.MathUtils.clamp(club.fixedRange, club.minRange, club.maxRange);
   player.teePosition(tee);
   return THREE.MathUtils.clamp(Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z), club.minRange, club.maxRange);
 }
@@ -291,7 +306,9 @@ function updatePreview(): void {
     sweepEdgeMat.opacity = charging ? 0.95 : 0.45;
   } else {
     landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
-    landing.scale.setScalar(Math.max(0.7, radius));
+    // el anillo solo muestra el área cuando el área sale por caer al piso (el globo). El hierro tiene
+    // que conectar con alguien, así que dibujarle el círculo grande prometía algo que no pasa
+    landing.scale.setScalar(club.burstsOnGround ? Math.max(0.7, radius) : 0.7);
     landingMat.opacity = charging ? 0.85 : 0.35;
     landingMat.color.setHex(enchant.id === 'damage' ? club.color : enchant.color);
   }

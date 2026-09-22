@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, hasArea, ironMode, setIronMode, spreadFor,
+  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
   ICE_SECONDS, isLob, KNOCK_DECAY, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
@@ -25,7 +25,25 @@ describe('palos', () => {
     expect(CLUBS.putter.loftDeg).toBe(0);
     expect(isLob(CLUBS.putter)).toBe(false);
     // rueda de verdad, pero no lento: con poca fricción salía flojo y tardaba una eternidad en llegar
-    expect(CLUBS.putter.rollFriction).toBeGreaterThanOrEqual(ROLL_FRICTION * 0.7);
+    expect(rollFrictionFor(CLUBS.putter, 1)).toBeGreaterThanOrEqual(ROLL_FRICTION * 0.7);
+  });
+
+  it('el putter va más rápido cuanto mejor le pegás, y siempre rueda la misma distancia', () => {
+    for (let q = 2; q <= QUALITY_LEVELS; q++) {
+      expect(rollFrictionFor(CLUBS.putter, q)!).toBeGreaterThan(rollFrictionFor(CLUBS.putter, q - 1)!);
+    }
+    // distancia fija: el cursor decide solo la dirección. Apuntando cerca del enemigo, la pelota
+    // frenaba antes de llegar y había que apuntar más atrás que el blanco
+    expect(CLUBS.putter.fixedRange).toBe(CLUBS.putter.maxRange);
+  });
+
+  it('la distancia fija nunca se sale del alcance del palo', () => {
+    for (const id of CLUB_ORDER) {
+      const c = CLUBS[id];
+      if (!c.fixedRange) continue;
+      expect(c.fixedRange, id).toBeGreaterThanOrEqual(c.minRange);
+      expect(c.fixedRange, id).toBeLessThanOrEqual(c.maxRange);
+    }
   });
 
   it('el área crece con el nivel del golpe, en todos los que abren área', () => {
