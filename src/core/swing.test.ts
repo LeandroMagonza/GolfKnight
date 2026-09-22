@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHARGE_LEVELS, chargeLevel, CLUBS, CRIT_DAMAGE } from './clubs';
+import { CLUBS, QUALITY_FROM, qualityOf } from './clubs';
 import { MIN_POWER, PERFECT_FROM, REBOUND_SPEED, RISE_CURVE, SwingMeter } from './swing';
 
 describe('SwingMeter', () => {
@@ -44,28 +44,21 @@ describe('SwingMeter', () => {
     expect(window).toBeLessThan(0.1);
   });
 
-  it('daño por segundo: el crítico es lo que más rinde, después la carga completa, y spamear toques lo que menos', () => {
-    // Cada tiro cuesta el tiempo de carga más un fijo (bajar el palo, recuperarse, correr al otro puesto).
-    const driverCharge = CLUBS.driver.chargeTime;
-    const timeToPower = (p: number) => Math.pow(p, 1 / RISE_CURVE) * driverCharge;
-    const dpsAt = (fixed: number) => {
-      const levels: number[] = [];
-      for (let level = 1; level <= CHARGE_LEVELS; level++) {
-        expect(chargeLevel(Math.max(MIN_POWER, (level - 1) / CHARGE_LEVELS))).toBe(level);
-        levels.push(level / (fixed + (level === 1 ? 0 : timeToPower((level - 1) / CHARGE_LEVELS))));
-      }
-      return { levels, crit: CRIT_DAMAGE / (fixed + timeToPower(PERFECT_FROM)) };
-    };
-    // Con un fijo realista cada nivel rinde más que el anterior.
-    for (const fixed of [0.7, 0.9]) {
-      const { levels, crit } = dpsAt(fixed);
-      for (let i = 1; i < levels.length; i++) expect(levels[i]).toBeGreaterThan(levels[i - 1]);
-      expect(crit).toBeGreaterThan(levels[levels.length - 1]);
+  it('la barra es puro timing: cada nivel de calidad pide llegar más arriba, y el mejor es una ventana angosta', () => {
+    // Antes la barra decidía el daño Y el alcance, y para pegar fuerte había que tirar lejos. Ahora la
+    // distancia la da el mouse: lo único que decide la barra es qué tan bien le pegaste.
+    const m = new SwingMeter();
+    m.start(CLUBS.driver.chargeTime);
+    const seen = new Set<number>();
+    for (let t = 0; t < CLUBS.driver.chargeTime; t += 1 / 240) {
+      m.update(1 / 240);
+      seen.add(qualityOf(m.power));
     }
-    // Aun siendo optimista con el fijo, el orden que importa se mantiene: crítico, carga completa, toque.
-    const fast = dpsAt(0.5);
-    expect(fast.crit).toBeGreaterThan(fast.levels[CHARGE_LEVELS - 1]);
-    expect(fast.levels[CHARGE_LEVELS - 1]).toBeGreaterThan(fast.levels[0]);
+    expect([...seen].sort()).toEqual([1, 2, 3]);
+    // el nivel 3 está al final de la subida: no se llega de casualidad
+    const timeTo = (p: number) => Math.pow(p, 1 / RISE_CURVE) * CLUBS.driver.chargeTime;
+    expect(timeTo(QUALITY_FROM[2])).toBeGreaterThan(0.9 * CLUBS.driver.chargeTime);
+    expect(timeTo(QUALITY_FROM[2]) - timeTo(QUALITY_FROM[1])).toBeGreaterThan(0.15);
   });
 
   it('el alcance llega al máximo y se queda, aunque la potencia siga rebotando', () => {

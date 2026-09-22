@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CLUBS, MELEE_COOLDOWN, type Club, type ClubId } from '../core/clubs';
+import { CLUBS, ENCHANTS, MELEE_COOLDOWN, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from '../core/clubs';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
@@ -18,11 +18,11 @@ export type PlayerMode = 'free' | 'charging' | 'swinging' | 'melee';
 
 export interface Shot {
   club: Club;
-  /** Potencia al soltar: define el daño y la fuerza del efecto. */
+  enchant: Enchant;
+  /** Calidad del golpe: 1, 2 o 3. Puro timing; la distancia la decide el mouse. */
+  quality: number;
+  /** Potencia cruda al soltar, para los sonidos. */
   power: number;
-  /** Alcance 0..1: la carga máxima a la que se llegó. */
-  reach: number;
-  perfect: boolean;
   from: THREE.Vector3;
   dir: THREE.Vector3;
 }
@@ -74,6 +74,8 @@ export class Player {
   /** El swing no encontró pelota. */
   onWhiff: (() => void) | null = null;
   club: Club = CLUBS.driver;
+  /** Encantamiento en la mano: qué hace la pelota cuando llega. */
+  enchant: Enchant = ENCHANTS.damage;
   mode: PlayerMode = 'free';
   /** Hacia dónde apunta (unitario en el plano). Lo fija el juego en cada cuadro desde el mouse. */
   readonly aimDir = new THREE.Vector3(0, 0, 1);
@@ -85,16 +87,16 @@ export class Player {
   pendingClub: Club | null = null;
   /** Palos que ya se pueden usar. Las oleadas los van habilitando. */
   readonly unlocked = new Set<ClubId>(['driver']);
-  /** Segundos de recarga que le quedan a cada palo. El del putter es la recarga del salto. */
-  readonly cooldowns: Record<ClubId, number> = { driver: 0, iron: 0, wedge: 0, putter: 0 };
+  /** Segundos de recarga que le quedan a cada encantamiento. Los palos no tienen recarga. */
+  readonly cooldowns: Record<EnchantId, number> = { damage: 0, ice: 0, push: 0 };
   /** Segundos de recarga que le quedan al palazo. */
   meleeCooldown = 0;
   /** Se llama en el instante en que el palazo conecta. */
   onMelee: (() => void) | null = null;
   private meleeHit = false;
   private meleeTime = 0;
-  /** Se quiso usar un palo que todavía está recargando. */
-  onDenied: ((club: Club) => void) | null = null;
+  /** Se quiso usar un encantamiento que todavía está recargando. */
+  onDenied: ((enchant: Enchant) => void) | null = null;
   /** El alma en pena que lo tiene agarrado: no puede caminar ni tirar hasta sacársela a palazos. */
   grabbedBy: Enemy | null = null;
   private yaw = 0;
@@ -171,20 +173,15 @@ export class Player {
   }
 
   /**
-   * Cambia de palo. Mientras se carga, cambia en el acto y la carga arranca de nuevo con el palo nuevo
-   * (si está recargando, no cambia y la carga sigue). Con el swing ya bajando no se puede cambiar lo que
-   * está en las manos: el pedido queda en cola y entra solo cuando el tiro termina. Pedir el palo que ya
-   * está en uso vacía la cola.
+   * Cambia de palo: cambia la distancia a la que pega y cómo llega la pelota. Mientras se carga cambia
+   * en el acto y la carga arranca de nuevo. Con el swing ya bajando no se puede cambiar lo que está en
+   * las manos: el pedido queda en cola y entra cuando el tiro termina.
    */
   setClub(club: Club): void {
     if (!this.unlocked.has(club.id)) return;
     if (this.mode === 'charging') {
       this.pendingClub = null;
       if (club.id === this.club.id) return;
-      if (this.cooldowns[club.id] > 0) {
-        this.onDenied?.(club);
-        return;
-      }
       this.cancelSwing();
       this.applyClub(club);
       this.startSwing();
@@ -195,6 +192,18 @@ export class Player {
       return;
     }
     this.applyClub(club);
+  }
+
+  /**
+   * Cambia de encantamiento: qué hace la pelota cuando llega. Se puede cambiar en cualquier momento,
+   * hasta con el swing bajando, porque no cambia el gesto. Si está recargando, no entra.
+   */
+  setEnchant(enchant: Enchant): void {
+    if (this.cooldowns[enchant.id] > 0) {
+      this.onDenied?.(enchant);
+      return;
+    }
+    this.enchant = enchant;
   }
 
   private applyClub(club: Club): void {
@@ -209,11 +218,7 @@ export class Player {
     if ((this.mode !== 'free' && !recovered) || this.grabbedBy || this.stunned || !this.alive || !this.atSpot) return;
     if (this.canStart && !this.canStart()) return;
     // encadenar otro tiro apenas pasó el impacto también cuenta como fin del tiro anterior
-    const next = this.pendingClub ?? this.club;
-    if (this.cooldowns[next.id] > 0) {
-      this.onDenied?.(next);
-      return;
-    }
+    if (this.cooldowns[this.enchant.id] > 0) this.enchant = ENCHANTS.damage;
     if (this.pendingClub) this.applyClub(this.pendingClub);
     this.mode = 'charging';
     this.backswing = 0;
@@ -362,7 +367,7 @@ export class Player {
     this.meter.update(dt);
     if (this.blinkTimer > 0) this.blinkTimer -= dt;
     this.meleeCooldown = Math.max(0, this.meleeCooldown - dt);
-    for (const id of Object.keys(this.cooldowns) as ClubId[]) this.cooldowns[id] = Math.max(0, this.cooldowns[id] - dt);
+    for (const id of Object.keys(this.cooldowns) as EnchantId[]) this.cooldowns[id] = Math.max(0, this.cooldowns[id] - dt);
     if (this.grabbedBy && (!this.grabbedBy.alive || !this.grabbedBy.grabbing)) this.grabbedBy = null;
     // el tiro terminó o se canceló (por el jugador o por un golpe recibido): entra el palo en cola
     if (this.mode === 'free' && this.pendingClub) this.applyClub(this.pendingClub);
@@ -461,11 +466,11 @@ export class Player {
       this.onWhiff?.();
       return;
     }
-    this.cooldowns[this.club.id] = this.club.cooldown;
-    // los otros palos preparan y el driver cobra: después de usar cualquiera, si no se eligió otro,
-    // vuelve solo el driver (tenga recarga o no el que se usó)
-    if (!this.pendingClub && this.club.id !== 'driver') this.pendingClub = CLUBS.driver;
-    this.onShot?.({ club: this.club, power: shot.power, reach: shot.reach, perfect: shot.perfect, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
+    const enchant = this.enchant;
+    this.cooldowns[enchant.id] = enchant.cooldown;
+    // el golpe seco está siempre listo: después de gastar un encantamiento se vuelve solo a él
+    if (enchant.cooldown > 0) this.enchant = ENCHANTS.damage;
+    this.onShot?.({ club: this.club, enchant, quality: qualityOf(shot.power), power: shot.power, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
   }
 
   /** Swing con clip de Mixamo: baja hasta el impacto, pega, y sigue hasta el final del gesto. */

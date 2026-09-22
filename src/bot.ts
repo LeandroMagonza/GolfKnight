@@ -2,9 +2,10 @@
 // (http://localhost:5173/?bot) y lo usa tools/botplay.mjs. Maneja el juego como una persona: mueve el
 // mouse, aprieta teclas y carga los tiros en tiempo real.
 //
-// Juega con el reparto de palos del diseño: el driver cobra, el hierro abre (chamanes, escudos, jefe),
-// el wedge se saca enemigos de encima, el palazo pega de cerca y el putter lo libera de un agarre. No
-// busca filas: solo corre hasta la pelota más cercana, así que es una cota inferior de lo que hace una persona.
+// Juega con el reparto nuevo: elige **palo** por la distancia a la que está el blanco (el driver cobra
+// de lejos, el putter de cerca, el hierro y el wedge parejo) y **encantamiento** por la situación
+// (escarcha para abrir defensas, vendaval cuando lo rodean, golpe el resto del tiempo). No busca filas
+// ni clava el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace una persona.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Gk = any;
@@ -18,7 +19,8 @@ export interface BotStats {
   jumps: number;
 }
 
-const KEYS: Record<string, string> = { driver: 'Digit1', iron: 'Digit2', wedge: 'Digit3', putter: 'KeyF' };
+/** Los palos se recorren con Q y E, así que el bot cuenta pasos hasta el que quiere. */
+const CLUB_KEYS = ['driver', 'iron', 'wedge', 'putter'];
 
 function key(code: string): void {
   dispatchEvent(new KeyboardEvent('keydown', { code }));
@@ -110,54 +112,68 @@ export function startBot(): BotStats {
     const alive: any[] = gk.horde.enemies.filter((e: any) => e.alive && !e.passed);
     if (!alive.length) return;
 
-    const ironReady = pl.unlocked.has('iron') && pl.cooldowns.iron <= 0;
-    const inIron = (e: any) => dist(e) > 7 && dist(e) < 39;
-    let club = 'driver';
+    const iceReady = pl.unlocked.has('iron') && pl.cooldowns.ice <= 0;
+    const pushReady = pl.unlocked.has('wedge') && pl.cooldowns.push <= 0;
+    let enchant = 'damage';
     let target: any = null;
 
-    // 1) hielo a quien haga falta abrir: chamán conjurando, escudo sin hielo, jefe sin hielo
-    if (ironReady) {
-      target = alive.find((e) => e.casting && inIron(e))
-        ?? alive.filter((e) => e.stats.shield && !e.chilled && inIron(e)).sort((a, b) => a.position.z - b.position.z)[0]
-        ?? alive.find((e) => e.stats.boss && !e.chilled && inIron(e))
+    // 1) escarcha a quien haya que abrir: chamán conjurando, escudo sin hielo, jefe sin hielo
+    if (iceReady) {
+      target = alive.find((e) => e.casting && dist(e) < 50)
+        ?? alive.filter((e) => e.stats.shield && !e.chilled && dist(e) < 50).sort((a, b) => a.position.z - b.position.z)[0]
+        ?? alive.find((e) => e.stats.boss && !e.chilled && dist(e) < 50)
         ?? null;
-      if (target) club = 'iron';
+      if (target) enchant = 'ice';
     }
-    // 2) rodeado: el wedge los saca de encima (no daña, pero compra tiempo y los deja lejos)
-    const near = alive.filter((e) => dist(e) < 8 && !e.stats.heavy);
-    if (!target && near.length >= 3 && pl.unlocked.has('wedge') && gk.clock - pushedAt > 3) {
-      club = 'wedge';
+    // 2) rodeado: el vendaval los junta sobre la línea y los saca de encima
+    const near = alive.filter((e) => dist(e) < 9);
+    if (!target && near.length >= 3 && pushReady && gk.clock - pushedAt > 3) {
+      enchant = 'push';
       target = near.sort((a, b) => dist(b) - dist(a))[0];
       pushedAt = gk.clock;
     }
     // 3) un alma en pena que se le viene encima va primero: corre derecho hacia él, es un tiro fácil
     if (!target) target = alive.filter((e) => e.stats.behavior === 'grabber' && dist(e) < 32).sort((a, b) => dist(a) - dist(b))[0] ?? null;
-    // 4) si no, driver: al que tenga encima o, si no, al más avanzado que se pueda dañar
+    // 4) si no, al que tenga encima o al más avanzado que se pueda dañar
     if (!target) {
       const hittable = alive.filter((e) => !e.warded && !(e.stats.shield && !e.chilled && dist(e) > 6));
       const pool = hittable.length ? hittable : alive;
       target = pool.filter((e) => dist(e) < 7).sort((a, b) => dist(a) - dist(b))[0] ?? pool.sort((a, b) => a.position.z - b.position.z)[0];
     }
-    if (pl.club.id !== club) key(KEYS[club]);
 
-    // Cuánto cargar: la vida del blanco dice el nivel (nivel n = n de daño, y cada nivel es un quinto de
-    // la barra); además la carga tiene que alcanzar para llegar hasta él.
-    const minRange = club === 'driver' ? 18 : club === 'iron' ? 6 : 5;
-    const maxRange = club === 'driver' ? 60 : club === 'iron' ? 40 : 28;
-    const chargeTime = club === 'wedge' ? 0.4 : 1;
-    const need = Math.min(3, Math.max(1, target.hp));
-    const reach = Math.min(0.99, Math.max(0, (dist(target) + 4 - minRange) / (maxRange - minRange)));
-    const want = club === 'iron' ? 0.3 : club === 'wedge' ? 0.5 : Math.max(reach, (need - 1) / 3 + 0.02);
+    // El palo lo decide la distancia, que es de donde sale el daño. Con un efecto en área conviene el
+    // palo que más abre, mientras llegue.
+    const d = dist(target);
+    let club = 'driver';
+    if (enchant !== 'damage') club = pl.unlocked.has('wedge') && d < 54 ? 'wedge' : 'iron';
+    else if (d <= 12 && pl.unlocked.has('putter')) club = 'putter';
+    else if (d <= 40 && pl.unlocked.has('iron')) club = 'iron';
+    if (!pl.unlocked.has(club)) club = 'driver';
+    // Q y E recorren los palos en círculo: cuenta el camino más corto
+    const order = CLUB_KEYS.filter((id) => pl.unlocked.has(id));
+    const from = order.indexOf(pl.club.id);
+    const to = order.indexOf(club);
+    if (from >= 0 && to >= 0 && from !== to) {
+      const fwd = (to - from + order.length) % order.length;
+      const back = order.length - fwd;
+      for (let i = 0; i < Math.min(fwd, back); i++) key(fwd <= back ? 'KeyE' : 'KeyQ');
+    }
+    if (pl.enchant.id !== enchant) key(`Digit${['damage', 'ice', 'push'].indexOf(enchant) + 1}`);
+
+    // La barra ya no tiene nada que ver con la distancia: apunta a soltar en el nivel 2, que es lo que
+    // haría alguien sin clavarla. El alcance lo da el mouse.
+    const want = 0.78;
+    const chargeTime = club === 'wedge' ? 0.7 : club === 'putter' ? 0.6 : club === 'iron' ? 0.85 : 1;
 
     // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
     // (en diagonal, no derecho). Se apunta a donde va a estar.
     const speed = target.stats.speed * target.speedMul * (target.chilled ? 0.4 : 1);
-    if (target.stats.behavior === 'grabber' && dist(target) > 3) {
+    if (target.stats.behavior === 'grabber' && d > 3) {
       // viene hacia el golfista: se apunta un poco más acá sobre esa misma línea
-      const k = Math.max(0.2, 1 - (speed * (0.6 + want)) / dist(target));
+      const k = Math.max(0.2, 1 - (speed * (0.6 + want)) / d);
       aim(p.x + (target.position.x - p.x) * k, p.z + (target.position.z - p.z) * k);
     } else if (target.target === 'gate' && speed > 0) {
-      const lead = 0.12 + want * chargeTime + 0.4 + (club === 'driver' ? dist(target) / 90 : Math.sqrt((2 * dist(target) * 0.84) / 50));
+      const lead = 0.12 + want * chargeTime + 0.4 + (club === 'driver' ? d / 90 : Math.sqrt((2 * d * 0.84) / 50));
       const gx = Math.max(-2.3, Math.min(2.3, target.position.x)) - target.position.x;
       const gz = 0.8 - target.position.z;
       const gl = Math.hypot(gx, gz) || 1;
@@ -167,10 +183,9 @@ export function startBot(): BotStats {
     }
 
     setTimeout(() => {
-      if (pl.mode !== 'free' || pl.grabbedBy || pl.club.id !== club) return;
+      if (pl.mode !== 'free' || pl.grabbedBy) return;
       stats.byClub[club] = (stats.byClub[club] ?? 0) + 1;
-      // Carga de verdad: mantiene apretado y suelta al llegar a la potencia buscada. El hierro sale
-      // con poca carga; un toque de driver alcanza para un goblin y lo demás pide carga.
+      // Carga de verdad: mantiene apretado y suelta al llegar a la calidad buscada.
       pl.startSwing();
       const poll = () => {
         if (pl.mode !== 'charging') return;

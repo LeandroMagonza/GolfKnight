@@ -1,15 +1,18 @@
 // Prueba del prototipo de campo con relieve (?relieve): los enemigos caminan sobre el terreno, una loma
 // tapa al driver, el valle central es un carril limpio, y los globos caen donde se apunta aunque el
 // punto esté más alto o más bajo. Capturas en logs/relieve-*.png.
-// uso: node tools/relieve.mjs
+// uso: node tools/relieve.mjs [--ver]   (--ver abre una ventana para mirarla mientras corre)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
 mkdirSync('logs', { recursive: true });
+const watch = process.argv.includes('--ver');
 const server = await createServer({ root: process.cwd(), server: { port: 5196, strictPort: true }, logLevel: 'error' });
 await server.listen();
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch(watch
+  ? { headless: false, args: ['--window-size=1320,820'] }
+  : { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 const failures = [];
@@ -36,10 +39,22 @@ const enemy = (id) => page.evaluate((id) => { const e = window.__gk.horde.enemie
 const clear = () => page.evaluate(() => { for (const e of window.__gk.horde.enemies) e.state = 'gone'; });
 const free = () => page.waitForFunction(() => window.__gk.player.mode === 'free' && window.__gk.player.atSpot, null, { timeout: 8000 }).catch(() => {});
 const done = () => page.waitForFunction(() => window.__gk.balls.list.length === 0, null, { timeout: 8000 }).catch(() => {});
-const shoot = async (digit, power) => {
-  await page.keyboard.press(`Digit${digit}`);
+/** Pone un palo en la mano: Q y E lo recorren en círculo. */
+const useClub = async (id) => {
+  for (let i = 0; i < 6; i++) {
+    if ((await page.evaluate(() => window.__gk.player.club.id)) === id) return;
+    await page.keyboard.press('KeyE');
+    await page.waitForTimeout(40);
+  }
+};
+/** Tira con un palo y un encantamiento (1 golpe, 2 escarcha, 3 vendaval). */
+const shoot = async (club, power, enchant = 1) => {
+  await useClub(club);
   await free();
-  await page.waitForFunction(() => window.__gk.player.cooldowns[window.__gk.player.club.id] <= 0, null, { timeout: 5000 });
+  const id = ['damage', 'ice', 'push'][enchant - 1];
+  await page.waitForFunction((n) => window.__gk.player.cooldowns[n] <= 0, id, { timeout: 8000 }).catch(() => {});
+  await page.keyboard.press(`Digit${enchant}`);
+  await page.waitForTimeout(60);
   await page.evaluate(() => { const g = window.__gk; g.tees.place(g.tees.nearest(g.player.position.x)); });
   await page.evaluate((p) => window.__gk.shootPower(p), power);
   await free();
@@ -61,13 +76,14 @@ await page.screenshot({ path: 'logs/relieve-1-campo.png' });
 // el valle es un carril: desde el puesto del medio, el driver atraviesa a los que vienen por el fondo
 await clear();
 // la pelota sale del tee, a un costado del golfista: la fila se arma sobre la línea tee -> cursor
-await page.keyboard.press('Digit1');
+await useClub('driver');
 await aimAt(0.3, 44);
 const [tx, tz] = await page.evaluate(() => window.__gk.tee);
 const row = [];
 for (const u of [0.6, 0.78, 0.96]) row.push(await still('goblin', tx + (0.3 - tx) * u, tz + (44 - tz) * u));
 await page.screenshot({ path: 'logs/relieve-2-valle.png' });
-await shoot(1, 0.5);
+// con calidad 1 el driver saca 1 y el goblin tiene 2: hay que pegarle bien para atravesar la fila
+await shoot('driver', 0.75);
 const rowAfter = [];
 for (const id of row) rowAfter.push(await enemy(id));
 log('fila en el valle', rowAfter.map((e) => (e && e.alive ? e.hp : 'muerto')));
@@ -80,17 +96,17 @@ const top = await still('skeleton', -11.5, 34);
 await aimAt(-16.7, 45);
 log('puntería detrás de la loma', await page.evaluate(() => window.__gk.aim));
 await page.screenshot({ path: 'logs/relieve-3-tapado.png' });
-await shoot(1, 0.8);
+await shoot('driver', 0.8);
 log('detrás de la loma', await enemy(behind));
 check('la loma tapa al driver: al que está detrás no le pega', (await enemy(behind)).hp === 4);
 await aimAt(-11.5, 34);
-await shoot(1, 0.8);
+await shoot('driver', 0.8);
 log('en la cima', await enemy(top));
 check('al que está en la cima sí: el tiro sube lo que sube el terreno', ((await enemy(top))?.hp ?? 0) < 4);
 
 // el globo pasa por arriba y cae donde se apuntó
 await aimAt(-16.7, 45);
-await shoot(2, 0.5);
+await shoot('iron', 0.5, 2);
 log('globo detrás de la loma', await enemy(behind));
 check('el hierro le llega por arriba al que está tapado', (await enemy(behind)).chilled);
 await page.screenshot({ path: 'logs/relieve-4-globo.png' });

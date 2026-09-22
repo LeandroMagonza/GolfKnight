@@ -30,12 +30,12 @@ const SLIDES: Slide[] = [
   {
     art: '',
     html: `<p class="controls">
-      Apuntá con el <kbd>mouse</kbd> · mantené <kbd>click</kbd> para cargar el swing y soltá para pegar<br />
-      La carga sube por niveles: 1, 2 y 3 de daño, y el <em>crítico</em> de 8 si soltás justo al tope. Los cuadraditos sobre cada enemigo son su vida<br />
-      Mientras cargás, <kbd>Espacio</kbd> <em>clava</em> el daño: la barra se queda ahí y el tiro sale cuando soltás<br />
-      <kbd>W</kbd> y <kbd>S</kbd> suben y bajan la <em>altura</em> del tiro, sin cambiar dónde cae<br />
+      Apuntá con el <kbd>mouse</kbd>: la <em>distancia</em> del cursor es dónde cae la pelota<br />
+      Mantené <kbd>click</kbd> para cargar y soltá para pegar. La barra dice solo <em>qué tan bien</em> le pegás: tres niveles<br />
+      <kbd>Q</kbd> y <kbd>E</kbd> cambian de palo: cada uno cobra mejor a su distancia (el driver de lejos, el putter de cerca)<br />
+      <kbd>1</kbd> golpe · <kbd>2</kbd> escarcha · <kbd>3</kbd> vendaval: qué hace la pelota cuando llega<br />
       Solo se pega donde hay una <em>pelota</em>: movete de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd><br />
-      Buscá el ángulo para atravesar a varios de un tiro · palazo <kbd>Shift</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
+      <kbd>Espacio</kbd> clava el golpe · palazo <kbd>Shift</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
       Que no lleguen a la puerta.
     </p>`,
   },

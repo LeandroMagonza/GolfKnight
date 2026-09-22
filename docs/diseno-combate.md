@@ -1052,3 +1052,39 @@ con los encantamientos.
   por el tamaño del efecto (más alto = más zonal).
 - Qué queda de la barra: tres niveles de calidad con la franja buena angosta. Es el medidor clásico de
   golf, y se puede quedar el "clavar" de Espacio.
+
+### Hecho: el palo es la entrega y el encantamiento es el efecto
+
+Leandro lo eligió y reemplaza lo anterior. Lo que cambió:
+
+- **El mouse da la distancia para todos los palos** (antes solo para los globos). Se fue el modo de
+  puntería de globos y la tecla `G`.
+- **La barra dice solo la calidad del golpe**: tres niveles, puro timing. Ya no define el alcance.
+  Con eso se muere el problema que arrastrábamos: antes, para hacer un crítico había que tirar sí o sí
+  a 56-60 m, porque la barra tenía que subir entera. Ahora se puede clavar un golpe perfecto a
+  cualquier distancia.
+- **Se fue la altura manual (W/S).** El palo define la trayectoria.
+- **El daño sale del palo y de la distancia**, con la tabla de Leandro. Los cuatro palos hacen daño:
+  se cayó la regla "el driver es el único que cobra".
+- **Los encantamientos van aparte**, en 1, 2 y 3, y valen para cualquier palo. El golpe seco no tiene
+  recarga; escarcha 4 s y vendaval 3 s. Al gastar uno, vuelve solo el golpe.
+- **Los palos se recorren con Q y E**, en círculo, y ya no tienen recarga propia.
+- **El tótem del putter quedó en pausa** (el módulo sigue en `src/game/traps.ts`). El putter ahora es
+  el palo de distancia corta, el que más cobra de cerca.
+- **El pasto amortigua.** Una pelota que entra de frente contra la cara de una loma se clava en vez de
+  salir rebotada; de costado sigue de largo casi sin perder nada. Vale igual en piso plano: un globo
+  que cae de punta ya no pica como una pelotita.
+
+Cómo se reparte el efecto según el palo, que es la regla que hace entendibles las doce combinaciones:
+**cuanto más rasante, más lineal; cuanto más alto, más zonal.** El driver le aplica el efecto a cada
+uno que atraviesa, y los demás en un área donde caen, más grande cuanto más alto vuela el palo. El
+vendaval con el driver es el caso especial: como no tiene punto de caída, el viento pasa como un
+pasillo angosto a lo largo de todo el tiro.
+
+**Lo que falta decidir, para cuando se juegue:**
+
+- Si las oleadas tienen que desbloquear encantamientos en vez de palos. Por ahora llegan juntos: la
+  escarcha viene con el hierro y el vendaval con el wedge, así el cartel de oleada no cambió.
+- Si el golpe seco tiene que competir de verdad con los otros dos, o está bien que sea el que siempre
+  está.
+- Si el putter, sin tótem, alcanza con ser "el que cobra de cerca".

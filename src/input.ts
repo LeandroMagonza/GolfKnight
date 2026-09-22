@@ -1,27 +1,24 @@
 // Teclado y mouse.
 // A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite) y el mouse
-// apunta. Click izquierdo mantiene para cargar el swing y suelta para pegar; click derecho (o X)
-// cancela. W y S suben y bajan la altura del tiro, un escalón por toque. Espacio clava el daño de la
-// carga, y el tiro sale cuando se suelta el click (en la intro, avanza). 1-3 / rueda / Q-E cambian de
-// palo y F saca el putter. Shift (o V) es el palazo, G cambia cómo se apuntan los globos, Escape
-// pausa, R reinicia, C cambia el skin, M silencia la música.
+// apunta y decide a qué distancia cae. Click izquierdo mantiene para cargar el swing y suelta para
+// pegar; click derecho (o X) cancela. Espacio clava la calidad del golpe, y el tiro sale cuando se
+// suelta el click (en la intro, avanza). Q y E recorren los palos en círculo, y también la rueda del
+// mouse; 1, 2 y 3 eligen el encantamiento. Shift (o V) es el palazo, Escape pausa, R reinicia,
+// C cambia el skin, M silencia la música.
 
 export interface InputEvents {
   swingStart(): void;
   swingRelease(): void;
   swingCancel(): void;
-  /** Saca el putter (F). */
-  putter(): void;
-  /** Sube (+1) o baja (-1) un escalón la altura del tiro (W y S). */
-  aimHeight(delta: number): void;
-  selectClub(index: number): void;
+  /** Elige encantamiento: 0 = golpe, 1 = escarcha, 2 = vendaval. */
+  selectEnchant(index: number): void;
+  /** Pasa al palo anterior (-1) o al siguiente (+1), en círculo. */
   cycleClub(delta: number): void;
   space(): void;
   restart(): void;
   pause(): void;
   muteToggle(): void;
   skin(): void;
-  lobAim(): void;
   melee(): void;
   /** Un toque de movimiento lateral: +1 hacia la derecha de la pantalla, -1 hacia la izquierda. */
   step(right: number): void;
@@ -70,20 +67,16 @@ export class Input {
     this.keys.add(e.code);
     switch (e.code) {
       case 'Digit1': case 'Digit2': case 'Digit3':
-        this.ev.selectClub(Number(e.code.slice(-1)) - 1);
+        this.ev.selectEnchant(Number(e.code.slice(-1)) - 1);
         break;
       case 'KeyQ': this.ev.cycleClub(-1); break;
       case 'KeyE': this.ev.cycleClub(1); break;
-      case 'KeyF': this.ev.putter(); break;
       case 'KeyX': this.swingHeld = false; this.ev.swingCancel(); break;
-      case 'KeyW': case 'ArrowUp': this.ev.aimHeight(1); break;
-      case 'KeyS': case 'ArrowDown': this.ev.aimHeight(-1); break;
       case 'Space': this.ev.space(); e.preventDefault(); break;
       case 'KeyR': this.ev.restart(); break;
       case 'Escape': this.ev.pause(); break;
       case 'KeyM': this.ev.muteToggle(); break;
       case 'KeyC': this.ev.skin(); break;
-      case 'KeyG': this.ev.lobAim(); break;
       case 'KeyD': case 'ArrowRight': this.ev.step(1); break;
       case 'KeyA': case 'ArrowLeft': this.ev.step(-1); break;
       case 'ShiftLeft': case 'ShiftRight': case 'KeyV': this.ev.melee(); break;

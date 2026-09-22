@@ -21,102 +21,88 @@ npm run deploy       # compila y publica en GitHub Pages (rama gh-pages)
 
 ## Cómo se juega
 
-La idea que ordena todo: **el driver es el único palo que hace daño**. Los otros preparan el tiro:
-el hierro abre defensas, el wedge acomoda enemigos y el putter te mueve a vos.
+Defendés la puerta de Valdehoyo a pelotazos, desde una línea de puestos de tiro. Cada control quiere
+decir una sola cosa:
+
+| Control | Qué decide |
+| --- | --- |
+| **Mouse** | hacia dónde y **a qué distancia** cae la pelota |
+| **Barra de carga** | **qué tan bien** le pegaste: tres niveles de calidad, puro timing |
+| **Palo** (`Q` / `E`) | **cómo llega** la pelota, y cuánto pega a esa distancia |
+| **Encantamiento** (`1`, `2`, `3`) | **qué hace** cuando llega |
 
 - **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
   con un banderín, con `A` y `D`. Un toque es un puesto y dos toques son dos; mantener apretado no
-  repite, para que sea fácil de controlar. Corre con easing (arranca y frena suave): un puesto lleva
-  unos 0.4 s. **Solo se pega donde hay una pelota**: los guardias las van tirando desde
-  atrás. Nunca hay más de tres esperando, llegan más rápido cuantas menos quedan, y nunca caen en el
-  puesto donde estás parado, así que después de cada tiro hay que moverse. Sin pelota no se puede ni
-  empezar a cargar (la línea de tiro queda gris).
-- Mouse apunta en un arco de 180 grados: de costado a costado, pero no para atrás. Mantener click (o
-  `F`) carga el swing; soltar pega. Click derecho (o `X`) cancela. Si llegás a un puesto con el botón
-  ya apretado, la carga arranca sola apenas hay pelota.
-- **Altura del tiro**, con `W` y `S`: cuatro escalones (rasante, normal, globo, bombeado). Cambia el
-  arco, **no dónde cae**: sirve para pasar por encima de una loma o de los que están en el medio, a
-  cambio de tardar más y de dejar de atravesar la fila. Se mantiene de un tiro al siguiente.
-- **Tiro en dos tiempos:** mientras cargás, `Espacio` *clava* el daño. La barra queda quieta en ese nivel (el
-  alcance sigue subiendo) y el tiro sale cuando soltás el click. Sirve para timear el daño primero y
-  esperar a que se alineen después. Sin clavarlo, soltar pega con lo que marque la barra.
-- **La carga va por niveles: 1, 2 y 3**, y con el driver el nivel es el daño. El cuarto escalón es el
-  **crítico**: soltar justo al tope (el último 8 % de la barra) pega 8. La barra sube lenta al principio
-  y rápida al final, y después del tope rebota rápido por todo el rango, de 0 a 100 %. El crítico es lo
-  que más daño por segundo rinde, después la carga completa, y spamear toques lo que menos (hay un test
-  que lo fija). El **alcance** va aparte: crece con la carga y, cuando llega al máximo, se queda ahí.
-- El nivel se ve y se escucha donde estás mirando: la línea de tiro cambia de color y de grosor con
-  cada nivel (blanca, amarilla, naranja, y roja en el crítico; gris si en el puesto no hay pelota), y
-  suena una nota por escalón (do, mi, sol, y la octava en el crítico). Con el hierro y el wedge, la
-  punta de la línea lleva el color y el ícono del palo; con el driver no.
-- **La vida está en la misma escala**: los cuadraditos sobre cada enemigo son su vida. Un goblin tiene
-  2, así que pide nivel 2; cargar de más es tiempo perdido.
+  repite. Corre con easing: un puesto lleva unos 0.4 s. **Solo se pega donde hay una pelota**: los
+  guardias las van tirando desde atrás. Nunca hay más de tres esperando, llegan más rápido cuantas
+  menos quedan, y nunca caen en el puesto donde estás parado, así que después de cada tiro hay que
+  moverse. Sin pelota no se puede ni empezar a cargar (la línea de tiro queda gris).
+- Mantener click carga el swing y soltar pega. Click derecho (o `X`) cancela. Si llegás a un puesto
+  con el botón ya apretado, la carga arranca sola. `Espacio` *clava* la calidad donde esté la barra, y
+  el tiro sale cuando soltás el click.
+- **La calidad va por niveles: 1, 2 y 3.** La barra sube lenta al principio y rápida al final; el
+  nivel 3 es el último 8 %, y después del tope rebota por todo el rango. La barra **no tiene nada que
+  ver con la distancia**: eso lo decide el mouse.
+- La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad, y con el color del
+  encantamiento cuando no estás cargando. El anillo (o el rectángulo del vendaval) marca qué va a
+  agarrar el efecto.
+
+### Los palos (`Q` y `E`, en círculo)
+
+Cada palo tiene su distancia preferida, así que elegir palo es elegir a qué distancia querés pelear.
+Ninguno es el mejor siempre.
+
+| Palo | Cómo llega | Alcance | Corta (≤20 m) | Media (20-40 m) | Larga (+40 m) |
+| --- | --- | --- | --- | --- | --- |
+| **Driver** | rasante, atraviesa la fila entera | 6-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
+| **Hierro 7** | arco medio, cae en un punto | 6-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| **Wedge** | globo alto, tarda pero cae en picada | 5-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| **Putter** | rueda lento y para en el primero que toca | 3-22 m | **2 / 4 / 8** | 1 / 3 / 5 | — |
+
+Los tres números de cada casilla son el daño según la calidad del golpe.
+
+### Los encantamientos (`1`, `2`, `3`)
+
+El encantamiento vale para cualquier palo, y **cómo se reparte lo decide el palo**. La regla es una
+sola: *cuanto más rasante, más lineal y preciso; cuanto más alto, más zonal y amplio.*
+
+| | Con el driver (lineal) | Con el hierro (área media) | Con el wedge (área grande) | Con el putter (área chica) |
+| --- | --- | --- | --- | --- |
+| **1 · Golpe** | daña a cada uno que atraviesa | daña donde cae | daña donde cae, a muchos | daña al que frena la pelota |
+| **2 · Escarcha** | enfría a cada uno de la línea | enfría un área media | enfría un área grande | enfría donde para |
+| **3 · Vendaval** | un pasillo angosto a lo largo del tiro | los junta en un rectángulo | los junta en un rectángulo grande | los junta donde para |
+
+- El **golpe** está siempre listo. La **escarcha** tiene 4 s de recarga y el **vendaval** 3 s; después
+  de gastar uno, vuelve solo el golpe.
+- *Frío*: camina al 40 %, no se cubre con el escudo y, si es chamán, se le apaga el aura. No congela
+  ni cambia el daño que recibe. Dura 3, 5 u 8 s según la calidad.
+- *Vendaval*: empuja a cada uno **hacia la línea del tiro**, justo lo que lo separa de ella, así que
+  terminan todos en fila sobre el tiro, servidos para el siguiente driver. Los que quedan a la misma
+  profundidad no se enciman: se paran hombro con hombro. Mueve a todos lo mismo, pesen lo que pesen.
+- Pegarle mejor también agranda el área: ×1, ×1.2 y ×1.5.
+
+### Lo demás
+
+- **Palazo** en `Shift` (o `V`): no hace daño. Empuja unos 14 m hacia atrás a todo lo que tengas a
+  4 m, a todos por igual, y les corta el ataque. 2.5 s de recarga. Es la única salida cuando un alma
+  en pena te tiene agarrado.
 - Vos tenés 3 de vida y la puerta 10. **Nadie te persigue**: todos van derecho a la puerta. Pero el que
-  te pasa por encima te atropella: te saca 1 y muere en el choque, así que ese ya no llega a la puerta.
-  A la puerta cada enemigo le saca 1 (el caballero y el kamikaze, 2). Después de recibir un golpe hay un
-  segundo de respiro, titilando: el que pasa en ese momento sigue de largo. **El que ya pasó tu línea queda
-  fuera de juego**: se desvanece, no se le puede pegar más y corre hasta la puerta. Entre oleadas se
-  recupera 1 de vida y 2 de puerta.
-- Palos con `1`-`3`, rueda o `Q`/`E`. Después de usar el hierro o el wedge vuelve solo el driver. Si cambiás mientras cargás, cambia en el acto y la carga arranca de nuevo con el palo nuevo. Con el
-  swing ya bajando, el palo queda en cola (borde punteado) y entra solo cuando el tiro termina.
-  - **Driver · Rompevientos**: recto y casi rasante (18-60 m), atraviesa a toda la fila. Es el único
-    palo que hace daño, y su daño es el nivel de carga o el crítico, y nada más: no hay racha, ni
-    estados que lo suban, ni pierde fuerza después de picar.
-  - **Hierro 7 · Escarcha**: globo de hielo (6-40 m), sin daño, recarga de 2 s. Congela en un centro chico y enfría alrededor. *Frío*: camina al 40 %, no
-    tiene escudo (desaparece mientras dura) y, si es chamán, se le apaga el aura. **No congela**: el
-    enemigo sigue caminando y atacando, solo que lento y sin defensas. Carga igual que el driver
-    y cada escalón es mejor: nivel 1, 3 s; nivel 2, 4.5 s y 15 % más de área; nivel 3, 6.5 s y 30 % más;
-    crítico, 8 s y 70 % más. Al jefe nunca lo congela, pero frío camina y ataca más lento.
-  - **Wedge · Vendaval**: globo rápido (5-28 m, llega en medio segundo), sin daño: barre un rectángulo
-    que sale de la línea del tiro (apuntando derecho queda de frente; a 45 grados, a 45). Empuja a cada
-    uno **hacia la línea**, justo lo que lo separa de ella, así que terminan todos parados sobre la
-    línea del tiro: una fila servida para el driver. Los que quedan a la misma profundidad no se
-    enciman: se paran hombro con hombro. Mueve a todos lo mismo, pesen lo que pesen. Medio ancho de 4, 5, 6 y 8 m según el escalón de carga; 3.5 m de
-    medio fondo.
-- **Putter · Tótem**, en `F`: la pelota rueda lento (4-24 m) y donde para deja un **tótem**. El tótem
-  no hace nada solo: explota cuando le pegás con el driver, y ahí hace daño en un radio de 5 m y manda
-  a todos hacia afuera. Cuánto pega lo decide la carga del putt: 2, 3, 4 y **10** con el crítico, y se
-  ve escrito sobre el tótem. Hasta tres a la vez, y duran 25 s. Recarga de 6 s.
-  Es la única forma de hacer daño lejos de la línea de tiro: se siembra antes y se cobra después.
-- **Palazo** en `Shift` (o `V`): no hace daño: empuja unos 14 m hacia atrás a todo lo que tengas a
-  4 m, a todos por igual, y les corta el ataque. 2.5 s de recarga. Es la única salida cuando un alma en
-  pena te tiene agarrado.
-- `G` (o el botón) cambia cómo se apuntan los globos: **al cursor** (caen donde está el mouse y la
-  carga define solo la fuerza del efecto) o **por carga** (la carga es la distancia, como el driver).
-- `Esc` pausa, `R` reinicia, `M` silencia la música, `C` cambia el skin del golfista.
-- Un enemigo que llega a la puerta le pega una sola vez y desaparece adentro.
-- Pierde si cae la puerta o el golfista.
+  te pasa por encima te atropella: te saca 1 y muere en el choque. A la puerta cada enemigo le saca 1
+  (el caballero y el kamikaze, 2). Después de recibir un golpe hay un segundo de respiro, titilando.
+  **El que ya pasó tu línea queda fuera de juego**: se desvanece, no se le puede pegar y corre hasta
+  la puerta. Entre oleadas se recupera 1 de vida y 2 de puerta.
+- La puntería tiene un arco de 180 grados: de costado a costado, pero no para atrás.
 
-Son 6 oleadas, y cada una presenta un enemigo y el palo que lo resuelve. Se arranca solo con el
-driver y el palazo; los demás palos no se ven hasta que llegan. Cuando llega uno aparece su cartel y
-el juego queda frenado hasta cerrarlo con un click. Las habilidades con recarga muestran cuánto tardan
-y, mientras recargan, el número bajando. Para probar con todo habilitado desde el principio: `http://localhost:5173/?palos`.
-Para mirar al bot jugar una partida: `http://localhost:5173/?bot` (se pueden combinar: `?bot&palos`).
-
-| Oleada | Enemigo nuevo | Palo nuevo |
-| --- | --- | --- |
-| 1 | Goblins y esqueletos | Solo driver |
-| 2 | Goblin guerrero | Hierro 7 |
-| 3 | Estampida con kamikazes | Wedge |
-| 4 | Alma en pena | Putter |
-| 5 | Chamán | |
-| 6 | Gólem de roca | |
-
-Los enemigos salen sueltos, sin formación, y cada uno camina en línea recta a su ritmo: las filas se arman y se
-deshacen solas, y encontrarlas es el juego.
-
-| Enemigo (vida) | Qué hace |
+| Enemigo (vida) | Qué lo hace distinto |
 | --- | --- |
-| Goblin (2) | Rápido y débil, viene en montón |
-| Esqueleto (4) | Pide un tiro bien cargado |
-| Goblin kamikaze (2) | Corre a la puerta (o a vos) y explota; su explosión también daña a la horda |
-| Goblin guerrero (4) | Su escudo devuelve el driver que le llega de frente. Con hielo encima no se cubre |
-| Caballero esqueleto (10) | Lento, casi no se deja empujar. El único, además del jefe, que aguanta un crítico |
-| Alma en pena (2) | La única que te persigue. Si te agarra no podés caminar ni pegar, y te saca vida hasta que saltás con el putter (o se cansa, a los 5 s) |
-| Chamán goblin (3) | Camina con el grupo con las manos en alto. Los enemigos a menos de 8 m son inmunes a todo. A él nunca lo protege nadie. Con hielo encima se le apaga el aura |
-| Gólem de roca (80) | Jefe. Se planta a 22 m y le tira piedras a la puerta cada 4 s; de cerca pega |
-
-El diseño, lo que se probó y lo que queda abierto está en `docs/diseno-combate.md`.
+| Goblin (2) | rápido y en montón |
+| Goblin kamikaze (2) | explota al tocarte, y se lleva a los vecinos |
+| Esqueleto (4) | lento y duro |
+| Goblin guerrero (4) | con escudo: rebota el tiro rasante de frente |
+| Caballero esqueleto (10) | el único, además del jefe, que aguanta el mejor golpe |
+| Chamán goblin (3) | hace inmunes a los que tiene a 8 m; a él nadie lo protege |
+| Alma en pena (2) | la única que te persigue: te agarra y te desangra |
+| Gólem de roca (80) | el jefe: tira piedras a la puerta desde lejos |
 
 ## Prototipo: campo con relieve
 

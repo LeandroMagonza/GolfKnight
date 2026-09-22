@@ -42,8 +42,7 @@
       #wave .sub { font-size: 13px; color: #e4e9f0; }
       #score { position: absolute; top: 62px; right: 14px; font-size: 15px; text-shadow: 0 1px 3px #000; text-align: right; }
       #skin { position: absolute; top: 88px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
-      #skin:hover, #lobaim:hover { background: rgba(0,0,0,0.75); }
-      #lobaim { position: absolute; top: 122px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #skin:hover { background: rgba(0,0,0,0.75); }
       #clubrow { position: relative; }
 
       .club.extra { opacity: 0.9; border-color: rgba(255,255,255,0.18); }
@@ -65,7 +64,10 @@
       #bottom { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
       #meter { width: 420px; height: 20px; background: rgba(0,0,0,0.6); border-radius: 10px; position: relative; overflow: hidden; border: 2px solid rgba(255,255,255,0.35); opacity: 0.45; transition: opacity 0.15s; }
       #meter.on { opacity: 1; }
-      /* altura del tiro (W/S): el escalón actual y su nombre, al lado de los palos */
+      /* la etiqueta de cada fila: qué se elige y con qué teclas */
+      .rowkey { align-self: center; font-size: 9px; letter-spacing: 1.5px; color: #9aa4b2; text-align: right; margin-right: 4px; line-height: 1.5; }
+      #clubs .club .band { font-size: 10px; color: #9aa4b2; margin-top: 2px; }
+      /* sin uso desde que la altura la define el palo */
       #height { position: absolute; right: 100%; top: 0; bottom: 0; margin-right: 14px; width: 116px; box-sizing: border-box; background: rgba(0,0,0,0.55); border-radius: 8px; border: 2px solid rgba(127,212,255,0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
       #height.high { border-color: #7fd4ff; box-shadow: 0 0 10px rgba(127,212,255,0.5); }
       #height .lbl { font-size: 9px; letter-spacing: 1.5px; color: #9aa4b2; }
@@ -95,7 +97,6 @@
       .club.cooling .name, .club.cooling .title, .club.cooling .key, .club.cooling .cdlabel { opacity: 0.35; }
       .club.ready { animation: slotReady 0.45s ease-out; }
       @keyframes slotReady { 0% { transform: scale(1.18); box-shadow: 0 0 22px var(--c); border-color: var(--c); } 100% { transform: scale(1); } }
-      #lobaim[hidden] { display: none; }
       /* vida en puntos: la barra se corta en tantos tramos como puntos tiene */
       .track { position: relative; }
       .track::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(100% / var(--seg, 1) - 2px), rgba(0,0,0,0.85) calc(100% / var(--seg, 1) - 2px), rgba(0,0,0,0.85) calc(100% / var(--seg, 1))); }
@@ -148,14 +149,14 @@
       <div id="wave"><div class="n"></div><div class="sub"></div></div>
       <div id="score"></div>
       <button id="skin" type="button" tabindex="-1"></button>
-      <button id="lobaim" type="button" tabindex="-1"></button>
       <div id="banner"><div class="big"></div><div class="small"></div></div>
       <div id="feedback"></div>
       <div id="floats"></div>
       <div id="bottom">
         <div id="range"></div>
         <div id="meter"><div class="power"></div><div class="floor"></div><div class="perfect"></div></div>
-        <div id="clubrow"><div id="height"></div><div id="clubs"></div></div>
+        <div id="clubrow"><div id="clubs"></div></div>
+        <div id="clubrow"><div id="enchants"></div></div>
         <div id="hint"></div>
       </div>
       <div id="card" hidden><div class="box"><div class="tag">PALO NUEVO</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>

@@ -102,9 +102,12 @@ export function stepBall(s: BallState, dt: number, p: BounceParams, ground?: Gro
   // tocó el piso
   s.pos.y = BALL_RADIUS;
   s.bounces++;
-  s.vel.x *= p.bounceKeep;
-  s.vel.z *= p.bounceKeep;
-  const up = -s.vel.y * p.restitution;
+  // Cuanto más de punta cae, más se clava en el pasto; rasante, sigue de largo casi sin perder nada.
+  const headOn = Math.min(1, -s.vel.y / (Math.hypot(s.vel.x, s.vel.y, s.vel.z) || 1));
+  const keep = p.bounceKeep * (1 - 0.65 * headOn);
+  s.vel.x *= keep;
+  s.vel.z *= keep;
+  const up = -s.vel.y * p.restitution * (1 - 0.8 * headOn);
   if (up < MIN_BOUNCE_SPEED) {
     s.vel.y = 0;
     s.rolling = true;
@@ -183,10 +186,15 @@ function stepOnTerrain(s: BallState, dt: number, p: BounceParams, ground: Ground
   s.pos.y = floor;
   if (into >= 0) return false;
   s.bounces++;
-  const tx = (s.vel.x - into * nx) * p.bounceKeep;
-  const ty = (s.vel.y - into * ny) * p.bounceKeep;
-  const tz = (s.vel.z - into * nz) * p.bounceKeep;
-  const up = -into * p.restitution;
+  // Cuanto más de frente entra, más se clava: una pelota que choca de lleno contra la cara de una loma
+  // se queda ahí, no sale rebotada. De costado, en cambio, sigue de largo casi sin perder nada.
+  const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z) || 1;
+  const headOn = Math.min(1, -into / speed);
+  const keep = p.bounceKeep * (1 - 0.65 * headOn);
+  const tx = (s.vel.x - into * nx) * keep;
+  const ty = (s.vel.y - into * ny) * keep;
+  const tz = (s.vel.z - into * nz) * keep;
+  const up = -into * p.restitution * (1 - 0.8 * headOn);
   if (up < MIN_BOUNCE_SPEED) {
     s.vel.x = tx;
     s.vel.y = 0;

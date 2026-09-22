@@ -1,6 +1,6 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
-import { CLUB_ORDER, CLUBS, HEIGHT_LEVELS, MELEE_COOLDOWN, type Club, type ClubId } from './core/clubs';
+import { CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, MELEE_COOLDOWN, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -28,10 +28,8 @@ export class Hud {
   private pauseEl = $('pause');
   private endEl = $('end');
   private skinBtn = $<HTMLButtonElement>('skin');
-  private lobBtn = $<HTMLButtonElement>('lobaim');
-  private heightEl = $('height');
+  private enchantsEl = $('enchants');
   onSkinClick: (() => void) | null = null;
-  onLobAimClick: (() => void) | null = null;
   onCardDismiss: (() => void) | null = null;
   private cardEl = $('card');
   private bannerTimer = 0;
@@ -43,103 +41,93 @@ export class Hud {
       this.onSkinClick?.();
     });
     this.cardEl.addEventListener('click', () => this.onCardDismiss?.());
-    this.lobBtn.addEventListener('click', () => {
-      this.lobBtn.blur();
-      this.onLobAimClick?.();
-    });
-    // la altura del tiro, al lado de los palos: se sube con W y se baja con S
-    this.heightEl.innerHTML = '<div class="lbl">ALTURA W/S</div><div class="lvl"></div><div class="pips">' + '<i></i>'.repeat(HEIGHT_LEVELS.length) + '</div>';
-    // los palos de la rueda y, aparte, el putter (F) y el palazo (Shift)
-    const slots: ClubId[] = [...CLUB_ORDER, 'putter'];
-    this.clubsEl.innerHTML = slots.map((id, i) => {
+    // los palos: la distancia y la trayectoria. Se recorren con Q y E, en círculo
+    this.clubsEl.innerHTML = '<div class="rowkey">PALO<br />Q / E</div>' + CLUB_ORDER.map((id) => {
       const c = CLUBS[id];
       const color = '#' + c.color.toString(16).padStart(6, '0');
-      const key = id === 'putter' ? 'F' : String(i + 1);
-      const cd = c.cooldown > 0 ? `<span class="cdlabel">⟳ ${c.cooldown} s</span>` : '';
-      return `<div class="club locked${id === 'putter' ? ' space' : ''}" data-club="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${key}</span><div class="name">${c.name}</div><div class="title">${c.title}</div>${cd}<div class="cdnum"></div></div>`;
-    }).join('') + `<div class="club extra" data-club="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
-
+      return `<div class="club locked" data-club="${id}" style="--c:${color}"><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">${c.minRange}-${c.maxRange} m</div></div>`;
+    }).join('');
+    // los encantamientos: qué hace la pelota cuando llega. Y el palazo, que va aparte
+    this.enchantsEl.innerHTML = '<div class="rowkey">EFECTO<br />1 / 2 / 3</div>' + ENCHANT_ORDER.map((id, i) => {
+      const e = ENCHANTS[id];
+      const color = '#' + e.color.toString(16).padStart(6, '0');
+      const cd = e.cooldown > 0 ? `<span class="cdlabel">⟳ ${e.cooldown} s</span>` : '';
+      return `<div class="club locked" data-ench="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${i + 1}</span><div class="name">${e.name}</div><div class="title">${e.title}</div>${cd}<div class="cdnum"></div></div>`;
+    }).join('') + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
   }
 
   private shownState = '';
   private readonly shownCd = new Map<string, string>();
 
-  /** Qué palos están habilitados y cuánto le falta a cada recarga. */
-  setClubState(unlocked: ReadonlySet<ClubId>, cooldowns: Record<ClubId, number>, meleeLeft: number): void {
-    for (const el of Array.from(this.clubsEl.children) as HTMLElement[]) {
-      const slot = el.dataset.club as ClubId | 'melee';
-      const left = slot === 'melee' ? meleeLeft : cooldowns[slot];
-      const total = slot === 'melee' ? MELEE_COOLDOWN : CLUBS[slot].cooldown;
-      (el.firstElementChild as HTMLElement).style.height = total > 0 ? `${(100 * left) / total}%` : '0%';
-      // mientras recarga, el número grande bajando; al terminar, un saltito
-      const shown = left > 0 ? (left >= 1 ? String(Math.ceil(left)) : left.toFixed(1)) : '';
-      if (shown === this.shownCd.get(slot)) continue;
-      const was = this.shownCd.get(slot) ?? '';
-      this.shownCd.set(slot, shown);
-      (el.querySelector('.cdnum') as HTMLElement).textContent = shown;
-      el.classList.toggle('cooling', left > 0);
-      if (was && !shown) {
-        el.classList.remove('ready');
-        void el.offsetWidth;
-        el.classList.add('ready');
-      }
-    }
-    this.lobBtn.hidden = !unlocked.has('iron') && !unlocked.has('wedge');
-    // lo demás solo toca el DOM cuando cambia
-    const key = `${[...unlocked].join()}|${cooldowns.putter > 0}`;
+  /** Qué palos están habilitados. Los palos ya no tienen recarga: la tienen los encantamientos. */
+  setClubState(unlocked: ReadonlySet<ClubId>, meleeLeft: number): void {
+    this.cooldownOn('melee', meleeLeft, MELEE_COOLDOWN);
+    const key = [...unlocked].join();
     if (key === this.shownState) return;
     const first = this.shownState === '';
     this.shownState = key;
     for (const el of Array.from(this.clubsEl.children) as HTMLElement[]) {
-      if (el.dataset.club === 'melee') continue;
-      const id = el.dataset.club as ClubId;
+      const id = el.dataset.club as ClubId | undefined;
+      if (!id) continue;
       // un palo recién habilitado entra a la barra con un saltito
       if (el.classList.contains('locked') && unlocked.has(id) && !first) {
         el.classList.add('appear');
         setTimeout(() => el.classList.remove('appear'), 600);
       }
       el.classList.toggle('locked', !unlocked.has(id));
-      if (id !== 'putter') continue;
-      (el.querySelector('.title') as HTMLElement).textContent = cooldowns.putter > 0 ? 'recargando' : 'tótem';
     }
   }
 
-  private shownHeight = -1;
-
-  /** Altura del tiro (W/S): en qué escalón está y cómo se llama. */
-  setHeight(index: number): void {
-    if (index === this.shownHeight) return;
-    const before = this.shownHeight;
-    this.shownHeight = index;
-    const el = this.heightEl;
-    (el.querySelector('.lvl') as HTMLElement).textContent = HEIGHT_LEVELS[index].name;
-    Array.from(el.querySelectorAll('.pips i')).forEach((pip, i) => pip.classList.toggle('on', i <= index));
-    el.classList.toggle('high', index >= 2);
-    el.classList.remove('bump');
-    if (before < 0) return;
-    void el.offsetWidth;
-    el.classList.add('bump');
+  /** Mientras recarga, el número grande bajando; al terminar, un saltito. */
+  private cooldownOn(slot: string, left: number, total: number): void {
+    const el = this.enchantsEl.querySelector(`[data-ench="${slot}"]`) as HTMLElement | null;
+    if (!el) return;
+    const bar = el.querySelector('.cd') as HTMLElement | null;
+    if (bar) bar.style.height = total > 0 ? `${(100 * left) / total}%` : '0%';
+    const shown = left > 0 ? (left >= 1 ? String(Math.ceil(left)) : left.toFixed(1)) : '';
+    if (shown === this.shownCd.get(slot)) return;
+    const was = this.shownCd.get(slot) ?? '';
+    this.shownCd.set(slot, shown);
+    (el.querySelector('.cdnum') as HTMLElement).textContent = shown;
+    el.classList.toggle('cooling', left > 0);
+    if (was && !shown) {
+      el.classList.remove('ready');
+      void el.offsetWidth;
+      el.classList.add('ready');
+    }
   }
 
-  /** Cartel de palo nuevo. Se queda hasta que se lo cierre con un click. */
-  showCard(c: { name: string; title: string; key: string; hint: string; cooldown: number; color: number; next: string }): void {
+  private shownEnchant = '';
+
+  /** Cuál está en la mano, cuáles ya se tienen, y cuánto le falta a cada recarga. */
+  setEnchant(current: Enchant, cooldowns: Record<EnchantId, number>, ready: (id: EnchantId) => boolean): void {
+    for (const id of ENCHANT_ORDER) this.cooldownOn(id, cooldowns[id], ENCHANTS[id].cooldown);
+    const key = `${current.id}|${ENCHANT_ORDER.map((id) => (ready(id) ? 1 : 0)).join()}`;
+    if (key === this.shownEnchant) return;
+    this.shownEnchant = key;
+    for (const el of Array.from(this.enchantsEl.children) as HTMLElement[]) {
+      const id = el.dataset.ench as EnchantId | undefined;
+      if (!id || id === ('melee' as EnchantId)) continue;
+      el.classList.toggle('locked', !ready(id));
+      el.classList.toggle('active', id === current.id);
+    }
+  }
+
+  /** Cartel de palo nuevo.  /** Cartel de palo nuevo. Se queda hasta que se lo cierre con un click. */
+  showCard(c: { name: string; title: string; key: string; hint: string; cooldown?: number; color: number; next: string }): void {
     const el = this.cardEl;
     el.style.setProperty('--c', '#' + c.color.toString(16).padStart(6, '0'));
     (el.querySelector('.name') as HTMLElement).textContent = c.name;
     (el.querySelector('.title') as HTMLElement).textContent = c.title;
     (el.querySelector('.key') as HTMLElement).textContent = c.key;
     (el.querySelector('.hint') as HTMLElement).textContent = c.hint;
-    (el.querySelector('.cool') as HTMLElement).textContent = c.cooldown > 0 ? `Recarga: ${c.cooldown} s` : 'Sin recarga';
+    (el.querySelector('.cool') as HTMLElement).textContent = c.cooldown ? `Recarga: ${c.cooldown} s` : 'Sin recarga';
     (el.querySelector('.next') as HTMLElement).textContent = c.next ? `Próxima oleada: ${c.next}` : '';
     el.hidden = false;
   }
 
   hideCard(): void {
     this.cardEl.hidden = true;
-  }
-
-  setLobAim(mode: 'cursor' | 'carga'): void {
-    this.lobBtn.textContent = mode === 'cursor' ? 'Globos: al cursor (G)' : 'Globos: por carga (G)';
   }
 
   setBars(gate: number, gateMax: number, hp: number, hpMax: number): void {
@@ -164,7 +152,7 @@ export class Hud {
   private shownClubs = '';
 
   /** @param queued palo elegido durante un tiro, que entra cuando el tiro termina */
-  setClub(club: Club, queued: Club | null = null): void {
+  setClub(club: Club, queued: Club | null = null, hint = ''): void {
     // se llama en cada cuadro: solo toca el DOM cuando cambia algo
     const key = `${club.id}|${queued?.id ?? ''}`;
     if (key === this.shownClubs) return;
@@ -174,7 +162,7 @@ export class Hud {
       el.classList.toggle('active', id === club.id);
       el.classList.toggle('queued', id === queued?.id);
     }
-    this.hint.textContent = queued ? `Próximo: ${queued.name} · ${queued.hint}` : club.hint;
+    this.hint.textContent = queued ? `Próximo: ${queued.name} · ${queued.hint}` : hint || club.hint;
   }
 
   setMeter(charging: boolean, power: number, locked: boolean, label: string): void {

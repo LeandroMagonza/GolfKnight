@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, raycastTerrain, relief } from './core/terrain';
-import { CHARGE_LEVELS, chargeLevel, CLUB_ORDER, CLUBS, HEIGHT_DEFAULT, HEIGHT_LEVELS, ICE_RADIUS, iceLevel, isLob, loftFor, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_HALF_DEPTH, pushHalfWidth, rangeFor, type Club, type ClubId } from './core/clubs';
+import { bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type EnchantId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -41,10 +41,8 @@ balls.traps = traps;
 
 // ---------- estado ----------
 const GATE_MAX = 10;
-/** Color de la línea de tiro y del anillo del cursor según el nivel de carga, 1 a 5. */
-const LEVEL_COLORS = [0xffffff, 0xffe066, 0xff9a3c];
-/** El crítico (swing perfecto): rojo, bien distinto de los niveles. */
-const PERFECT_COLOR = 0xff2d3c;
+/** Color de la línea de tiro según la calidad del golpe: flojo, bueno y perfecto. */
+const QUALITY_COLORS = [0xffffff, 0xffe066, 0xff2d3c];
 const hud = new Hud();
 const audio = new GameAudio();
 const director = new WaveDirector();
@@ -68,14 +66,6 @@ let gameClock = 0;
 const ALL_CLUBS = new URLSearchParams(location.search).has('palos');
 /** Con ?bot en la URL juega solo (src/bot.ts), para mirarlo o para chequear el balance. */
 const BOT = new URLSearchParams(location.search).has('bot');
-
-/**
- * Cómo se apunta un globo (hierro y wedge). 'cursor': cae donde está el mouse y la carga solo define
- * la fuerza del efecto. 'carga': como el driver, la carga define la distancia. Se cambia con G.
- */
-type LobAim = 'cursor' | 'carga';
-const LOB_KEY = 'gk.globos';
-let lobAim: LobAim = localStorage.getItem(LOB_KEY) === 'carga' ? 'carga' : 'cursor';
 
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
@@ -142,52 +132,40 @@ function updateAim(): void {
   }
 }
 
-/** ¿Este palo cae donde está el cursor? */
-function aimsAtCursor(club: Club): boolean {
-  return lobAim === 'cursor' && isLob(club);
-}
-
 /**
- * Alcance del tiro: el punto del cursor para un globo apuntado con el mouse; si no, lo da la carga.
- * `reach` es la carga máxima a la que se llegó: sube hasta el tope y ahí se queda, aunque la barra de
- * potencia siga rebotando para el swing perfecto.
+ * Alcance del tiro: **siempre lo da el mouse**, para todos los palos. La barra ya no tiene nada que
+ * ver con la distancia; solo dice qué tan bien se le pegó.
  */
-function shotRange(club: Club, reach: number): number {
-  if (!aimsAtCursor(club)) return rangeFor(club, reach);
+function shotRange(club: Club): number {
   player.teePosition(tee);
   return THREE.MathUtils.clamp(Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z), club.minRange, club.maxRange);
 }
 
 /**
- * Cómo sale el tiro cuando no alcanza con el vuelo de siempre. Dos cosas lo cambian:
- * - **La altura elegida con W/S**, que se suma al loft del palo. La velocidad se recalcula para que
- *   caiga donde caía: subir la mira cambia el arco, no el punto. Así se pasa por encima de una loma o
- *   de los que están en el medio, a cambio de tardar más y de dejar de atravesar la fila.
- * - **El terreno**, con relieve: el driver se inclina lo que sube o baja el terreno hasta el cursor, y
- *   los globos se calculan para caer en el punto aunque esté más alto o más bajo.
- * Sin ninguna de las dos devuelve null y la pelota vuela como siempre.
+ * Con relieve, cómo sale el tiro: el driver se inclina lo que sube o baja el terreno hasta el cursor, y
+ * los globos se calculan para caer en el punto aunque esté más alto o más bajo. Sobre piso plano
+ * devuelve null y la pelota vuela como siempre.
  */
 const MAX_PITCH = 0.21;
 function shotLift(club: Club, range: number): { speed: number; angle: number } | null {
-  const loftDeg = loftFor(club, aimHeight);
-  if (!relief.on && Math.abs(loftDeg - club.loftDeg) < 1e-6) return null;
-  const angle = THREE.MathUtils.degToRad(loftDeg);
+  if (!relief.on || club.loftDeg <= 0.001) return null;
+  const angle = THREE.MathUtils.degToRad(club.loftDeg);
   player.teePosition(tee);
-  const teeH = relief.on ? heightAt(tee.x, tee.z) : 0;
+  const teeH = heightAt(tee.x, tee.z);
   if (isLob(club)) {
-    const rise = relief.on ? heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH : 0;
+    const rise = heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH;
     return { speed: launchSpeed(range, angle, club.gravity, rise), angle };
   }
   const dist = Math.max(4, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z));
-  const pitch = relief.on ? THREE.MathUtils.clamp(Math.atan2(heightAt(aimPoint.x, aimPoint.z) - teeH, dist), -MAX_PITCH, MAX_PITCH) : 0;
+  const pitch = THREE.MathUtils.clamp(Math.atan2(heightAt(aimPoint.x, aimPoint.z) - teeH, dist), -MAX_PITCH, MAX_PITCH);
   return { speed: launchSpeed(range, angle, club.gravity), angle: angle + pitch };
 }
 
-/** Último nivel de carga que sonó,/** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
+/** Último nivel de carga que sonó,/** Último nivel de carga que sonó,/** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
 let lastLevel = 0;
 
-/** Escalón de altura del tiro (W/S). Se mantiene de un tiro al siguiente. */
-let aimHeight = HEIGHT_DEFAULT;
+/** Último nivel de calidad que sonó. */
+let lastQuality = 0;
 
 /** ¿El golfista está parado en un puesto que tiene pelota? */
 function hasBallHere(): boolean {
@@ -231,77 +209,76 @@ let tipClub: ClubId | null = null;
 function updatePreview(): void {
   const charging = player.mode === 'charging';
   const club = player.club;
-  const cursorAim = aimsAtCursor(club);
-  const range = shotRange(club, charging ? player.meter.reach : 1);
+  const enchant = player.enchant;
+  const range = shotRange(club);
   const show = started && !ended && player.alive && player.mode !== 'swinging' && !player.grabbedBy;
   previewLine.visible = show;
-  landing.visible = show && (charging || cursorAim);
+  landing.visible = show;
   const ballHere = hasBallHere();
   teeBall.visible = show && charging && ballHere;
-  hud.setMeter(charging, player.meter.power, player.meter.locked, cursorAim ? `${range.toFixed(0)} m · fuerza ${Math.round(player.meter.power * 100)} %` : `${range.toFixed(0)} m`);
-  // el driver no lleva ícono: su línea ya dice todo. Los otros palos sí.
-  tip.visible = show && ballHere && club.id !== 'driver';
-  if (!show) sweepBox.visible = false;
-  if (!show) return;
+  // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
+  const quality = qualityOf(player.meter.power);
+  const damage = damageFor(club, range, quality);
+  hud.setMeter(charging, player.meter.power, player.meter.locked,
+    `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]}${enchant.id === 'damage' ? ` · ${damage} de daño` : ` · ${enchant.name}`}`);
+  tip.visible = show && ballHere;
+  if (!show) {
+    sweepBox.visible = false;
+    return;
+  }
   player.teePosition(tee);
-  // la altura elegida cambia el arco, no dónde cae. Y con relieve la línea se corta donde el tiro toca
-  // el terreno, para que se vea cuándo una loma tapa
-  const loftDeg = loftFor(club, aimHeight);
-  const loft = THREE.MathUtils.degToRad(loftDeg);
-  const lift = loftDeg > 0.001 ? shotLift(club, range) : null;
+  // con relieve la línea se corta donde el tiro toca el terreno: así se ve cuándo una loma tapa
+  const loft = THREE.MathUtils.degToRad(club.loftDeg);
+  const lift = shotLift(club, range);
   const path = lift
     ? previewOver(launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, player.aimDir.x, player.aimDir.z, lift.speed, lift.angle), club.gravity ?? GRAVITY, heightAt, PREVIEW_POINTS)
     : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
-  // el arco se ve siempre, no solo mientras se carga: si no, cambiar la altura con W/S no muestra nada
+  // el arco se ve siempre, no solo mientras se carga
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
   pos.needsUpdate = true;
-  // La línea dice cuánto está cargado el tiro: cambia de color con cada nivel, y es dorada en el punto
-  // justo del swing perfecto. Sin pelota en el puesto queda apagada.
-  const level = chargeLevel(player.meter.power);
-  const perfectLine = charging && player.meter.power >= PERFECT_FROM;
-  previewMat.color.setHex(!ballHere ? 0x6b7480 : perfectLine ? PERFECT_COLOR : charging ? LEVEL_COLORS[level - 1] : club.color);
-  previewMat.size = charging ? (perfectLine ? 10 : 4 + level * 1.5) : 5;
+  // la línea toma el color del encantamiento; mientras se carga, el de la calidad del golpe
+  const lineColor = charging ? QUALITY_COLORS[quality - 1] : enchant.id === 'damage' ? club.color : enchant.color;
+  previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
+  previewMat.size = charging ? (quality >= QUALITY_LEVELS ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
-  // una nota por escalón; el crítico es el cuarto
-  const step = perfectLine ? CHARGE_LEVELS + 1 : level;
-  if (charging && step !== lastLevel) audio.chargeTick(step);
-  lastLevel = charging ? step : 0;
+  if (charging && quality !== lastLevel) audio.chargeTick(quality);
+  lastLevel = charging ? quality : 0;
   const end = path[path.length - 1];
-  landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
+  const area = QUALITY_AREA[quality - 1];
+  // dónde cae y qué agarra: un anillo del tamaño del efecto, o el rectángulo del vendaval
+  const rect = enchant.id === 'push';
+  const half = club.spread === 0 ? PUSH_LINE_HALF_WIDTH * area : club.spread * area * 1.5;
+  const depth = club.spread === 0 ? range / 2 : club.spread * area;
+  sweepBox.visible = rect;
+  landing.visible = !rect;
+  if (rect) {
+    // el rectángulo sale de la línea del tiro. Con un palo lineal es un pasillo a lo largo de todo el tiro
+    const cx = club.spread === 0 ? tee.x + player.aimDir.x * depth : end.x;
+    const cz = club.spread === 0 ? tee.z + player.aimDir.z * depth : end.z;
+    sweepBox.position.set(cx, heightAt(cx, cz) + 0.08, cz);
+    sweepBox.rotation.z = Math.atan2(player.aimDir.x, player.aimDir.z);
+    sweepBox.scale.set(half, depth, 1);
+    sweepMat.color.setHex(enchant.color);
+    sweepEdgeMat.color.setHex(enchant.color);
+    sweepMat.opacity = charging ? 0.22 : 0.1;
+    sweepEdgeMat.opacity = charging ? 0.95 : 0.45;
+  } else {
+    landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
+    landing.scale.setScalar(Math.max(0.7, club.spread * area));
+    landingMat.opacity = charging ? 0.85 : 0.35;
+    landingMat.color.setHex(enchant.id === 'damage' ? club.color : enchant.color);
+  }
   // la punta de la línea dice con qué palo se está por pegar: su color y su ícono
-  // El driver llega mucho más lejos de lo que se ve en pantalla: su punta va a la altura del cursor,
-  // sobre la misma línea. La de un globo va donde cae.
-  const tipAt = isLob(club) ? range : Math.min(range, Math.max(4, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z)));
-  // con relieve, si una loma corta el tiro la punta va donde se corta
-  const tipEnd = lift ? Math.min(tipAt, Math.hypot(end.x - tee.x, end.z - tee.z)) : tipAt;
-  const tipX = tee.x + player.aimDir.x * tipEnd;
-  const tipZ = tee.z + player.aimDir.z * tipEnd;
+  const tipAt = Math.min(range, Math.hypot(end.x - tee.x, end.z - tee.z));
+  const tipX = tee.x + player.aimDir.x * tipAt;
+  const tipZ = tee.z + player.aimDir.z * tipAt;
   tip.position.set(tipX, heightAt(tipX, tipZ) + 1.15, tipZ);
   if (tipClub !== club.id) {
     tipClub = club.id;
     tipMat.map = tipTexture(club);
     tipMat.needsUpdate = true;
   }
-  const perfectNow = charging && player.meter.power >= PERFECT_FROM;
-  const wide = iceLevel(charging ? player.meter.power : 0, perfectNow).area;
-  // el wedge barre un rectángulo, no un círculo
-  sweepBox.visible = landing.visible && club.enchant === 'push';
-  if (sweepBox.visible) {
-    landing.visible = false;
-    sweepBox.position.set(end.x, heightAt(end.x, end.z) + 0.08, end.z);
-    // el rectángulo sale de la línea del tiro: apuntando derecho queda de frente, y a 45 grados, a 45
-    sweepBox.rotation.z = Math.atan2(player.aimDir.x, player.aimDir.z);
-    sweepBox.scale.set(pushHalfWidth(charging ? player.meter.power : 0, perfectNow), PUSH_HALF_DEPTH, 1);
-    const c = perfectNow ? 0xffd66b : club.color;
-    sweepMat.color.setHex(c);
-    sweepEdgeMat.color.setHex(c);
-    sweepMat.opacity = charging ? 0.22 : 0.1;
-    sweepEdgeMat.opacity = charging ? 0.95 : 0.45;
-  }
-  landing.scale.setScalar(club.enchant === 'ice' ? ICE_RADIUS * wide : 0.7);
-  landingMat.opacity = charging ? 0.85 : 0.35;
-  landingMat.color.setHex(perfectNow ? 0xffd66b : club.color);
   teeBall.position.set(tee.x, 0.12, tee.z);
 }
 
@@ -388,61 +365,28 @@ horde.onEvent = (e) => {
   }
 };
 
-traps.onEvent = (e) => {
-  switch (e.type) {
-    case 'placed':
-      audio.zap();
-      hud.feedback(`Tótem de ${e.trap.damage}: detonalo con el driver`, 'neutral');
-      break;
-    case 'blast': {
-      audio.explosion();
-      audio.thud();
-      if (e.pos.distanceTo(player.position) < 20) shake = Math.max(shake, 0.3);
-      const s = toScreen(e.pos, 1.2);
-      hud.float(s.x, s.y, `¡${e.damage}!`, e.perfect ? 'crit' : 'good');
-      if (e.hits) hud.feedback(e.hits > 1 ? `¡Tótem! ${e.damage} a ${e.hits}` : `¡Tótem! ${e.damage}`, 'good');
-      break;
-    }
-    case 'expired':
-      hud.feedback('Se apagó un tótem', 'neutral');
-      break;
-  }
-};
-
-traps.onEvent = (e) => {
-  switch (e.type) {
-    case 'placed':
-      audio.zap();
-      hud.feedback(`Tótem de ${e.trap.damage}: detonalo con el driver`, 'neutral');
-      break;
-    case 'blast': {
-      audio.explosion();
-      audio.thud();
-      if (e.pos.distanceTo(player.position) < 20) shake = Math.max(shake, 0.3);
-      const s = toScreen(e.pos, 1.2);
-      hud.float(s.x, s.y, `¡${e.damage}!`, 'good');
-      if (e.hits) hud.feedback(e.hits > 1 ? `¡Tótem! ${e.damage} a ${e.hits}` : `¡Tótem! ${e.damage}`, 'good');
-      break;
-    }
-    case 'expired':
-      hud.feedback('Se apagó un tótem', 'neutral');
-      break;
-  }
-};
-
 balls.onEvent = (e) => {
   switch (e.type) {
-    case 'hit':
+    case 'hit': {
       audio.thud();
+      const s = toScreen(e.pos, 0.4);
+      hud.float(s.x, s.y, String(e.damage), e.quality >= QUALITY_LEVELS ? 'crit' : '');
       break;
-    case 'ice':
-      audio.frost();
-      if (e.chilled) hud.feedback(e.chilled > 2 ? `¡Fríos ×${e.chilled}!` : `Fríos ×${e.chilled}`, e.chilled > 2 ? 'good' : 'neutral');
-      break;
-    case 'push':
-      audio.explosion();
-      if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.15);
-      if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
+    }
+    case 'land':
+      if (e.enchant === 'ice') {
+        audio.frost();
+        if (e.hits) hud.feedback(e.hits > 2 ? `¡Fríos ×${e.hits}!` : `Fríos ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
+      } else if (e.enchant === 'push') {
+        audio.explosion();
+        if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.15);
+        if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
+      } else {
+        audio.explosion();
+        audio.thud();
+        if (e.pos.distanceTo(player.position) < 16) shake = Math.max(shake, 0.2);
+        if (e.hits > 1) hud.feedback(`¡Le pegó a ${e.hits}!`, 'good');
+      }
       break;
     case 'bounce':
       audio.bounce();
@@ -453,20 +397,36 @@ balls.onEvent = (e) => {
       hud.float(s.x, s.y, e.warded ? 'inmune' : '¡Bloqueado!', 'hurt');
       break;
     }
+    case 'settled':
+      break;
   }
 };
 
-function selectClub(index: number): void {
-  if (cardOpen) return;
-  if (!player || index < 0 || index >= CLUB_ORDER.length) return;
-  const club = CLUBS[CLUB_ORDER[index]];
-  if (!player.unlocked.has(club.id)) {
-    hud.feedback(`${club.name}: todavía no lo tenés`, 'neutral');
+/** Q y E recorren los palos habilitados, en círculo. */
+function cycleClub(delta: number): void {
+  if (cardOpen || !player) return;
+  const order = CLUB_ORDER.filter((id) => player.unlocked.has(id));
+  if (order.length < 2) return;
+  const i = order.indexOf((player.pendingClub ?? player.club).id);
+  player.setClub(CLUBS[order[(i + delta + order.length) % order.length]]);
+}
+
+/** Qué encantamientos hay: el golpe seco siempre, y los otros llegan con su palo hermano. */
+function enchantReady(id: EnchantId): boolean {
+  if (id === 'ice') return player.unlocked.has('iron');
+  if (id === 'push') return player.unlocked.has('wedge');
+  return true;
+}
+
+/** 1, 2 y 3 eligen qué hace la pelota cuando llega. */
+function selectEnchant(index: number): void {
+  if (cardOpen || !player || index < 0 || index >= ENCHANT_ORDER.length) return;
+  const id = ENCHANT_ORDER[index];
+  if (!enchantReady(id)) {
+    hud.feedback(`${ENCHANTS[id].name}: todavía no lo tenés`, 'neutral');
     return;
   }
-  // cargando, cambia en el acto y vuelve a cargar; con el swing bajando queda en cola. El HUD se pone al
-  // día en el bucle
-  player.setClub(club);
+  player.setEnchant(ENCHANTS[id]);
 }
 
 /**
@@ -477,25 +437,9 @@ function selectClub(index: number): void {
 function lockSwing(): void {
   if (!started || paused || ended || !player?.lockSwing()) return;
   const p = player.meter.power;
-  audio.chargeTick(p >= PERFECT_FROM ? CHARGE_LEVELS + 1 : chargeLevel(p));
-  hud.feedback(p >= PERFECT_FROM ? '¡Crítico clavado! Soltá cuando quieras' : `Clavado en ${chargeLevel(p)}: soltá cuando quieras`, p >= PERFECT_FROM ? 'good' : 'neutral');
-}
-
-/** Sube o baja la altura del tiro un escalón. */
-function setAimHeight(delta: number): void {
-  const next = Math.min(HEIGHT_LEVELS.length - 1, Math.max(0, aimHeight + delta));
-  if (next === aimHeight) return;
-  aimHeight = next;
-}
-
-/** F: el putter, que siembra tótems. Es un palo como los otros, solo que fuera de la rueda. */
-function usePutter(): void {
-  if (!player.alive) return;
-  if (!player.unlocked.has('putter')) {
-    hud.feedback('El putter llega más adelante', 'neutral');
-    return;
-  }
-  player.setClub(CLUBS.putter);
+  const q = qualityOf(p);
+  audio.chargeTick(q);
+  hud.feedback(q >= QUALITY_LEVELS ? '¡Golpe perfecto clavado! Soltá cuando quieras' : `Clavado en ${q}: soltá cuando quieras`, q >= QUALITY_LEVELS ? 'good' : 'neutral');
 }
 
 /**
@@ -513,9 +457,8 @@ function offerUnlock(): boolean {
   hud.showCard({
     name: club.name,
     title: club.title,
-    key: id === 'putter' ? 'F' : String(CLUB_ORDER.indexOf(id) + 1),
+    key: 'Q / E',
     hint: club.hint,
-    cooldown: club.cooldown,
     color: club.color,
     next: director.nextTitle,
   });
@@ -526,13 +469,6 @@ function dismissCard(): void {
   if (!cardOpen) return;
   cardOpen = false;
   hud.hideCard();
-}
-
-function toggleLobAim(): void {
-  lobAim = lobAim === 'cursor' ? 'carga' : 'cursor';
-  localStorage.setItem(LOB_KEY, lobAim);
-  hud.setLobAim(lobAim);
-  hud.feedback(lobAim === 'cursor' ? 'Globos: caen donde está el cursor' : 'Globos: la carga es la distancia', 'neutral');
 }
 
 async function startGame(): Promise<void> {
@@ -570,28 +506,12 @@ const input = new Input({
   swingCancel() {
     player?.cancelSwing();
   },
-  putter() {
-    if (started && !paused && !ended && !cardOpen && player) usePutter();
-  },
-  aimHeight(delta) {
-    if (started && !paused && !ended && !cardOpen && player) setAimHeight(delta);
-  },
-  selectClub,
-  cycleClub(delta) {
-    if (!player) return;
-    // la rueda avanza desde el palo en cola, si hay uno, para poder pasar de largo; saltea los que faltan
-    const order = CLUB_ORDER.filter((id) => player.unlocked.has(id));
-    if (order.length < 2) return;
-    const i = order.indexOf((player.pendingClub ?? player.club).id);
-    player.setClub(CLUBS[order[(i + delta + order.length) % order.length]]);
-  },
+  selectEnchant,
+  cycleClub,
   space() {
     if (!started) intro.advance();
     else if (cardOpen) dismissCard();
     else lockSwing();
-  },
-  lobAim() {
-    if (started && !paused) toggleLobAim();
   },
   step(right) {
     if (started && !paused && !ended && !cardOpen && player) player.step(-right);
@@ -737,13 +657,13 @@ async function makePlayer(skin: Skin): Promise<Player> {
     audio.whoosh(0.3);
     hud.feedback('¡Sin pelota! Movete con A / D', 'bad');
   };
-  p.onDenied = (club) => hud.feedback(`${club.name} recargando: ${p.cooldowns[club.id].toFixed(1)} s`, 'neutral');
+  p.onDenied = (enchant) => hud.feedback(`${enchant.name} recargando: ${p.cooldowns[enchant.id].toFixed(1)} s`, 'neutral');
   p.onShot = (shot) => {
     shots++;
-    audio.tock(shot.perfect);
-    if (shot.perfect) hud.feedback('¡Swing perfecto!', 'good');
-    const range = shotRange(shot.club, shot.reach);
-    balls.fire(shot, range, loftFor(shot.club, aimHeight) > 0.001 ? shotLift(shot.club, range) : null);
+    audio.tock(shot.quality >= QUALITY_LEVELS);
+    if (shot.quality >= QUALITY_LEVELS) hud.feedback('¡Golpe perfecto!', 'good');
+    const range = shotRange(shot.club);
+    balls.fire(shot, range, shotLift(shot.club, range));
   };
   // Palazo: botón aparte, con recarga. No hace daño: empuja hacia atrás a todo lo que haya alrededor de
   // un punto un paso adelante del golfista, hacia donde apunta.
@@ -828,11 +748,7 @@ async function loadModels(): Promise<void> {
   hud.setClub(player.club);
   hud.setSkin(SKINS[skinIndex].name);
   hud.onSkinClick = () => void cycleSkin();
-  hud.setLobAim(lobAim);
   hud.onCardDismiss = dismissCard;
-  hud.onLobAimClick = () => {
-    if (started && !paused) toggleLobAim();
-  };
   player.update(0);
 }
 
@@ -920,7 +836,7 @@ function frame(): void {
     if (started) gameClock += dt;
     updateAim();
     const active = started && !ended;
-    if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere() && player.cooldowns[(player.pendingClub ?? player.club).id] <= 0) player.startSwing();
+    if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere() && player.cooldowns[player.enchant.id] <= 0) player.startSwing();
     player.update(dt);
     if (active) updateWaves(dt);
     if (started) {
@@ -936,8 +852,8 @@ function frame(): void {
     updatePreview();
 
     hud.setClub(player.club, player.pendingClub);
-    hud.setHeight(aimHeight);
-    hud.setClubState(player.unlocked, player.cooldowns, player.meleeCooldown);
+    hud.setEnchant(player.enchant, player.cooldowns, enchantReady);
+    hud.setClubState(player.unlocked, player.meleeCooldown);
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScore(score, kills);
@@ -974,18 +890,17 @@ addEventListener('resize', () => {
   screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, heightAt(x, z), z), 0); },
   heightAt,
   spawn(kind: EnemyKind, x: number, z: number) { return horde.spawn(kind, new THREE.Vector3(x, 0, z)); },
-  /** Tiro con el alcance exacto en metros (sin depender del timing del test). Apunta donde esté el mouse. */
-  shoot(meters: number) {
-    const c = player.club;
-    player.startSwing();
-    player.meter.setPower((meters - c.minRange) / (c.maxRange - c.minRange));
-    player.releaseSwing();
-  },
-  /** Tiro con una potencia exacta 0..1 (un globo apuntado con el cursor cae donde esté el mouse). */
+  /** Tiro con una calidad de golpe exacta, sin depender del timing. Cae donde esté el mouse. */
   shootPower(power: number) {
     player.startSwing();
     player.meter.setPower(power);
     player.releaseSwing();
+  },
+  /** Qué palo está en la mano y a qué distancia va a caer, para las pruebas. */
+  get shotInfo() {
+    const club = player.club;
+    const range = shotRange(club);
+    return { club: club.id, enchant: player.enchant.id, range: +range.toFixed(1), band: bandOf(range), damage: damageFor(club, range, qualityOf(player.meter.power)) };
   },
   /** Color actual de la línea de tiro y palo que muestra la punta, para las pruebas. */
   get aimLine() { return { color: previewMat.color.getHex(), tip: tipClub, tipVisible: tip.visible }; },
@@ -998,10 +913,9 @@ addEventListener('resize', () => {
   get tees() { return tees; },
 
   get traps() { return traps; },
-  get aimHeight() { return aimHeight; },
-  set aimHeight(v: number) { setAimHeight(v - aimHeight); },
-  get lobAim() { return lobAim; },
-  set lobAim(v: LobAim) { lobAim = v; hud.setLobAim(v); },
+  get enchant() { return player.enchant.id; },
+  set enchant(id: EnchantId) { player.setEnchant(ENCHANTS[id]); },
+  cycleClub, selectEnchant,
   unlockAll() { for (const id of Object.keys(CLUBS) as ClubId[]) player.unlocked.add(id); },
   /** Recorrido de la mano derecha en un clip y sus fases, para revisar los clips de golf. */
   sampleClip(name: string, hz = 20) {
