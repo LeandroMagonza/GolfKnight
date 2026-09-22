@@ -135,8 +135,8 @@ export const CLUBS: Record<ClubId, Club> = {
     knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, fixedRange: 0, color: CLUB_COLOR,
   },
   putter: {
-    id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno y se carga rápido',
-    loftDeg: 0, minRange: 2, maxRange: 20, chargeTime: 0.5, spread: [0, 0, 0],
+    id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno',
+    loftDeg: 0, minRange: 2, maxRange: 20, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
     // siempre rueda los 20 m: apuntando cerca del enemigo frenaba antes de llegar. Y cuanto mejor el

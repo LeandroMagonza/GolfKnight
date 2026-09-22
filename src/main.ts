@@ -1032,7 +1032,6 @@ function frame(): void {
     world.update(dt);
     updateCamera(dt);
     updatePreview();
-    debugPanel?.showCamera();
 
     hud.setClub(player.club, player.pendingClub);
     hud.setEnchant(player.enchant, player.cooldowns, enchantOwned);
@@ -1042,6 +1041,8 @@ function frame(): void {
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScore(score, kills);
   }
+  // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos
+  debugPanel?.tick();
   renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(frame);

@@ -7,7 +7,8 @@
 // siguiente tiro y desde el siguiente enemigo que aparece; a los que ya están en el campo se les
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, hasArea, IRON_MODES, ironMode, QUALITY_LEVELS, RESERVE, setIronMode, type IronMode } from './core/clubs';
+import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, type Club, type IronMode } from './core/clubs';
+import { RISE_CURVE } from './core/swing';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
 
@@ -52,6 +53,8 @@ type Saved = SavedExtras & {
   bands?: number[];
   clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
   iron?: IronMode;
+  /** Dónde empieza cada nivel de golpe, en potencia 0..1. */
+  quality?: number[];
   reserve?: { cooldown: number; max: number };
   enchants?: Record<string, number>;
   enemies?: Record<string, { hp: number; speed: number; damage: number; attackEvery?: number }>;
@@ -79,6 +82,7 @@ export function loadBalance(): SavedExtras {
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
   }
   if (saved.iron && IRON_MODES[saved.iron]) setIronMode(saved.iron);
+  if (saved.quality?.length === QUALITY_FROM.length) QUALITY_FROM.splice(0, QUALITY_FROM.length, ...saved.quality);
   if (saved.reserve) {
     if (typeof saved.reserve.cooldown === 'number') RESERVE.cooldown = saved.reserve.cooldown;
     if (typeof saved.reserve.max === 'number') RESERVE.max = saved.reserve.max;
@@ -112,6 +116,7 @@ export function saveBalance(extras: SavedExtras): void {
     };
     out.iron = ironMode();
   }
+  out.quality = [...QUALITY_FROM];
   out.reserve = { cooldown: RESERVE.cooldown, max: RESERVE.max };
   for (const id of ENCHANT_ORDER) out.enchants![id] = ENCHANTS[id].cooldown;
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
@@ -166,6 +171,23 @@ function heading(text: string): HTMLElement {
   return h;
 }
 
+/**
+ * En qué segundo de la carga empieza un nivel de golpe. La barra sube como `(t / lleno) ^ RISE_CURVE`,
+ * así que el umbral, que está en potencia, se pasa a tiempo con la raíz: de ahí sale que los niveles de
+ * arriba duren mucho menos, aunque los porcentajes estén repartidos parejo.
+ */
+function levelStart(chargeTime: number, level: number): number {
+  return chargeTime * Math.pow(QUALITY_FROM[level], 1 / RISE_CURVE);
+}
+
+/** Cuánto dura cada nivel de golpe con este palo, en segundos. */
+function levelDurations(club: Club): number[] {
+  return Array.from({ length: QUALITY_LEVELS }, (_, q) => {
+    const to = q + 1 < QUALITY_LEVELS ? levelStart(club.chargeTime, q + 1) : club.chargeTime;
+    return to - levelStart(club.chargeTime, q);
+  });
+}
+
 function note(text: string): HTMLElement {
   const p = document.createElement('p');
   p.className = 'note';
@@ -178,12 +200,25 @@ export class DebugPanel {
   private readonly btn = $<HTMLButtonElement>('balancebtn');
   private readonly fields: HTMLInputElement[] = [];
   private camLine: HTMLElement | null = null;
+  /** Las casillas que muestran cuánto dura cada nivel del golpe: no se escriben, se calculan. */
+  private readonly chargeCells: { td: HTMLTableCellElement; club: Club; level: number }[] = [];
 
-  /** La cámara se mueve con la rueda mientras el panel está abierto: se relee en cada cuadro. */
-  showCamera(): void {
-    if (!this.camLine || !this.open) return;
-    const c = this.hooks.camera();
-    this.camLine.textContent = `inclinación ${c.pitch.toFixed(0)}° · altura ${c.rise >= 0 ? '+' : ''}${c.rise.toFixed(1)} m · distancia ${c.dist.toFixed(1)} m`;
+  /**
+   * Lo que el panel no lee de un campo sino que calcula: la cámara (se mueve con la rueda con el panel
+   * abierto) y los segundos de cada nivel del golpe (salen de la barra llena y de los umbrales).
+   */
+  tick(): void {
+    if (!this.open) return;
+    if (this.camLine) {
+      const c = this.hooks.camera();
+      this.camLine.textContent = `inclinación ${c.pitch.toFixed(0)}° · altura ${c.rise >= 0 ? '+' : ''}${c.rise.toFixed(1)} m · distancia ${c.dist.toFixed(1)} m`;
+    }
+    for (const { td, club, level } of this.chargeCells) {
+      const from = levelStart(club.chargeTime, level);
+      const to = level + 1 < QUALITY_LEVELS ? levelStart(club.chargeTime, level + 1) : club.chargeTime;
+      td.textContent = `${(to - from).toFixed(2)} s`;
+      td.title = `de ${from.toFixed(2)} s a ${to.toFixed(2)} s desde que apretás`;
+    }
   }
 
   constructor(private readonly hooks: DebugHooks) {
@@ -274,16 +309,17 @@ export class DebugPanel {
           cell(areaRow, this.field(() => club.spread[q - 1], (v) => { club.spread[q - 1] = Math.max(0, v); }, 0.2));
         }
       }
+      // el tope de este palo: más cerca o más lejos que esto, el cursor no lo estira
       const rangeRow = table.insertRow();
-      cell(rangeRow, 'llega de / a', 'l').title = 'metros mínimo y máximo a los que puede caer este palo';
+      cell(rangeRow, 'no llega más...', 'l').title = 'los dos topes de este palo, en metros: apuntes donde apuntes, el tiro cae entre estos dos números';
       cell(rangeRow, this.field(() => club.minRange, (v) => { club.minRange = v; }));
       cell(rangeRow, this.field(() => club.maxRange, (v) => { club.maxRange = v; }));
-      cell(rangeRow, this.field(() => club.chargeTime, (v) => { club.chargeTime = Math.max(0.1, v); }, 0.05)).title = 'segundos que tarda la barra en llegar arriba, para este palo';
+      cell(rangeRow, '');
       const legend = table.insertRow();
       cell(legend, '', 'l');
-      cell(legend, 'mín');
-      cell(legend, 'máx');
-      cell(legend, 'carga');
+      cell(legend, '...acá');
+      cell(legend, '...allá');
+      cell(legend, '');
       el.append(table);
       // distancia fija: el mouse decide solo la dirección
       const fixedRow = document.createElement('div');
@@ -336,9 +372,11 @@ export class DebugPanel {
       }
     }
     el.append(note(
-      'Ojo, son dos cosas distintas. «llega de / a» es hasta dónde alcanza ese palo: el cursor más lejos que eso no lo estira. '
-      + 'Las bandas de acá abajo son dónde cambia cuánto pega, y valen para todos los palos por igual. '
-      + 'Por eso el putter, que llega a 22 m, nunca usa su banda larga. La tercera casilla de esa fila es el radio del área. '
+      '«No llega más acá / más allá» son los dos topes de ese palo, en metros. Apuntes donde apuntes, el tiro cae entre esos dos números: '
+      + 'con el driver, apuntando encima tuyo sale igual a 4 m, y apuntando a 80 m cae a 66. Es de ese palo solo, y no dice nada del daño. '
+      + '(Con «distancia fija» prendida el cursor ni siquiera elige: el tiro va siempre a esos metros, recortados a estos dos topes.) '
+      + 'Las bandas de acá abajo son otra cosa: dicen **cuánto pega** según a qué distancia pegó, y son iguales para los cuatro palos. '
+      + 'Por eso el putter, que no llega más allá de 20 m, nunca cobra con su columna «larga»: no hay forma de que su pelota llegue hasta ahí. '
       + 'El hierro tiene dos bloques porque hace las dos cosas: «al pegar» es cuando la pelota le da a alguien y «en área» lo que reparte donde cae. '
       + 'El wedge y el putter solo hacen área, así que su tabla ya es la del área.',
     ));
@@ -351,7 +389,42 @@ export class DebugPanel {
     cell(bandRow, this.field(() => BAND_LIMITS[0], (v) => { BAND_LIMITS[0] = v; }));
     cell(bandRow, 'media hasta', 'l');
     cell(bandRow, this.field(() => BAND_LIMITS[1], (v) => { BAND_LIMITS[1] = v; }));
-    el.append(bands, note('Los metros se cuentan desde la línea de los puestos, la que dice 0 en el campo. El tiempo de carga es de cada palo y está arriba, en su tabla.'));
+    el.append(bands, note('Los metros se cuentan desde la línea de los puestos, la que dice 0 en el campo.'));
+
+    // ---- carga: cuánto dura cada nivel del golpe ----
+    el.append(heading('Carga: cuánto dura cada nivel del golpe'));
+    const charge = document.createElement('table');
+    const chargeHead = charge.insertRow();
+    for (const h of ['', 'barra llena', 'golpe 1', 'golpe 2', 'golpe 3']) {
+      const th = document.createElement('th');
+      th.textContent = h;
+      if (!h) th.className = 'l';
+      chargeHead.appendChild(th);
+    }
+    for (const id of CLUB_ORDER) {
+      const club = CLUBS[id];
+      const row = charge.insertRow();
+      cell(row, club.name, 'l');
+      cell(row, this.field(() => club.chargeTime, (v) => { club.chargeTime = Math.max(0.1, v); }, 0.05)).title = 'segundos que tarda la barra en llegar arriba del todo';
+      // cuánto dura cada nivel, en segundos: sale de la barra llena y de los umbrales de abajo
+      for (let q = 0; q < QUALITY_LEVELS; q++) this.chargeCells.push({ td: cell(row, '', 'l'), club, level: q });
+    }
+    el.append(charge);
+    const thresholds = document.createElement('table');
+    for (let q = 1; q < QUALITY_LEVELS; q++) {
+      const row = thresholds.insertRow();
+      cell(row, `el golpe ${q + 1} empieza a`, 'l');
+      cell(row, this.field(() => Math.round(QUALITY_FROM[q] * 100), (v) => {
+        QUALITY_FROM[q] = Math.min(1, Math.max(0.01, v / 100));
+      }, 1));
+      cell(row, '% de la barra', 'l');
+    }
+    el.append(thresholds, note(
+      'La barra no sube pareja: arranca lenta y termina rápida, así que el golpe 1 dura mucho más que el 3 aunque los umbrales estén parejos. '
+      + 'Los segundos de la tabla ya tienen eso adentro: son lo que dura cada nivel de verdad. '
+      + 'Y al llegar arriba la barra rebota y baja hasta abajo, así que el golpe 3 vuelve a pasar en cada rebote, igual de corto. '
+      + 'Subir el «barra llena» de un palo estira los tres niveles a la vez; los porcentajes reparten la barra entre ellos y valen para los cuatro palos.',
+    ));
 
     // ---- poderes ----
     el.append(heading('Poderes: recarga'));
@@ -439,7 +512,6 @@ export class DebugPanel {
     const camLine = document.createElement('p');
     camLine.className = 'note';
     this.camLine = camLine;
-    this.showCamera();
     el.append(camLine, note('Rueda del mouse: inclinación. Flechas arriba y abajo: altura, sin girarla. Los valores van en «copiar configuración».'));
 
     // ---- pruebas ----
@@ -520,7 +592,9 @@ export class DebugPanel {
       `campo: ${COURSES[this.hooks.courseIndex()].name}`,
       `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}`,
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
-      `carga: ${CLUBS.driver.chargeTime} s para los cuatro palos`,
+      `carga: barra llena ${CLUB_ORDER.map((id) => `${id} ${CLUBS[id].chargeTime}`).join(', ')} s`,
+      `  niveles desde ${QUALITY_FROM.map((p) => `${Math.round(p * 100)}%`).join(' / ')} de la barra`,
+      `  con el driver eso es: ${levelDurations(CLUBS.driver).map((s, q) => `golpe ${q + 1} dura ${s.toFixed(2)} s`).join(', ')}`,
       '',
       'palos (daño [corta, media, larga] x [golpe 1, 2, 3]):',
     ];

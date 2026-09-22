@@ -169,10 +169,10 @@ describe('encantamientos', () => {
     expect(ENCHANTS.push.cooldown).toBeGreaterThan(0);
   });
 
-  it('cada palo tiene su tiempo de carga, y el del putter es el más corto', () => {
-    // la barra mide timing, así que los tres de campo cargan igual; el putter es de cerca y va rápido
-    for (const id of ['driver', 'iron', 'wedge'] as const) expect(CLUBS[id].chargeTime, id).toBe(CHARGE_TIME);
-    expect(CLUBS.putter.chargeTime).toBeLessThan(CHARGE_TIME);
+  it('los cuatro palos cargan en el mismo tiempo', () => {
+    // la barra mide **timing**: si cada palo tuviera su ritmo, elegir palo sería también elegir qué tan
+    // difícil es clavar el golpe, que es otra decisión. El putter era el que se salía de la regla
+    for (const id of CLUB_ORDER) expect(CLUBS[id].chargeTime, id).toBe(CHARGE_TIME);
   });
 
   it('el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie', () => {
