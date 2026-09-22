@@ -192,8 +192,10 @@ describe('encantamientos', () => {
     expect(damageFor(CLUBS.wedge, 30, 3)).toBeLessThan(damageFor(CLUBS.iron, 30, 3));
   });
 
-  it('se puede pegar cerca: ningún palo pide más de 4 m para salir', () => {
-    for (const id of CLUB_ORDER) expect(CLUBS[id].minRange, id).toBeLessThanOrEqual(4);
+  it('no hay distancia mínima: con los enemigos encima igual se les puede pegar', () => {
+    // un mínimo suena razonable, pero se traducía en no poder pegarle a nadie justo cuando te lo tenés
+    // encima, que es cuando más falta hace
+    for (const id of CLUB_ORDER) expect(CLUBS[id].minRange, id).toBe(0);
   });
 
   it('cerca del mouse solo aparece el símbolo de lo que cambia el tiro y no se ve de otra forma', () => {

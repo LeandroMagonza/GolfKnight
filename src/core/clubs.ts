@@ -26,6 +26,12 @@ export interface Club {
   hint: string;
   /** Ángulo de salida en grados. 0 = rueda por el piso. */
   loftDeg: number;
+  /**
+   * Distancia mínima: **0 en los cuatro**, y es a propósito. Un mínimo parecía razonable (nadie pega un
+   * drive de dos metros) pero en el juego se traducía en que, con los enemigos encima, de golpe no
+   * podías pegarles por estar demasiado cerca. Justo el momento en que más falta hace. Si querés
+   * reventar el wedge abajo tuyo, podés.
+   */
   minRange: number;
   maxRange: number;
   /**
@@ -112,14 +118,14 @@ export const CLUB_COLOR = 0xe6e2d3;
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
     id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
-    loftDeg: 3.5, minRange: 4, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
+    loftDeg: 3.5, minRange: 0, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
     pierces: true, burstsOnGround: false, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
-    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 50, color: CLUB_COLOR,
+    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 55, color: CLUB_COLOR,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
-    loftDeg: 27, minRange: 4, maxRange: 55, chargeTime: CHARGE_TIME, spread: [1.8, 2.2, 2.7],
+    loftDeg: 27, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [1.8, 2.2, 2.7],
     // modo por defecto: no atraviesa, y el área sale solo si le pega a alguien (ver IRON_MODES)
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
@@ -128,7 +134,7 @@ export const CLUBS: Record<ClubId, Club> = {
   },
   wedge: {
     id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no',
-    loftDeg: 55, minRange: 3, maxRange: 55, chargeTime: CHARGE_TIME, spread: [4.2, 5, 6.3],
+    loftDeg: 55, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [4.2, 5, 6.3],
     pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto
     damage: [[1, 2, 5], [1, 2, 5], [1, 2, 5]],
@@ -136,7 +142,7 @@ export const CLUBS: Record<ClubId, Club> = {
   },
   putter: {
     id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno',
-    loftDeg: 0, minRange: 2, maxRange: 20, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
+    loftDeg: 0, minRange: 0, maxRange: 20, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
     // siempre rueda los 20 m: apuntando cerca del enemigo frenaba antes de llegar. Y cuanto mejor el

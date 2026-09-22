@@ -68,8 +68,13 @@ export class Input {
       }
     });
     target.addEventListener('contextmenu', (e) => e.preventDefault());
-    // la rueda ya no cambia de palo (cada palo tiene su tecla): inclina la cámara, para probar ángulos
-    addEventListener('wheel', (e) => this.ev.tiltCamera(e.deltaY > 0 ? -1 : 1), { passive: true });
+    // la rueda ya no cambia de palo (cada palo tiene su tecla): inclina la cámara, para probar ángulos.
+    // Con el mouse encima de un panel que scrollea, la rueda es del panel: si no, buscando un número
+    // abajo de todo en el balance se te iba girando la cámara.
+    addEventListener('wheel', (e) => {
+      if ((e.target as HTMLElement | null)?.closest?.('#balance')) return;
+      this.ev.tiltCamera(e.deltaY > 0 ? -1 : 1);
+    }, { passive: true });
   }
 
   private keydown(e: KeyboardEvent): void {

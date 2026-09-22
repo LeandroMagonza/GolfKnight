@@ -188,8 +188,14 @@ function shotLift(club: Club, range: number): { speed: number; angle: number } |
   // El tiro rasante se inclina hacia **lo más alto que se cruza en el camino**, no hacia la altura del
   // cursor. Si no, apuntando detrás de una loma el tiro bajaba y se clavaba más abajo en la misma loma:
   // la marca del piso, en vez de quedarse en la cima, se volvía para adelante.
-  const dist = Math.max(4, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z));
-  let pitch = Math.atan2(heightAt(aimPoint.x, aimPoint.z) - teeH, dist);
+  //
+  // Todo se mide sobre el tiro que va a salir, hasta `range`, no hasta donde está el cursor. Con
+  // distancia fija no son lo mismo: acercando el mouse al golfista cambiaba la trayectoria de un tiro
+  // que igual salía a 55 m, porque leía el terreno abajo del cursor en vez del que se va a cruzar.
+  const dist = Math.max(1, range);
+  const endX = tee.x + player.aimDir.x * dist;
+  const endZ = tee.z + player.aimDir.z * dist;
+  let pitch = Math.atan2(heightAt(endX, endZ) - teeH, dist);
   for (let s = 4; s < dist; s += 1) {
     const h = heightAt(tee.x + player.aimDir.x * s, tee.z + player.aimDir.z * s);
     // solo cuentan las lomas de verdad: un desnivel chico no tapa nada, y si contara, apuntar al fondo
@@ -917,6 +923,8 @@ const cam = { pitch: savedBalance.camera?.pitch ?? 32, dist: 18.9, rise: savedBa
 const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
 
 function tiltCamera(delta: number): void {
+  // en pausa la rueda no es del juego: se está leyendo el panel de balance, que está por encima
+  if (paused) return;
   cam.pitch = THREE.MathUtils.clamp(cam.pitch + delta * 2.5, CAM_LIMITS.pitch[0], CAM_LIMITS.pitch[1]);
   hud.feedback(`Cámara: ${cam.pitch.toFixed(0)}° de inclinación`, 'neutral');
   debugPanel?.save();

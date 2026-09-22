@@ -42,6 +42,14 @@ export interface DebugHooks {
  * botón «Restaurar» lo borra y devuelve los valores del código.
  */
 const STORE_KEY = 'gk.balance';
+/**
+ * Sube cuando el juego **redefine** un valor que el panel guarda. Un guardado viejo lo trae con el
+ * número de antes y pisa la decisión nueva sin que nadie se entere: pasó con el mínimo de distancia,
+ * que ahora es 0 en los cuatro palos, y con la carga del putter, que se emparejó con la de los demás.
+ * Al subir la versión esos dos vuelven al valor del código y el resto de lo tocado se conserva.
+ */
+const VERSION = 2;
+const RESET_ON_UPGRADE: readonly string[] = ['minRange', 'chargeTime'];
 
 /** Lo que no vive en CLUBS ni en ENEMIES pero igual se guarda. */
 export interface SavedExtras {
@@ -50,6 +58,7 @@ export interface SavedExtras {
 }
 
 type Saved = SavedExtras & {
+  version?: number;
   bands?: number[];
   clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
   iron?: IronMode;
@@ -69,11 +78,13 @@ export function loadBalance(): SavedExtras {
     return {};
   }
   if (saved.bands?.length === BAND_LIMITS.length) BAND_LIMITS.splice(0, BAND_LIMITS.length, ...saved.bands);
+  const stale = saved.version !== VERSION;
   for (const id of CLUB_ORDER) {
     const from = saved.clubs?.[id];
     if (!from) continue;
     const club = CLUBS[id];
     for (const k of ['minRange', 'maxRange', 'chargeTime', 'fixedRange'] as const) {
+      if (stale && RESET_ON_UPGRADE.includes(k)) continue;
       if (typeof from[k] === 'number') club[k] = from[k];
     }
     if (from.spread?.length === club.spread.length) club.spread = from.spread;
@@ -105,7 +116,7 @@ export function loadBalance(): SavedExtras {
 
 /** Guarda todo lo tocado. Se llama en cada cambio: son pocos bytes. */
 export function saveBalance(extras: SavedExtras): void {
-  const out: Saved = { bands: [...BAND_LIMITS], clubs: {}, enchants: {}, enemies: {}, ...extras };
+  const out: Saved = { version: VERSION, bands: [...BAND_LIMITS], clubs: {}, enchants: {}, enemies: {}, ...extras };
   for (const id of CLUB_ORDER) {
     const c = CLUBS[id];
     out.clubs![id] = {
