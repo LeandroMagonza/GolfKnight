@@ -4,8 +4,8 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
-import { heightAt, raycastTerrain, relief } from './core/terrain';
-import { bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type EnchantId } from './core/clubs';
+import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
+import { bandOf, BAND_NAMES, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -17,6 +17,7 @@ import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
 import { GATE_Z, GUARD_POSTS, World } from './game/world';
+import { DebugPanel } from './debug';
 import { Hud } from './hud';
 import { Input } from './input';
 import { Intro } from './intro';
@@ -29,8 +30,10 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
-// Prototipo de campo con relieve: se prende con ?relieve en la URL. Tiene que decidirse antes de armar el mundo.
-relief.on = new URLSearchParams(location.search).has('relieve');
+// El campo de esta partida sale de core/terrain: ?campo=N fuerza uno y ?plano deja el campo liso. Tiene
+// que decidirse antes de armar el mundo, porque la malla del terreno se construye una sola vez.
+const params = new URLSearchParams(location.search);
+const gameCourse = pickCourse(params.has('plano') ? 'plano' : params.get('campo'));
 const world = new World(scene);
 const effects = new Effects(scene);
 const horde = new Horde(scene);
@@ -57,15 +60,19 @@ let ended: 'victory' | 'defeat' | null = null;
 let shake = 0;
 let frameTimes: number[] = [];
 let lastEvent = '';
+/** Dónde abrió su área el último tiro y a cuántos agarró: [x, z, alcanzados]. Solo para las pruebas. */
+let lastLanding: [number, number, number] | null = null;
 let closeup = false;
 /** Hay un cartel de palo nuevo en pantalla: el juego queda frenado hasta que se lo cierre. */
 let cardOpen = false;
 /** Segundos de juego transcurridos (no corre en pausa). */
 let gameClock = 0;
 /** Con ?palos en la URL arrancan todos los palos habilitados, para probar sin jugar las oleadas. */
-const ALL_CLUBS = new URLSearchParams(location.search).has('palos');
+const ALL_CLUBS = params.has('palos');
 /** Con ?bot en la URL juega solo (src/bot.ts), para mirarlo o para chequear el balance. */
-const BOT = new URLSearchParams(location.search).has('bot');
+const BOT = params.has('bot');
+/** Trucos del panel de balance: el golfista o la puerta no reciben daño. */
+const godMode = { godPlayer: false, godGate: false };
 
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
@@ -173,38 +180,40 @@ function hasBallHere(): boolean {
   return Math.abs(tees.spots[i].x - player.position.x) < 0.1 && tees.hasBall(i);
 }
 
-/** Ícono de cada palo, para la punta de la línea de tiro. */
-const TIP_ICONS: Record<ClubId, string> = { driver: '➤', iron: '❄', wedge: '✹', putter: '✦' };
-const tipTextures = new Map<ClubId, THREE.CanvasTexture>();
-function tipTexture(club: Club): THREE.CanvasTexture {
-  let tex = tipTextures.get(club.id);
+/**
+ * La punta de la línea de tiro lleva el ícono del **poder**, no el del palo: el del palo tapaba justo el
+ * punto al que se apunta y estorbaba. Va chico y levantado sobre el punto de caída, que queda libre.
+ */
+const tipTextures = new Map<EnchantId, THREE.CanvasTexture>();
+function tipTexture(enchant: Enchant): THREE.CanvasTexture {
+  let tex = tipTextures.get(enchant.id);
   if (tex) return tex;
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const ctx = c.getContext('2d')!;
   ctx.beginPath();
-  ctx.arc(64, 64, 54, 0, Math.PI * 2);
-  ctx.fillStyle = '#' + club.color.toString(16).padStart(6, '0');
+  ctx.arc(64, 64, 46, 0, Math.PI * 2);
+  ctx.fillStyle = '#' + enchant.color.toString(16).padStart(6, '0');
   ctx.fill();
   ctx.lineWidth = 8;
   ctx.strokeStyle = 'rgba(8, 12, 18, 0.85)';
   ctx.stroke();
   ctx.fillStyle = '#10161d';
-  ctx.font = 'bold 70px system-ui, sans-serif';
+  ctx.font = 'bold 62px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(TIP_ICONS[club.id], 64, 68);
+  ctx.fillText(enchant.icon, 64, 68);
   tex = new THREE.CanvasTexture(c);
-  tipTextures.set(club.id, tex);
+  tipTextures.set(enchant.id, tex);
   return tex;
 }
 const tipMat = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
 const tip = new THREE.Sprite(tipMat);
-tip.scale.set(1.5, 1.5, 1);
+tip.scale.set(0.95, 0.95, 1);
 tip.renderOrder = 20;
 tip.visible = false;
 scene.add(tip);
-let tipClub: ClubId | null = null;
+let tipEnchant: EnchantId | null = null;
 
 function updatePreview(): void {
   const charging = player.mode === 'charging';
@@ -269,14 +278,14 @@ function updatePreview(): void {
     landingMat.opacity = charging ? 0.85 : 0.35;
     landingMat.color.setHex(enchant.id === 'damage' ? club.color : enchant.color);
   }
-  // la punta de la línea dice con qué palo se está por pegar: su color y su ícono
+  // la punta de la línea dice con qué poder se está por pegar, levantada para no tapar dónde cae
   const tipAt = Math.min(range, Math.hypot(end.x - tee.x, end.z - tee.z));
   const tipX = tee.x + player.aimDir.x * tipAt;
   const tipZ = tee.z + player.aimDir.z * tipAt;
-  tip.position.set(tipX, heightAt(tipX, tipZ) + 1.15, tipZ);
-  if (tipClub !== club.id) {
-    tipClub = club.id;
-    tipMat.map = tipTexture(club);
+  tip.position.set(tipX, heightAt(tipX, tipZ) + 2.3, tipZ);
+  if (tipEnchant !== enchant.id) {
+    tipEnchant = enchant.id;
+    tipMat.map = tipTexture(enchant);
     tipMat.needsUpdate = true;
   }
   teeBall.position.set(tee.x, 0.12, tee.z);
@@ -313,6 +322,7 @@ horde.onEvent = (e) => {
       audio.growl();
       break;
     case 'playerHit': {
+      if (godMode.godPlayer) player.hp = player.maxHp;
       audio.hurt();
       shake = Math.max(shake, e.enemy.grabbing ? 0.1 : 0.3);
       const s = toScreen(player.position, 2);
@@ -321,7 +331,7 @@ horde.onEvent = (e) => {
       break;
     }
     case 'gateHit':
-      gateHp = Math.max(0, gateHp - e.amount);
+      if (!godMode.godGate) gateHp = Math.max(0, gateHp - e.amount);
       audio.gateHit();
       world.flashDoor();
       hud.gateAlert();
@@ -367,13 +377,13 @@ horde.onEvent = (e) => {
 
 balls.onEvent = (e) => {
   switch (e.type) {
-    case 'hit': {
+    case 'hit':
+      // el número de daño lo saca el evento 'damage' de la horde, que vale para todas las formas de
+      // pegar. Poner otro acá hacía aparecer dos números por golpe.
       audio.thud();
-      const s = toScreen(e.pos, 0.4);
-      hud.float(s.x, s.y, String(e.damage), e.quality >= QUALITY_LEVELS ? 'crit' : '');
       break;
-    }
     case 'land':
+      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
       if (e.enchant === 'ice') {
         audio.frost();
         if (e.hits) hud.feedback(e.hits > 2 ? `¡Fríos ×${e.hits}!` : `Fríos ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
@@ -402,7 +412,7 @@ balls.onEvent = (e) => {
   }
 };
 
-/** Q y E recorren los palos habilitados, en círculo. */
+/** La rueda del mouse recorre los palos habilitados, en círculo. Con teclas se elige directo. */
 function cycleClub(delta: number): void {
   if (cardOpen || !player) return;
   const order = CLUB_ORDER.filter((id) => player.unlocked.has(id));
@@ -411,18 +421,34 @@ function cycleClub(delta: number): void {
   player.setClub(CLUBS[order[(i + delta + order.length) % order.length]]);
 }
 
-/** Qué encantamientos hay: el golpe seco siempre, y los otros llegan con su palo hermano. */
-function enchantReady(id: EnchantId): boolean {
+/** 1, 2, 3 y 4 eligen palo. */
+function selectClub(index: number): void {
+  if (cardOpen || !player || index < 0 || index >= CLUB_ORDER.length) return;
+  const id = CLUB_ORDER[index];
+  if (!player.unlocked.has(id)) {
+    hud.feedback(`${CLUBS[id].name}: todavía no lo tenés`, 'neutral');
+    return;
+  }
+  player.setClub(CLUBS[id]);
+}
+
+/** Qué poderes se tienen: el golpe desde el principio, y los otros llegan con su palo hermano. */
+function enchantOwned(id: EnchantId): boolean {
   if (id === 'ice') return player.unlocked.has('iron');
   if (id === 'push') return player.unlocked.has('wedge');
   return true;
 }
 
-/** 1, 2 y 3 eligen qué hace la pelota cuando llega. */
+/** Listo para usar: se lo tiene y no está recargando. */
+function enchantReady(id: EnchantId): boolean {
+  return enchantOwned(id) && player.cooldowns[id] <= 0;
+}
+
+/** Q, W y E eligen qué hace la pelota cuando llega. */
 function selectEnchant(index: number): void {
   if (cardOpen || !player || index < 0 || index >= ENCHANT_ORDER.length) return;
   const id = ENCHANT_ORDER[index];
-  if (!enchantReady(id)) {
+  if (!enchantOwned(id)) {
     hud.feedback(`${ENCHANTS[id].name}: todavía no lo tenés`, 'neutral');
     return;
   }
@@ -457,7 +483,7 @@ function offerUnlock(): boolean {
   hud.showCard({
     name: club.name,
     title: club.title,
-    key: 'Q / E',
+    key: CLUB_KEYS[CLUB_ORDER.indexOf(id)],
     hint: club.hint,
     color: club.color,
     next: director.nextTitle,
@@ -484,6 +510,33 @@ async function startGame(): Promise<void> {
   }
 }
 
+/**
+ * Panel de balance (tecla B): toca los números del juego en vivo y trae los botones de prueba. Se arma
+ * una sola vez, cuando ya hay golfista.
+ */
+let debugPanel: DebugPanel | null = null;
+function makeDebugPanel(): DebugPanel {
+  return new DebugPanel({
+    director,
+    flags: godMode,
+    refreshEnemies() {
+      // los enemigos comparten el objeto de ENEMIES, así que la velocidad y el daño ya les llegaron
+      // solos: lo único que se copió al aparecer, y hay que emparejar, es la vida.
+      for (const e of horde.enemies) {
+        if (!e.alive) continue;
+        e.maxHp = e.stats.hp;
+        e.hp = Math.max(1, Math.min(e.hp, e.maxHp));
+      }
+    },
+    goToWave(index) {
+      for (const e of horde.enemies) e.state = 'gone';
+      for (const id of unlockedAt(index)) player.unlocked.add(id);
+      director.goTo(index);
+      hud.showBanner(`Oleada ${index + 1}`, 'saltada desde el panel', 2);
+    },
+  });
+}
+
 function togglePause(): void {
   if (!started || ended) return;
   paused = !paused;
@@ -507,7 +560,11 @@ const input = new Input({
     player?.cancelSwing();
   },
   selectEnchant,
+  selectClub,
   cycleClub,
+  debugPanel() {
+    debugPanel?.toggle();
+  },
   space() {
     if (!started) intro.advance();
     else if (cardOpen) dismissCard();
@@ -653,6 +710,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
     return Math.abs(tees.spots[i].x - p.position.x) < 0.1 && tees.take(i);
   };
   p.canStart = () => hasBallHere();
+  p.enchantAvailable = enchantOwned;
   p.onWhiff = () => {
     audio.whoosh(0.3);
     hud.feedback('¡Sin pelota! Movete con A / D', 'bad');
@@ -749,6 +807,7 @@ async function loadModels(): Promise<void> {
   hud.setSkin(SKINS[skinIndex].name);
   hud.onSkinClick = () => void cycleSkin();
   hud.onCardDismiss = dismissCard;
+  debugPanel = makeDebugPanel();
   player.update(0);
 }
 
@@ -836,7 +895,7 @@ function frame(): void {
     if (started) gameClock += dt;
     updateAim();
     const active = started && !ended;
-    if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere() && player.cooldowns[player.enchant.id] <= 0) player.startSwing();
+    if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere() && player.firstReady) player.startSwing();
     player.update(dt);
     if (active) updateWaves(dt);
     if (started) {
@@ -852,7 +911,7 @@ function frame(): void {
     updatePreview();
 
     hud.setClub(player.club, player.pendingClub);
-    hud.setEnchant(player.enchant, player.cooldowns, enchantReady);
+    hud.setEnchant(player.enchant, player.cooldowns, enchantOwned);
     hud.setClubState(player.unlocked, player.meleeCooldown);
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
@@ -882,6 +941,7 @@ addEventListener('resize', () => {
   get ended() { return ended; },
   get paused() { return paused; },
   get lastEvent() { return lastEvent; },
+  get lastLanding() { return lastLanding; },
   set closeup(v: boolean) { closeup = v; },
   get measured() { return measured; },
   get aim() { return [aimPoint.x, aimPoint.z].map((v) => +v.toFixed(2)); },
@@ -903,7 +963,7 @@ addEventListener('resize', () => {
     return { club: club.id, enchant: player.enchant.id, range: +range.toFixed(1), band: bandOf(range), damage: damageFor(club, range, qualityOf(player.meter.power)) };
   },
   /** Color actual de la línea de tiro y palo que muestra la punta, para las pruebas. */
-  get aimLine() { return { color: previewMat.color.getHex(), tip: tipClub, tipVisible: tip.visible }; },
+  get aimLine() { return { color: previewMat.color.getHex(), tip: tipEnchant, tipVisible: tip.visible }; },
   get cardOpen() { return cardOpen; },
   offerUnlock,
   dismissCard,
@@ -915,7 +975,11 @@ addEventListener('resize', () => {
   get traps() { return traps; },
   get enchant() { return player.enchant.id; },
   set enchant(id: EnchantId) { player.setEnchant(ENCHANTS[id]); },
-  cycleClub, selectEnchant,
+  cycleClub, selectEnchant, selectClub, enchantReady,
+  /** Qué campo salió esta partida, y el panel de balance. */
+  get course() { return { index: relief.index, name: gameCourse.name, relieve: relief.on }; },
+  get debug() { return debugPanel; },
+  godMode,
   unlockAll() { for (const id of Object.keys(CLUBS) as ClubId[]) player.unlocked.add(id); },
   /** Recorrido de la mano derecha en un clip y sus fases, para revisar los clips de golf. */
   sampleClip(name: string, hz = 20) {

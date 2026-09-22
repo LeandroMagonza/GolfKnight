@@ -1,19 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  bandOf, BAND_LIMITS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_ORDER, ENCHANTS, ICE_SECONDS, isLob,
-  KNOCK_DECAY, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
+  bandOf, BAND_LIMITS, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS,
+  ICE_SECONDS, isLob, KNOCK_DECAY, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
 import { ENEMIES } from './waves';
 
 describe('palos', () => {
-  it('los cuatro palos están en la rueda de Q y E', () => {
+  it('los cuatro palos tienen su tecla, del 1 al 4', () => {
     expect(CLUB_ORDER).toHaveLength(4);
+    expect(CLUB_KEYS).toEqual(['1', '2', '3', '4']);
     for (const id of CLUB_ORDER) expect(CLUBS[id].id).toBe(id);
   });
 
-  it('el driver es el único lineal: los demás caen en un punto y abren un área', () => {
+  it('el driver es el único que no abre área: los demás la abren donde tocan el piso', () => {
     expect(CLUBS.driver.spread).toBe(0);
     expect(isLob(CLUBS.driver)).toBe(false);
     for (const id of ['iron', 'wedge', 'putter'] as const) expect(CLUBS[id].spread).toBeGreaterThan(0);
@@ -24,6 +25,32 @@ describe('palos', () => {
     expect(CLUBS.putter.loftDeg).toBe(0);
     expect(isLob(CLUBS.putter)).toBe(false);
     expect(CLUBS.putter.rollFriction).toBeLessThan(ROLL_FRICTION);
+  });
+
+  it('atravesar y abrir área son cosas aparte, y el hierro hace las dos', () => {
+    // el driver atraviesa y no abre nada; el wedge y el putter paran en el primero que tocan
+    expect(CLUBS.driver.pierces).toBe(true);
+    expect(CLUBS.driver.spread).toBe(0);
+    for (const id of ['wedge', 'putter'] as const) {
+      expect(CLUBS[id].pierces).toBe(false);
+      expect(CLUBS[id].stopsOnLand).toBe(true);
+    }
+    // el hierro atraviesa, abre un área chica donde cae, y sigue rodando
+    expect(CLUBS.iron.pierces).toBe(true);
+    expect(CLUBS.iron.spread).toBeGreaterThan(0);
+    expect(CLUBS.iron.stopsOnLand).toBe(false);
+    expect(CLUBS.iron.maxHits).toBeGreaterThan(1);
+    expect(CLUBS.iron.rollFriction).toBeGreaterThan(0);
+  });
+
+  it('el hierro hace un arco: sube y baja dentro del campo, más alto que el driver y menos que el wedge', () => {
+    expect(CLUBS.iron.loftDeg).toBeGreaterThan(CLUBS.driver.loftDeg);
+    expect(CLUBS.iron.loftDeg).toBeLessThan(CLUBS.wedge.loftDeg);
+    // con gravedad normal (sin la propia del globo) el arco es de verdad, no una caída en picada
+    expect(CLUBS.iron.gravity).toBeUndefined();
+    // y pica y sigue: si no rebotara nada, se clavaría donde cae como el wedge
+    expect(CLUBS.iron.restitution).toBeGreaterThan(0);
+    expect(CLUBS.wedge.restitution).toBe(0);
   });
 
   it('cada palo cobra mejor a su distancia, y ninguno es el mejor siempre', () => {
@@ -99,15 +126,24 @@ describe('calidad del golpe', () => {
 });
 
 describe('encantamientos', () => {
-  it('son tres, se eligen con 1, 2 y 3, y valen para cualquier palo', () => {
+  it('son tres, se eligen con Q, W y E, y valen para cualquier palo', () => {
     expect(ENCHANT_ORDER).toEqual(['damage', 'ice', 'push']);
+    expect(ENCHANT_KEYS).toEqual(['Q', 'W', 'E']);
     for (const id of ENCHANT_ORDER) expect(ENCHANTS[id].id).toBe(id);
   });
 
-  it('el golpe seco está siempre listo; los otros dos se pagan con recarga', () => {
-    expect(ENCHANTS.damage.cooldown).toBe(0);
-    expect(ENCHANTS.ice.cooldown).toBeGreaterThan(0);
-    expect(ENCHANTS.push.cooldown).toBeGreaterThan(0);
+  it('los tres se pagan con recarga, y la del golpe es la más corta', () => {
+    for (const id of ENCHANT_ORDER) expect(ENCHANTS[id].cooldown).toBeGreaterThan(0);
+    expect(ENCHANTS.damage.cooldown).toBeLessThan(ENCHANTS.ice.cooldown);
+    expect(ENCHANTS.damage.cooldown).toBeLessThan(ENCHANTS.push.cooldown);
+    // la del golpe no puede ser más larga que cargar el tiro, o el juego se frena entre tiro y tiro
+    expect(ENCHANTS.damage.cooldown).toBeLessThanOrEqual(Math.max(...CLUB_ORDER.map((id) => CLUBS[id].chargeTime)) + 0.3);
+  });
+
+  it('cada poder tiene su ícono para la punta de la línea; los palos ya no tienen', () => {
+    const icons = ENCHANT_ORDER.map((id) => ENCHANTS[id].icon);
+    expect(new Set(icons).size).toBe(icons.length);
+    for (const id of CLUB_ORDER) expect(CLUBS[id]).not.toHaveProperty('icon');
   });
 
   it('la escarcha dura más cuanto mejor es el golpe', () => {

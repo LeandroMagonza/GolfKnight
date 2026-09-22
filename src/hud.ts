@@ -1,6 +1,6 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
-import { CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, MELEE_COOLDOWN, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { CLUB_KEYS, CLUB_ORDER, CLUBS, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, MELEE_COOLDOWN, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -41,25 +41,24 @@ export class Hud {
       this.onSkinClick?.();
     });
     this.cardEl.addEventListener('click', () => this.onCardDismiss?.());
-    // los palos: la distancia y la trayectoria. Se recorren con Q y E, en círculo
-    this.clubsEl.innerHTML = '<div class="rowkey">PALO<br />Q / E</div>' + CLUB_ORDER.map((id) => {
+    // los palos: la distancia y la trayectoria. Uno por tecla, 1 a 4
+    this.clubsEl.innerHTML = CLUB_ORDER.map((id, i) => {
       const c = CLUBS[id];
       const color = '#' + c.color.toString(16).padStart(6, '0');
-      return `<div class="club locked" data-club="${id}" style="--c:${color}"><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">${c.minRange}-${c.maxRange} m</div></div>`;
+      return `<div class="club locked" data-club="${id}" style="--c:${color}"><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">${c.minRange}-${c.maxRange} m</div></div>`;
     }).join('');
-    // los encantamientos: qué hace la pelota cuando llega. Y el palazo, que va aparte
-    this.enchantsEl.innerHTML = '<div class="rowkey">EFECTO<br />1 / 2 / 3</div>' + ENCHANT_ORDER.map((id, i) => {
+    // los poderes: qué hace la pelota cuando llega. Y el palazo, que va aparte
+    this.enchantsEl.innerHTML = ENCHANT_ORDER.map((id, i) => {
       const e = ENCHANTS[id];
       const color = '#' + e.color.toString(16).padStart(6, '0');
-      const cd = e.cooldown > 0 ? `<span class="cdlabel">⟳ ${e.cooldown} s</span>` : '';
-      return `<div class="club locked" data-ench="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${i + 1}</span><div class="name">${e.name}</div><div class="title">${e.title}</div>${cd}<div class="cdnum"></div></div>`;
+      return `<div class="club locked" data-ench="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${ENCHANT_KEYS[i]}</span><div class="name">${e.name}</div><div class="title">${e.title}</div><span class="cdlabel">⟳ ${e.cooldown} s</span><div class="cdnum"></div></div>`;
     }).join('') + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
   }
 
   private shownState = '';
   private readonly shownCd = new Map<string, string>();
 
-  /** Qué palos están habilitados. Los palos ya no tienen recarga: la tienen los encantamientos. */
+  /** Qué palos están habilitados. Los palos no tienen recarga: la tienen los poderes. */
   setClubState(unlocked: ReadonlySet<ClubId>, meleeLeft: number): void {
     this.cooldownOn('melee', meleeLeft, MELEE_COOLDOWN);
     const key = [...unlocked].join();

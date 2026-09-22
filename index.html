@@ -64,26 +64,18 @@
       #bottom { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
       #meter { width: 420px; height: 20px; background: rgba(0,0,0,0.6); border-radius: 10px; position: relative; overflow: hidden; border: 2px solid rgba(255,255,255,0.35); opacity: 0.45; transition: opacity 0.15s; }
       #meter.on { opacity: 1; }
-      /* la etiqueta de cada fila: qué se elige y con qué teclas */
-      .rowkey { align-self: center; font-size: 9px; letter-spacing: 1.5px; color: #9aa4b2; text-align: right; margin-right: 4px; line-height: 1.5; }
+      /* palos a la izquierda, poderes a la derecha: una sola fila, sin nada que empuje el medidor */
+      #rows { display: flex; align-items: flex-start; gap: 22px; }
+      #rows > div { display: flex; gap: 6px; }
+      #enchants { position: relative; padding-left: 22px; }
+      #enchants::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; background: rgba(255,255,255,0.18); border-radius: 1px; }
       #clubs .club .band { font-size: 10px; color: #9aa4b2; margin-top: 2px; }
-      /* sin uso desde que la altura la define el palo */
-      #height { position: absolute; right: 100%; top: 0; bottom: 0; margin-right: 14px; width: 116px; box-sizing: border-box; background: rgba(0,0,0,0.55); border-radius: 8px; border: 2px solid rgba(127,212,255,0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
-      #height.high { border-color: #7fd4ff; box-shadow: 0 0 10px rgba(127,212,255,0.5); }
-      #height .lbl { font-size: 9px; letter-spacing: 1.5px; color: #9aa4b2; }
-      #height .lvl { font-size: 15px; font-weight: 800; color: #cfe9ff; line-height: 1; }
-      #height .pips { display: flex; gap: 3px; }
-      #height .pips i { width: 11px; height: 6px; border-radius: 2px; background: rgba(255,255,255,0.15); }
-      #height .pips i.on { background: #7fd4ff; box-shadow: 0 0 6px #7fd4ff; }
-      #height.bump { animation: heightBump 0.3s ease-out; }
-      @keyframes heightBump { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
       /* daño clavado con S: la barra queda quieta y encendida hasta que se suelte el tiro */
       #meter.locked { border-color: #fff; box-shadow: 0 0 14px rgba(255,255,255,0.85); }
       #meter .perfect { position: absolute; top: 0; bottom: 0; right: 0; width: 8%; background: rgba(255,45,60,0.75); }
       #meter .power { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: linear-gradient(90deg, #5be07a, #ffd66b 70%, #ff6b4a); }
       #range { font-size: 14px; color: #fff; text-shadow: 0 1px 3px #000; min-height: 18px; }
-      #clubs { display: flex; gap: 8px; }
-      .club { width: 132px; background: rgba(0,0,0,0.55); border-radius: 8px; padding: 6px 10px; border: 2px solid transparent; opacity: 0.75; }
+      .club { width: 112px; background: rgba(0,0,0,0.55); border-radius: 8px; padding: 6px 10px; border: 2px solid transparent; opacity: 0.75; }
       .club.active { opacity: 1; border-color: var(--c); box-shadow: 0 0 12px var(--c); }
       .club.queued { opacity: 1; border-color: var(--c); border-style: dashed; animation: queued 0.7s infinite alternate; }
       @keyframes queued { from { background: rgba(0,0,0,0.55); } to { background: rgba(255,255,255,0.16); } }
@@ -125,6 +117,27 @@
       .club .title { font-size: 12px; color: var(--c); letter-spacing: 1px; text-transform: uppercase; }
       #hint { font-size: 13px; color: #e4e9f0; text-shadow: 0 1px 3px #000; min-height: 17px; }
 
+      /* panel de balance y pruebas: columna a la derecha, con el juego corriendo detrás */
+      #balancebtn { position: absolute; top: 118px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #balancebtn:hover { background: rgba(0,0,0,0.75); }
+      #balance { position: absolute; top: 0; right: 0; bottom: 0; width: 380px; box-sizing: border-box; overflow-y: auto; background: rgba(8, 12, 18, 0.93); border-left: 2px solid #4a5666; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
+      #balance[hidden] { display: none; }
+      #balance h3 { margin: 0 0 4px; font-size: 20px; color: #ffd66b; }
+      #balance h4 { margin: 16px 0 6px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #9aa4b2; border-bottom: 1px solid #2c3644; padding-bottom: 4px; }
+      #balance p.note { margin: 2px 0 0; color: #9aa4b2; font-size: 11px; line-height: 1.5; }
+      #balance table { width: 100%; border-collapse: collapse; }
+      #balance th { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #9aa4b2; font-weight: 400; text-align: center; padding: 2px; }
+      #balance th.l, #balance td.l { text-align: left; }
+      #balance td { padding: 1px 2px; }
+      #balance td.l { font-size: 12px; color: #e4e9f0; white-space: nowrap; }
+      #balance input { width: 100%; box-sizing: border-box; background: #1a2430; border: 1px solid #3a4655; color: #fff; border-radius: 4px; padding: 3px 4px; font: inherit; text-align: center; }
+      #balance input:focus { outline: none; border-color: #ffd66b; }
+      #balance .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+      #balance button { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      #balance button:hover { background: #33404f; }
+      #balance button.on { background: #5be07a; color: #102; border-color: #5be07a; font-weight: 600; }
+      #balance button.wide { flex: 1; }
+      #balance .done { color: #5be07a; }
       #pause, #end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(8, 12, 18, 0.78); text-align: center; }
       #pause[hidden], #end[hidden] { display: none; }
       #pause h2, #end h2 { margin: 0 0 12px; font-size: 44px; color: #ffd66b; }
@@ -149,14 +162,15 @@
       <div id="wave"><div class="n"></div><div class="sub"></div></div>
       <div id="score"></div>
       <button id="skin" type="button" tabindex="-1"></button>
+      <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>
+      <div id="balance" hidden></div>
       <div id="banner"><div class="big"></div><div class="small"></div></div>
       <div id="feedback"></div>
       <div id="floats"></div>
       <div id="bottom">
         <div id="range"></div>
         <div id="meter"><div class="power"></div><div class="floor"></div><div class="perfect"></div></div>
-        <div id="clubrow"><div id="clubs"></div></div>
-        <div id="clubrow"><div id="enchants"></div></div>
+        <div id="rows"><div id="clubs"></div><div id="enchants"></div></div>
         <div id="hint"></div>
       </div>
       <div id="card" hidden><div class="box"><div class="tag">PALO NUEVO</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>

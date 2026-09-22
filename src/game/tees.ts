@@ -6,10 +6,10 @@
 // acumula. Nunca caen en el puesto donde está parado el golfista: después de cada tiro hay que moverse.
 import * as THREE from 'three';
 import { BALL_RADIUS } from '../core/ballistics';
-import { FIELD_HALF_WIDTH } from './world';
+import { FIELD_HALF_WIDTH, TEE_LINE_Z } from './world';
 
-/** Línea de los puestos, y separación entre ellos. */
-export const TEE_Z = 9;
+/** Línea de los puestos, y separación entre ellos. La define world: es el 0 de las marcas del campo. */
+export const TEE_Z = TEE_LINE_Z;
 export const TEE_SPACING = 4;
 export const MAX_BALLS = 3;
 /** Segundos hasta que sale la próxima pelota, según cuántas hay (contando las que vienen en el aire). */

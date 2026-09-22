@@ -1,6 +1,7 @@
-// Prueba del prototipo de campo con relieve (?relieve): los enemigos caminan sobre el terreno, una loma
-// tapa al driver, el valle central es un carril limpio, y los globos caen donde se apunta aunque el
-// punto esté más alto o más bajo. Capturas en logs/relieve-*.png.
+// Prueba de los campos con relieve: los enemigos caminan sobre el terreno, una loma tapa al driver, el
+// valle central es un carril limpio, y los globos caen donde se apunta aunque el punto esté más alto o
+// más bajo. Corre sobre el campo 1 (?campo=1), que es el del valle del medio, y de paso comprueba que
+// los otros campos se arman y que ?plano deja el campo liso. Capturas en logs/relieve-*.png.
 // uso: node tools/relieve.mjs [--ver]   (--ver abre una ventana para mirarla mientras corre)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -20,7 +21,7 @@ page.on('pageerror', (e) => { errors.push(e.message); console.log('[pageerror]',
 const log = (label, ...parts) => console.log(label.padEnd(24), '->', parts.map((p) => JSON.stringify(p)).join('  '));
 const check = (label, ok) => { if (!ok) { failures.push(label); console.log(`  FALLA: ${label}`); } };
 
-await page.goto('http://localhost:5196/?relieve&palos');
+await page.goto('http://localhost:5196/?campo=1&palos');
 await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
 await page.click('#skip');
 await page.waitForFunction(() => document.getElementById('overlay').hidden, null, { timeout: 10000 });
@@ -39,21 +40,20 @@ const enemy = (id) => page.evaluate((id) => { const e = window.__gk.horde.enemie
 const clear = () => page.evaluate(() => { for (const e of window.__gk.horde.enemies) e.state = 'gone'; });
 const free = () => page.waitForFunction(() => window.__gk.player.mode === 'free' && window.__gk.player.atSpot, null, { timeout: 8000 }).catch(() => {});
 const done = () => page.waitForFunction(() => window.__gk.balls.list.length === 0, null, { timeout: 8000 }).catch(() => {});
-/** Pone un palo en la mano: Q y E lo recorren en círculo. */
+/** Pone un palo en la mano: cada uno tiene su tecla, del 1 al 4. */
+const CLUB_ORDER = ['driver', 'iron', 'wedge', 'putter'];
 const useClub = async (id) => {
-  for (let i = 0; i < 6; i++) {
-    if ((await page.evaluate(() => window.__gk.player.club.id)) === id) return;
-    await page.keyboard.press('KeyE');
-    await page.waitForTimeout(40);
-  }
+  if ((await page.evaluate(() => window.__gk.player.club.id)) === id) return;
+  await page.keyboard.press(`Digit${CLUB_ORDER.indexOf(id) + 1}`);
+  await page.waitForTimeout(60);
 };
-/** Tira con un palo y un encantamiento (1 golpe, 2 escarcha, 3 vendaval). */
+/** Tira con un palo y un poder (1 golpe / Q, 2 escarcha / W, 3 vendaval / E). */
 const shoot = async (club, power, enchant = 1) => {
   await useClub(club);
   await free();
   const id = ['damage', 'ice', 'push'][enchant - 1];
   await page.waitForFunction((n) => window.__gk.player.cooldowns[n] <= 0, id, { timeout: 8000 }).catch(() => {});
-  await page.keyboard.press(`Digit${enchant}`);
+  await page.keyboard.press(['KeyQ', 'KeyW', 'KeyE'][enchant - 1]);
   await page.waitForTimeout(60);
   await page.evaluate(() => { const g = window.__gk; g.tees.place(g.tees.nearest(g.player.position.x)); });
   await page.evaluate((p) => window.__gk.shootPower(p), power);
@@ -104,18 +104,37 @@ await shoot('driver', 0.8);
 log('en la cima', await enemy(top));
 check('al que está en la cima sí: el tiro sube lo que sube el terreno', ((await enemy(top))?.hp ?? 0) < 4);
 
-// el globo pasa por arriba y cae donde se apuntó
+// el arco del hierro pasa por arriba y cae donde se apuntó. El área del hierro es chica (1.8 m), así
+// que hay que pegarle bien: con un golpe perfecto son 2.7 m y el de atrás de la loma entra
 await aimAt(-16.7, 45);
-await shoot('iron', 0.5, 2);
-log('globo detrás de la loma', await enemy(behind));
-check('el hierro le llega por arriba al que está tapado', (await enemy(behind)).chilled);
+await shoot('iron', 0.96, 2);
+const overHill = await enemy(behind);
+const ballAt = await page.evaluate(() => window.__gk.lastLanding);
+log('globo detrás de la loma', overHill, ballAt);
+check('el hierro le llega por arriba al que está tapado', overHill.chilled);
 await page.screenshot({ path: 'logs/relieve-4-globo.png' });
 
-// sin ?relieve todo sigue plano
-await page.goto('http://localhost:5196/?palos');
+// los otros campos también se arman, y cada uno tiene su relieve
+const shapes = [];
+for (let c = 2; c <= 4; c++) {
+  await page.goto(`http://localhost:5196/?campo=${c}&palos`);
+  await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
+  shapes.push(await page.evaluate(() => {
+    const h = window.__gk.heightAt;
+    let alto = 0;
+    let bajo = 0;
+    for (let x = -18; x <= 18; x += 1) for (let z = 16; z <= 66; z += 1) { alto = Math.max(alto, h(x, z)); bajo = Math.min(bajo, h(x, z)); }
+    return { campo: window.__gk.course.name, alto: +alto.toFixed(2), bajo: +bajo.toFixed(2) };
+  }));
+}
+log('los otros campos', ...shapes);
+check('cada campo tiene lomas y hondonadas propias', shapes.every((s) => s.alto > 1 && s.bajo < -0.5) && new Set(shapes.map((s) => s.campo)).size === 3);
+
+// ?plano sigue dejando el campo liso, que es sobre el que corre la prueba general
+await page.goto('http://localhost:5196/?plano&palos');
 await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
 const flat = await page.evaluate(() => window.__gk.heightAt(-11.5, 34));
-check('sin ?relieve el campo es el plano de siempre', flat === 0);
+check('con ?plano el campo es el liso de siempre', flat === 0);
 
 console.log(errors.length ? `ERRORES DE PÁGINA (${errors.length})` : 'sin errores de página');
 console.log(failures.length ? `FALLAS (${failures.length}): ${failures.join(' | ')}` : 'todas las comprobaciones pasaron');

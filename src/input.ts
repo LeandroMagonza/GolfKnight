@@ -2,18 +2,22 @@
 // A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite) y el mouse
 // apunta y decide a qué distancia cae. Click izquierdo mantiene para cargar el swing y suelta para
 // pegar; click derecho (o X) cancela. Espacio clava la calidad del golpe, y el tiro sale cuando se
-// suelta el click (en la intro, avanza). Q y E recorren los palos en círculo, y también la rueda del
-// mouse; 1, 2 y 3 eligen el encantamiento. Shift (o V) es el palazo, Escape pausa, R reinicia,
-// C cambia el skin, M silencia la música.
+// suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo** (y la rueda del mouse los
+// recorre en círculo); **Q, W y E eligen el poder**. Shift (o V) es el palazo, B abre el panel de
+// balance, Escape pausa, R reinicia, C cambia el skin, M silencia la música.
 
 export interface InputEvents {
   swingStart(): void;
   swingRelease(): void;
   swingCancel(): void;
-  /** Elige encantamiento: 0 = golpe, 1 = escarcha, 2 = vendaval. */
+  /** Elige poder: 0 = golpe, 1 = escarcha, 2 = vendaval. */
   selectEnchant(index: number): void;
-  /** Pasa al palo anterior (-1) o al siguiente (+1), en círculo. */
+  /** Elige palo por posición: 0 = driver, 1 = hierro, 2 = wedge, 3 = putter. */
+  selectClub(index: number): void;
+  /** Pasa al palo anterior (-1) o al siguiente (+1), en círculo (la rueda del mouse). */
   cycleClub(delta: number): void;
+  /** Abre o cierra el panel de balance. */
+  debugPanel(): void;
   space(): void;
   restart(): void;
   pause(): void;
@@ -64,13 +68,18 @@ export class Input {
 
   private keydown(e: KeyboardEvent): void {
     if (e.repeat) return;
+    // escribiendo en el panel de balance el teclado es del panel, no del juego
+    const el = e.target as HTMLElement | null;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable)) return;
     this.keys.add(e.code);
     switch (e.code) {
-      case 'Digit1': case 'Digit2': case 'Digit3':
-        this.ev.selectEnchant(Number(e.code.slice(-1)) - 1);
+      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4':
+        this.ev.selectClub(Number(e.code.slice(-1)) - 1);
         break;
-      case 'KeyQ': this.ev.cycleClub(-1); break;
-      case 'KeyE': this.ev.cycleClub(1); break;
+      case 'KeyQ': this.ev.selectEnchant(0); break;
+      case 'KeyW': this.ev.selectEnchant(1); break;
+      case 'KeyE': this.ev.selectEnchant(2); break;
+      case 'KeyB': this.ev.debugPanel(); break;
       case 'KeyX': this.swingHeld = false; this.ev.swingCancel(); break;
       case 'Space': this.ev.space(); e.preventDefault(); break;
       case 'KeyR': this.ev.restart(); break;
@@ -87,15 +96,4 @@ export class Input {
     this.keys.delete(e.code);
   }
 
-  private down(...codes: string[]): boolean {
-    return codes.some((c) => this.keys.has(c));
-  }
-
-  /** Movimiento pedido: forward (+1 = W), right (+1 = D). */
-  get move(): { forward: number; right: number } {
-    return {
-      forward: (this.down('KeyW', 'ArrowUp') ? 1 : 0) - (this.down('KeyS', 'ArrowDown') ? 1 : 0),
-      right: (this.down('KeyD', 'ArrowRight') ? 1 : 0) - (this.down('KeyA', 'ArrowLeft') ? 1 : 0),
-    };
-  }
 }

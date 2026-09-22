@@ -77,7 +77,8 @@ export class Enemy {
   readonly group = new THREE.Group();
   readonly position: THREE.Vector3;
   readonly animator: LayeredAnimator;
-  readonly maxHp: number;
+  /** Vida con la que apareció. No es de solo lectura: el panel de balance la toca en vivo. */
+  maxHp: number;
   hp: number;
   state: EnemyState = 'walk';
   /** A quién ataca en este momento. */
@@ -126,6 +127,7 @@ export class Enemy {
   private readonly arms: THREE.Object3D[] = [];
   private readonly spine: THREE.Object3D | null;
 
+  // stats y maxHp no son de solo lectura: el panel de balance (tecla B) los toca en vivo
   constructor(readonly stats: EnemyStats, template: Template) {
     this.position = this.group.position;
     this.maxHp = this.hp = stats.hp;
@@ -751,12 +753,16 @@ export class Horde {
     return killed;
   }
 
-  /** Daño en área con caída lineal hasta el borde. Devuelve a cuántos alcanzó. */
-  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null): number {
+  /**
+   * Daño en área con caída lineal hasta el borde. Devuelve a cuántos alcanzó. `skip` deja afuera a los
+   * que esa misma pelota ya golpeó al atravesarlos: el hierro atraviesa y además abre un área donde
+   * cae, y nadie tiene que cobrar las dos cosas por un solo tiro.
+   */
+  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: ReadonlySet<number>): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
-      if (!e.alive || e.passed || e === except) continue;
+      if (!e.alive || e.passed || e === except || skip?.has(e.id)) continue;
       dir.set(e.position.x - pos.x, 0, e.position.z - pos.z);
       const d = dir.length() - e.radius;
       if (d > radius) continue;
@@ -783,11 +789,11 @@ export class Horde {
     }
   }
 
-  /** Hielo en área (hierro): enfría a todos los que alcanza. Devuelve a cuántos. */
-  chillAround(pos: THREE.Vector3, radius: number, seconds: number): number {
+  /** Hielo en área: enfría a todos los que alcanza, menos los de `skip`. Devuelve a cuántos. */
+  chillAround(pos: THREE.Vector3, radius: number, seconds: number, skip?: ReadonlySet<number>): number {
     let count = 0;
     for (const e of this.enemies) {
-      if (!e.alive || e.passed) continue;
+      if (!e.alive || e.passed || skip?.has(e.id)) continue;
       if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
       e.chill(seconds);
       count++;
@@ -801,13 +807,13 @@ export class Horde {
    * hacia la línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del
    * tiro: una fila servida para el driver. Devuelve a cuántos movió.
    */
-  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number): number {
+  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: ReadonlySet<number>): number {
     let count = 0;
     // el costado de la línea del tiro, en el piso
     const side = new THREE.Vector3(along.z, 0, -along.x);
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
-      if (!e.alive || e.passed) continue;
+      if (!e.alive || e.passed || skip?.has(e.id)) continue;
       const rx = e.position.x - pos.x;
       const rz = e.position.z - pos.z;
       const lateral = rx * side.x + rz * side.z;

@@ -3,8 +3,14 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { BAND_LIMITS } from '../core/clubs';
 import { heightAt, relief } from '../core/terrain';
 
+/**
+ * La línea de los puestos: desde acá se pega, así que es el 0 de las marcas de distancia. Vive acá y
+ * no en game/tees para que las marcas del campo no puedan quedar desfasadas de los puestos.
+ */
+export const TEE_LINE_Z = 9;
 export const FIELD_HALF_WIDTH = 18;
 export const GATE_Z = 0;
 export const GATE_HALF_WIDTH = 2.6;
@@ -32,7 +38,7 @@ function fairwayTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-function labelSprite(text: string): THREE.Sprite {
+function labelSprite(text: string, color = 'rgba(255,255,255,0.9)'): THREE.Sprite {
   const c = document.createElement('canvas');
   c.width = 128;
   c.height = 64;
@@ -40,7 +46,7 @@ function labelSprite(text: string): THREE.Sprite {
   g.font = 'bold 44px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillStyle = 'rgba(255,255,255,0.9)';
+  g.fillStyle = color;
   g.fillText(text, 64, 34);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
   sprite.scale.set(2.4, 1.2, 1);
@@ -78,20 +84,7 @@ export class World {
     fairway.position.z = 56;
     scene.add(fairway);
 
-    // marcas de distancia desde la puerta, como en un driving range
-    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 });
-    for (let z = 10; z <= 60; z += 10) {
-      const line = new THREE.Mesh(new THREE.PlaneGeometry(FIELD_HALF_WIDTH * 2, 0.12), lineMat);
-      line.rotation.x = -Math.PI / 2;
-      line.position.set(0, 0.01, z);
-      scene.add(line);
-      for (const side of [-1, 1]) {
-        const label = labelSprite(`${z}m`);
-        label.position.set(side * (FIELD_HALF_WIDTH + 1.6), 1.2, z);
-        scene.add(label);
-      }
-    }
-
+    this.buildDistanceMarks(scene);
     this.buildWall(scene);
     this.buildScenery(scene);
   }
@@ -130,13 +123,47 @@ export class World {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
     scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })));
-    for (let z = 10; z <= 60; z += 10) {
+    this.buildDistanceMarks(scene);
+  }
+
+  /**
+   * Las marcas de distancia se miden **desde la línea de los puestos**, que es desde donde se pega: la
+   * raya donde está parado el golfista dice 0, no importa que la puerta quede unos metros más atrás.
+   * Las rayas de 20 y 40 m son los bordes de las bandas de daño: ahí cambia cuánto pega cada palo, así
+   * que se ven más marcadas y llevan el nombre de la banda.
+   */
+  private buildDistanceMarks(scene: THREE.Scene): void {
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+    const bandMat = new THREE.MeshBasicMaterial({ color: 0xffd66b, transparent: true, opacity: 0.55 });
+    const onSlope = relief.on;
+    for (let d = 0; d <= 60; d += 10) {
+      const z = TEE_LINE_Z + d;
+      const band = BAND_LIMITS.includes(d);
+      // sobre relieve la raya se dibuja en tramos, para que siga la pendiente en vez de enterrarse
+      const steps = onSlope ? 24 : 1;
+      for (let i = 0; i < steps; i++) {
+        const w = (FIELD_HALF_WIDTH * 2) / steps;
+        const x = -FIELD_HALF_WIDTH + w * (i + 0.5);
+        const line = new THREE.Mesh(new THREE.PlaneGeometry(w, band ? 0.3 : 0.12), band ? bandMat : lineMat);
+        line.rotation.x = -Math.PI / 2;
+        line.position.set(x, heightAt(x, z) + 0.02, z);
+        scene.add(line);
+      }
       for (const side of [-1, 1]) {
         const x = side * (FIELD_HALF_WIDTH + 1.6);
-        const label = labelSprite(`${z}m`);
+        const label = labelSprite(`${d}m`, band ? '#ffd66b' : 'rgba(255,255,255,0.9)');
         label.position.set(x, heightAt(x, z) + 1.2, z);
         scene.add(label);
       }
+    }
+    // el nombre de cada banda, en el medio de su tramo, del lado izquierdo
+    for (const [name, from, to] of [['corta', 0, BAND_LIMITS[0]], ['media', BAND_LIMITS[0], BAND_LIMITS[1]], ['larga', BAND_LIMITS[1], 60]] as const) {
+      const z = TEE_LINE_Z + (from + to) / 2;
+      const x = -(FIELD_HALF_WIDTH + 5.2);
+      const label = labelSprite(name, '#ffd66b');
+      label.scale.set(3.6, 1.8, 1);
+      label.position.set(x, heightAt(x, z) + 1.4, z);
+      scene.add(label);
     }
   }
 

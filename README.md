@@ -28,8 +28,8 @@ decir una sola cosa:
 | --- | --- |
 | **Mouse** | hacia dónde y **a qué distancia** cae la pelota |
 | **Barra de carga** | **qué tan bien** le pegaste: tres niveles de calidad, puro timing |
-| **Palo** (`Q` / `E`) | **cómo llega** la pelota, y cuánto pega a esa distancia |
-| **Encantamiento** (`1`, `2`, `3`) | **qué hace** cuando llega |
+| **Palo** (`1`, `2`, `3`, `4`) | **cómo llega** la pelota, y cuánto pega a esa distancia |
+| **Poder** (`Q`, `W`, `E`) | **qué hace** cuando llega |
 
 - **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
   con un banderín, con `A` y `D`. Un toque es un puesto y dos toques son dos; mantener apretado no
@@ -44,36 +44,50 @@ decir una sola cosa:
   nivel 3 es el último 8 %, y después del tope rebota por todo el rango. La barra **no tiene nada que
   ver con la distancia**: eso lo decide el mouse.
 - La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad, y con el color del
-  encantamiento cuando no estás cargando. El anillo (o el rectángulo del vendaval) marca qué va a
-  agarrar el efecto.
+  poder cuando no estás cargando. El anillo (o el rectángulo del vendaval) marca qué va a agarrar el
+  efecto, y arriba de todo un símbolo dice qué poder está en la mano. **El palo no tiene símbolo**: el
+  que tenía tapaba justo el punto al que estás apuntando.
+- **El campo tiene marcas de distancia cada 10 m, contadas desde la línea de los puestos**: la raya
+  donde estás parado dice 0. Las de 20 y 40 m están resaltadas porque ahí cambia la banda de daño.
 
-### Los palos (`Q` y `E`, en círculo)
+### Los palos (`1`, `2`, `3` y `4`)
 
 Cada palo tiene su distancia preferida, así que elegir palo es elegir a qué distancia querés pelear.
 Ninguno es el mejor siempre.
 
 | Palo | Cómo llega | Alcance | Corta (≤20 m) | Media (20-40 m) | Larga (+40 m) |
 | --- | --- | --- | --- | --- | --- |
-| **Driver** | rasante, atraviesa la fila entera | 6-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
-| **Hierro 7** | arco medio, cae en un punto | 6-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
-| **Wedge** | globo alto, tarda pero cae en picada | 5-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
-| **Putter** | rueda lento y para en el primero que toca | 3-22 m | **2 / 4 / 8** | 1 / 3 / 5 | — |
+| **1 · Driver** | rasante, atraviesa la fila entera | 6-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
+| **2 · Hierro 7** | arco bajo: sube, baja y sigue rodando | 6-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| **3 · Wedge** | globo alto, cae en picada y se queda ahí | 5-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| **4 · Putter** | rueda lento y para en el primero que toca | 3-22 m | **2 / 4 / 8** | 1 / 3 / 5 | — |
 
-Los tres números de cada casilla son el daño según la calidad del golpe.
+Los tres números de cada casilla son el daño según la calidad del golpe. El putter no llega más allá
+de sus 22 m, así que su banda larga no existe.
 
-### Los encantamientos (`1`, `2`, `3`)
+**Atravesar y abrir área son dos cosas distintas**, y el hierro es el único que hace las dos:
 
-El encantamiento vale para cualquier palo, y **cómo se reparte lo decide el palo**. La regla es una
-sola: *cuanto más rasante, más lineal y preciso; cuanto más alto, más zonal y amplio.*
+| Palo | ¿Atraviesa en el aire? | ¿Abre área donde toca el piso? | ¿Después? |
+| --- | --- | --- | --- |
+| Driver | sí, a todos los de la fila | no | pica y sigue |
+| Hierro 7 | sí, hasta a tres | sí, chica (1.8 m) | sigue rodando |
+| Wedge | no | sí, grande (4.2 m) | se queda donde cayó |
+| Putter | no | sí, chica (1.6 m), donde para | se queda |
 
-| | Con el driver (lineal) | Con el hierro (área media) | Con el wedge (área grande) | Con el putter (área chica) |
+### Los poderes (`Q`, `W`, `E`)
+
+El poder vale para cualquier palo, y **cómo se reparte lo decide el palo**. La regla es una sola:
+*cuanto más rasante, más lineal y preciso; cuanto más alto, más zonal y amplio.*
+
+| | Con el driver (lineal) | Con el hierro (línea + área chica) | Con el wedge (área grande) | Con el putter (área chica) |
 | --- | --- | --- | --- | --- |
-| **1 · Golpe** | daña a cada uno que atraviesa | daña donde cae | daña donde cae, a muchos | daña al que frena la pelota |
-| **2 · Escarcha** | enfría a cada uno de la línea | enfría un área media | enfría un área grande | enfría donde para |
-| **3 · Vendaval** | un pasillo angosto a lo largo del tiro | los junta en un rectángulo | los junta en un rectángulo grande | los junta donde para |
+| **Q · Golpe** | daña a cada uno que atraviesa | daña a los que atraviesa y donde cae | daña donde cae, a muchos | daña al que frena la pelota |
+| **W · Escarcha** | enfría a cada uno de la línea | enfría la línea y donde cae | enfría un área grande | enfría donde para |
+| **E · Vendaval** | un pasillo angosto a lo largo del tiro | barre la línea y donde cae | los junta en un rectángulo grande | los junta donde para |
 
-- El **golpe** está siempre listo. La **escarcha** tiene 4 s de recarga y el **vendaval** 3 s; después
-  de gastar uno, vuelve solo el golpe.
+- **Los tres tienen recarga**: el golpe 1.2 s, el vendaval 3 s y la escarcha 4 s. El poder queda
+  elegido hasta que elijas otro; si el que tenés no está listo cuando vas a pegar, entra solo el que sí
+  lo esté.
 - *Frío*: camina al 40 %, no se cubre con el escudo y, si es chamán, se le apaga el aura. No congela
   ni cambia el daño que recibe. Dura 3, 5 u 8 s según la calidad.
 - *Vendaval*: empuja a cada uno **hacia la línea del tiro**, justo lo que lo separa de ella, así que
@@ -104,26 +118,49 @@ sola: *cuanto más rasante, más lineal y preciso; cuanto más alto, más zonal 
 | Alma en pena (2) | la única que te persigue: te agarra y te desangra |
 | Gólem de roca (80) | el jefe: tira piedras a la puerta desde lejos |
 
-## Prototipo: campo con relieve
+## El campo: cuatro mapas, uno por partida
 
-Agregando `?relieve` a la dirección (se puede combinar: `?relieve&palos`) el campo deja de ser un
-plano: hay dos lomas y un valle por el medio. Sin el parámetro, todo sigue como siempre.
+El campo ya no es un plano, y **cada partida sale uno de cuatro mapas diseñados**: *Valle del medio*,
+*La meseta*, *Los dos carriles* y *La loma sola*. Cambia dónde está la cobertura, por dónde vienen en
+fila y desde qué puesto conviene pegar, sin que ninguno quede injugable. `?campo=1` a `?campo=4` fuerza
+uno, y `?plano` deja el campo liso (es lo que usa la prueba general, que mide trayectorias).
+
+Son formas diseñadas, no ruido: el driver sale rasante, así que una loma es cobertura y una zanja es un
+carril. Al azar, atravesar filas sería una lotería.
 
 - Cerca de los puestos y de la muralla el piso es plano; el relieve entra de a poco desde los 14 m.
 - Los enemigos caminan sobre el terreno.
 - **Una loma tapa al driver**, que sale rasante: al que está detrás no le llega. La línea de tiro se
-  corta donde el tiro toca el terreno, para que se vea. Los globos pasan por arriba.
-- **El valle es un carril**: los que vienen por el fondo quedan servidos para un tiro a lo largo.
+  corta donde el tiro toca el terreno, para que se vea. El hierro y el wedge pasan por arriba.
+- **Un valle es un carril**: los que bajan por ahí quedan servidos para un tiro a lo largo.
 - **No hay control de altura.** El tiro se inclina solo lo que sube o baja el terreno entre la pelota y
   el cursor: apuntando a la cima de una loma sube, apuntando al fondo del valle baja. Los globos caen
   en el punto apuntado aunque esté más alto o más bajo.
-- La pelota pica según la pendiente y rueda cuesta abajo.
-- Lo que falta a propósito (segundo paso, si el prototipo convence): las marcas del piso son planas y
-  se dibujan por encima del terreno en lugar de copiarlo; las pendientes no frenan a los enemigos; no
-  hay búnker ni agua; el bot no sabe jugar con relieve.
+- La pelota pica según la pendiente y rueda cuesta abajo. El pasto amortigua: la que entra de frente
+  contra la cara de una loma se clava, la que la roza sigue de largo.
+- Lo que falta a propósito: las pendientes no frenan a los enemigos, no hay búnker ni agua, y el bot no
+  aprovecha el relieve.
 
-La altura sale de `src/core/terrain.ts` (formas diseñadas, no ruido), y la pelota contra el terreno de
+La altura sale de `src/core/terrain.ts` (ahí se agregan mapas nuevos), y la pelota contra el terreno de
 `src/core/ballistics.ts`. `node tools/relieve.mjs` lo prueba y deja capturas en `logs/relieve-*.png`.
+
+## Panel de balance y pruebas (`B`)
+
+`B`, o el botón *Balance*, abre un panel al costado que toca los números del juego en vivo, sin
+recargar:
+
+- el **daño de cada palo** en cada banda de distancia y para cada nivel de golpe, más su alcance y el
+  radio de su área;
+- dónde **cortan las bandas** (20 y 40 m por defecto);
+- la **recarga de cada poder**;
+- la **vida, velocidad y daño de cada enemigo** (a los que ya están en el campo se les empareja);
+- botones de prueba: **oleada infinita** (repite la composición de la oleada en curso, no se termina
+  nunca), **vida infinita**, **puerta infinita** y **saltar a la oleada 1 a 6**;
+- **Copiar configuración**, que deja en el portapapeles todo el balance como texto para pasarlo y
+  llevarlo al código.
+
+Los cambios valen desde el tiro siguiente y desde el enemigo siguiente. No se guardan: al recargar
+vuelve el balance del código.
 
 ## Publicar
 

@@ -3,9 +3,9 @@
 // mouse, aprieta teclas y carga los tiros en tiempo real.
 //
 // Juega con el reparto nuevo: elige **palo** por la distancia a la que está el blanco (el driver cobra
-// de lejos, el putter de cerca, el hierro y el wedge parejo) y **encantamiento** por la situación
-// (escarcha para abrir defensas, vendaval cuando lo rodean, golpe el resto del tiempo). No busca filas
-// ni clava el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace una persona.
+// de lejos, el putter de cerca, el hierro y el wedge parejo) y **poder** por la situación (escarcha
+// para abrir defensas, vendaval cuando lo rodean, golpe el resto del tiempo). No busca filas ni clava
+// el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace una persona.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Gk = any;
@@ -19,8 +19,10 @@ export interface BotStats {
   jumps: number;
 }
 
-/** Los palos se recorren con Q y E, así que el bot cuenta pasos hasta el que quiere. */
-const CLUB_KEYS = ['driver', 'iron', 'wedge', 'putter'];
+/** Cada palo tiene su tecla: Digit1 a Digit4, en este orden. */
+const CLUB_ORDER = ['driver', 'iron', 'wedge', 'putter'];
+/** Cada poder tiene la suya: Q, W y E. */
+const ENCHANT_KEYS: Record<string, string> = { damage: 'KeyQ', ice: 'KeyW', push: 'KeyE' };
 
 function key(code: string): void {
   dispatchEvent(new KeyboardEvent('keydown', { code }));
@@ -149,16 +151,11 @@ export function startBot(): BotStats {
     else if (d <= 12 && pl.unlocked.has('putter')) club = 'putter';
     else if (d <= 40 && pl.unlocked.has('iron')) club = 'iron';
     if (!pl.unlocked.has(club)) club = 'driver';
-    // Q y E recorren los palos en círculo: cuenta el camino más corto
-    const order = CLUB_KEYS.filter((id) => pl.unlocked.has(id));
-    const from = order.indexOf(pl.club.id);
-    const to = order.indexOf(club);
-    if (from >= 0 && to >= 0 && from !== to) {
-      const fwd = (to - from + order.length) % order.length;
-      const back = order.length - fwd;
-      for (let i = 0; i < Math.min(fwd, back); i++) key(fwd <= back ? 'KeyE' : 'KeyQ');
-    }
-    if (pl.enchant.id !== enchant) key(`Digit${['damage', 'ice', 'push'].indexOf(enchant) + 1}`);
+    // los tres poderes tienen recarga: si el elegido no está listo, espera en vez de gastar otro
+    if (!gk.enchantReady(enchant)) return;
+    // cada palo tiene su tecla: un toque y ya
+    if (pl.club.id !== club) key(`Digit${CLUB_ORDER.indexOf(club) + 1}`);
+    if (pl.enchant.id !== enchant) key(ENCHANT_KEYS[enchant]);
 
     // La barra ya no tiene nada que ver con la distancia: apunta a soltar en el nivel 2, que es lo que
     // haría alguien sin clavarla. El alcance lo da el mouse.

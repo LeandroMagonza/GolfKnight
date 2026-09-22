@@ -87,8 +87,10 @@ export class Player {
   pendingClub: Club | null = null;
   /** Palos que ya se pueden usar. Las oleadas los van habilitando. */
   readonly unlocked = new Set<ClubId>(['driver']);
-  /** Segundos de recarga que le quedan a cada encantamiento. Los palos no tienen recarga. */
+  /** Segundos de recarga que le quedan a cada poder. Los palos no tienen recarga: la tienen los poderes. */
   readonly cooldowns: Record<EnchantId, number> = { damage: 0, ice: 0, push: 0 };
+  /** ¿Ya se tiene este poder? Lo decide el juego (las oleadas). */
+  enchantAvailable: ((id: EnchantId) => boolean) | null = null;
   /** Segundos de recarga que le quedan al palazo. */
   meleeCooldown = 0;
   /** Se llama en el instante en que el palazo conecta. */
@@ -195,8 +197,8 @@ export class Player {
   }
 
   /**
-   * Cambia de encantamiento: qué hace la pelota cuando llega. Se puede cambiar en cualquier momento,
-   * hasta con el swing bajando, porque no cambia el gesto. Si está recargando, no entra.
+   * Cambia de poder: qué hace la pelota cuando llega. Se puede cambiar en cualquier momento, hasta con
+   * el swing bajando, porque no cambia el gesto. Si está recargando, no entra.
    */
   setEnchant(enchant: Enchant): void {
     if (this.cooldowns[enchant.id] > 0) {
@@ -204,6 +206,17 @@ export class Player {
       return;
     }
     this.enchant = enchant;
+  }
+
+  /** ¿Este poder se puede usar ahora mismo? Hay que tenerlo y no estar recargando. */
+  enchantReady(id: EnchantId): boolean {
+    return this.cooldowns[id] <= 0 && (this.enchantAvailable?.(id) ?? true);
+  }
+
+  /** El primer poder listo, o null si están los tres recargando. */
+  get firstReady(): Enchant | null {
+    for (const id of Object.keys(ENCHANTS) as EnchantId[]) if (this.enchantReady(id)) return ENCHANTS[id];
+    return null;
   }
 
   private applyClub(club: Club): void {
@@ -217,8 +230,17 @@ export class Player {
     const recovered = this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER;
     if ((this.mode !== 'free' && !recovered) || this.grabbedBy || this.stunned || !this.alive || !this.atSpot) return;
     if (this.canStart && !this.canStart()) return;
-    // encadenar otro tiro apenas pasó el impacto también cuenta como fin del tiro anterior
-    if (this.cooldowns[this.enchant.id] > 0) this.enchant = ENCHANTS.damage;
+    // encadenar otro tiro apenas pasó el impacto también cuenta como fin del tiro anterior.
+    // Los tres poderes tienen recarga: si el que está en la mano no está listo, entra el primero que sí,
+    // y si no hay ninguno todavía no se puede pegar.
+    if (!this.enchantReady(this.enchant.id)) {
+      const ready = this.firstReady;
+      if (!ready) {
+        this.onDenied?.(this.enchant);
+        return;
+      }
+      this.enchant = ready;
+    }
     if (this.pendingClub) this.applyClub(this.pendingClub);
     this.mode = 'charging';
     this.backswing = 0;
@@ -468,8 +490,8 @@ export class Player {
     }
     const enchant = this.enchant;
     this.cooldowns[enchant.id] = enchant.cooldown;
-    // el golpe seco está siempre listo: después de gastar un encantamiento se vuelve solo a él
-    if (enchant.cooldown > 0) this.enchant = ENCHANTS.damage;
+    // el poder queda elegido: si se quiere otro se cambia con Q, W o E. Cuando llegue el momento de
+    // cargar el próximo tiro, si este todavía recarga, entra solo el que esté listo.
     this.onShot?.({ club: this.club, enchant, quality: qualityOf(shot.power), power: shot.power, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
   }
 

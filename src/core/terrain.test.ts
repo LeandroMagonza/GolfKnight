@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BALL_RADIUS, launch, launchSpeed, launchWith, previewOver, stepBall, type BallState } from './ballistics';
-import { FLAT_UNTIL_Z, heightAt, HILLS, normalAt, raycastTerrain, relief, reliefAt, VALLEY } from './terrain';
+import { COURSES, course, FLAT_UNTIL_Z, heightAt, normalAt, pickCourse, raycastTerrain, relief, reliefAt } from './terrain';
 
 const rad = (deg: number) => (deg * Math.PI) / 180;
 const params = { restitution: 0.3, bounceKeep: 0.8 };
@@ -11,30 +11,46 @@ function fly(s: BallState, ground: (x: number, z: number) => number, seconds = 6
 }
 
 describe('terrain', () => {
-  afterEach(() => { relief.on = false; });
+  afterEach(() => { pickCourse('1'); });
 
-  it('apagado es el plano de siempre; prendido, tiene lomas y un valle', () => {
-    expect(heightAt(HILLS[0].x, HILLS[0].z)).toBe(0);
-    relief.on = true;
-    expect(heightAt(HILLS[0].x, HILLS[0].z)).toBeGreaterThan(1.8);
-    expect(heightAt(VALLEY.x, 40)).toBeLessThan(-0.7);
+  it('?plano es el plano de siempre; con campo, hay lomas y un valle', () => {
+    const hill = COURSES[0].hills[0];
+    pickCourse('plano');
+    expect(heightAt(hill.x, hill.z)).toBe(0);
+    pickCourse('1');
+    expect(heightAt(hill.x, hill.z)).toBeGreaterThan(1.8);
+    expect(heightAt(COURSES[0].valleys[0].x, 40)).toBeLessThan(-0.7);
   });
 
-  it('cerca de los puestos y de la muralla el piso es plano', () => {
-    for (let x = -30; x <= 30; x += 3) for (let z = -5; z <= FLAT_UNTIL_Z; z += 1) expect(reliefAt(x, z)).toBe(0);
+  it('un número elige campo y sin número sale uno cualquiera, siempre de la lista', () => {
+    for (let i = 1; i <= COURSES.length; i++) expect(pickCourse(String(i))).toBe(COURSES[i - 1]);
+    // da la vuelta, así que ?campo=99 no rompe
+    expect(pickCourse('99')).toBe(COURSES[(99 - 1) % COURSES.length]);
+    for (let i = 0; i < 30; i++) expect(COURSES).toContain(pickCourse(null));
   });
 
-  it('las pendientes son suaves: se puede caminar y la pelota no queda rodando para siempre', () => {
-    let steepest = 0;
-    for (let x = -25; x <= 25; x += 0.5) for (let z = 10; z <= 70; z += 0.5) {
-      const n = normalAt(x, z, reliefAt);
-      steepest = Math.max(steepest, Math.hypot(n.x, n.z) / n.y);
+  it('en todos los campos, cerca de los puestos y de la muralla el piso es plano', () => {
+    for (let c = 1; c <= COURSES.length; c++) {
+      pickCourse(String(c));
+      for (let x = -30; x <= 30; x += 3) for (let z = -5; z <= FLAT_UNTIL_Z; z += 1) expect(reliefAt(x, z)).toBe(0);
     }
-    expect(steepest).toBeLessThan(0.4); // por debajo de la fricción del rodado sobre la gravedad (9 / 22)
+  });
+
+  it('en todos los campos las pendientes son suaves: se puede caminar y la pelota no queda rodando', () => {
+    for (let c = 1; c <= COURSES.length; c++) {
+      pickCourse(String(c));
+      let steepest = 0;
+      for (let x = -25; x <= 25; x += 0.5) for (let z = 10; z <= 70; z += 0.5) {
+        const n = normalAt(x, z, reliefAt);
+        steepest = Math.max(steepest, Math.hypot(n.x, n.z) / n.y);
+      }
+      expect(steepest, course().name).toBeLessThan(0.4); // por debajo de la fricción del rodado sobre la gravedad (9 / 22)
+    }
   });
 
   it('el rayo del mouse encuentra el terreno, también sobre una loma', () => {
-    const hill = HILLS[1];
+    pickCourse('1');
+    const hill = COURSES[0].hills[1];
     const from = { x: hill.x, y: 30, z: hill.z - 30 };
     const len = Math.hypot(30, 30);
     const hit = raycastTerrain(from, { x: 0, y: -30 / len, z: 30 / len }, 300, reliefAt)!;

@@ -1088,3 +1088,90 @@ pasillo angosto a lo largo de todo el tiro.
 - Si el golpe seco tiene que competir de verdad con los otros dos, o está bien que sea el que siempre
   está.
 - Si el putter, sin tótem, alcanza con ser "el que cobra de cerca".
+
+## Hecho: teclas directas, el hierro con arco propio, y el campo que cambia
+
+Ronda de ajuste sobre el rediseño, ya con el juego en la mano.
+
+### Los controles dejaron de ser una rueda
+
+- **Cada palo tiene su tecla: 1, 2, 3 y 4.** Recorrer con Q y E obligaba a contar pasos para llegar al
+  palo que se quería; con cuatro palos y una pelea encima, eso es fricción pura. La rueda del mouse
+  sigue recorriéndolos en círculo, para quien la prefiera.
+- **Los poderes pasaron a Q, W y E**, que es donde la mano ya está.
+- **Los tres poderes tienen recarga.** Antes el golpe seco era gratis, así que los otros dos eran un
+  extra y no una elección. Ahora el golpe recarga 1.2 s (menos de lo que tarda un swing, para que no
+  frene el juego), el vendaval 3 s y la escarcha 4 s. El poder elegido queda en la mano; si cuando vas
+  a pegar todavía recarga, entra solo el que esté listo.
+- **El palo perdió su ícono en la punta de la línea.** Tapaba justo el punto al que se apunta. Ahora
+  ahí va el símbolo del poder, más chico y levantado 2.3 m, con el punto de caída libre.
+- **La barra de abajo se reacomodó**: palos a la izquierda, poderes a la derecha, en una sola fila.
+  Las etiquetas de fila armaban una columna en el medio que empujaba todo para arriba.
+- **Un solo número de daño por golpe.** Aparecían dos porque lo emitían dos lugares a la vez: el
+  evento de la pelota y el de la horda. Quedó el de la horda, que vale para todas las formas de pegar.
+
+### El hierro 7 es ahora el palo del medio, no un globo más
+
+Era un globo con gravedad propia (50) que caía en picada y moría donde caía: hacía casi lo mismo que
+el wedge. Ahora tiene forma propia:
+
+| | Driver | Hierro 7 | Wedge | Putter |
+| --- | --- | --- | --- | --- |
+| Trayectoria | rasante | arco bajo (27°, gravedad normal) | globo alto (55°) | rueda |
+| Atraviesa en el aire | sí, a toda la fila | sí, hasta a tres | no | no |
+| Área donde toca el piso | no | 1.8 m | 4.2 m | 1.6 m donde para |
+| Después de caer | pica y sigue | **sigue rodando** | se queda ahí | se queda |
+
+El hierro es el único que hace las dos cosas: le aplica el efecto a cada uno que atraviesa, como el
+driver, y además abre un área chica donde cae, como el wedge. Un tiro sigue siendo **un efecto por
+enemigo**: al que ya atravesó, el área no lo vuelve a tocar (`blast`, `chillAround` y `sweep` reciben
+la lista de los ya golpeados). Sin eso, el hierro le sacaba exactamente el doble a quien estuviera
+parado en el punto de caída.
+
+Así quedan los tres roles separados de verdad: el driver es la línea, el wedge es la zona, y el hierro
+es el que hace un poco de las dos y encima pasa por arriba de las lomas.
+
+### El campo ya no es un plano, y cambia en cada partida
+
+El relieve dejó de ser un prototipo detrás de `?relieve`: **está siempre**. Y hay **cuatro campos
+diseñados**, uno por partida:
+
+1. *Valle del medio*: dos lomas cruzadas y un carril limpio por el medio (el de siempre).
+2. *La meseta*: una meseta ancha parte el campo en dos, con un carril por cada costado.
+3. *Los dos carriles*: una loma cerca obliga a salir del puesto del medio.
+4. *La loma sola*: el campo más limpio, para tirar rasante de punta a punta.
+
+Se sortea al cargar. `?campo=1` a `?campo=4` fuerza uno y `?plano` deja el campo liso, que es sobre el
+que corre la prueba general (mide trayectorias: necesita el mismo piso siempre).
+
+**Por qué campos diseñados y no ruido:** el driver sale rasante, así que una loma es cobertura y una
+zanja es un carril. Con relieve al azar, atravesar una fila sería una lotería y el palo más
+característico del juego dependería de la suerte. Un test comprueba que en los cuatro campos las
+pendientes son suaves (por debajo de fricción sobre gravedad, para que la pelota siempre termine
+parando) y que cerca de los puestos y de la muralla el piso es plano.
+
+Queda para más adelante, si hace falta más variedad: que las lomas se muevan durante la partida, o
+mapas con agua y búnkers.
+
+### Las distancias ahora se ven
+
+- Las marcas del piso se cuentan **desde la línea de los puestos**, no desde la puerta: la raya donde
+  está parado el golfista dice 0. Antes decía 10 m, que era la distancia a la puerta y no le servía a
+  nadie.
+- Las rayas de **20 y 40 m están resaltadas**, porque ahí cambia la banda de daño, y cada tramo lleva
+  su nombre al costado: corta, media, larga. La razón por la que un palo pega más o menos es ahora
+  algo que se ve en el campo, no un número escondido.
+
+### Panel de balance (tecla B)
+
+Un panel al costado que toca los números del juego en vivo, sin recargar: daño de cada palo por banda
+y por calidad, alcance y área, dónde cortan las bandas, recarga de cada poder, y vida, velocidad y
+daño de cada enemigo. Más los botones de prueba que hacían falta para poder probar sin jugar una
+partida entera: **oleada infinita** (repite la composición de la oleada en curso), **vida infinita**,
+**puerta infinita** y **saltar a la oleada 1 a 6**.
+
+Y un botón de **copiar configuración**, que deja todo el balance como texto en el portapapeles. La idea
+es que ajustar el balance no requiera tocar código: se juega, se mueve, se copia y se pasa.
+
+Los cambios no se guardan: al recargar vuelve el balance del código. Es a propósito, para que un
+experimento no quede pegado sin que nadie se entere.

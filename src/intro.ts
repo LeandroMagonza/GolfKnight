@@ -32,8 +32,8 @@ const SLIDES: Slide[] = [
     html: `<p class="controls">
       Apuntá con el <kbd>mouse</kbd>: la <em>distancia</em> del cursor es dónde cae la pelota<br />
       Mantené <kbd>click</kbd> para cargar y soltá para pegar. La barra dice solo <em>qué tan bien</em> le pegás: tres niveles<br />
-      <kbd>Q</kbd> y <kbd>E</kbd> cambian de palo: cada uno cobra mejor a su distancia (el driver de lejos, el putter de cerca)<br />
-      <kbd>1</kbd> golpe · <kbd>2</kbd> escarcha · <kbd>3</kbd> vendaval: qué hace la pelota cuando llega<br />
+      <kbd>1</kbd> driver · <kbd>2</kbd> hierro 7 · <kbd>3</kbd> wedge · <kbd>4</kbd> putter: cada palo cobra mejor a su distancia<br />
+      <kbd>Q</kbd> golpe · <kbd>W</kbd> escarcha · <kbd>E</kbd> vendaval: qué hace la pelota cuando llega (los tres con recarga)<br />
       Solo se pega donde hay una <em>pelota</em>: movete de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd><br />
       <kbd>Espacio</kbd> clava el golpe · palazo <kbd>Shift</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
       Que no lleguen a la puerta.

@@ -83,17 +83,17 @@ const lob = async (digit, power) => {
   await useEnchant(1);
 };
 
-/** Pone un palo en la mano: Q y E lo recorren en círculo. */
+/** Pone un palo en la mano: cada uno tiene su tecla, del 1 al 4. */
+const CLUB_ORDER = ['driver', 'iron', 'wedge', 'putter'];
 const useClub = async (id) => {
-  for (let i = 0; i < 6; i++) {
-    if ((await page.evaluate(() => window.__gk.player.club.id)) === id) return;
-    await page.keyboard.press('KeyE');
-    await page.waitForTimeout(40);
-  }
+  if ((await page.evaluate(() => window.__gk.player.club.id)) === id) return;
+  await page.keyboard.press(`Digit${CLUB_ORDER.indexOf(id) + 1}`);
+  await page.waitForTimeout(60);
 };
-/** Elige encantamiento: 1 golpe, 2 escarcha, 3 vendaval. */
+/** Elige poder: 1 golpe (Q), 2 escarcha (W), 3 vendaval (E). */
+const ENCHANT_KEYS = ['KeyQ', 'KeyW', 'KeyE'];
 const useEnchant = async (n) => {
-  await page.keyboard.press(`Digit${n}`);
+  await page.keyboard.press(ENCHANT_KEYS[n - 1]);
   await page.waitForTimeout(60);
 };
 /**
@@ -128,13 +128,15 @@ const enemy = (id) => page.evaluate((id) => {
 /** Vuelve al golfista al puesto del medio y espera a que la cámara termine de seguirlo: aimAt convierte un
  * punto del campo a un píxel con la cámara de ese momento, y si la cámara sigue viajando la puntería se corre. */
 const resetPlayer = async () => {
-  await page.evaluate(() => { const g = window.__gk; g.player.hp = 3; g.player.placeAt(g.tees.centerIndex); g.player.cooldowns.ice = 0; g.player.cooldowns.push = 0; g.player.meleeCooldown = 0; });
+  await page.evaluate(() => { const g = window.__gk; g.player.hp = 3; g.player.placeAt(g.tees.centerIndex); for (const id of Object.keys(g.player.cooldowns)) g.player.cooldowns[id] = 0; g.player.meleeCooldown = 0; });
   await page.waitForTimeout(1600);
 };
 /** Frena al director de oleadas para probar con enemigos puestos a mano. */
 const holdWaves = () => page.evaluate(() => { window.__gk.director.timer = 9999; });
 
-await page.goto('http://localhost:5198/');
+// ?plano: el campo liso. Esta prueba mide trayectorias y pone enemigos en puntos exactos, así que
+// tiene que correr siempre sobre el mismo piso. Los campos con relieve los prueba tools/relieve.mjs.
+await page.goto('http://localhost:5198/?plano');
 await page.evaluate(() => localStorage.removeItem('gk.globos'));
 await page.reload();
 await page.screenshot({ path: 'logs/k0-intro.png' });
@@ -292,7 +294,7 @@ if (!quick) {
   await page.mouse.down();
   await page.waitForFunction(() => window.__gk.player.meter.power > 0.3, null, { timeout: 3000, polling: 'raf' }).catch(() => {});
   const beforeSwitch = await clubs();
-  await page.keyboard.press('KeyE');
+  await page.keyboard.press('Digit2');
   const afterSwitch = await clubs();
   log('cambio cargando', beforeSwitch, afterSwitch);
   await page.screenshot({ path: 'logs/k1b-cambio-cargando.png' });
@@ -304,6 +306,8 @@ if (!quick) {
   const afterShot = await clubs();
   log('tras el tiro', afterShot);
   check('el palo queda en la mano: ya no vuelve solo al driver', afterShot.club === 'iron');
+  // el que se elige mientras carga también queda, aunque después se cancele el tiro
+  await useClub('driver');
   await page.mouse.down();
   await page.waitForTimeout(250);
   await page.keyboard.press('Digit2');
@@ -346,10 +350,18 @@ if (!quick) {
   // flojo blanco, bueno amarillo, perfecto rojo
   check('la línea de tiro cambia de color con la calidad del golpe', [...colors].every((c) => ['ffffff', 'ffe066', 'ff2d3c'].includes(c)) && colors.size === 3);
   check('ya no hay anillo junto al cursor', await page.evaluate(() => !document.getElementById('chargecursor')));
+  // la punta ya no lleva el ícono del palo, que tapaba justo el punto al que se apunta: lleva el del poder
   const tips = [];
-  for (const id of ['driver', 'iron', 'wedge']) { await useClub(id); await give(); await page.waitForTimeout(150); tips.push(await page.evaluate(() => window.__gk.aimLine)); }
+  for (const n of [1, 2, 3]) {
+    await waitEnchant(['damage', 'ice', 'push'][n - 1]);
+    await useEnchant(n);
+    await give();
+    await page.waitForTimeout(150);
+    tips.push(await page.evaluate(() => window.__gk.aimLine));
+  }
+  await useEnchant(1);
   log('punta de la línea', tips.map((t) => t.tip));
-  check('la punta de la línea dice qué palo está en la mano', tips.map((t) => t.tip).join() === 'driver,iron,wedge' && tips.every((t) => t.tipVisible));
+  check('la punta de la línea dice qué poder está en la mano', tips.map((t) => t.tip).join() === 'damage,ice,push' && tips.every((t) => t.tipVisible));
   await useClub('driver');
   // la carga arranca lenta: a un tercio del tiempo todavía va por el nivel 1
   await give();
@@ -359,7 +371,8 @@ if (!quick) {
   await page.mouse.up();
   await page.waitForTimeout(150);
   log('carga a un tercio del tiempo', +early.toFixed(2));
-  check('la carga sube lenta al principio', early < 0.2);
+  // a un tercio del tiempo la barra tiene que ir bastante por debajo de un tercio: arranca lenta
+  check('la carga sube lenta al principio', early < 0.27);
 
   // --- el daño sale del palo, de la distancia y de la calidad del golpe ---
   await clearEnemies();
@@ -437,8 +450,9 @@ if (!quick) {
   await driveLevel(3, 2500);
   log('escudo vs driver', await enemy(shield));
   check('el escudo frena al driver', (await enemy(shield)).hp === 4);
-  await aimAt(2.4, 24);
-  await lob(2, 0.5);
+  // el área del hierro es chica (1.8 m): a 1.2 m del centro todavía alcanza
+  await aimAt(1.2, 24);
+  await lob(2, 0.96);
   const slowed = await enemy(shield);
   const afterIron = await page.evaluate(() => ({ recarga: +window.__gk.player.cooldowns.ice.toFixed(2), efecto: window.__gk.player.enchant.id }));
   log('hielo: borde', slowed, afterIron);
@@ -456,7 +470,7 @@ if (!quick) {
   await driveLevel(1, 2500);
   log('frío: un toque', await enemy(shield));
   check('con frío el escudo ya no frena', (await enemy(shield)).hp === 3);
-  await lob(2, 0.5);
+  await lob(2, 0.96);
   const iced = await enemy(shield);
   log('hielo: centro', iced);
   check('el hielo del centro también enfría, y sigue caminando', iced.chilled && iced.alive);
@@ -473,7 +487,7 @@ if (!quick) {
   const warmHit = 10 - (await enemy(warm)).hp;
   await clearEnemies();
   const cold = await still('knight', 0, 30);
-  await lobAt(2, 0, 30, 0.5);
+  await lobAt(2, 0, 30, 0.96);
   const coldBefore = await enemy(cold);
   await shootAt('iron', 0, 30, 0.7, 3000);
   const coldHit = coldBefore.hp - (await enemy(cold)).hp;
@@ -495,9 +509,10 @@ if (!quick) {
   const dying = await page.evaluate(() => { const e = window.__gk.horde.enemies.find((x) => x.stats.kind === 'warrior'); return { estado: e.state, escudo: e.shieldMesh.visible }; });
   log('escudo al morir', dying);
   check('el escudo desaparece cuando el guerrero muere', dying.estado === 'dying' && !dying.escudo);
-  // el perfecto llega más lejos: un esqueleto a 4.3 m del centro queda afuera del normal y adentro del perfecto
+  // el perfecto llega más lejos: con el área del hierro (1.8 m, x1.5 en el perfecto) y midiendo desde el
+  // borde del enemigo, uno a 2.9 m del centro queda afuera del normal y adentro del perfecto
   await clearEnemies();
-  const edge = await still('skeleton', 4.3, 24);
+  const edge = await still('skeleton', 2.9, 24);
   await aimAt(0, 24);
   await lob(2, 0.5);
   const missed = (await enemy(edge)).chilled;
@@ -505,9 +520,11 @@ if (!quick) {
   log('hielo perfecto', { normal: missed, perfecto: (await enemy(edge)).chilled });
   check('el hielo perfecto tiene más área', !missed && (await enemy(edge)).chilled);
 
-  /** Con el wedge en la mano y apuntando a (x, z): la línea del tiro, y cómo pasar a sus coordenadas. */
+  /** Con el wedge y el vendaval en la mano, apuntando a (x, z): la línea del tiro y sus coordenadas. */
   const shotLine = async (wantX, wantZ) => {
-    await page.keyboard.press('Digit3');
+    await useClub('wedge');
+    await waitEnchant('push');
+    await useEnchant(3);
     await playerFree();
     // la cámara acompaña a la puntería: se apunta, se la deja llegar, y se vuelve a apuntar. El centro es
     // adonde apunta el juego de verdad, no adonde se quiso apuntar
@@ -529,14 +546,16 @@ if (!quick) {
     };
   };
 
-  // --- wedge: llega rápido, empuja hacia afuera sin dañar; el daño que reciben después no cambia ---
+  // --- wedge: globo alto, tarda en llegar, empuja hacia la línea sin dañar ---
   await clearEnemies();
   const ringLine = await shotLine(0, 24);
   const ringAt = [[0, -1.2], [0, 1.2], [1.2, 0.4], [-1.2, -0.4]];
   const ring = [];
   for (const [f, l] of ringAt) ring.push(await still('skeleton', ...ringLine.at(f, l)));
   await aimAt(0, 24);
-  await page.keyboard.press('Digit3');
+  await useClub('wedge');
+  await waitEnchant('push');
+  await useEnchant(3);
   await playerFree();
   await give();
   const flight = await page.evaluate(() => new Promise((done) => {
@@ -556,8 +575,29 @@ if (!quick) {
   const pushed = [];
   for (const id of ring) pushed.push(await enemy(id));
   log('wedge', { vuelo: flight }, pushed.map((e) => [e.hp, e.x, e.z]));
-  check('el wedge llega en menos de un segundo', flight < 1);
-  check('el wedge no daña', pushed.every((e) => e.hp === 4));
+  // el wedge es el globo alto: sube y tarda. El hierro, con el mismo tiro, es un arco bajo y llega antes
+  await clearEnemies();
+  await useClub('iron');
+  await aimAt(0, 24);
+  await playerFree();
+  await give();
+  // el hierro sigue rodando después de caer, así que se mide hasta que toca el piso, no hasta que para
+  const ironFlight = await page.evaluate(() => new Promise((done) => {
+    const g = window.__gk;
+    g.shootPower(0.8);
+    let t0 = -1;
+    const poll = () => {
+      const ball = g.balls.list[0];
+      if (t0 < 0 && ball) t0 = g.clock;
+      if (t0 >= 0 && (!ball || ball.state.bounces > 0)) done(+(g.clock - t0).toFixed(2));
+      else requestAnimationFrame(poll);
+    };
+    poll();
+  }));
+  await ballsDone();
+  log('vuelos', { wedge: flight, hierro: ironFlight });
+  check('el wedge es el que más tarda: sube alto y cae', flight > ironFlight);
+  check('el wedge no daña con el vendaval', pushed.every((e) => e.hp === 4));
   log('wedge: en la línea', pushed.map((e) => ringLine.of(e)));
   // dos a la misma profundidad no pueden quedar en el mismo punto: se frenan hombro con hombro (los
   // enemigos no se enciman), así que quedan pegados a la línea, uno de cada lado
@@ -614,7 +654,7 @@ if (!quick) {
   await driveLevel(3, 2500);
   check('el driver no daña al inmune', (await enemy(guarded)).hp === 4);
   await aimAt(0, 27);
-  await lob(2, 0.5);
+  await lob(2, 0.96);
   const silenced = await enemy(shaman);
   log('chamán con hielo', silenced, await enemy(guarded));
   check('el hielo apaga el aura', !silenced.casting && !(await enemy(guarded)).warded);

@@ -1,10 +1,11 @@
-// Pelotas en juego: física de core/ballistics, choques contra la horda, y el efecto del encantamiento
-// aplicado según cómo entrega el palo.
+// Pelotas en juego: física de core/ballistics, choques contra la horda, y el efecto del poder aplicado
+// según cómo entrega el palo.
 //
-// La regla es una sola: **el driver es lineal** (spread 0), así que le aplica el efecto a cada uno que
-// atraviesa; **los demás caen en un punto** y lo aplican en un área, más grande cuanto más alto vuela
-// el palo. El vendaval con el driver es la excepción prolija: como no tiene punto de caída, el viento
-// pasa como un pasillo angosto a lo largo de todo el tiro.
+// Dos cosas independientes: si el palo **atraviesa** (le aplica el efecto a cada uno que toca en el
+// aire y sigue: driver y hierro) y si **abre un área** donde toca el piso (todos menos el driver, más
+// grande cuanto más alto vuela). El hierro hace las dos: atraviesa, abre un área chica donde cae, y
+// después sigue rodando. El vendaval con el driver es la excepción prolija: como no tiene punto de
+// caída, el viento pasa como un pasillo angosto a lo largo de todo el tiro.
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, launchWith, stepBall, type BallState } from '../core/ballistics';
 import { damageFor, ICE_LINE_SECONDS, ICE_SECONDS, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, type Club, type Enchant, type EnchantId } from '../core/clubs';
@@ -32,6 +33,8 @@ export interface Ball {
   dir: THREE.Vector3;
   hitIds: Set<number>;
   hits: number;
+  /** Ya abrió su área: no la vuelve a abrir aunque siga rodando. */
+  burst: boolean;
   /** Enemigos que mató esta pelota. */
   kills: number;
   /** Ya se avisó cómo le fue (evento 'settled'). */
@@ -85,10 +88,10 @@ export class Balls {
       state, club: shot.club, enchant: shot.enchant, quality: shot.quality,
       from: shot.from.clone(),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(),
-      hitIds: new Set(), hits: 0, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), hits: 0, burst: false, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
-    // El vendaval con un palo lineal no tiene punto de caída: el viento pasa por todo el tiro, en un
+    // El vendaval con un palo sin área no tiene punto de caída: el viento pasa por todo el tiro, en un
     // pasillo angosto, y deja en fila a los que estaban cerca de la línea.
     if (ball.club.spread === 0 && ball.enchant.id === 'push') {
       const half = PUSH_LINE_HALF_WIDTH * QUALITY_AREA[ball.quality - 1];
@@ -106,31 +109,39 @@ export class Balls {
     return Math.hypot(pos.x - ball.from.x, pos.z - ball.from.z);
   }
 
-  /** El globo llegó (al piso o a un enemigo): hace su efecto en un área y desaparece. */
-  private burst(ball: Ball): void {
+  /**
+   * La pelota llegó (al piso o a un enemigo): abre su área acá. `finish` dice si con eso se termina el
+   * tiro (el globo se queda donde cayó) o si la pelota sigue viaje rodando (el hierro).
+   */
+  private burst(ball: Ball, finish = true): void {
+    ball.burst = true;
     const pos = new THREE.Vector3(ball.state.pos.x, ball.state.pos.y, ball.state.pos.z);
     const radius = ball.club.spread * QUALITY_AREA[ball.quality - 1];
+    // al que esta misma pelota ya atravesó no le toca otra vez: el hierro atraviesa y además abre un
+    // área donde cae, pero un tiro es un efecto por enemigo
+    const skip = ball.hitIds;
     let hits = 0;
     if (ball.enchant.id === 'ice') {
       this.effects.frost(pos, radius);
-      hits = this.horde.chillAround(pos, radius, ICE_SECONDS[ball.quality - 1]);
+      hits = this.horde.chillAround(pos, radius, ICE_SECONDS[ball.quality - 1], skip);
     } else if (ball.enchant.id === 'push') {
       this.effects.explosion(pos, radius, ball.enchant.color);
-      hits = this.horde.sweep(pos, ball.dir, radius * 1.5, radius);
+      hits = this.horde.sweep(pos, ball.dir, radius * 1.5, radius, skip);
     } else {
       this.effects.explosion(pos, radius, ball.club.color);
       const damage = damageFor(ball.club, this.metersTo(ball, pos), ball.quality);
-      hits = this.horde.blast(pos, radius, damage, ball.club.knockback);
+      hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, skip);
     }
     this.onEvent?.({ type: 'land', enchant: ball.enchant.id, pos, hits, quality: ball.quality });
     ball.hits += hits;
-    ball.done = true;
+    if (finish) ball.done = true;
   }
 
-  /** Un palo lineal atravesó a alguien: el efecto va a ese enemigo, y la pelota sigue. */
+  /** Atravesó a alguien: el efecto va a ese enemigo, y la pelota sigue. */
   private hitEnemy(ball: Ball, enemy: Enemy): void {
     const s = ball.state;
-    if (ball.club.spread > 0) {
+    // los que no atraviesan paran en el primero que tocan: ahí abren su área
+    if (!ball.club.pierces) {
       this.burst(ball);
       return;
     }
@@ -156,7 +167,7 @@ export class Balls {
 
   private collide(ball: Ball): void {
     const s = ball.state;
-    const linear = ball.club.spread === 0;
+    const linear = ball.club.pierces;
     for (const e of this.horde.enemies) {
       if (!e.alive || e.passed || ball.hitIds.has(e.id)) continue;
       // la altura se mide desde los pies del enemigo, que con relieve no están en y = 0
@@ -202,17 +213,17 @@ export class Balls {
           s.vel.z *= -0.5;
         }
         if (landed) {
-          // un globo hace su efecto donde toca el piso; el rasante pica y sigue
-          if (ball.club.spread > 0 && ball.club.loftDeg > 0.001) {
-            this.burst(ball);
-            break;
+          // el que abre área lo hace donde toca el piso; el globo se queda ahí y el hierro sigue rodando
+          if (ball.club.spread > 0 && ball.club.loftDeg > 0.001 && !ball.burst) {
+            this.burst(ball, ball.club.stopsOnLand);
+            if (ball.done) break;
           }
           if (s.bounces === 1) this.onEvent?.({ type: 'bounce', pos: new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z) });
         }
         this.collide(ball);
       }
-      // la del putter va rodando: hace su efecto donde para
-      if (s.resting && !ball.done && ball.club.spread > 0) this.burst(ball);
+      // la que va rodando (el putter) hace su efecto donde para
+      if (s.resting && !ball.done && !ball.burst && ball.club.spread > 0) this.burst(ball);
       if (s.resting) ball.restTime += dt;
       if (ball.restTime > 1.2 || ball.age > 14 || Math.abs(s.pos.x) > 90 || s.pos.z > 150) ball.done = true;
       if (ball.done || s.resting || ball.age >= SETTLE_AFTER) this.settle(ball);

@@ -128,6 +128,11 @@ export class WaveDirector {
   private queue: EnemyKind[] = [];
   private timer = 2.5;
   private phase: 'rest' | 'spawning' | 'fighting' | 'done' = 'rest';
+  /**
+   * Modo infinito (para probar): la oleada no se termina nunca. Cuando se vacía la cola, se vuelve a
+   * llenar con la misma composición, así que siguen saliendo los mismos bichos para siempre.
+   */
+  endless = false;
 
   constructor(private readonly waves: Wave[] = WAVES, private readonly rest = INTERMISSION) {}
 
@@ -154,6 +159,17 @@ export class WaveDirector {
    */
   wait(dt: number): void {
     if (this.phase === 'rest') this.timer = Math.max(0.05, this.timer - dt);
+  }
+
+  /**
+   * Salta directo a una oleada (para probar). Deja la cola vacía y el descanso casi terminado, así que
+   * la oleada pedida arranca en el próximo update.
+   */
+  goTo(index: number): void {
+    this.index = Math.max(0, Math.min(this.waves.length - 1, index)) - 1;
+    this.queue = [];
+    this.phase = 'rest';
+    this.timer = 0.05;
   }
 
   /** Palo que estrena la oleada que viene, si estrena alguno. */
@@ -183,7 +199,10 @@ export class WaveDirector {
         events.push({ type: 'spawn', kind: this.queue.shift()! });
         this.timer += this.waves[this.index].interval;
       }
-      if (!this.queue.length) this.phase = 'fighting';
+      if (!this.queue.length) {
+        if (this.endless) this.queue = spawnOrder(this.waves[this.index]);
+        else this.phase = 'fighting';
+      }
       return events;
     }
     if (this.phase === 'fighting' && alive === 0) {
