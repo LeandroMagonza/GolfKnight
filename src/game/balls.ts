@@ -8,7 +8,7 @@
 // caída, el viento pasa como un pasillo angosto a lo largo de todo el tiro.
 import * as THREE from 'three';
 import { BALL_RADIUS, launch, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
-import { areaDamageFor, damageFor, hasArea, rollFrictionFor, ICE_LINE_SECONDS, ICE_SECONDS, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, spreadFor, type Club, type Enchant, type EnchantId } from '../core/clubs';
+import { areaDamageFor, damageFor, hasArea, powerSpreadFor, rollFrictionFor, stacksPower, ICE_LINE_SECONDS, ICE_SECONDS, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, spreadFor, type Club, type Enchant, type EnchantId } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
@@ -34,6 +34,14 @@ export interface Ball {
   /** Hacia dónde salió, en el piso (unitario). Al caer, la velocidad ya no lo dice. */
   dir: THREE.Vector3;
   hitIds: Set<number>;
+  /**
+   * A quiénes ya les aplicó el **efecto del poder**. Va aparte de `hitIds` porque ahora un mismo tiro
+   * hace las dos cosas: nadie cobra dos veces el daño ni se enfría dos veces, pero el que cobró el
+   * pelotazo también se enfría.
+   */
+  powerIds: Set<number>;
+  /** El poder ya salió: no vuelve a salir aunque la pelota siga picando. */
+  powerDone: boolean;
   hits: number;
   /**
    * Vendaval con un palo lineal: el pasillo de viento que va **detrás** de la pelota. `swept` es hasta
@@ -103,7 +111,7 @@ export class Balls {
       state, club: shot.club, bounce, enchant: shot.enchant, quality: shot.quality,
       from: shot.from.clone(),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(),
-      hitIds: new Set(), hits: 0, burst: false, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), powerIds: new Set(), powerDone: false, hits: 0, burst: false, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
     // El vendaval con el driver, que es lineal y no abre área, no tiene punto de caída: el viento pasa
@@ -130,48 +138,60 @@ export class Balls {
     const pos = new THREE.Vector3(at?.x ?? ball.state.pos.x, at?.y ?? ball.state.pos.y, at?.z ?? ball.state.pos.z);
     const radius = spreadFor(ball.club, ball.quality);
     // al que esta misma pelota ya atravesó no le toca otra vez: el hierro atraviesa y además abre un
-    // área donde cae, pero un tiro es un efecto por enemigo
-    const skip = ball.hitIds;
+    // área donde cae, pero un tiro es un daño por enemigo
     let hits = 0;
-    if (ball.enchant.id === 'ice') {
-      this.effects.frost(pos, radius);
-      hits = this.horde.chillAround(pos, radius, ICE_SECONDS[ball.quality - 1], skip);
-    } else if (ball.enchant.id === 'push') {
-      this.effects.explosion(pos, radius, ball.enchant.color);
-      hits = this.horde.sweep(pos, ball.dir, radius * 1.5, radius, skip, true);
-    } else {
+    if (ball.enchant.id === 'damage' || stacksPower(ball.club)) {
       this.effects.explosion(pos, radius, ball.club.color);
       // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie
       const damage = areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality);
-      hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, skip);
+      hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds);
     }
+    hits += this.powerAt(ball, pos);
     this.onEvent?.({ type: 'land', enchant: ball.enchant.id, pos, hits, quality: ball.quality });
     ball.hits += hits;
     if (finish) ball.done = true;
   }
 
   /**
+   * El efecto del poder, en **su propia área** alrededor de donde llegó la pelota. Va aparte del daño:
+   * el driver, el hierro y el putter hacen su número de siempre y además enfrían o juntan (ver
+   * `stacksPower`). El wedge es el que no, porque su daño ya es el área.
+   */
+  private powerAt(ball: Ball, pos: THREE.Vector3): number {
+    if (ball.enchant.id === 'damage') return 0;
+    ball.powerDone = true;
+    const radius = powerSpreadFor(ball.club, ball.quality);
+    if (radius <= 0) return 0;
+    if (ball.enchant.id === 'ice') {
+      this.effects.frost(pos, radius);
+      // el que atraviesa alcanza a muchos de un saque, así que su hielo dura menos
+      const seconds = (ball.club.pierces ? ICE_LINE_SECONDS : ICE_SECONDS)[ball.quality - 1];
+      return this.horde.chillAround(pos, radius, seconds, ball.powerIds);
+    }
+    this.effects.explosion(pos, radius, ball.enchant.color);
+    return this.horde.sweep(pos, ball.dir, radius * 1.5, radius, ball.powerIds, true);
+  }
+
+  /**
    * El pelotazo a un enemigo puntual, con el número de **impacto** (no el del área). `finish` dice si
    * con eso se termina el tiro (el putter) o si además va a salir una explosión alrededor (el hierro).
    */
-  private directHit(ball: Ball, enemy: Enemy, finish = true): void {
+  private directHit(ball: Ball, enemy: Enemy, finish = true, withPower = true): void {
     const s = ball.state;
     ball.hitIds.add(enemy.id);
     ball.hits++;
     const pos = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
     this.effects.spark(pos, ball.enchant.id === 'damage' ? ball.club.color : ball.enchant.color);
-    if (ball.enchant.id === 'ice') {
-      enemy.chill(ICE_SECONDS[ball.quality - 1]);
-      this.onEvent?.({ type: 'land', enchant: 'ice', pos, hits: 1, quality: ball.quality });
-    } else if (ball.enchant.id === 'push') {
-      this.horde.sweep(pos, ball.dir, 1.2, 1.2, ball.hitIds);
-      this.onEvent?.({ type: 'land', enchant: 'push', pos, hits: 1, quality: ball.quality });
-    } else {
-      const dir = new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
-      const damage = damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality);
-      const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback);
-      if (killed) ball.kills++;
-      this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
+    const dir = new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
+    const damage = damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality);
+    const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback);
+    if (killed) ball.kills++;
+    this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
+    // y además el efecto, alrededor del que se la comió. `withPower` en false cuando justo después va a
+    // salir el área del palo, que ya lo aplica: si no, salían dos veces los mismos copos
+    if (withPower) {
+      const hits = this.powerAt(ball, pos);
+      if (hits) this.onEvent?.({ type: 'land', enchant: ball.enchant.id, pos, hits, quality: ball.quality });
     }
     if (finish) ball.done = true;
   }
@@ -184,8 +204,8 @@ export class Balls {
     if (!ball.club.pierces) {
       if (hasArea(ball.club)) {
         // El que se come el pelotazo cobra el **impacto**, que pega más; los de alrededor, el área.
-        // Queda marcado en hitIds, así que la explosión no le cobra de nuevo: un efecto por enemigo.
-        if (ball.enchant.id === 'damage') this.directHit(ball, enemy, false);
+        // Queda marcado en hitIds, así que la explosión no le cobra de nuevo: un daño por enemigo.
+        if (ball.enchant.id === 'damage' || stacksPower(ball.club)) this.directHit(ball, enemy, false, false);
         // el globo detona donde cayó, que es adonde apuntaste; el que revienta al contacto, en el enemigo
         const at = ball.club.burstsOnGround ? undefined : { x: enemy.position.x, y: enemy.position.y, z: enemy.position.z };
         this.burst(ball, true, at);
@@ -194,19 +214,18 @@ export class Balls {
       }
       return;
     }
+    // el que atraviesa: a cada uno que toca le cobra el pelotazo y le deja el efecto alrededor
     ball.hitIds.add(enemy.id);
     ball.hits++;
     const pos = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
     const dir = new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
     this.effects.spark(pos, ball.enchant.id === 'damage' ? ball.club.color : ball.enchant.color);
-    if (ball.enchant.id === 'ice') {
-      enemy.chill(ICE_LINE_SECONDS[ball.quality - 1]);
-    } else {
-      const damage = damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality);
-      const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback);
-      if (killed) ball.kills++;
-      this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
-    }
+    const damage = damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality);
+    const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback);
+    if (killed) ball.kills++;
+    this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
+    const powered = this.powerAt(ball, pos);
+    if (powered) this.onEvent?.({ type: 'land', enchant: ball.enchant.id, pos, hits: powered, quality: ball.quality });
     if (ball.hits >= ball.club.maxHits) ball.done = true;
     else {
       s.vel.x *= 0.88;
@@ -226,7 +245,7 @@ export class Balls {
     if (gone > w.swept) {
       const mid = ball.from.clone().addScaledVector(ball.dir, (w.swept + gone) / 2);
       mid.y = heightAt(mid.x, mid.z);
-      w.hits += this.horde.sweep(mid, ball.dir, w.half, (gone - w.swept) / 2, ball.hitIds);
+      w.hits += this.horde.sweep(mid, ball.dir, w.half, (gone - w.swept) / 2, ball.powerIds);
       // el remolino cada tantos metros: uno por cuadro sería una nube continua
       if (gone - w.toldAt >= 6) {
         w.toldAt = gone;
@@ -246,9 +265,6 @@ export class Balls {
 
   private collide(ball: Ball): void {
     const s = ball.state;
-    // la pelota del vendaval no golpea a nadie: es el viento que va atrás el que los acomoda. Si además
-    // los atravesara, quedarían marcados antes de que el viento les llegue y no los movería ninguno
-    if (ball.wind) return;
     for (const e of this.horde.enemies) {
       if (!e.alive || e.passed || ball.hitIds.has(e.id)) continue;
       // la altura se mide desde los pies del enemigo, que con relieve no están en y = 0
@@ -299,6 +315,12 @@ export class Balls {
           if (ball.club.burstsOnGround && hasArea(ball.club) && ball.club.loftDeg > 0.001 && !ball.burst) {
             this.burst(ball, ball.club.stopsOnLand);
             if (ball.done) break;
+          } else if (ball.club.powerOnGround && !ball.powerDone && ball.enchant.id !== 'damage') {
+            // el hierro: su daño pide conectar, pero el efecto cae donde cayó la pelota
+            const at = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
+            const hits = this.powerAt(ball, at);
+            ball.hits += hits;
+            this.onEvent?.({ type: 'land', enchant: ball.enchant.id, pos: at, hits, quality: ball.quality });
           }
           if (s.bounces === 1) this.onEvent?.({ type: 'bounce', pos: new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z) });
         }

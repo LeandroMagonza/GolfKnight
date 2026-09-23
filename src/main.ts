@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, RESERVE, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, stacksPower, ENCHANT_KEYS, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, RESERVE, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
 import { PERFECT_FROM } from './core/swing';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Balls } from './game/balls';
@@ -334,8 +334,9 @@ function updatePreview(): void {
   const damage = damageFor(club, range, quality);
   const areaHit = areaDamageFor(club, range, quality);
   const dmgLabel = club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
-  hud.setMeter(charging, player.meter.power, player.meter.locked,
-    `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]}${enchant.id === 'damage' ? ` · ${dmgLabel}` : ` · ${enchant.name}`}`);
+  // con estos tres palos el poder se suma al daño, así que el medidor dice las dos cosas
+  const shotLabel = enchant.id === 'damage' ? dmgLabel : stacksPower(club) ? `${dmgLabel} + ${enchant.name}` : enchant.name;
+  hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${shotLabel}`);
   tip.visible = show && ballHere && enchant.icon !== '';
   if (!show) {
     sweepBox.visible = false;
@@ -578,11 +579,14 @@ function selectEnchant(index: number): void {
  * esperar a que los enemigos se alineen después.
  */
 function lockSwing(): void {
-  if (!started || paused || ended || !player?.lockSwing()) return;
-  const p = player.meter.power;
-  const q = qualityOf(p);
-  audio.chargeTick(q);
-  hud.feedback(q >= QUALITY_LEVELS ? '¡Golpe perfecto clavado! Soltá cuando quieras' : `Clavado en ${q}: soltá cuando quieras`, q >= QUALITY_LEVELS ? 'good' : 'neutral');
+  if (!started || paused || ended || !player) return;
+  // la segunda apretada arranca la carga de nuevo: clavaste un nivel que no era y querés otro
+  if (player.meter.locked) {
+    if (player.restartCharge()) audio.chargeTick(1);
+    return;
+  }
+  // sin cartel: la barra ya se ve quieta y encendida, y el cartel tapaba el campo en pleno tiro
+  if (player.lockSwing()) audio.chargeTick(qualityOf(player.meter.power));
 }
 
 /**

@@ -60,7 +60,7 @@ export interface SavedExtras {
 type Saved = SavedExtras & {
   version?: number;
   bands?: number[];
-  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
+  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; effectSpread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
   iron?: IronMode;
   /** Dónde empieza cada nivel de golpe, en potencia 0..1. */
   quality?: number[];
@@ -88,6 +88,7 @@ export function loadBalance(): SavedExtras {
       if (typeof from[k] === 'number') club[k] = from[k];
     }
     if (from.spread?.length === club.spread.length) club.spread = from.spread;
+    if (from.effectSpread?.length && club.effectSpread) club.effectSpread = from.effectSpread;
     if (from.rollFriction?.length && club.rollFriction) club.rollFriction = from.rollFriction;
     if (from.damage) club.damage = from.damage;
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
@@ -122,6 +123,7 @@ export function saveBalance(extras: SavedExtras): void {
     out.clubs![id] = {
       minRange: c.minRange, maxRange: c.maxRange, spread: c.spread, chargeTime: c.chargeTime,
       fixedRange: c.fixedRange, damage: c.damage,
+      ...(c.effectSpread ? { effectSpread: c.effectSpread } : {}),
       ...(c.rollFriction ? { rollFriction: c.rollFriction } : {}),
       ...(c.areaDamage ? { areaDamage: c.areaDamage } : {}),
     };
@@ -318,6 +320,14 @@ export class DebugPanel {
         cell(areaRow, 'área (radio m)', 'l').title = 'radio del área que abre, por nivel de golpe';
         for (let q = 1; q <= QUALITY_LEVELS; q++) {
           cell(areaRow, this.field(() => club.spread[q - 1], (v) => { club.spread[q - 1] = Math.max(0, v); }, 0.2));
+        }
+      }
+      // el área de la escarcha y el vendaval, que es otra que la del daño
+      if (club.effectSpread) {
+        const powerRow = table.insertRow();
+        cell(powerRow, 'área del poder', 'l').title = 'radio en el que deja la escarcha o el vendaval, por nivel de golpe. Es aparte del daño: este palo hace las dos cosas';
+        for (let q = 1; q <= QUALITY_LEVELS; q++) {
+          cell(powerRow, this.field(() => club.effectSpread![q - 1], (v) => { club.effectSpread![q - 1] = Math.max(0, v); }, 0.2));
         }
       }
       // el tope de este palo: más cerca o más lejos que esto, el cursor no lo estira
@@ -612,7 +622,8 @@ export class DebugPanel {
     for (const id of CLUB_ORDER) {
       const club = CLUBS[id];
       const area = club.areaDamage ? `, areaDamage ${JSON.stringify(club.areaDamage)}` : '';
-      lines.push(`  ${id}: llega ${club.minRange}-${club.maxRange} m, radio ${club.spread}, damage ${JSON.stringify(club.damage)}${area}`);
+      const power = club.effectSpread ? `, area del poder ${club.effectSpread}` : '';
+      lines.push(`  ${id}: llega ${club.minRange}-${club.maxRange} m, radio ${club.spread}${power}, damage ${JSON.stringify(club.damage)}${area}`);
     }
     lines.push('', 'poderes (recarga en segundos):');
     for (const id of ENCHANT_ORDER) lines.push(`  ${id}: ${ENCHANTS[id].cooldown}`);

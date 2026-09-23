@@ -4,12 +4,17 @@
 // - El **palo** (1, 2, 3, 4) decide cómo llega la pelota: rasante y atravesando, en arco bajo que cae
 //   y rueda, en globo alto que se queda donde cae, o rodando. Y decide cuánto daño hace según a qué
 //   distancia pega.
-// - El **poder** (Q, W, E) decide qué hace cuando llega: golpear, enfriar o barrer. El golpe es el
-//   estado de reposo y no tiene recarga; los otros dos se arman para un tiro y después recargan.
+// - El **poder** (Q, W, E) decide qué le pasa además al que la recibe: nada, enfriarse o juntarse. El
+//   golpe es el estado de reposo y no tiene recarga; los otros dos se arman para un tiro y recargan.
 //
 // De ahí sale una regla sola que explica las doce combinaciones: **cuanto más rasante, más lineal y
-// preciso; cuanto más alto, más zonal y amplio.** El driver le aplica el efecto a cada uno que
-// atraviesa; los demás lo aplican en un área donde caen, más grande cuanto más alto vuela el palo.
+// preciso; cuanto más alto, más zonal y amplio.** El driver lo aplica en cada uno que atraviesa, el
+// hierro donde toca el piso, el putter en el que revienta y el wedge en el área donde cae.
+//
+// Y una segunda regla, que es la que decide cuándo conviene cada palo: **los tres palos que pegan de
+// impacto hacen su daño y además aplican el poder** (ver `stacksPower`). El wedge no: su daño ya es el
+// área, así que ahí el poder ocupa el lugar del daño. Por eso el wedge es el que elegís cuando lo que
+// querés es el efecto grande, y los otros tres cuando querés las dos cosas en chico.
 //
 // Las otras dos cosas quedaron separadas de verdad:
 // - **El mouse dice dónde cae**, para todos los palos.
@@ -45,6 +50,19 @@ export interface Club {
    * driver y el putter). Cuanto más alto vuela el palo, más grande.
    */
   spread: number[];
+  /**
+   * Radio del área del **poder** (escarcha o vendaval), en metros, uno por nivel de golpe. Es otra cosa
+   * que `spread`, que es el área del daño: el driver, el hierro y el putter hacen su daño de siempre y
+   * **además** aplican el efecto alrededor de donde llegan. Vacío = el poder usa el área del daño, que
+   * es el caso del wedge, donde las dos cosas son la misma.
+   */
+  effectSpread?: number[];
+  /**
+   * El efecto del poder sale **al tocar el piso**, haya conectado o no. Es del hierro: su daño sigue
+   * pidiendo conectar, pero la escarcha o el vendaval caen donde cayó la pelota. Los otros lo aplican
+   * donde llegan: el driver en cada uno que atraviesa, el putter en el que revienta.
+   */
+  powerOnGround?: boolean;
   /**
    * La pelota le aplica el efecto a cada uno que atraviesa en el aire, y sigue. Sin esto, el primero
    * que toca es donde termina el tiro.
@@ -118,18 +136,19 @@ export const CLUB_COLOR = 0xe6e2d3;
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
     id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
-    loftDeg: 3.5, minRange: 0, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
+    loftDeg: 3.5, minRange: 0, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0], effectSpread: [2.5, 3, 3.5],
     pierces: true, burstsOnGround: false, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
     knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 55, color: CLUB_COLOR,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
-    loftDeg: 27, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [1.8, 2.2, 2.7],
+    loftDeg: 27, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [1.8, 2.2, 2.7], effectSpread: [2.5, 3, 3.5],
     // modo por defecto: no atraviesa, y el área sale solo si le pega a alguien (ver IRON_MODES)
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
     areaDamage: [[1, 2, 4], [1, 2, 4], [1, 2, 4]],
+    powerOnGround: true,
     knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: [6, 6, 6], fixedRange: 0, color: CLUB_COLOR,
   },
   wedge: {
@@ -142,7 +161,7 @@ export const CLUBS: Record<ClubId, Club> = {
   },
   putter: {
     id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno',
-    loftDeg: 0, minRange: 0, maxRange: 20, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
+    loftDeg: 0, minRange: 0, maxRange: 20, chargeTime: CHARGE_TIME, spread: [0, 0, 0], effectSpread: [2.5, 3, 3.5],
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
     // siempre rueda los 20 m: apuntando cerca del enemigo frenaba antes de llegar. Y cuanto mejor el
@@ -154,6 +173,25 @@ export const CLUBS: Record<ClubId, Club> = {
 /** Radio del área de un palo para un nivel de golpe (1, 2, 3). 0 = no abre área. */
 export function spreadFor(club: Club, quality: number): number {
   return club.spread[Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1] ?? 0;
+}
+
+/**
+ * Radio del área del **poder** para un nivel de golpe. Los tres palos que hacen daño de impacto tienen
+ * la suya, aparte del área del daño; el wedge, que es puro zonal, usa la misma para las dos cosas.
+ */
+export function powerSpreadFor(club: Club, quality: number): number {
+  const q = Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1;
+  return club.effectSpread?.[q] ?? spreadFor(club, quality);
+}
+
+/**
+ * ¿El poder se **suma** al daño, en vez de reemplazarlo? Los tres palos que pegan de impacto sí: hacen
+ * su daño de siempre y además enfrían o juntan alrededor de donde llegan. El wedge no: es puro zonal,
+ * su daño *es* el área, y ahí el poder ocupa el lugar del daño. Por eso el wedge sigue siendo el que
+ * elegís cuando lo que querés es el efecto y no el número.
+ */
+export function stacksPower(club: Club): boolean {
+  return !!club.effectSpread;
 }
 
 /** Cuánto lo frena el pasto para un nivel de golpe. Sin tabla propia, la fricción normal del pasto. */

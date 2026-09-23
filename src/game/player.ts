@@ -299,6 +299,17 @@ export class Player {
     return this.mode === 'charging' && this.meter.lock();
   }
 
+  /**
+   * Vuelve a empezar la carga desde cero, y la destraba si estaba clavada. Es la segunda apretada de la
+   * barra espaciadora: clavaste un nivel que no era y querés otro, sin soltar el tiro ni cancelarlo.
+   */
+  restartCharge(): boolean {
+    if (this.mode !== 'charging') return false;
+    this.backswing = 0;
+    this.meter.start(this.club.chargeTime);
+    return true;
+  }
+
   cancelSwing(): void {
     if (this.mode !== 'charging') return;
     this.meter.cancel();
