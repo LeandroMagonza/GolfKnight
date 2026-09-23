@@ -133,7 +133,7 @@ export const CLUBS: Record<ClubId, Club> = {
     knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: [6, 6, 6], fixedRange: 0, color: CLUB_COLOR,
   },
   wedge: {
-    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no',
+    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no. Al del escudo hay que caerle detrás',
     loftDeg: 55, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [4.2, 5, 6.3],
     pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto
@@ -236,7 +236,7 @@ export const ENCHANTS: Record<EnchantId, Enchant> = {
     cooldown: 4, icon: '❄', color: 0x7fd4ff,
   },
   push: {
-    id: 'push', name: 'Vendaval', title: 'los junta', hint: 'El viento va detrás de la pelota: los junta sobre la línea del tiro una vez que pasó. No hace daño',
+    id: 'push', name: 'Vendaval', title: 'los junta', hint: 'Los junta sobre la línea del tiro, para el tiro siguiente. Con el driver el viento va detrás de la pelota por todo el recorrido; con los otros, donde cae',
     cooldown: 3, icon: '', color: 0xff6b4a,
   },
 };

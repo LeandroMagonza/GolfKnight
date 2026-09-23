@@ -169,41 +169,24 @@ function shotRange(club: Club): number {
 }
 
 /**
- * Con relieve, cómo sale el tiro: el driver se inclina lo que sube o baja el terreno hasta el cursor, y
- * los globos se calculan para caer en el punto aunque esté más alto o más bajo. Sobre piso plano
- * devuelve null y la pelota vuela como siempre.
+ * Con relieve, cómo sale el tiro. Los globos se calculan para caer en el punto apuntado aunque esté más
+ * alto o más bajo. **El tiro rasante, no**: sale siempre igual, con el loft del palo y desde la altura
+ * del caballero, y si hay una loma en el medio choca contra la loma.
+ *
+ * Antes se inclinaba solo para esquivar lo que se cruzaba, y eso rompía lo que el driver promete: el
+ * mismo arco siempre. Apuntando a una montaña el tiro le pasaba por encima, cuando lo que tiene que
+ * hacer es estrellarse ahí. Que la loma tape es información del campo, no un problema a corregir.
+ *
+ * Sobre piso plano devuelve null y la pelota vuela como siempre.
  */
-const MAX_PITCH = 0.21;
-/** Cuánto tiene que levantarse el terreno para que el tiro rasante lo esquive, en metros. */
-const RISE_BLOCKS = 0.6;
 function shotLift(club: Club, range: number): { speed: number; angle: number } | null {
   if (!relief.on || club.loftDeg <= 0.001) return null;
   const angle = THREE.MathUtils.degToRad(club.loftDeg);
   player.teePosition(tee);
+  if (!isLob(club)) return { speed: launchSpeed(range, angle, club.gravity), angle };
   const teeH = heightAt(tee.x, tee.z);
-  if (isLob(club)) {
-    const rise = heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH;
-    return { speed: launchSpeed(range, angle, club.gravity, rise), angle };
-  }
-  // El tiro rasante se inclina hacia **lo más alto que se cruza en el camino**, no hacia la altura del
-  // cursor. Si no, apuntando detrás de una loma el tiro bajaba y se clavaba más abajo en la misma loma:
-  // la marca del piso, en vez de quedarse en la cima, se volvía para adelante.
-  //
-  // Todo se mide sobre el tiro que va a salir, hasta `range`, no hasta donde está el cursor. Con
-  // distancia fija no son lo mismo: acercando el mouse al golfista cambiaba la trayectoria de un tiro
-  // que igual salía a 55 m, porque leía el terreno abajo del cursor en vez del que se va a cruzar.
-  const dist = Math.max(1, range);
-  const endX = tee.x + player.aimDir.x * dist;
-  const endZ = tee.z + player.aimDir.z * dist;
-  let pitch = Math.atan2(heightAt(endX, endZ) - teeH, dist);
-  for (let s = 4; s < dist; s += 1) {
-    const h = heightAt(tee.x + player.aimDir.x * s, tee.z + player.aimDir.z * s);
-    // solo cuentan las lomas de verdad: un desnivel chico no tapa nada, y si contara, apuntar al fondo
-    // de un valle levantaría el tiro y les pasaría por encima a los que están abajo
-    if (h - teeH < RISE_BLOCKS) continue;
-    pitch = Math.max(pitch, Math.atan2(h - teeH, s));
-  }
-  return { speed: launchSpeed(range, angle, club.gravity), angle: angle + THREE.MathUtils.clamp(pitch, -MAX_PITCH, MAX_PITCH) };
+  const rise = heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH;
+  return { speed: launchSpeed(range, angle, club.gravity, rise), angle };
 }
 
 /** Último nivel de carga que sonó,/** Último nivel de carga que sonó,/** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
@@ -430,6 +413,11 @@ horde.onEvent = (e) => {
     case 'immune': {
       const s = toScreen(e.enemy.position, e.enemy.height);
       hud.float(s.x, s.y, 'inmune', 'hurt');
+      break;
+    }
+    case 'shielded': {
+      const s = toScreen(e.enemy.position, e.enemy.height);
+      hud.float(s.x, s.y, '🛡', 'hurt');
       break;
     }
     case 'grab':

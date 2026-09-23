@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { EXPLOSION_RADIUS, ICE_SLOW, KNOCK_DECAY } from '../core/clubs';
+import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt } from '../core/terrain';
 import { ENEMIES, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type EnemyKind, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
@@ -37,6 +38,8 @@ export type HordeEvent =
   | { type: 'trample'; enemy: Enemy }
   | { type: 'explosion'; pos: THREE.Vector3; radius: number }
   | { type: 'immune'; enemy: Enemy }
+  /** El escudo lo tapó de un daño en área: o lo lleva él, o está detrás del que lo lleva. */
+  | { type: 'shielded'; enemy: Enemy }
   | { type: 'grab'; enemy: Enemy }
   | { type: 'release'; enemy: Enemy }
   | { type: 'rockThrown'; enemy: Enemy }
@@ -252,8 +255,8 @@ export class Enemy {
   /**
    * ¿El escudo frena una pelota que viene con velocidad (vx, vy, vz)? Frena **la pelota que le llega de
    * frente**, venga rasante o en arco: solo lo pasa lo que cae casi a plomo. Congelado o aturdido no se
-   * cubre. Esto lo pregunta solo la pelota que atraviesa (driver y hierro): lo que abre área donde cae
-   * no le pega al escudo, le cae al lado, y por eso al del escudo se lo resuelve con un globo.
+   * cubre. Esto es el choque de la pelota contra el escudo; lo que estalla en el piso se pregunta
+   * aparte, con `Horde.shadowed`.
    */
   blocks(vx: number, vy: number, vz: number): boolean {
     if (!this.shieldUp || this.stunTimer > 0) return false;
@@ -262,7 +265,7 @@ export class Enemy {
     const h = Math.hypot(vx, vz);
     if (h < 0.5 || Math.abs(vy) > h) return false;
     const f = this.facing;
-    return (vx * f.x + vz * f.z) / h < -0.55;
+    return (vx * f.x + vz * f.z) / h < -SHIELD_FRONT;
   }
 
   /** Vida en cuadraditos, uno por punto: siempre a la vista, para decidir cuánto cargar el tiro. */
@@ -770,6 +773,12 @@ export class Horde {
       dir.set(e.position.x - pos.x, 0, e.position.z - pos.z);
       const d = dir.length() - e.radius;
       if (d > radius) continue;
+      // el escudo también para lo que estalla en el piso, si estalló adelante suyo
+      if (this.shadowed(pos, e)) {
+        this.emit({ type: 'shielded', enemy: e });
+        skip?.add(e.id);
+        continue;
+      }
       const f = 1 - 0.6 * Math.max(0, d / radius);
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
       this.damage(e, damage * f, dir.normalize(), knockback * f);
@@ -792,6 +801,28 @@ export class Horde {
     if (pos.z < GATE_Z + EXPLOSION_RADIUS && Math.abs(pos.x) < GATE_HALF_WIDTH + EXPLOSION_RADIUS) {
       this.emit({ type: 'gateHit', enemy: source, amount: source.stats.gateDamage });
     }
+  }
+
+  /**
+   * ¿El escudo lo tapa de algo que estalla en `pos`? Vale para el **daño en área**, que se expande por
+   * el piso; la pelota tiene su propio choque contra el escudo (ver `Enemy.blocks`).
+   *
+   * Protege al que lo lleva, si la explosión le queda de frente, y **a los que tiene detrás**: el
+   * escudo hace sombra, así que una fila parapetada atrás de un guerrero se cubre con él. De ahí sale
+   * la respuesta: al del escudo no lo resolvés tirándole un globo a los pies, lo resolvés
+   * congelándolo, o metiendo el globo **detrás** de él, que es de donde el escudo no lo tapa.
+   *
+   * El hielo y el viento pasan igual: el hielo es justamente la forma de sacarle el escudo, y si el
+   * escudo parara al hielo no habría con qué empezar.
+   */
+  shadowed(pos: THREE.Vector3, e: Enemy): boolean {
+    for (const s of this.enemies) {
+      // el escudo tiene que estar en alto y mirando hacia donde estalló: por la espalda no cubre a nadie
+      if (!s.shieldUp || !shieldFaces(pos, s.position, s.facing)) continue;
+      if (s === e) return true;
+      if (behindShield(pos, s.position, s.radius, e.position, e.radius)) return true;
+    }
+    return false;
   }
 
   /** Hielo en área: enfría a todos los que alcanza, menos los de `skip`. Devuelve a cuántos. */
