@@ -88,6 +88,8 @@ const reserve = { charges: RESERVE.max, timer: 0 };
 const raycaster = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const aimPoint = new THREE.Vector3(0, 0, 30);
+/** Vector de trabajo de la puntería: se reusa en cada cuadro en vez de crear uno nuevo. */
+const scratchAim = new THREE.Vector3();
 const tee = new THREE.Vector3();
 const PREVIEW_POINTS = 28;
 const previewGeo = new THREE.BufferGeometry();
@@ -122,23 +124,48 @@ const teeBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), new THREE
 teeBall.visible = false;
 scene.add(teeBall);
 
+/** Hasta dónde se busca el punto apuntado, y cada cuánto se tantea el rayo, en metros. */
+const AIM_REACH = 160;
+const AIM_STEP = 1;
+
+/**
+ * Dónde apunta el mouse sobre el campo con relieve. Se avanza por el rayo hasta el primer paso que
+ * queda **abajo del terreno** y ahí se bisecta: es el primer cruce de verdad, siempre, sea cual sea la
+ * pendiente. Devuelve false si el rayo se va al horizonte sin tocar nada.
+ *
+ * Antes se cortaba el rayo con el plano a la altura del terreno del punto anterior, iterando tres
+ * veces. Eso converge **solo si la loma es menos empinada que la mirada de la cámara**: en la primera
+ * parte de una loma, que es la más empinada, el cursor se quedaba trabado abajo y recién aparecía bien
+ * cerca de la punta. Y bajando la cámara empeoraba, porque la mirada se hace más rasante.
+ */
+function aimOnGround(out: THREE.Vector3): boolean {
+  const o = raycaster.ray.origin;
+  const d = raycaster.ray.direction;
+  const over = (t: number) => o.y + d.y * t - heightAt(o.x + d.x * t, o.z + d.z * t);
+  if (over(0) <= 0) return false;
+  let lo = 0;
+  let hi = -1;
+  for (let t = AIM_STEP; t <= AIM_REACH; t += AIM_STEP) {
+    if (over(t) <= 0) { hi = t; break; }
+    lo = t;
+  }
+  if (hi < 0) return false;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    if (over(mid) <= 0) hi = mid;
+    else lo = mid;
+  }
+  return !!out.set(o.x + d.x * hi, 0, o.z + d.z * hi);
+}
+
 function updateAim(): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
   raycaster.setFromCamera(new THREE.Vector2(input.pointer.x, input.pointer.y), camera);
-  // El punto apuntado sale de cortar el rayo con **el plano a la altura del terreno de ahí**, y se
-  // itera un par de veces para que converja. No se usa el choque contra el terreno: ese se traba en la
-  // cara de una loma y, al pasarla, el cursor pegaba un salto de varios metros.
-  const hit = raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
+  const hit = relief.on
+    ? (aimOnGround(scratchAim) ? scratchAim : null)
+    : raycaster.ray.intersectPlane(groundPlane, scratchAim);
   if (hit) {
-    if (relief.on) {
-      for (let i = 0; i < 3; i++) {
-        groundPlane.constant = -heightAt(hit.x, hit.z);
-        if (!raycaster.ray.intersectPlane(groundPlane, hit)) break;
-      }
-      groundPlane.constant = 0;
-      hit.y = 0;
-    }
     aimPoint.copy(hit);
   }
   else {
