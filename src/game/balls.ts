@@ -138,7 +138,7 @@ export class Balls {
       hits = this.horde.chillAround(pos, radius, ICE_SECONDS[ball.quality - 1], skip);
     } else if (ball.enchant.id === 'push') {
       this.effects.explosion(pos, radius, ball.enchant.color);
-      hits = this.horde.sweep(pos, ball.dir, radius * 1.5, radius, skip);
+      hits = this.horde.sweep(pos, ball.dir, radius * 1.5, radius, skip, true);
     } else {
       this.effects.explosion(pos, radius, ball.club.color);
       // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie

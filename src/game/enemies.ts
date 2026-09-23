@@ -844,7 +844,7 @@ export class Horde {
    * hacia la línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del
    * tiro: una fila servida para el driver. Devuelve a cuántos movió.
    */
-  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>): number {
+  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>, oval = false): number {
     let count = 0;
     // el costado de la línea del tiro, en el piso
     const side = new THREE.Vector3(along.z, 0, -along.x);
@@ -855,7 +855,13 @@ export class Horde {
       const rz = e.position.z - pos.z;
       const lateral = rx * side.x + rz * side.z;
       const forward = rx * along.x + rz * along.z;
-      if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
+      // donde cae barre un óvalo, que es lo que se dibuja; el pasillo del driver es un rectángulo, y
+      // tiene que serlo: se barre de a tramitos a medida que la pelota avanza
+      if (oval) {
+        const u = lateral / halfWidth;
+        const v = forward / (halfDepth + e.radius);
+        if (u * u + v * v > 1) continue;
+      } else if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
       if (Math.abs(lateral) > 0.05) e.shove(dir.copy(side).multiplyScalar(-Math.sign(lateral)), Math.abs(lateral) * KNOCK_DECAY);
       skip?.add(e.id);
       count++;

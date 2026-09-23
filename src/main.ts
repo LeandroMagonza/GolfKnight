@@ -82,7 +82,13 @@ const disabledKinds = new Set<EnemyKind>((savedBalance.disabled ?? []) as EnemyK
  * Pelotas de reserva (tecla S). Arranca con el cargador lleno y se repone de a una; los números están
  * en core/clubs y se tocan en el panel de balance. `timer` cuenta hacia la próxima carga.
  */
-const reserve = { charges: RESERVE.max, timer: 0 };
+const reserve = { charges: RESERVE.max, timer: 0, wanted: 0 };
+/**
+ * Segundos que espera una S apretada en movimiento. Apretarla mientras corrés a otro puesto no tiene
+ * por qué perderse: la pelota se apoya al llegar. Vence sola para que no te aparezca una pelota tres
+ * puestos después, cuando ya te habías olvidado.
+ */
+const BALL_BUFFER = 1.5;
 
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
@@ -109,9 +115,23 @@ scene.add(landing);
 const sweepMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
 const sweepEdgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
 const sweepBox = new THREE.Group();
-sweepBox.add(
+// el borde es redondo, no un rectángulo: el área donde cae es un óvalo. La raya del medio se queda,
+// que es la línea del tiro, que es adonde los junta el viento
+const sweepRing = Array.from({ length: 65 }, (_, i) => new THREE.Vector3(Math.cos((i / 64) * Math.PI * 2), Math.sin((i / 64) * Math.PI * 2), 0));
+const sweepArea = new THREE.Group();
+sweepArea.add(
+  new THREE.Mesh(new THREE.CircleGeometry(1, 48), sweepMat),
+  new THREE.Line(new THREE.BufferGeometry().setFromPoints(sweepRing), sweepEdgeMat),
+);
+// el pasillo del driver sigue siendo un pasillo: el viento pasa por todo el tiro, no cae en un punto
+const sweepLane = new THREE.Group();
+sweepLane.add(
   new THREE.Mesh(new THREE.PlaneGeometry(2, 2), sweepMat),
   new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(2, 2)), sweepEdgeMat),
+);
+sweepBox.add(
+  sweepArea,
+  sweepLane,
   new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 1, 0)]), sweepEdgeMat),
 );
 sweepBox.rotation.x = -Math.PI / 2;
@@ -235,23 +255,31 @@ function hasBallHere(): boolean {
  */
 function dropBall(): void {
   if (!started || paused || ended || cardOpen || !player?.alive) return;
-  const i = tees.nearest(player.anchor.x);
-  if (Math.abs(tees.spots[i].x - player.anchor.x) >= 0.1) {
-    hud.feedback('Llegá al puesto primero', 'neutral');
-    return;
-  }
-  if (tees.hasBall(i)) {
-    hud.feedback('Acá ya hay pelota', 'neutral');
-    return;
-  }
   if (reserve.charges <= 0) {
     hud.feedback(`Reserva: ${Math.ceil(RESERVE.cooldown - reserve.timer)} s para la próxima`, 'neutral');
     return;
+  }
+  // apretada en movimiento queda anotada: la pelota se apoya sola al llegar al puesto
+  if (!placeReserveBall()) {
+    reserve.wanted = BALL_BUFFER;
+    hud.feedback('Pelota al llegar', 'neutral');
+  }
+}
+
+/** Apoya la pelota en el puesto, si se puede. Devuelve false si todavía no es momento. */
+function placeReserveBall(): boolean {
+  if (!player.atSpot || reserve.charges <= 0) return false;
+  const i = tees.nearest(player.anchor.x);
+  if (Math.abs(tees.spots[i].x - player.anchor.x) >= 0.1) return false;
+  if (tees.hasBall(i)) {
+    hud.feedback('Acá ya hay pelota', 'neutral');
+    return true;
   }
   reserve.charges--;
   tees.place(i);
   audio.bounce();
   hud.feedback(reserve.charges ? `Pelota de la reserva · queda ${reserve.charges}` : 'Última pelota de la reserva', 'good');
+  return true;
 }
 
 /**
@@ -349,6 +377,9 @@ function updatePreview(): void {
     sweepBox.position.set(cx, heightAt(cx, cz) + 0.08, cz);
     sweepBox.rotation.z = Math.atan2(player.aimDir.x, player.aimDir.z);
     sweepBox.scale.set(half, depth, 1);
+    // óvalo donde cae, pasillo a lo largo del tiro: cada palo muestra la forma que de verdad barre
+    sweepArea.visible = !linear;
+    sweepLane.visible = linear;
     sweepMat.color.setHex(enchant.color);
     sweepEdgeMat.color.setHex(enchant.color);
     sweepMat.opacity = charging ? 0.22 : 0.1;
@@ -1038,6 +1069,11 @@ function frame(): void {
       }
     } else if (reserve.charges >= RESERVE.max) {
       reserve.timer = 0;
+    }
+    // la S apretada en movimiento: se cumple apenas llega al puesto
+    if (reserve.wanted > 0) {
+      reserve.wanted -= dt;
+      if (placeReserveBall()) reserve.wanted = 0;
     }
     updateAim();
     const active = started && !ended;
