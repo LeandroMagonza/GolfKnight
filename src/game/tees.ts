@@ -11,12 +11,15 @@ import { TEE_LINE_Z } from './world';
 /** Línea de los puestos, y separación entre ellos. La define world: es el 0 de las marcas del campo. */
 export const TEE_Z = TEE_LINE_Z;
 export const TEE_SPACING = 4;
+/** Puestos a cada lado del central: 4 y 4, o sea 9 en total, de -16 a +16 m. */
+const SPOTS_PER_SIDE = 4;
 /**
- * Puestos a cada lado del central: 3 y 3, o sea 7 en total. Los dos de los extremos (a 16 m) se
- * sacaron: quedaban tan al costado que desde ahí casi todo el campo era un tiro cruzado, y para el
- * golfista eran un viaje de cuatro puestos para ir a buscar una pelota.
+ * Hasta qué puesto llegan las pelotas de los guardias, contando desde el centro. **Los dos de cada
+ * punta quedan afuera**: desde ahí casi todo el campo es un tiro cruzado, y mandar una pelota allá era
+ * obligarte a un viaje de cuatro puestos para ir a buscarla. Siguen estando y se puede ir igual, pero
+ * la pelota la ponés vos con la reserva (tecla S): son puestos que se eligen, no que te tocan.
  */
-const SPOTS_PER_SIDE = 3;
+const SPAWN_PER_SIDE = 2;
 export const MAX_BALLS = 3;
 /** Segundos hasta que sale la próxima pelota, según cuántas hay (contando las que vienen en el aire). */
 const REFILL_DELAY = [0.2, 0.7, 1.5];
@@ -27,6 +30,8 @@ const NEAR_STEPS = 3;
 
 interface Spot {
   x: number;
+  /** Los guardias le tiran pelotas a este puesto. Los de las puntas no: ahí la pelota la ponés vos. */
+  spawns: boolean;
   ball: boolean;
   /** Hay una pelota en el aire que viene para acá. */
   incoming: boolean;
@@ -59,14 +64,17 @@ export class Tees {
   constructor(private readonly scene: THREE.Scene) {
     const stickMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cf, roughness: 0.8 });
     const flagMat = new THREE.MeshStandardMaterial({ color: 0xd8413a, side: THREE.DoubleSide, roughness: 0.9 });
+    const quietFlagMat = new THREE.MeshStandardMaterial({ color: 0x6b5a58, side: THREE.DoubleSide, roughness: 0.95 });
     const count = SPOTS_PER_SIDE * 2 + 1;
     const half = (count - 1) / 2;
     for (let i = 0; i < count; i++) {
       const x = (i - half) * TEE_SPACING;
+      const spawns = Math.abs(i - half) <= SPAWN_PER_SIDE;
       // el palito va un paso atrás del puesto, para no tapar ni el tiro ni al golfista
       const stick = new THREE.Mesh(stickGeo, stickMat);
       stick.position.set(x, 0.45, TEE_Z - 1.1);
-      const flag = new THREE.Mesh(flagGeo, flagMat);
+      // adonde no llegan las pelotas, la bandera va apagada: se ve de una que ese puesto es tuyo
+      const flag = new THREE.Mesh(flagGeo, spawns ? flagMat : quietFlagMat);
       flag.position.set(x + 0.19, 0.78, TEE_Z - 1.1);
       // la pelota y su anillo van **exactamente** en el puesto: es desde donde sale el tiro y desde
       // donde se miden las distancias. Estaban 0.7 m adelante, así que al empezar a cargar la pelota
@@ -79,7 +87,7 @@ export class Tees {
       ring.position.set(x, 0.05, TEE_Z);
       ring.visible = false;
       scene.add(stick, flag, ballMesh, ring);
-      this.spots.push({ x, ball: false, incoming: false, ballMesh, ring });
+      this.spots.push({ x, spawns, ball: false, incoming: false, ballMesh, ring });
     }
   }
 
@@ -128,7 +136,7 @@ export class Tees {
   }
 
   private pickSpot(playerSpot: number): number {
-    const free = this.spots.map((s, i) => ({ s, i })).filter(({ s, i }) => !s.ball && !s.incoming && i !== playerSpot);
+    const free = this.spots.map((s, i) => ({ s, i })).filter(({ s, i }) => s.spawns && !s.ball && !s.incoming && i !== playerSpot);
     if (!free.length) return -1;
     const near = free.filter(({ i }) => Math.abs(i - playerSpot) <= NEAR_STEPS);
     const pool = near.length ? near : free;
