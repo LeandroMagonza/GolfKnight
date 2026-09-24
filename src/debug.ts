@@ -613,6 +613,7 @@ export class DebugPanel {
       `campo: ${COURSES[this.hooks.courseIndex()].name}`,
       `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}`,
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
+      `hierro: modo ${ironMode()}`,
       `carga: barra llena ${CLUB_ORDER.map((id) => `${id} ${CLUBS[id].chargeTime}`).join(', ')} s`,
       `  niveles desde ${QUALITY_FROM.map((p) => `${Math.round(p * 100)}%`).join(' / ')} de la barra`,
       `  con el driver eso es: ${levelDurations(CLUBS.driver).map((s, q) => `golpe ${q + 1} dura ${s.toFixed(2)} s`).join(', ')}`,
@@ -623,7 +624,11 @@ export class DebugPanel {
       const club = CLUBS[id];
       const area = club.areaDamage ? `, areaDamage ${JSON.stringify(club.areaDamage)}` : '';
       const power = club.effectSpread ? `, area del poder ${club.effectSpread}` : '';
-      lines.push(`  ${id}: llega ${club.minRange}-${club.maxRange} m, radio ${club.spread}${power}, damage ${JSON.stringify(club.damage)}${area}`);
+      // la distancia fija y la rapidez del rodado faltaban en la copia, y son de las palancas que más
+      // cambian cómo se juega: sin ellas la config pegada parecía igual a la del código
+      const fixed = club.fixedRange > 0 ? `, distancia fija ${club.fixedRange} m` : ', distancia por el cursor';
+      const roll = club.rollFriction ? `, rapidez ${club.rollFriction}` : '';
+      lines.push(`  ${id}: llega ${club.minRange}-${club.maxRange} m${fixed}, radio ${club.spread}${power}${roll}, damage ${JSON.stringify(club.damage)}${area}`);
     }
     lines.push('', 'poderes (recarga en segundos):');
     for (const id of ENCHANT_ORDER) lines.push(`  ${id}: ${ENCHANTS[id].cooldown}`);

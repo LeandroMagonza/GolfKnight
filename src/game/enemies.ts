@@ -756,7 +756,9 @@ export class Horde {
     // (el redondeo es por la explosión del kamikaze, que pierde fuerza hacia el borde)
     const dealt = amount > 0 ? Math.max(1, Math.round(amount)) : 0;
     const killed = enemy.damage(dealt, knockDir, knockback);
-    this.emit({ type: 'damage', enemy, amount: dealt, killed });
+    // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
+    // pantalla de «0» flotando encima de cada enemigo
+    if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed });
     return killed;
   }
 
