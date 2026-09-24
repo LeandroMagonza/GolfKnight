@@ -1,13 +1,13 @@
 // Panel de balance y pruebas (tecla B). Toca los números del juego en vivo: el daño de cada palo en
-// cada banda de distancia, las bandas, la recarga de los poderes y la vida y velocidad de cada enemigo.
-// Abajo están los botones para probar: oleada infinita, vida infinita, puerta infinita y saltar a una
-// oleada.
+// cada banda de distancia, las bandas, las habilidades y la vida y velocidad de cada enemigo. Abajo
+// están los botones para probar: oleada infinita, vida infinita, puerta infinita y saltar a una oleada.
 //
-// Los cambios se aplican sobre los objetos del juego (CLUBS, ENCHANTS, ENEMIES), así que valen desde el
+// Los cambios se aplican sobre los objetos del juego (CLUBS, ABILITIES, ENEMIES), así que valen desde el
 // siguiente tiro y desde el siguiente enemigo que aparece; a los que ya están en el campo se les
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, ENCHANT_ORDER, ENCHANTS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, type Club, type IronMode } from './core/clubs';
+import { ABILITIES, ABILITY_ORDER, GRENADE, ICE, WIND } from './core/abilities';
+import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, type Club, type IronMode } from './core/clubs';
 import { RISE_CURVE } from './core/swing';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
@@ -60,12 +60,16 @@ export interface SavedExtras {
 type Saved = SavedExtras & {
   version?: number;
   bands?: number[];
-  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; effectSpread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
+  clubs?: Record<string, Partial<Record<'minRange' | 'maxRange' | 'chargeTime' | 'fixedRange', number> & { spread: number[]; rollFriction: number[]; damage: number[][]; areaDamage: number[][] }>>;
   iron?: IronMode;
   /** Dónde empieza cada nivel de golpe, en potencia 0..1. */
   quality?: number[];
   reserve?: { cooldown: number; max: number };
-  enchants?: Record<string, number>;
+  /** Recarga y alcance de cada habilidad, y los números propios de cada una. */
+  abilities?: Record<string, { cooldown: number; range: number }>;
+  ice?: Partial<typeof ICE>;
+  wind?: Partial<typeof WIND>;
+  grenade?: Partial<typeof GRENADE>;
   enemies?: Record<string, { hp: number; speed: number; damage: number; attackEvery?: number }>;
 };
 
@@ -88,7 +92,6 @@ export function loadBalance(): SavedExtras {
       if (typeof from[k] === 'number') club[k] = from[k];
     }
     if (from.spread?.length === club.spread.length) club.spread = from.spread;
-    if (from.effectSpread?.length && club.effectSpread) club.effectSpread = from.effectSpread;
     if (from.rollFriction?.length && club.rollFriction) club.rollFriction = from.rollFriction;
     if (from.damage) club.damage = from.damage;
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
@@ -99,9 +102,14 @@ export function loadBalance(): SavedExtras {
     if (typeof saved.reserve.cooldown === 'number') RESERVE.cooldown = saved.reserve.cooldown;
     if (typeof saved.reserve.max === 'number') RESERVE.max = saved.reserve.max;
   }
-  for (const id of ENCHANT_ORDER) {
-    const cd = saved.enchants?.[id];
-    if (typeof cd === 'number') ENCHANTS[id].cooldown = cd;
+  for (const id of ABILITY_ORDER) {
+    const from = saved.abilities?.[id];
+    if (typeof from?.cooldown === 'number') ABILITIES[id].cooldown = from.cooldown;
+    if (typeof from?.range === 'number') ABILITIES[id].range = from.range;
+  }
+  // solo los números que el código todavía tiene: un guardado viejo no mete claves que ya no existen
+  for (const [into, from] of [[ICE, saved.ice], [WIND, saved.wind], [GRENADE, saved.grenade]] as [Record<string, number>, Record<string, number> | undefined][]) {
+    for (const k of Object.keys(into)) if (typeof from?.[k] === 'number') into[k] = from[k];
   }
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
     const from = saved.enemies?.[kind];
@@ -117,13 +125,12 @@ export function loadBalance(): SavedExtras {
 
 /** Guarda todo lo tocado. Se llama en cada cambio: son pocos bytes. */
 export function saveBalance(extras: SavedExtras): void {
-  const out: Saved = { version: VERSION, bands: [...BAND_LIMITS], clubs: {}, enchants: {}, enemies: {}, ...extras };
+  const out: Saved = { version: VERSION, bands: [...BAND_LIMITS], clubs: {}, abilities: {}, enemies: {}, ice: { ...ICE }, wind: { ...WIND }, grenade: { ...GRENADE }, ...extras };
   for (const id of CLUB_ORDER) {
     const c = CLUBS[id];
     out.clubs![id] = {
       minRange: c.minRange, maxRange: c.maxRange, spread: c.spread, chargeTime: c.chargeTime,
       fixedRange: c.fixedRange, damage: c.damage,
-      ...(c.effectSpread ? { effectSpread: c.effectSpread } : {}),
       ...(c.rollFriction ? { rollFriction: c.rollFriction } : {}),
       ...(c.areaDamage ? { areaDamage: c.areaDamage } : {}),
     };
@@ -131,7 +138,7 @@ export function saveBalance(extras: SavedExtras): void {
   }
   out.quality = [...QUALITY_FROM];
   out.reserve = { cooldown: RESERVE.cooldown, max: RESERVE.max };
-  for (const id of ENCHANT_ORDER) out.enchants![id] = ENCHANTS[id].cooldown;
+  for (const id of ABILITY_ORDER) out.abilities![id] = { cooldown: ABILITIES[id].cooldown, range: ABILITIES[id].range };
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
     const s = ENEMIES[kind];
     out.enemies![kind] = { hp: s.hp, speed: s.speed, damage: s.damage, attackEvery: s.attackEvery };
@@ -322,14 +329,6 @@ export class DebugPanel {
           cell(areaRow, this.field(() => club.spread[q - 1], (v) => { club.spread[q - 1] = Math.max(0, v); }, 0.2));
         }
       }
-      // el área de la escarcha y el vendaval, que es otra que la del daño
-      if (club.effectSpread) {
-        const powerRow = table.insertRow();
-        cell(powerRow, 'área del poder', 'l').title = 'radio en el que deja la escarcha o el vendaval, por nivel de golpe. Es aparte del daño: este palo hace las dos cosas';
-        for (let q = 1; q <= QUALITY_LEVELS; q++) {
-          cell(powerRow, this.field(() => club.effectSpread![q - 1], (v) => { club.effectSpread![q - 1] = Math.max(0, v); }, 0.2));
-        }
-      }
       // el tope de este palo: más cerca o más lejos que esto, el cursor no lo estira
       const rangeRow = table.insertRow();
       cell(rangeRow, 'no llega más...', 'l').title = 'los dos topes de este palo, en metros: apuntes donde apuntes, el tiro cae entre estos dos números';
@@ -447,17 +446,64 @@ export class DebugPanel {
       + 'Subir el «barra llena» de un palo estira los tres niveles a la vez; los porcentajes reparten la barra entre ellos y valen para los cuatro palos.',
     ));
 
-    // ---- poderes ----
-    el.append(heading('Poderes: recarga'));
-    const ench = document.createElement('table');
-    for (const id of ENCHANT_ORDER) {
-      const e = ENCHANTS[id];
-      const row = ench.insertRow();
-      cell(row, e.name, 'l');
-      cell(row, this.field(() => e.cooldown, (v) => { e.cooldown = v; }, 0.2));
-      cell(row, 'segundos', 'l');
+    // ---- habilidades ----
+    el.append(heading('Habilidades (Q, W, E)'));
+    const abil = document.createElement('table');
+    const abilHead = abil.insertRow();
+    for (const h of ['', 'recarga s', 'alcance m']) {
+      const th = document.createElement('th');
+      th.textContent = h;
+      if (!h) th.className = 'l';
+      abilHead.appendChild(th);
     }
-    el.append(ench);
+    for (const id of ABILITY_ORDER) {
+      const a = ABILITIES[id];
+      const row = abil.insertRow();
+      cell(row, a.name, 'l');
+      cell(row, this.field(() => a.cooldown, (v) => { a.cooldown = Math.max(0, v); }, 0.5));
+      cell(row, this.field(() => a.range, (v) => { a.range = Math.max(1, v); }, 1)).title = id === 'wind'
+        ? 'el vendaval va siempre hasta acá, como el driver'
+        : 'cae donde apuntás, pero nunca más lejos que esto';
+    }
+    el.append(abil);
+    // los números propios de cada una: una fila por número, con lo que significa al lado
+    const own: [string, [string, () => number, (v: number) => void, number, string][]][] = [
+      ['Hielo', [
+        ['radio', () => ICE.radius, (v) => { ICE.radius = Math.max(0.5, v); }, 0.5, 'm de la zona'],
+        ['dura', () => ICE.duration, (v) => { ICE.duration = Math.max(0.5, v); }, 0.5, 's en el piso'],
+        ['al salir', () => ICE.linger, (v) => { ICE.linger = Math.max(0, v); }, 0.1, 's hasta que se le va el frío'],
+        ['camina al', () => Math.round(ICE.slow * 100), (v) => { ICE.slow = Math.min(1, Math.max(0, v / 100)); }, 5, '% de su velocidad'],
+      ]],
+      ['Vendaval', [
+        ['silencio', () => WIND.silence, (v) => { WIND.silence = Math.max(0, v); }, 0.5, 's sin escudo, aura ni inmunidad'],
+        ['vulnerable', () => WIND.vulnerable, (v) => { WIND.vulnerable = Math.max(0, v); }, 1, 'de daño de más por pelotazo'],
+        ['ancho', () => WIND.halfWidth, (v) => { WIND.halfWidth = Math.max(0.5, v); }, 0.5, 'm a cada lado de la línea'],
+      ]],
+      ['Granada', [
+        ['radio', () => GRENADE.radius, (v) => { GRENADE.radius = Math.max(0.5, v); }, 0.5, 'm de la explosión'],
+        ['fuerza', () => GRENADE.push, (v) => { GRENADE.push = Math.max(0, v); }, 0.5, 'm de la línea a los que los deja'],
+      ]],
+    ];
+    for (const [name, rows] of own) {
+      const t = document.createElement('table');
+      const head = t.insertRow();
+      const th = document.createElement('th');
+      th.className = 'l';
+      th.textContent = name;
+      head.appendChild(th);
+      for (const [label, get, set, step, unit] of rows) {
+        const row = t.insertRow();
+        cell(row, label, 'l');
+        cell(row, this.field(get, set, step));
+        cell(row, unit, 'l');
+      }
+      el.append(t);
+    }
+    el.append(note(
+      'Cada habilidad tira su propia pelota: no gasta la del puesto. El hielo deja una zona: el que está adentro, o entra mientras dura, camina lento, y al salir se le pasa. '
+      + 'El vendaval los junta sobre la línea y los silencia: sin escudo, sin aura del chamán, sin inmunidad, y cada pelotazo les saca uno más. '
+      + 'La granada no lastima: los tira a los costados de la línea del tiro y los deja en dos filas, a «fuerza» metros de ella.',
+    ));
 
     // ---- pelota de reserva ----
     el.append(heading('Pelota de reserva (S)'));
@@ -623,15 +669,17 @@ export class DebugPanel {
     for (const id of CLUB_ORDER) {
       const club = CLUBS[id];
       const area = club.areaDamage ? `, areaDamage ${JSON.stringify(club.areaDamage)}` : '';
-      const power = club.effectSpread ? `, area del poder ${club.effectSpread}` : '';
       // la distancia fija y la rapidez del rodado faltaban en la copia, y son de las palancas que más
       // cambian cómo se juega: sin ellas la config pegada parecía igual a la del código
       const fixed = club.fixedRange > 0 ? `, distancia fija ${club.fixedRange} m` : ', distancia por el cursor';
       const roll = club.rollFriction ? `, rapidez ${club.rollFriction}` : '';
-      lines.push(`  ${id}: llega ${club.minRange}-${club.maxRange} m${fixed}, radio ${club.spread}${power}${roll}, damage ${JSON.stringify(club.damage)}${area}`);
+      lines.push(`  ${id}: llega ${club.minRange}-${club.maxRange} m${fixed}, radio ${club.spread}${roll}, damage ${JSON.stringify(club.damage)}${area}`);
     }
-    lines.push('', 'poderes (recarga en segundos):');
-    for (const id of ENCHANT_ORDER) lines.push(`  ${id}: ${ENCHANTS[id].cooldown}`);
+    lines.push('', 'habilidades (recarga en s, alcance en m):');
+    for (const id of ABILITY_ORDER) lines.push(`  ${id}: recarga ${ABILITIES[id].cooldown}, alcance ${ABILITIES[id].range}`);
+    lines.push(`  hielo: radio ${ICE.radius} m, dura ${ICE.duration} s, al salir ${ICE.linger} s, camina al ${Math.round(ICE.slow * 100)}%`);
+    lines.push(`  vendaval: silencio ${WIND.silence} s, vulnerable +${WIND.vulnerable}, ancho ${WIND.halfWidth} m a cada lado`);
+    lines.push(`  granada: radio ${GRENADE.radius} m, fuerza ${GRENADE.push} m`);
     lines.push('', `pelota de reserva (S): ${RESERVE.max} cargas, una cada ${RESERVE.cooldown} s`);
     lines.push('', 'enemigos (vida, velocidad, daño):');
     for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {

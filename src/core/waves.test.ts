@@ -26,13 +26,14 @@ describe('waves', () => {
     }
   });
 
-  it('lo que dan las oleadas son poderes, no palos: los cuatro palos están desde el principio', () => {
-    // el golpe está desde el arranque; la escarcha y el vendaval se ganan jugando, de a uno
-    expect(unlockedAt(-1)).toEqual(['damage']);
-    expect(unlockedAt(0)).toEqual(['damage']);
-    expect(unlockedAt(1)).toEqual(['damage', 'ice']);
-    expect(unlockedAt(WAVES.length - 1).sort()).toEqual(['damage', 'ice', 'push']);
-    // ninguna oleada estrena dos poderes a la vez
+  it('lo que dan las oleadas son habilidades, no palos: los cuatro palos están desde el principio', () => {
+    // se ganan jugando, de a una: el vendaval llega con los escudos, que es lo que los baja
+    expect(unlockedAt(-1)).toEqual([]);
+    expect(unlockedAt(0)).toEqual([]);
+    expect(unlockedAt(1)).toEqual(['wind']);
+    expect(WAVES[1].groups.some((g) => g.kind === 'warrior')).toBe(true);
+    expect(unlockedAt(WAVES.length - 1).sort()).toEqual(['grenade', 'ice', 'wind']);
+    // ninguna oleada estrena dos habilidades a la vez
     for (let i = 0; i < WAVES.length; i++) {
       expect(unlockedAt(i).length - unlockedAt(i - 1).length, `oleada ${i + 1}`).toBeLessThanOrEqual(1);
     }

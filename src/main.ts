@@ -5,9 +5,10 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, stacksPower, ENCHANT_KEYS, ENCHANT_ORDER, hasArea, ironMode, setIronMode, spreadFor, ENCHANTS, isLob, MELEE_COOLDOWN, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_LEVELS, qualityOf, RESERVE, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
-import { PERFECT_FROM } from './core/swing';
+import { ABILITIES, ABILITY_KEYS, ABILITY_ORDER, ICE, type AbilityId } from './core/abilities';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityOf, RESERVE, type Club } from './core/clubs';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
+import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
 import { Effects } from './game/effects';
 import { Horde } from './game/enemies';
@@ -41,6 +42,7 @@ const world = new World(scene);
 const effects = new Effects(scene);
 const horde = new Horde(scene);
 const balls = new Balls(scene, horde, effects);
+const abilities = new Abilities(scene, horde, effects);
 const tees = new Tees(scene);
 const traps = new Traps(scene, horde, effects);
 balls.traps = traps;
@@ -111,35 +113,9 @@ landing.rotation.x = -Math.PI / 2;
 landing.position.y = 0.05;
 landing.visible = false;
 scene.add(landing);
-// zona del wedge: un rectángulo con una raya en el medio, que es desde donde barre hacia cada costado
-const sweepMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
-const sweepEdgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-const sweepBox = new THREE.Group();
-// el borde es redondo, no un rectángulo: el área donde cae es un óvalo. La raya del medio se queda,
-// que es la línea del tiro, que es adonde los junta el viento
-const sweepRing = Array.from({ length: 65 }, (_, i) => new THREE.Vector3(Math.cos((i / 64) * Math.PI * 2), Math.sin((i / 64) * Math.PI * 2), 0));
-const sweepArea = new THREE.Group();
-sweepArea.add(
-  new THREE.Mesh(new THREE.CircleGeometry(1, 48), sweepMat),
-  new THREE.Line(new THREE.BufferGeometry().setFromPoints(sweepRing), sweepEdgeMat),
-);
-// el pasillo del driver sigue siendo un pasillo: el viento pasa por todo el tiro, no cae en un punto
-const sweepLane = new THREE.Group();
-sweepLane.add(
-  new THREE.Mesh(new THREE.PlaneGeometry(2, 2), sweepMat),
-  new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(2, 2)), sweepEdgeMat),
-);
-sweepBox.add(
-  sweepArea,
-  sweepLane,
-  new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 1, 0)]), sweepEdgeMat),
-);
-sweepBox.rotation.x = -Math.PI / 2;
-sweepBox.visible = false;
-scene.add(sweepBox);
-// sobre una pendiente las marcas del piso, que son planas, se hundirían en el terreno: con relieve se
-// dibujan siempre por encima
-if (relief.on) for (const m of [landingMat, sweepMat, sweepEdgeMat]) m.depthTest = false;
+// sobre una pendiente la marca del piso, que es plana, se hundiría en el terreno: con relieve se dibuja
+// siempre por encima
+if (relief.on) landingMat.depthTest = false;
 const teeBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x666666 }));
 teeBall.visible = false;
 scene.add(teeBall);
@@ -236,7 +212,7 @@ function shotLift(club: Club, range: number): { speed: number; angle: number } |
   return { speed: launchSpeed(range, angle, club.gravity, rise), angle };
 }
 
-/** Último nivel de carga que sonó,/** Último nivel de carga que sonó,/** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
+/** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
 let lastLevel = 0;
 
 /** Último nivel de calidad que sonó. */
@@ -282,46 +258,9 @@ function placeReserveBall(): boolean {
   return true;
 }
 
-/**
- * La punta de la línea de tiro lleva el ícono del **poder**, y solo de los poderes que tienen uno (ver
- * `Enchant.icon`): el golpe y el vendaval no dibujan nada. El del palo no va nunca, que tapaba justo el
- * punto al que se apunta. Va chico y levantado sobre el punto de caída, que queda libre.
- */
-const tipTextures = new Map<EnchantId, THREE.CanvasTexture>();
-function tipTexture(enchant: Enchant): THREE.CanvasTexture {
-  let tex = tipTextures.get(enchant.id);
-  if (tex) return tex;
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const ctx = c.getContext('2d')!;
-  ctx.beginPath();
-  ctx.arc(64, 64, 46, 0, Math.PI * 2);
-  ctx.fillStyle = '#' + enchant.color.toString(16).padStart(6, '0');
-  ctx.fill();
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = 'rgba(8, 12, 18, 0.85)';
-  ctx.stroke();
-  ctx.fillStyle = '#10161d';
-  ctx.font = 'bold 62px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(enchant.icon, 64, 68);
-  tex = new THREE.CanvasTexture(c);
-  tipTextures.set(enchant.id, tex);
-  return tex;
-}
-const tipMat = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
-const tip = new THREE.Sprite(tipMat);
-tip.scale.set(0.95, 0.95, 1);
-tip.renderOrder = 20;
-tip.visible = false;
-scene.add(tip);
-let tipEnchant: EnchantId | null = null;
-
 function updatePreview(): void {
   const charging = player.mode === 'charging';
   const club = player.club;
-  const enchant = player.enchant;
   const range = shotRange(club);
   const show = started && !ended && player.alive && player.mode !== 'swinging' && !player.grabbedBy;
   previewLine.visible = show;
@@ -334,14 +273,8 @@ function updatePreview(): void {
   const damage = damageFor(club, range, quality);
   const areaHit = areaDamageFor(club, range, quality);
   const dmgLabel = club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
-  // con estos tres palos el poder se suma al daño, así que el medidor dice las dos cosas
-  const shotLabel = enchant.id === 'damage' ? dmgLabel : stacksPower(club) ? `${dmgLabel} + ${enchant.name}` : enchant.name;
-  hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${shotLabel}`);
-  tip.visible = show && ballHere && enchant.icon !== '';
-  if (!show) {
-    sweepBox.visible = false;
-    return;
-  }
+  hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`);
+  if (!show) return;
   player.teePosition(tee);
   // con relieve la línea se corta donde el tiro toca el terreno: así se ve cuándo una loma tapa
   const loft = THREE.MathUtils.degToRad(club.loftDeg);
@@ -354,55 +287,21 @@ function updatePreview(): void {
   // el arco se ve siempre, no solo mientras se carga
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
   pos.needsUpdate = true;
-  // la línea toma el color del encantamiento; mientras se carga, el de la calidad del golpe
-  const lineColor = charging ? QUALITY_COLORS[quality - 1] : enchant.id === 'damage' ? club.color : enchant.color;
+  // la línea toma el color del palo; mientras se carga, el de la calidad del golpe
+  const lineColor = charging ? QUALITY_COLORS[quality - 1] : club.color;
   previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
   previewMat.size = charging ? (quality >= QUALITY_LEVELS ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
   if (charging && quality !== lastLevel) audio.chargeTick(quality);
   lastLevel = charging ? quality : 0;
   const end = path[path.length - 1];
-  const area = QUALITY_AREA[quality - 1];
-  // dónde cae y qué agarra: un anillo del tamaño del efecto, o el rectángulo del vendaval
-  const rect = enchant.id === 'push';
   const radius = spreadFor(club, quality);
-  const linear = !hasArea(club);
-  const half = linear ? PUSH_LINE_HALF_WIDTH * area : radius * 1.5;
-  const depth = linear ? range / 2 : radius;
-  sweepBox.visible = rect;
-  landing.visible = !rect;
-  if (rect) {
-    // el rectángulo sale de la línea del tiro. Con un palo lineal es un pasillo a lo largo de todo el tiro
-    const cx = linear ? tee.x + player.aimDir.x * depth : end.x;
-    const cz = linear ? tee.z + player.aimDir.z * depth : end.z;
-    sweepBox.position.set(cx, heightAt(cx, cz) + 0.08, cz);
-    sweepBox.rotation.z = Math.atan2(player.aimDir.x, player.aimDir.z);
-    sweepBox.scale.set(half, depth, 1);
-    // óvalo donde cae, pasillo a lo largo del tiro: cada palo muestra la forma que de verdad barre
-    sweepArea.visible = !linear;
-    sweepLane.visible = linear;
-    sweepMat.color.setHex(enchant.color);
-    sweepEdgeMat.color.setHex(enchant.color);
-    sweepMat.opacity = charging ? 0.22 : 0.1;
-    sweepEdgeMat.opacity = charging ? 0.95 : 0.45;
-  } else {
-    landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
-    // el anillo solo muestra el área cuando el área sale por caer al piso (el globo). El hierro tiene
-    // que conectar con alguien, así que dibujarle el círculo grande prometía algo que no pasa
-    landing.scale.setScalar(club.burstsOnGround ? Math.max(0.7, radius) : 0.7);
-    landingMat.opacity = charging ? 0.85 : 0.35;
-    landingMat.color.setHex(enchant.id === 'damage' ? club.color : enchant.color);
-  }
-  // la punta de la línea dice con qué poder se está por pegar, levantada para no tapar dónde cae
-  const tipAt = Math.min(range, Math.hypot(end.x - tee.x, end.z - tee.z));
-  const tipX = tee.x + player.aimDir.x * tipAt;
-  const tipZ = tee.z + player.aimDir.z * tipAt;
-  tip.position.set(tipX, heightAt(tipX, tipZ) + 2.3, tipZ);
-  if (tip.visible && tipEnchant !== enchant.id) {
-    tipEnchant = enchant.id;
-    tipMat.map = tipTexture(enchant);
-    tipMat.needsUpdate = true;
-  }
+  landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
+  // el anillo solo muestra el área cuando el área sale por caer al piso (el globo). El hierro tiene
+  // que conectar con alguien, así que dibujarle el círculo grande prometía algo que no pasa
+  landing.scale.setScalar(club.burstsOnGround ? Math.max(0.7, radius) : 0.7);
+  landingMat.opacity = charging ? 0.85 : 0.35;
+  landingMat.color.setHex(club.color);
   teeBall.position.set(tee.x, 0.12, tee.z);
 }
 
@@ -504,19 +403,10 @@ balls.onEvent = (e) => {
       break;
     case 'land':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
-      if (e.enchant === 'ice') {
-        audio.frost();
-        if (e.hits) hud.feedback(e.hits > 2 ? `¡Fríos ×${e.hits}!` : `Fríos ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
-      } else if (e.enchant === 'push') {
-        audio.explosion();
-        if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.15);
-        if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
-      } else {
-        audio.explosion();
-        audio.thud();
-        if (e.pos.distanceTo(player.position) < 16) shake = Math.max(shake, 0.2);
-        if (e.hits > 1) hud.feedback(`¡Le pegó a ${e.hits}!`, 'good');
-      }
+      audio.explosion();
+      audio.thud();
+      if (e.pos.distanceTo(player.position) < 16) shake = Math.max(shake, 0.2);
+      if (e.hits > 1) hud.feedback(`¡Le pegó a ${e.hits}!`, 'good');
       break;
     case 'bounce':
       audio.bounce();
@@ -528,6 +418,29 @@ balls.onEvent = (e) => {
       break;
     }
     case 'settled':
+      break;
+  }
+};
+
+abilities.onEvent = (e) => {
+  switch (e.type) {
+    case 'cast':
+      audio.whoosh(0.7);
+      break;
+    case 'zone':
+      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
+      audio.frost();
+      if (e.hits) hud.feedback(e.hits > 2 ? `¡Hielo ×${e.hits}!` : `Hielo ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
+      break;
+    case 'silenced':
+      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
+      if (e.hits) hud.feedback(e.hits > 2 ? `¡Silenciados ×${e.hits}!` : `Silenciados ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
+      break;
+    case 'grenade':
+      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
+      audio.explosion();
+      if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.15);
+      if (e.hits >= 3) hud.feedback(`¡Granada! ×${e.hits}`, 'good');
       break;
   }
 };
@@ -552,25 +465,18 @@ function selectClub(index: number): void {
   player.setClub(CLUBS[id]);
 }
 
-/** Qué poderes se tienen: el golpe desde el principio, y los otros los van dando las oleadas. */
-function enchantOwned(id: EnchantId): boolean {
-  return player.powers.has(id);
-}
-
-/** Listo para usar: se lo tiene y no está recargando. */
-function enchantReady(id: EnchantId): boolean {
-  return enchantOwned(id) && player.cooldowns[id] <= 0;
-}
-
-/** Q, W y E eligen qué hace la pelota cuando llega. */
-function selectEnchant(index: number): void {
-  if (cardOpen || !player || index < 0 || index >= ENCHANT_ORDER.length) return;
-  const id = ENCHANT_ORDER[index];
-  if (!enchantOwned(id)) {
-    hud.feedback(`${ENCHANTS[id].name}: todavía no lo tenés`, 'neutral');
-    return;
-  }
-  player.setEnchant(ENCHANTS[id]);
+/**
+ * Q, W y E tiran una habilidad **en el acto**, hacia donde está el mouse, con su propia pelota: no
+ * gastan la del puesto ni cortan el tiro que se esté cargando. Se puede tirar corriendo entre puestos.
+ */
+function castAbility(index: number): void {
+  if (!started || paused || ended || cardOpen || !player || index < 0 || index >= ABILITY_ORDER.length) return;
+  if (!player.alive || player.grabbedBy || player.stunned) return;
+  const id = ABILITY_ORDER[index];
+  player.teePosition(tee);
+  const result = abilities.cast(id, tee, player.aimDir, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z));
+  if (result === 'locked') hud.feedback(`${ABILITIES[id].name}: todavía no la tenés`, 'neutral');
+  else if (result === 'cooling') hud.feedback(`${ABILITIES[id].name} recargando: ${abilities.cooldowns[id].toFixed(1)} s`, 'neutral');
 }
 
 /**
@@ -590,25 +496,25 @@ function lockSwing(): void {
 }
 
 /**
- * Si la oleada que viene estrena un **poder**, lo habilita ya y muestra el cartel. El juego queda
+ * Si la oleada que viene estrena una **habilidad**, la habilita ya y muestra el cartel. El juego queda
  * frenado hasta que se lo cierre con un click, pero el descanso entre oleadas sigue corriendo: si se
  * leyó con calma, la oleada arranca apenas se cierra. Los palos no se desbloquean: están los cuatro
  * desde la primera oleada.
  */
 function offerUnlock(): boolean {
   const id = director.nextUnlock;
-  if (!id || player.powers.has(id)) return false;
-  player.powers.add(id);
+  if (!id || abilities.owned.has(id)) return false;
+  abilities.owned.add(id);
   player.cancelSwing();
   cardOpen = true;
-  const power = ENCHANTS[id];
+  const ability = ABILITIES[id];
   hud.showCard({
-    name: power.name,
-    title: power.title,
-    key: ENCHANT_KEYS[ENCHANT_ORDER.indexOf(id)],
-    hint: power.hint,
-    cooldown: power.cooldown,
-    color: power.color,
+    name: ability.name,
+    title: ability.title,
+    key: ABILITY_KEYS[ABILITY_ORDER.indexOf(id)],
+    hint: ability.hint,
+    cooldown: ability.cooldown,
+    color: ability.color,
     next: director.nextTitle,
   });
   return true;
@@ -653,7 +559,7 @@ function makeDebugPanel(): DebugPanel {
     },
     goToWave(index) {
       for (const e of horde.enemies) e.state = 'gone';
-      for (const id of unlockedAt(index)) player.powers.add(id);
+      for (const id of unlockedAt(index)) abilities.owned.add(id);
       director.goTo(index);
       hud.showBanner(`Oleada ${index + 1}`, 'saltada desde el panel', 2);
     },
@@ -693,7 +599,7 @@ const input = new Input({
   swingCancel() {
     player?.cancelSwing();
   },
-  selectEnchant,
+  castAbility,
   selectClub,
   tiltCamera,
   raiseCamera,
@@ -841,19 +747,17 @@ async function makePlayer(skin: Skin): Promise<Player> {
   scene.add(root);
   playerClips = gltf.animations;
   const p = new Player(root, gltf.animations, scene, clubModel ? clubModel.clone() : null);
-  if (ALL_CLUBS) for (const id of ENCHANT_ORDER) p.powers.add(id);
+  if (ALL_CLUBS) for (const id of ABILITY_ORDER) abilities.owned.add(id);
   p.spotXs = tees.spots.map((s) => s.x);
   p.canFire = () => {
     const i = tees.nearest(p.anchor.x);
     return Math.abs(tees.spots[i].x - p.anchor.x) < 0.1 && tees.take(i);
   };
   p.canStart = () => hasBallHere();
-  p.enchantAvailable = enchantOwned;
   p.onWhiff = () => {
     audio.whoosh(0.3);
     hud.feedback('¡Sin pelota! Movete con A / D', 'bad');
   };
-  p.onDenied = (enchant) => hud.feedback(`${enchant.name} recargando: ${p.cooldowns[enchant.id].toFixed(1)} s`, 'neutral');
   p.onShot = (shot) => {
     shots++;
     audio.tock(shot.quality >= QUALITY_LEVELS);
@@ -907,7 +811,6 @@ async function cycleSkin(delta = 1): Promise<void> {
     fresh.position.copy(player.position);
     fresh.hp = player.hp;
     for (const id of player.unlocked) fresh.unlocked.add(id);
-    Object.assign(fresh.cooldowns, player.cooldowns);
     fresh.meleeCooldown = player.meleeCooldown;
     fresh.setClub(player.club);
     fresh.aimDir.copy(player.aimDir);
@@ -1030,7 +933,7 @@ function updateWaves(dt: number): void {
         audio.waveHorn();
         // cada oleada estrena, como mucho, un palo: el que resuelve al enemigo nuevo
         // el palo nuevo ya se presentó con su cartel al terminar la oleada anterior; esto es la red de seguridad
-        for (const id of unlockedAt(e.index)) player.powers.add(id);
+        for (const id of unlockedAt(e.index)) abilities.owned.add(id);
         hud.showBanner(`Oleada ${e.index + 1}`, e.wave.title);
         break;
       }
@@ -1038,8 +941,8 @@ function updateWaves(dt: number): void {
         // apagado desde el panel de balance: la oleada sigue igual, pero este tipo no sale
         if (disabledKinds.has(e.kind)) break;
         horde.spawn(e.kind);
-        if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. El hielo no lo congela, pero lo frena');
-        else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: apagalo con hielo', 'bad');
+        if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. El vendaval lo deja vulnerable');
+        else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: silencialo con el vendaval (E)', 'bad');
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacátela con el palazo (Shift)', 'bad');
         break;
       case 'cleared':
@@ -1089,6 +992,7 @@ function frame(): void {
     if (started) {
       horde.update(dt, player);
       balls.update(dt);
+      abilities.update(dt);
       const stance = player.mode === 'charging' || player.mode === 'swinging';
       tees.update(dt, player.spotIndex, stance && player.atSpot ? player.spotIndex : -1);
       traps.update(dt);
@@ -1099,7 +1003,7 @@ function frame(): void {
     updatePreview();
 
     hud.setClub(player.club, player.pendingClub);
-    hud.setEnchant(player.enchant, player.cooldowns, enchantOwned);
+    hud.setAbilities(abilities.cooldowns, abilities.owned);
     hud.setClubState(player.unlocked, player.meleeCooldown);
     hud.setReserve(reserve.charges, Math.max(0, RESERVE.cooldown - reserve.timer), RESERVE.cooldown, RESERVE.max);
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
@@ -1151,10 +1055,10 @@ addEventListener('resize', () => {
   get shotInfo() {
     const club = player.club;
     const range = shotRange(club);
-    return { club: club.id, enchant: player.enchant.id, range: +range.toFixed(1), band: bandOf(range), damage: damageFor(club, range, qualityOf(player.meter.power)) };
+    return { club: club.id, range: +range.toFixed(1), band: bandOf(range), damage: damageFor(club, range, qualityOf(player.meter.power)) };
   },
-  /** Color actual de la línea de tiro y palo que muestra la punta, para las pruebas. */
-  get aimLine() { return { color: previewMat.color.getHex(), tip: tipEnchant, tipVisible: tip.visible }; },
+  /** Color actual de la línea de tiro, para las pruebas. */
+  get aimLine() { return { color: previewMat.color.getHex() }; },
   get cardOpen() { return cardOpen; },
   offerUnlock,
   dismissCard,
@@ -1164,9 +1068,13 @@ addEventListener('resize', () => {
   get tees() { return tees; },
 
   get traps() { return traps; },
-  get enchant() { return player.enchant.id; },
-  set enchant(id: EnchantId) { player.setEnchant(ENCHANTS[id]); },
-  cycleClub, selectEnchant, selectClub, enchantReady, setIronMode, ironMode, dropBall,
+  /** Las habilidades: cuáles se tienen, las recargas y las zonas de hielo en el piso. */
+  get abilities() { return abilities; },
+  /** Tira una habilidad por nombre, como si se apretara su tecla. */
+  cast(id: AbilityId) { castAbility(ABILITY_ORDER.indexOf(id)); },
+  /** A qué fracción de su velocidad camina el que pisa hielo, para la anticipación del bot. */
+  get iceSlow() { return ICE.slow; },
+  cycleClub, castAbility, selectClub, setIronMode, ironMode, dropBall,
   /** Pelotas de reserva (S): cuántas quedan y cuánto falta para la próxima. */
   get reserve() { return { charges: reserve.charges, left: +Math.max(0, RESERVE.cooldown - reserve.timer).toFixed(1), max: RESERVE.max, cooldown: RESERVE.cooldown }; },
   /** Qué campo salió esta partida, y el panel de balance. */
@@ -1174,7 +1082,7 @@ addEventListener('resize', () => {
   get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },
   get debug() { return debugPanel; },
   godMode,
-  unlockAll() { for (const id of ENCHANT_ORDER) player.powers.add(id); },
+  unlockAll() { for (const id of ABILITY_ORDER) abilities.owned.add(id); },
   /** Recorrido de la mano derecha en un clip y sus fases, para revisar los clips de golf. */
   sampleClip(name: string, hz = 20) {
     const clip = playerClips.find((c) => c.name === name);

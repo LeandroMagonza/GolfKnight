@@ -1364,3 +1364,28 @@ Leandro pasó una imagen por palo (venían al revés y con fondo blanco opaco). 
 convierten en siluetas blancas con transparencia, para que se puedan teñir y no se vean como stickers
 sobre la barra oscura. Viven en `web/public/clubs/`. Lo que distingue a un palo de otro en el HUD es
 ahora el ícono y la tecla, no el color.
+
+## Hecho: las habilidades aparte (24/9/2026)
+
+Rediseño dictado por Leandro: **los palos dejan de llevar poder** y lo que antes era combinar un palo
+con un elemento pasa a ser tres habilidades directas, con su tecla, su recarga y **su propia pelota**.
+Usarlas no toca la pelota del puesto ni gasta ninguna otra, y salen en el acto hacia el mouse, aun con
+un tiro cargando.
+
+- **Q · Granada** (nueva, oleada 4): tiro rápido que cae donde apuntás. No hace daño: corre a los que
+  agarra hacia los costados de la línea del tiro hasta dejarlos a «fuerza» metros de ella. Quedan en
+  dos filas que apuntan al golfista, servidas para el driver. Así se interpretó «empujarlos hacia los
+  costados para alinearlos», y Leandro lo confirmó.
+- **W · Hielo** (oleada 3): reemplaza a la combinación más usada, wedge + escarcha. Cae y deja una
+  zona fría varios segundos; el que está adentro, o entra después, camina lento, y al salir se le pasa
+  a los 0.5 s. **Ya no baja escudos ni apaga al chamán.**
+- **E · Vendaval** (oleada 2, la de los escudos): es el driver + vendaval de antes. Los junta sobre la
+  línea y los **silencia**: sin escudo, sin aura, sin inmunidad. Y vulnerables: +1 de daño por
+  pelotazo mientras dura, para que siga sirviendo contra el jefe.
+
+Todos los números están en `src/core/abilities.ts` y en la sección «Habilidades» del panel de balance.
+Arranque: hielo 4 m, 5 s, recarga 10 s; vendaval 5 s de silencio, recarga 8 s; granada 4 m, filas a
+5 m, recarga 6 s.
+
+Pendiente: las pruebas de navegador (`tools/playtest.mjs`, `tools/relieve.mjs`) todavía usan la API de
+poderes y hay que pasarlas a las habilidades.

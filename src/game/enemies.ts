@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { EXPLOSION_RADIUS, ICE_SLOW, KNOCK_DECAY } from '../core/clubs';
+import { grenadeShift, ICE, WIND } from '../core/abilities';
+import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt } from '../core/terrain';
 import { ENEMIES, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type EnemyKind, type EnemyStats } from '../core/waves';
@@ -71,6 +72,7 @@ const rockGeo = new THREE.DodecahedronGeometry(0.7, 0);
 const rockMat = new THREE.MeshStandardMaterial({ color: 0x77736b, roughness: 1, flatShading: true });
 
 const CHILL_TINT = new THREE.Color(0x8fd0ff);
+const SILENCE_EMISSIVE = new THREE.Color(0x4a1a08);
 
 /** Suaviza entre 0 y 1. */
 const smooth = (u: number) => u * u * (3 - 2 * u);
@@ -86,9 +88,12 @@ export class Enemy {
   state: EnemyState = 'walk';
   /** A quién ataca en este momento. */
   target: 'gate' | 'player' = 'gate';
-  /** Hielo del hierro: segundos que le quedan, de cuántos, y si está congelado del todo o solo lento. */
+  /** Frío de la zona de hielo: segundos que le quedan y de cuántos. Solo lo hace caminar lento. */
   chillTimer = 0;
   chillMax = 1;
+  /** Silencio del vendaval: sin escudo, sin aura, sin inmunidad, y vulnerable. Segundos que le quedan. */
+  silenceTimer = 0;
+  silenceMax = 1;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
   warded = false;
   /** Ya pasó la línea del golfista: está fuera de juego (nada lo toca) y corre hasta la puerta. */
@@ -122,10 +127,13 @@ export class Enemy {
   /** Cuánto hielo le queda, debajo de la barra de vida. */
   private readonly chillBg: THREE.Sprite;
   private readonly chillFill: THREE.Sprite;
+  /** Cuánto silencio le queda, debajo del hielo. */
+  private readonly silenceBg: THREE.Sprite;
+  private readonly silenceFill: THREE.Sprite;
   private pips: { canvas: HTMLCanvasElement; tex: THREE.CanvasTexture; sprite: THREE.Sprite } | null = null;
   /** Aura del chamán, en el piso. */
   private readonly aura: THREE.Mesh | null = null;
-  /** El escudo del guerrero. Se ve solo mientras sirve: con hielo encima desaparece. */
+  /** El escudo del guerrero. Se ve solo mientras sirve: silenciado desaparece. */
   private shieldMesh: THREE.Object3D | null = null;
   private readonly arms: THREE.Object3D[] = [];
   private readonly spine: THREE.Object3D | null;
@@ -215,6 +223,19 @@ export class Enemy {
     this.chillFill.scale.set(barWidth, 0.09, 1);
     this.chillFill.renderOrder = 11;
 
+    this.silenceBg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x26100a, transparent: true, opacity: 0.75, depthTest: false }));
+    this.silenceFill = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xff6b4a, depthTest: false }));
+    for (const s of [this.silenceBg, this.silenceFill]) {
+      s.center.set(0, 0.5);
+      s.position.set(-barWidth / 2, stats.height + 0.08, 0);
+      s.visible = false;
+      s.renderOrder = 10;
+      this.group.add(s);
+    }
+    this.silenceBg.scale.set(barWidth, 0.14, 1);
+    this.silenceFill.scale.set(barWidth, 0.09, 1);
+    this.silenceFill.renderOrder = 11;
+
     if (stats.behavior === 'shaman') {
       const mat = new THREE.MeshBasicMaterial({ color: 0xb26bff, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
       this.aura = new THREE.Mesh(auraGeo, mat);
@@ -229,14 +250,22 @@ export class Enemy {
     return this.state === 'walk' || this.state === 'attack';
   }
 
-  /** Con hielo encima: camina lento, no se cubre con el escudo y, si es chamán, no conjura. */
+  /** Con frío encima: camina lento. Nada más: el escudo y el aura ya no se los saca el hielo. */
   get chilled(): boolean {
     return this.chillTimer > 0;
   }
 
+  /**
+   * Silenciado por el vendaval: no se cubre con el escudo, si es chamán no conjura, ningún aura lo
+   * protege, y cada pelotazo le saca uno más (ver `Horde.damage`).
+   */
+  get silenced(): boolean {
+    return this.silenceTimer > 0;
+  }
+
   /** Chamán con el aura activa. */
   get casting(): boolean {
-    return this.stats.behavior === 'shaman' && this.alive && !this.chilled;
+    return this.stats.behavior === 'shaman' && this.alive && !this.silenced;
   }
 
   get radius(): number {
@@ -254,8 +283,8 @@ export class Enemy {
 
   /**
    * ¿El escudo frena una pelota que viene con velocidad (vx, vy, vz)? Frena **la pelota que le llega de
-   * frente**, venga rasante o en arco: solo lo pasa lo que cae casi a plomo. Congelado o aturdido no se
-   * cubre. Esto es el choque de la pelota contra el escudo; lo que estalla en el piso se pregunta
+   * frente**, venga rasante o en arco: solo lo pasa lo que cae casi a plomo. Silenciado o aturdido no
+   * se cubre. Esto es el choque de la pelota contra el escudo; lo que estalla en el piso se pregunta
    * aparte, con `Horde.shadowed`.
    */
   blocks(vx: number, vy: number, vz: number): boolean {
@@ -310,6 +339,7 @@ export class Enemy {
       this.dyingTime = 0;
       this.grabbing = false;
       this.chillTimer = 0;
+      this.silenceTimer = 0;
       this.refreshBar();
       this.refreshChill();
       if (this.aura) this.aura.visible = false;
@@ -323,16 +353,24 @@ export class Enemy {
   }
 
   /**
-   * Hielo: lento y silenciado durante `seconds`. Nunca congela del todo: el enemigo sigue caminando y
-   * atacando, solo que a paso de hombre y sin sus defensas. A los pesados les dura menos.
+   * Frío: camina lento durante `seconds`. Nunca congela del todo: el enemigo sigue caminando y atacando,
+   * solo que a paso de hombre. La zona de hielo se lo renueva en cada cuadro mientras esté adentro.
    */
   chill(seconds: number): void {
     if (!this.alive) return;
-    const s = this.stats.heavy ? seconds * 0.6 : seconds;
-    // ningún hielo acorta al anterior
-    if (s >= this.chillTimer) {
-      this.chillTimer = s;
-      this.chillMax = s;
+    // ningún frío acorta al anterior
+    if (seconds >= this.chillTimer) {
+      this.chillTimer = seconds;
+      this.chillMax = seconds;
+    }
+  }
+
+  /** Silencio del vendaval durante `seconds`: sin escudo, sin aura, sin inmunidad y vulnerable. */
+  silence(seconds: number): void {
+    if (!this.alive || seconds <= 0) return;
+    if (seconds >= this.silenceTimer) {
+      this.silenceTimer = seconds;
+      this.silenceMax = seconds;
     }
   }
 
@@ -392,8 +430,9 @@ export class Enemy {
     this.position.addScaledVector(this.knock, (1 - fade) / KNOCK_DECAY);
     this.knock.multiplyScalar(fade);
     if (this.chillTimer > 0) this.chillTimer = Math.max(0, this.chillTimer - dt);
+    if (this.silenceTimer > 0) this.silenceTimer = Math.max(0, this.silenceTimer - dt);
     this.refreshChill();
-    const slow = this.chilled ? ICE_SLOW : 1;
+    const slow = this.chilled ? ICE.slow : 1;
     const behavior = this.stats.behavior;
     const castGesture = this.casting ? 1 : 0;
     if (this.aura) {
@@ -443,6 +482,7 @@ export class Enemy {
     if (!this.passed && this.target === 'gate' && this.position.z < TEE_Z - PASSED_BEHIND) {
       this.passed = true;
       this.chillTimer = 0;
+      this.silenceTimer = 0;
       this.stunTimer = 0;
       this.knock.set(0, 0, 0);
       for (const { mat } of this.materials) {
@@ -632,9 +672,9 @@ export class Enemy {
     return false;
   }
 
-  /** ¿Tiene el escudo en alto? Con hielo encima (frío o congelado) lo pierde hasta que se le pasa. */
+  /** ¿Tiene el escudo en alto? Silenciado por el vendaval lo baja hasta que se le pasa. */
   get shieldUp(): boolean {
-    return this.stats.shield && this.alive && !this.chilled && !this.passed;
+    return this.stats.shield && this.alive && !this.silenced && !this.passed;
   }
 
   private updateLook(dt: number): void {
@@ -649,6 +689,7 @@ export class Enemy {
     const ward = this.warded && this.alive ? 0.55 + 0.25 * Math.sin(this.age * 6) : 0;
     for (const { mat, color } of this.materials) {
       if (flash) mat.emissive.setHex(0xffffff);
+      else if (this.silenced) mat.emissive.copy(SILENCE_EMISSIVE);
       else if (this.chilled) mat.emissive.setHex(0x0c2a3c);
       else if (ward) mat.emissive.setRGB(0.45 * ward, 0.12 * ward, 0.8 * ward);
       else mat.emissive.setRGB(pulse * 0.7, pulse * 0.08, 0);
@@ -658,11 +699,14 @@ export class Enemy {
     }
   }
 
+  /** Las dos barritas de estado, debajo de la vida: el frío y el silencio. */
   private refreshChill(): void {
-    const on = this.chilled && this.alive;
-    this.chillBg.visible = this.chillFill.visible = on;
-    if (!on) return;
-    this.chillFill.scale.x = Math.max(0.001, this.chillBg.scale.x * (this.chillTimer / this.chillMax));
+    const cold = this.chilled && this.alive;
+    this.chillBg.visible = this.chillFill.visible = cold;
+    if (cold) this.chillFill.scale.x = Math.max(0.001, this.chillBg.scale.x * (this.chillTimer / this.chillMax));
+    const mute = this.silenced && this.alive;
+    this.silenceBg.visible = this.silenceFill.visible = mute;
+    if (mute) this.silenceFill.scale.x = Math.max(0.001, this.silenceBg.scale.x * (this.silenceTimer / this.silenceMax));
   }
 
   dispose(): void {
@@ -671,6 +715,8 @@ export class Enemy {
     this.barFill.material.dispose();
     this.chillBg.material.dispose();
     this.chillFill.material.dispose();
+    this.silenceBg.material.dispose();
+    this.silenceFill.material.dispose();
     if (this.pips) {
       this.pips.tex.dispose();
       this.pips.sprite.material.dispose();
@@ -752,9 +798,12 @@ export class Horde {
       this.emit({ type: 'immune', enemy });
       return false;
     }
-    // ningún estado cambia el daño. La vida va en enteros: todo golpe que entra saca al menos 1
-    // (el redondeo es por la explosión del kamikaze, que pierde fuerza hacia el borde)
-    const dealt = amount > 0 ? Math.max(1, Math.round(amount)) : 0;
+    // El silenciado por el vendaval queda vulnerable: cada pelotazo le saca uno más, aunque el palo
+    // pegue cero. Es lo que hace que el vendaval sirva contra los jefes, no solo contra los grupos.
+    // La vida va en enteros: todo golpe que entra saca al menos 1 (el redondeo es por la explosión del
+    // kamikaze, que pierde fuerza hacia el borde)
+    const raw = amount + (enemy.silenced ? WIND.vulnerable : 0);
+    const dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
     const killed = enemy.damage(dealt, knockDir, knockback);
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
@@ -812,10 +861,11 @@ export class Horde {
    * Protege al que lo lleva, si la explosión le queda de frente, y **a los que tiene detrás**: el
    * escudo hace sombra, así que una fila parapetada atrás de un guerrero se cubre con él. De ahí sale
    * la respuesta: al del escudo no lo resolvés tirándole un globo a los pies, lo resolvés
-   * congelándolo, o metiendo el globo **detrás** de él, que es de donde el escudo no lo tapa.
+   * silenciándolo con el vendaval, o metiendo el globo **detrás** de él, que es de donde el escudo no
+   * lo tapa.
    *
-   * El hielo y el viento pasan igual: el hielo es justamente la forma de sacarle el escudo, y si el
-   * escudo parara al hielo no habría con qué empezar.
+   * Las habilidades pasan igual: el vendaval es justamente la forma de sacarle el escudo, y si el
+   * escudo lo parara no habría con qué empezar.
    */
   shadowed(pos: THREE.Vector3, e: Enemy): boolean {
     for (const s of this.enemies) {
@@ -827,26 +877,30 @@ export class Horde {
     return false;
   }
 
-  /** Hielo en área: enfría a todos los que alcanza, menos los de `skip`. Devuelve a cuántos. */
-  chillAround(pos: THREE.Vector3, radius: number, seconds: number, skip?: Set<number>): number {
+  /**
+   * Frío en área: a todos los que alcanza les deja `seconds` de frío. La zona de hielo lo llama en cada
+   * cuadro con lo que le dura el frío al que sale, así que adentro nunca se le acaba. `seen` junta a
+   * todos los que alguna vez pisaron la zona. Devuelve a cuántos alcanzó ahora.
+   */
+  chillAround(pos: THREE.Vector3, radius: number, seconds: number, seen?: Set<number>): number {
     let count = 0;
     for (const e of this.enemies) {
-      if (!e.alive || e.passed || skip?.has(e.id)) continue;
+      if (!e.alive || e.passed) continue;
       if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
       e.chill(seconds);
-      skip?.add(e.id);
+      seen?.add(e.id);
       count++;
     }
     return count;
   }
 
   /**
-   * Vendaval del wedge: barre un rectángulo centrado en `pos` y orientado según la línea del tiro
-   * (`along`, unitario): halfDepth a lo largo de la línea y halfWidth a cada costado. Empuja a cada uno
-   * hacia la línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del
-   * tiro: una fila servida para el driver. Devuelve a cuántos movió.
+   * Vendaval: barre un rectángulo centrado en `pos` y orientado según la línea del tiro (`along`,
+   * unitario): halfDepth a lo largo de la línea y halfWidth a cada costado. Empuja a cada uno hacia la
+   * línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del tiro: una
+   * fila servida para el driver. A cada uno que agarra le pasa `each` (el silencio). Devuelve a cuántos.
    */
-  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>, oval = false): number {
+  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>, oval = false, each?: (e: Enemy) => void): number {
     let count = 0;
     // el costado de la línea del tiro, en el piso
     const side = new THREE.Vector3(along.z, 0, -along.x);
@@ -865,7 +919,33 @@ export class Horde {
         if (u * u + v * v > 1) continue;
       } else if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
       if (Math.abs(lateral) > 0.05) e.shove(dir.copy(side).multiplyScalar(-Math.sign(lateral)), Math.abs(lateral) * KNOCK_DECAY);
+      each?.(e);
       skip?.add(e.id);
+      count++;
+    }
+    return count;
+  }
+
+  /**
+   * Granada: agarra a todos los que estén a `radius` de `pos` y los tira **a los costados de la línea
+   * del tiro** (`along`, unitario), hasta dejarlos a `push` metros de ella. Quedan en dos filas
+   * paralelas al tiro, que apuntan hacia el golfista: servidas para el driver. No hace daño. El que cae
+   * justo sobre la línea sale para un lado al azar. Devuelve a cuántos movió.
+   */
+  spread(pos: THREE.Vector3, along: THREE.Vector3, radius: number, push: number): number {
+    let count = 0;
+    const side = new THREE.Vector3(along.z, 0, -along.x);
+    const dir = new THREE.Vector3();
+    for (const e of this.enemies) {
+      if (!e.alive || e.passed) continue;
+      const rx = e.position.x - pos.x;
+      const rz = e.position.z - pos.z;
+      if (Math.hypot(rx, rz) - e.radius > radius) continue;
+      let lateral = rx * side.x + rz * side.z;
+      if (Math.abs(lateral) < 0.05) lateral = Math.random() < 0.5 ? -0.05 : 0.05;
+      const shift = grenadeShift(lateral, push);
+      // la velocidad es lo que tiene que recorrer por KNOCK_DECAY: el empujón se apaga justo ahí
+      if (shift !== 0) e.shove(dir.copy(side).multiplyScalar(Math.sign(shift)), Math.abs(shift) * KNOCK_DECAY);
       count++;
     }
     return count;
@@ -892,13 +972,14 @@ export class Horde {
   /**
    * Aura de los chamanes: todo enemigo dentro del radio de un chamán que está conjurando es inmune.
    * Un chamán nunca queda protegido, ni por su propia aura ni por la de otro: si no, dos chamanes
-   * juntos serían imposibles de matar.
+   * juntos serían imposibles de matar. Y el silenciado por el vendaval tampoco: el silencio le saca
+   * cualquier inmunidad.
    */
   private updateWards(): void {
     const casters = this.enemies.filter((e) => e.casting);
     for (const e of this.enemies) {
       e.warded = false;
-      if (!e.alive || e.stats.behavior === 'shaman') continue;
+      if (!e.alive || e.silenced || e.stats.behavior === 'shaman') continue;
       for (const c of casters) {
         if (Math.hypot(e.position.x - c.position.x, e.position.z - c.position.z) <= SHAMAN_WARD_RADIUS + e.radius) {
           e.warded = true;

@@ -29,7 +29,7 @@ decir una sola cosa:
 | **Mouse** | hacia dónde y **a qué distancia** cae la pelota |
 | **Barra de carga** | **qué tan bien** le pegaste: tres niveles de calidad, puro timing |
 | **Palo** (`1`, `2`, `3`, `4`) | **cómo llega** la pelota, y cuánto pega a esa distancia |
-| **Poder** (`Q`, `W`, `E`) | **qué hace** cuando llega |
+| **Habilidad** (`Q`, `W`, `E`) | granada, hielo y vendaval: salen en el acto, con su propia pelota |
 | **Rueda** del mouse / `↑` `↓` | inclinar la cámara / subirla y bajarla sin girarla |
 
 - **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
@@ -44,10 +44,8 @@ decir una sola cosa:
 - **La calidad va por niveles: 1, 2 y 3.** La barra sube lenta al principio y rápida al final; el
   nivel 3 es el último 8 %, y después del tope rebota por todo el rango. La barra **no tiene nada que
   ver con la distancia**: eso lo decide el mouse.
-- La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad, y con el color del
-  poder cuando no estás cargando. El anillo (o el rectángulo del vendaval) marca qué va a agarrar el
-  efecto, y arriba de todo un símbolo dice qué poder está en la mano. **El palo no tiene símbolo**: el
-  que tenía tapaba justo el punto al que estás apuntando.
+- La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad. El anillo marca
+  dónde cae, y con el wedge, el tamaño del área.
 - **El campo tiene marcas de distancia cada 10 m, contadas desde la línea de los puestos**: la raya
   donde estás parado dice 0. Las de 20 y 40 m están resaltadas porque ahí cambia la banda de daño.
 
@@ -81,31 +79,34 @@ alrededor cobran el área (**1 / 2 / 4**). Nadie cobra las dos por un mismo tiro
 | Putter | no | no: le pega al que toca, a él solo | se queda ahí |
 
 El **escudo** frena cualquier pelota que le llegue de frente, venga rasante o en arco. Lo único que lo
-pasa es lo que cae a más de 45°, o sea el globo del wedge. Al del escudo se lo resuelve con un globo,
-enfriándolo, o pegándole de costado.
+pasa es lo que cae a más de 45°, o sea el globo del wedge. Y el escudo también tapa del **daño en
+área** que estalla adelante suyo, a él y a los que tiene detrás. Al del escudo se lo resuelve
+silenciándolo con el vendaval, cayéndole detrás con el wedge, o pegándole de costado.
 
 El hierro tiene **dos modos** en el panel de balance, para probarle la identidad: *revienta* (el de
 arriba) y *atraviesa* (pasa de largo hasta a tres y abre su área donde cae, le pegue a alguien o no).
 
-### Los poderes (`Q`, `W`, `E`)
+### Las habilidades (`Q`, `W`, `E`)
 
-El poder vale para cualquier palo, y **cómo se reparte lo decide el palo**. La regla es una sola:
-*cuanto más rasante, más lineal y preciso; cuanto más alto, más zonal y amplio.*
+Los palos ya no llevan poder: pegan su golpe y nada más. Las habilidades van aparte, y **cada una tira
+su propia pelota**: no gasta la del puesto ni ninguna otra. Salen en el acto al apretar la tecla, hacia
+donde está el mouse, y se pueden tirar hasta con un tiro cargando. Se ganan jugando, una por oleada.
 
-| | Con el driver (lineal) | Con el hierro (revienta al contacto) | Con el wedge (área grande) | Con el putter (uno solo) |
+| Habilidad | Cómo llega | Qué hace | Recarga | Se gana en |
 | --- | --- | --- | --- | --- |
-| **Q · Golpe** | daña a cada uno que atraviesa | impacto al que toca, área a los de al lado | daña donde cae, a muchos | daña al que frena la pelota |
-| **W · Escarcha** | enfría a cada uno de la línea | enfría alrededor del que toca | enfría un área grande | enfría al que frena la pelota |
-| **E · Vendaval** | un pasillo angosto a lo largo del tiro | barre alrededor del que toca | los junta en un rectángulo grande | empuja al que frena la pelota |
+| **E · Vendaval** | rasante, 55 m, como el driver | los junta sobre la línea y los **silencia** | 8 s | oleada 2 |
+| **W · Hielo** | globo que cae donde apuntás | deja una **zona fría** de 4 m durante 5 s | 10 s | oleada 3 |
+| **Q · Granada** | tiro rápido que cae donde apuntás | los tira **a los costados**, en dos filas | 6 s | oleada 4 |
 
-- **El golpe no tiene recarga: es el estado de reposo.** El vendaval recarga 3 s y la escarcha 4 s;
-  se arman para un tiro y después la mano vuelve sola al golpe. Nunca se cambia solo a *otro* poder.
-- *Frío*: camina al 40 %, no se cubre con el escudo y, si es chamán, se le apaga el aura. No congela
-  ni cambia el daño que recibe. Dura 3, 5 u 8 s según la calidad.
-- *Vendaval*: empuja a cada uno **hacia la línea del tiro**, justo lo que lo separa de ella, así que
-  terminan todos en fila sobre el tiro, servidos para el siguiente driver. Los que quedan a la misma
-  profundidad no se enciman: se paran hombro con hombro. Mueve a todos lo mismo, pesen lo que pesen.
-- Pegarle mejor también agranda el área: ×1, ×1.2 y ×1.5.
+- *Silencio* (vendaval): 5 s sin escudo, sin aura si es chamán y sin la inmunidad que da el aura. Y
+  **vulnerable**: cada pelotazo le saca 1 más, así que sirve contra el jefe, no solo contra los grupos.
+  El viento va detrás de la pelota: a cada uno lo acomoda después de pasarle por al lado.
+- *Zona fría* (hielo): el que está adentro cuando cae, o entra mientras dura, camina al 40 %. Al salir,
+  el frío se le va a los 0.5 s. El hielo **ya no** baja escudos ni apaga al chamán: eso es del vendaval.
+- *Granada*: no hace daño. A los que agarra (4 m) los corre hacia los costados de la línea del tiro
+  hasta dejarlos a 5 m de ella: quedan en dos filas que apuntan hacia vos, servidas para el driver.
+
+Todos esos números viven en `src/core/abilities.ts` y se tocan en vivo en el panel de balance.
 
 ### Lo demás
 
@@ -164,7 +165,9 @@ recargar:
 - el **daño de cada palo** en cada banda de distancia y para cada nivel de golpe, más su alcance y el
   radio de su área;
 - dónde **cortan las bandas** (20 y 40 m por defecto);
-- la **recarga de cada poder**, el **tiempo de carga** y la **rapidez del putter**;
+- las **habilidades**: recarga, alcance y los números de cada una (radio y duración del hielo,
+  silencio y vulnerabilidad del vendaval, radio y fuerza de la granada);
+- el **tiempo de carga** y la **rapidez del putter**;
 - la **vida, velocidad, daño y ritmo de ataque de cada enemigo** (a los que ya están en el campo se les
   empareja), y **prender o apagar** un tipo entero sin cambiar la composición de las oleadas;
 - **cambiar de campo** (reinicia la partida: el terreno se arma una sola vez);

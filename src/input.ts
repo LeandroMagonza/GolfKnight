@@ -2,7 +2,8 @@
 // A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite) y el mouse
 // apunta y decide a qué distancia cae. Click izquierdo mantiene para cargar el swing y suelta para
 // pegar; click derecho (o X) cancela. Espacio clava la calidad del golpe, y el tiro sale cuando se
-// suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo**; **Q, W y E eligen el poder**.
+// suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo**; **Q, W y E tiran una
+// habilidad** (granada, hielo y vendaval) hacia donde está el mouse, en el acto y con su propia pelota.
 // La rueda del mouse inclina la cámara y las flechas arriba y abajo la suben y bajan, para probar
 // ángulos. Shift (o V) es el palazo, S saca una pelota de la reserva, B abre el panel de balance,
 // Escape pausa, R reinicia (solo en pausa o al terminar), C cambia el skin, M silencia la música.
@@ -11,8 +12,8 @@ export interface InputEvents {
   swingStart(): void;
   swingRelease(): void;
   swingCancel(): void;
-  /** Elige poder: 0 = golpe, 1 = escarcha, 2 = vendaval. */
-  selectEnchant(index: number): void;
+  /** Tira una habilidad: 0 = granada, 1 = hielo, 2 = vendaval. */
+  castAbility(index: number): void;
   /** Elige palo por posición: 0 = driver, 1 = hierro, 2 = wedge, 3 = putter. */
   selectClub(index: number): void;
   /** Rueda del mouse: inclina la cámara (+1 más alta, -1 más baja). */
@@ -93,9 +94,9 @@ export class Input {
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4':
         this.ev.selectClub(Number(e.code.slice(-1)) - 1);
         break;
-      case 'KeyQ': this.ev.selectEnchant(0); break;
-      case 'KeyW': this.ev.selectEnchant(1); break;
-      case 'KeyE': this.ev.selectEnchant(2); break;
+      case 'KeyQ': this.ev.castAbility(0); break;
+      case 'KeyW': this.ev.castAbility(1); break;
+      case 'KeyE': this.ev.castAbility(2); break;
       case 'KeyB': this.ev.debugPanel(); break;
       case 'KeyX': this.swingHeld = false; this.ev.swingCancel(); break;
       case 'Space': this.ev.space(); e.preventDefault(); break;

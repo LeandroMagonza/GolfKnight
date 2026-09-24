@@ -3,15 +3,18 @@
 // mouse, aprieta teclas y carga los tiros en tiempo real.
 //
 // Juega con el reparto nuevo: elige **palo** por la distancia a la que está el blanco (el driver cobra
-// de lejos, el putter de cerca, el hierro y el wedge parejo) y **poder** por la situación (escarcha
-// para abrir defensas, vendaval cuando lo rodean, golpe el resto del tiempo). No busca filas ni clava
-// el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace una persona.
+// de lejos, el putter de cerca, el hierro y el wedge parejo) y tira **habilidades** según la situación
+// (vendaval para abrir defensas, hielo cuando lo rodean, granada a un grupo a media distancia). No busca
+// filas ni clava el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace
+// una persona.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Gk = any;
 
 export interface BotStats {
   byClub: Record<string, number>;
+  /** Habilidades tiradas, por nombre. */
+  casts: Record<string, number>;
   melee: number;
   moves: number;
   dodges: number;
@@ -21,8 +24,8 @@ export interface BotStats {
 
 /** Cada palo tiene su tecla: Digit1 a Digit4, en este orden. */
 const CLUB_ORDER = ['driver', 'iron', 'wedge', 'putter'];
-/** Cada poder tiene la suya: Q, W y E. */
-const ENCHANT_KEYS: Record<string, string> = { damage: 'KeyQ', ice: 'KeyW', push: 'KeyE' };
+/** Cada habilidad tiene la suya: Q, W y E. */
+const ABILITY_KEYS: Record<string, string> = { grenade: 'KeyQ', ice: 'KeyW', wind: 'KeyE' };
 
 function key(code: string): void {
   dispatchEvent(new KeyboardEvent('keydown', { code }));
@@ -31,7 +34,7 @@ function key(code: string): void {
 
 export function startBot(): BotStats {
   const gk: Gk = (window as any).__gk;
-  const stats: BotStats = { byClub: {}, melee: 0, moves: 0, dodges: 0, grabs: 0, jumps: 0 };
+  const stats: BotStats = { byClub: {}, casts: {}, melee: 0, moves: 0, dodges: 0, grabs: 0, jumps: 0 };
   (window as any).__bot = stats;
 
   // El bot apunta moviendo el mouse. Para que el mouse de quien mira no le corra la puntería, repite
@@ -52,7 +55,7 @@ export function startBot(): BotStats {
   let escaping = false;
   let dodgedAt = 0;
   let cardSince = 0;
-  let pushedAt = -10;
+  let castAt = -10;
 
   setInterval(() => {
     const pl = gk.player;
@@ -114,49 +117,54 @@ export function startBot(): BotStats {
     const alive: any[] = gk.horde.enemies.filter((e: any) => e.alive && !e.passed);
     if (!alive.length) return;
 
-    const iceReady = pl.powers.has('ice') && pl.cooldowns.ice <= 0;
-    const pushReady = pl.powers.has('push') && pl.cooldowns.push <= 0;
-    let enchant = 'damage';
-    let target: any = null;
+    // Las habilidades salen en el acto y no gastan la pelota del puesto, así que van antes del tiro:
+    // apunta, espera a que la puntería llegue al juego y aprieta la tecla. Una por vuelta.
+    if (gk.clock - castAt > 1) {
+      const ab = gk.abilities;
+      const cast = (id: string, x: number, z: number) => {
+        castAt = gk.clock;
+        aim(x, z);
+        stats.casts[id] = (stats.casts[id] ?? 0) + 1;
+        setTimeout(() => key(ABILITY_KEYS[id]), 80);
+      };
+      // 1) vendaval a quien haya que abrir: chamán conjurando, escudo en alto, jefe sin silenciar
+      const open = ab.ready('wind') && (alive.find((e) => e.casting && dist(e) < 50)
+        ?? alive.filter((e) => e.shieldUp && dist(e) < 50).sort((a, b) => a.position.z - b.position.z)[0]
+        ?? alive.find((e) => e.stats.boss && !e.silenced && dist(e) < 50));
+      if (open) return cast('wind', open.position.x, open.position.z);
+      // 2) varios cerca: el hielo los frena ahí mismo
+      const near = alive.filter((e) => dist(e) < 14);
+      if (near.length >= 3 && ab.ready('ice')) {
+        const cx = near.reduce((s, e) => s + e.position.x, 0) / near.length;
+        const cz = near.reduce((s, e) => s + e.position.z, 0) / near.length;
+        return cast('ice', cx, cz);
+      }
+      // 3) un grupo a media distancia: la granada los ordena en dos filas para el driver
+      const mid = alive.filter((e) => dist(e) > 18 && dist(e) < 40);
+      if (mid.length >= 3 && ab.ready('grenade')) {
+        const cx = mid.reduce((s, e) => s + e.position.x, 0) / mid.length;
+        const cz = mid.reduce((s, e) => s + e.position.z, 0) / mid.length;
+        return cast('grenade', cx, cz);
+      }
+    }
 
-    // 1) escarcha a quien haya que abrir: chamán conjurando, escudo sin hielo, jefe sin hielo
-    if (iceReady) {
-      target = alive.find((e) => e.casting && dist(e) < 50)
-        ?? alive.filter((e) => e.stats.shield && !e.chilled && dist(e) < 50).sort((a, b) => a.position.z - b.position.z)[0]
-        ?? alive.find((e) => e.stats.boss && !e.chilled && dist(e) < 50)
-        ?? null;
-      if (target) enchant = 'ice';
-    }
-    // 2) rodeado: el vendaval los junta sobre la línea y los saca de encima
-    const near = alive.filter((e) => dist(e) < 9);
-    if (!target && near.length >= 3 && pushReady && gk.clock - pushedAt > 3) {
-      enchant = 'push';
-      target = near.sort((a, b) => dist(b) - dist(a))[0];
-      pushedAt = gk.clock;
-    }
-    // 3) un alma en pena que se le viene encima va primero: corre derecho hacia él, es un tiro fácil
-    if (!target) target = alive.filter((e) => e.stats.behavior === 'grabber' && dist(e) < 32).sort((a, b) => dist(a) - dist(b))[0] ?? null;
-    // 4) si no, al que tenga encima o al más avanzado que se pueda dañar
+    // 1) un alma en pena que se le viene encima va primero: corre derecho hacia él, es un tiro fácil
+    let target: any = alive.filter((e) => e.stats.behavior === 'grabber' && dist(e) < 32).sort((a, b) => dist(a) - dist(b))[0] ?? null;
+    // 2) si no, al que tenga encima o al más avanzado que se pueda dañar
     if (!target) {
-      const hittable = alive.filter((e) => !e.warded && !(e.stats.shield && !e.chilled && dist(e) > 6));
+      const hittable = alive.filter((e) => !e.warded && !(e.shieldUp && dist(e) > 6));
       const pool = hittable.length ? hittable : alive;
       target = pool.filter((e) => dist(e) < 7).sort((a, b) => dist(a) - dist(b))[0] ?? pool.sort((a, b) => a.position.z - b.position.z)[0];
     }
 
-    // El palo lo decide la distancia, que es de donde sale el daño. Con un efecto en área conviene el
-    // palo que más abre, mientras llegue.
-    // Los cuatro palos están desde la primera oleada, así que la elección es solo táctica. Con un
-    // efecto en área conviene el wedge, que además es el único que lo abre sin tener que conectar.
+    // El palo lo decide la distancia, que es de donde sale el daño. Los cuatro palos están desde la
+    // primera oleada, así que la elección es solo táctica.
     const d = dist(target);
     let club = 'driver';
-    if (enchant !== 'damage') club = d < 54 ? 'wedge' : 'iron';
-    else if (d <= 12) club = 'putter';
+    if (d <= 12) club = 'putter';
     else if (d <= 40) club = 'iron';
-    // los tres poderes tienen recarga: si el elegido no está listo, espera en vez de gastar otro
-    if (!gk.enchantReady(enchant)) return;
     // cada palo tiene su tecla: un toque y ya
     if (pl.club.id !== club) key(`Digit${CLUB_ORDER.indexOf(club) + 1}`);
-    if (pl.enchant.id !== enchant) key(ENCHANT_KEYS[enchant]);
 
     // La barra ya no tiene nada que ver con la distancia: apunta a soltar en el nivel 2, que es lo que
     // haría alguien sin clavarla. El alcance lo da el mouse.
@@ -165,7 +173,7 @@ export function startBot(): BotStats {
 
     // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
     // (en diagonal, no derecho). Se apunta a donde va a estar.
-    const speed = target.stats.speed * target.speedMul * (target.chilled ? 0.4 : 1);
+    const speed = target.stats.speed * target.speedMul * (target.chilled ? gk.iceSlow : 1);
     if (target.stats.behavior === 'grabber' && d > 3) {
       // viene hacia el golfista: se apunta un poco más acá sobre esa misma línea
       const k = Math.max(0.2, 1 - (speed * (0.6 + want)) / d);

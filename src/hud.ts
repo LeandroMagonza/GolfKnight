@@ -1,6 +1,7 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
-import { CLUB_KEYS, CLUB_ORDER, CLUBS, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, MELEE_COOLDOWN, RESERVE, type Club, type ClubId, type Enchant, type EnchantId } from './core/clubs';
+import { ABILITIES, ABILITY_KEYS, ABILITY_ORDER, type AbilityId } from './core/abilities';
+import { CLUB_KEYS, CLUB_ORDER, CLUBS, MELEE_COOLDOWN, RESERVE, type Club, type ClubId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -48,11 +49,11 @@ export class Hud {
       const color = '#' + c.color.toString(16).padStart(6, '0');
       return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">hasta ${c.maxRange} m</div></div>`;
     }).join('');
-    // los poderes: qué hace la pelota cuando llega. Y el palazo, que va aparte
-    this.enchantsEl.innerHTML = ENCHANT_ORDER.map((id, i) => {
-      const e = ENCHANTS[id];
-      const color = '#' + e.color.toString(16).padStart(6, '0');
-      return `<div class="club locked" data-ench="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${ENCHANT_KEYS[i]}</span><div class="name">${e.name}</div><div class="title">${e.title}</div><span class="cdlabel">⟳ ${e.cooldown} s</span><div class="cdnum"></div></div>`;
+    // las habilidades, cada una con su pelota y su recarga. Y el palazo, que va aparte
+    this.enchantsEl.innerHTML = ABILITY_ORDER.map((id, i) => {
+      const a = ABILITIES[id];
+      const color = '#' + a.color.toString(16).padStart(6, '0');
+      return `<div class="club locked" data-ench="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${ABILITY_KEYS[i]}</span><div class="name">${a.name}</div><div class="title">${a.title}</div><span class="cdlabel">⟳ ${a.cooldown} s</span><div class="cdnum"></div></div>`;
     }).join('')
       + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`
       // la reserva: no es un poder, es de dónde sacás una pelota cuando no te queda ninguna cerca
@@ -122,24 +123,31 @@ export class Hud {
     }
   }
 
-  private shownEnchant = '';
+  private shownAbilities = '';
 
-  /** Cuál está en la mano, cuáles ya se tienen, y cuánto le falta a cada recarga. */
-  setEnchant(current: Enchant, cooldowns: Record<EnchantId, number>, ready: (id: EnchantId) => boolean): void {
-    for (const id of ENCHANT_ORDER) this.cooldownOn(id, cooldowns[id], ENCHANTS[id].cooldown);
-    const key = `${current.id}|${ENCHANT_ORDER.map((id) => (ready(id) ? 1 : 0)).join()}`;
-    if (key === this.shownEnchant) return;
-    this.shownEnchant = key;
+  /** Cuáles habilidades ya se tienen y cuánto le falta a cada recarga. */
+  setAbilities(cooldowns: Record<AbilityId, number>, owned: ReadonlySet<AbilityId>): void {
+    for (const id of ABILITY_ORDER) this.cooldownOn(id, cooldowns[id], ABILITIES[id].cooldown);
+    // la recarga va en la clave: si se la cambia en el panel de balance, la ficha la muestra enseguida
+    const key = ABILITY_ORDER.map((id) => `${owned.has(id) ? 1 : 0}:${ABILITIES[id].cooldown}`).join();
+    if (key === this.shownAbilities) return;
+    const first = this.shownAbilities === '';
+    this.shownAbilities = key;
     for (const el of Array.from(this.enchantsEl.children) as HTMLElement[]) {
-      // en la fila también viven el palazo y la reserva, que no son poderes: no se les toca el estado
-      const id = el.dataset.ench as EnchantId | undefined;
-      if (!id || !ENCHANT_ORDER.includes(id)) continue;
-      el.classList.toggle('locked', !ready(id));
-      el.classList.toggle('active', id === current.id);
+      // en la fila también viven el palazo y la reserva, que no son habilidades: no se les toca el estado
+      const id = el.dataset.ench as AbilityId | undefined;
+      if (!id || !ABILITY_ORDER.includes(id)) continue;
+      // una habilidad recién ganada entra a la barra con un saltito
+      if (el.classList.contains('locked') && owned.has(id) && !first) {
+        el.classList.add('appear');
+        setTimeout(() => el.classList.remove('appear'), 600);
+      }
+      el.classList.toggle('locked', !owned.has(id));
+      (el.querySelector('.cdlabel') as HTMLElement).textContent = `⟳ ${ABILITIES[id].cooldown} s`;
     }
   }
 
-  /** Cartel de palo nuevo.  /** Cartel de palo nuevo. Se queda hasta que se lo cierre con un click. */
+  /** Cartel de habilidad nueva. Se queda hasta que se lo cierre con un click. */
   showCard(c: { name: string; title: string; key: string; hint: string; cooldown?: number; color: number; next: string }): void {
     const el = this.cardEl;
     el.style.setProperty('--c', '#' + c.color.toString(16).padStart(6, '0'));

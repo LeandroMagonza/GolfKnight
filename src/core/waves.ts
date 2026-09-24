@@ -1,7 +1,7 @@
 // Oleadas: qué enemigos salen y cada cuánto. WaveDirector decide cuándo aparece el próximo.
 // Los enemigos salen sueltos, sin formación: las filas se arman y se desarman solas porque cada uno
 // camina a su ritmo, y encontrarlas es el juego.
-import type { EnchantId } from './clubs';
+import type { AbilityId } from './abilities';
 
 export type EnemyKind = 'goblin' | 'skeleton' | 'kamikaze' | 'warrior' | 'knight' | 'shaman' | 'wraith' | 'golem';
 
@@ -83,24 +83,25 @@ export interface Wave {
   /** Segundos entre apariciones. */
   interval: number;
   /**
-   * Poder que se estrena en esta oleada: es el que resuelve al enemigo nuevo. **Los cuatro palos están
-   * desde el principio**; lo que se gana jugando son los poderes.
+   * Habilidad que se estrena en esta oleada: es la que resuelve al enemigo nuevo. **Los cuatro palos
+   * están desde el principio**; lo que se gana jugando son las habilidades.
    */
-  unlock?: EnchantId;
+  unlock?: AbilityId;
 }
 
 export const WAVES: Wave[] = [
-  { title: 'Los cuatro palos y un solo golpe', interval: 2.2, groups: [{ kind: 'goblin', count: 8 }, { kind: 'skeleton', count: 4 }] },
-  { title: 'Escudos al frente', unlock: 'ice', interval: 2.2, groups: [{ kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
-  { title: 'La estampida', unlock: 'push', interval: 1.5, groups: [{ kind: 'goblin', count: 10 }, { kind: 'kamikaze', count: 4 }, { kind: 'skeleton', count: 4 }] },
-  { title: 'Almas en pena', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
+  { title: 'Los cuatro palos', interval: 2.2, groups: [{ kind: 'goblin', count: 8 }, { kind: 'skeleton', count: 4 }] },
+  // el vendaval es lo que baja los escudos, así que llega justo con ellos
+  { title: 'Escudos al frente', unlock: 'wind', interval: 2.2, groups: [{ kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
+  { title: 'La estampida', unlock: 'ice', interval: 1.5, groups: [{ kind: 'goblin', count: 10 }, { kind: 'kamikaze', count: 4 }, { kind: 'skeleton', count: 4 }] },
+  { title: 'Almas en pena', unlock: 'grenade', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
   { title: 'El chamán los vuelve inmunes', interval: 1.6, groups: [{ kind: 'shaman', count: 2 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }] },
   { title: 'El Gólem de roca', interval: 1.5, groups: [{ kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }] },
 ];
 
-/** Poderes disponibles durante la oleada número index (el golpe está siempre). */
-export function unlockedAt(index: number, waves: Wave[] = WAVES): EnchantId[] {
-  const out: EnchantId[] = ['damage'];
+/** Habilidades disponibles durante la oleada número index. */
+export function unlockedAt(index: number, waves: Wave[] = WAVES): AbilityId[] {
+  const out: AbilityId[] = [];
   for (let i = 0; i <= index && i < waves.length; i++) {
     const u = waves[i].unlock;
     if (u && !out.includes(u)) out.push(u);
@@ -181,8 +182,8 @@ export class WaveDirector {
     this.timer = 0.05;
   }
 
-  /** Poder que estrena la oleada que viene, si estrena alguno. */
-  get nextUnlock(): EnchantId | undefined {
+  /** Habilidad que estrena la oleada que viene, si estrena alguna. */
+  get nextUnlock(): AbilityId | undefined {
     return this.waves[this.index + 1]?.unlock;
   }
 

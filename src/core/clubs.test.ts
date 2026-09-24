@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, ENCHANT_KEYS, ENCHANT_ORDER, ENCHANTS, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
-  ICE_SECONDS, isLob, KNOCK_DECAY, PUSH_LINE_HALF_WIDTH, QUALITY_AREA, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
+  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
+  isLob, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
 import { ENEMIES } from './waves';
@@ -146,29 +146,9 @@ describe('calidad del golpe', () => {
     expect(QUALITY_FROM[QUALITY_LEVELS - 1]).toBe(PERFECT_FROM);
     expect(1 - PERFECT_FROM).toBeLessThan(0.1);
   });
-
-  it('pegarle mejor también agranda el efecto', () => {
-    expect(QUALITY_AREA).toHaveLength(QUALITY_LEVELS);
-    for (let i = 1; i < QUALITY_AREA.length; i++) expect(QUALITY_AREA[i]).toBeGreaterThan(QUALITY_AREA[i - 1]);
-    expect(QUALITY_AREA[0]).toBe(1);
-  });
 });
 
-describe('encantamientos', () => {
-  it('son tres, se eligen con Q, W y E, y valen para cualquier palo', () => {
-    expect(ENCHANT_ORDER).toEqual(['damage', 'ice', 'push']);
-    expect(ENCHANT_KEYS).toEqual(['Q', 'W', 'E']);
-    for (const id of ENCHANT_ORDER) expect(ENCHANTS[id].id).toBe(id);
-  });
-
-  it('el golpe no tiene recarga: es el estado de reposo; los otros dos se pagan', () => {
-    // sin esto el juego se frena entre tiro y tiro, y peor: al ir a pegar habría que cambiar solo a
-    // otro poder, que era justo lo que sorprendía
-    expect(ENCHANTS.damage.cooldown).toBe(0);
-    expect(ENCHANTS.ice.cooldown).toBeGreaterThan(0);
-    expect(ENCHANTS.push.cooldown).toBeGreaterThan(0);
-  });
-
+describe('reglas de los palos', () => {
   it('los cuatro palos cargan en el mismo tiempo', () => {
     // la barra mide **timing**: si cada palo tuviera su ritmo, elegir palo sería también elegir qué tan
     // difícil es clavar el golpe, que es otra decisión. El putter era el que se salía de la regla
@@ -198,27 +178,10 @@ describe('encantamientos', () => {
     for (const id of CLUB_ORDER) expect(CLUBS[id].minRange, id).toBe(0);
   });
 
-  it('cerca del mouse solo aparece el símbolo de lo que cambia el tiro y no se ve de otra forma', () => {
-    // el golpe es el estado de reposo, así que su símbolo estaría en todos los tiros; el vendaval ya se
-    // anuncia con su rectángulo en el piso. Los palos no tienen ninguno: tapaban la puntería
-    expect(ENCHANTS.damage.icon).toBe('');
-    expect(ENCHANTS.push.icon).toBe('');
-    expect(ENCHANTS.ice.icon).not.toBe('');
-    const icons = ENCHANT_ORDER.map((id) => ENCHANTS[id].icon).filter((s) => s !== '');
-    expect(new Set(icons).size).toBe(icons.length);
-    for (const id of CLUB_ORDER) expect(CLUBS[id]).not.toHaveProperty('icon');
-  });
-
-  it('la escarcha dura más cuanto mejor es el golpe', () => {
-    expect(ICE_SECONDS).toHaveLength(QUALITY_LEVELS);
-    for (let i = 1; i < ICE_SECONDS.length; i++) expect(ICE_SECONDS[i]).toBeGreaterThan(ICE_SECONDS[i - 1]);
-  });
-
-  it('el vendaval deja a cada uno parado sobre la línea del tiro', () => {
-    // la velocidad es (lo que lo separa de la línea) * KNOCK_DECAY, y se apaga con exp(-KNOCK_DECAY t):
-    // recorre exactamente esa distancia, así que termina en la línea
-    for (const dx of [0.5, 2, 5]) expect(dx - (dx * KNOCK_DECAY) / KNOCK_DECAY).toBeCloseTo(0);
-    // con un palo lineal el pasillo es angosto: junta sin ir a buscarlos lejos
-    expect(PUSH_LINE_HALF_WIDTH).toBeLessThan(spreadFor(CLUBS.wedge, 1) * 1.5);
+  it('los palos ya no llevan poder: el tiro es solo el palo', () => {
+    for (const id of CLUB_ORDER) {
+      expect(CLUBS[id], id).not.toHaveProperty('effectSpread');
+      expect(CLUBS[id], id).not.toHaveProperty('icon');
+    }
   });
 });

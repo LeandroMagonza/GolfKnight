@@ -1,27 +1,15 @@
-// Los palos y los poderes.
+// Los palos.
 //
-// Reparto de roles, después del rediseño: **el palo es la entrega y el poder es el efecto.**
-// - El **palo** (1, 2, 3, 4) decide cómo llega la pelota: rasante y atravesando, en arco bajo que cae
-//   y rueda, en globo alto que se queda donde cae, o rodando. Y decide cuánto daño hace según a qué
-//   distancia pega.
-// - El **poder** (Q, W, E) decide qué le pasa además al que la recibe: nada, enfriarse o juntarse. El
-//   golpe es el estado de reposo y no tiene recarga; los otros dos se arman para un tiro y recargan.
+// **El palo es la entrega, y ahora es todo el tiro**: decide cómo llega la pelota (rasante y
+// atravesando, en arco bajo que cae y rueda, en globo alto que se queda donde cae, o rodando) y cuánto
+// daño hace según a qué distancia pega. Los palos ya no llevan poder: lo que antes era combinar un palo
+// con escarcha o vendaval ahora son habilidades aparte, con su propia pelota (ver `core/abilities`).
 //
-// De ahí sale una regla sola que explica las doce combinaciones: **cuanto más rasante, más lineal y
-// preciso; cuanto más alto, más zonal y amplio.** El driver lo aplica en cada uno que atraviesa, el
-// hierro donde toca el piso, el putter en el que revienta y el wedge en el área donde cae.
-//
-// Y una segunda regla, que es la que decide cuándo conviene cada palo: **los tres palos que pegan de
-// impacto hacen su daño y además aplican el poder** (ver `stacksPower`). El wedge no: su daño ya es el
-// área, así que ahí el poder ocupa el lugar del daño. Por eso el wedge es el que elegís cuando lo que
-// querés es el efecto grande, y los otros tres cuando querés las dos cosas en chico.
-//
-// Las otras dos cosas quedaron separadas de verdad:
+// Las otras dos cosas siguen separadas:
 // - **El mouse dice dónde cae**, para todos los palos.
 // - **La barra dice solo qué tan bien le pegaste**: tres niveles de calidad, puro timing.
 
 export type ClubId = 'driver' | 'iron' | 'wedge' | 'putter';
-export type EnchantId = 'damage' | 'ice' | 'push';
 
 export interface Club {
   id: ClubId;
@@ -51,21 +39,8 @@ export interface Club {
    */
   spread: number[];
   /**
-   * Radio del área del **poder** (escarcha o vendaval), en metros, uno por nivel de golpe. Es otra cosa
-   * que `spread`, que es el área del daño: el driver, el hierro y el putter hacen su daño de siempre y
-   * **además** aplican el efecto alrededor de donde llegan. Vacío = el poder usa el área del daño, que
-   * es el caso del wedge, donde las dos cosas son la misma.
-   */
-  effectSpread?: number[];
-  /**
-   * El efecto del poder sale **al tocar el piso**, haya conectado o no. Es del hierro: su daño sigue
-   * pidiendo conectar, pero la escarcha o el vendaval caen donde cayó la pelota. Los otros lo aplican
-   * donde llegan: el driver en cada uno que atraviesa, el putter en el que revienta.
-   */
-  powerOnGround?: boolean;
-  /**
-   * La pelota le aplica el efecto a cada uno que atraviesa en el aire, y sigue. Sin esto, el primero
-   * que toca es donde termina el tiro.
+   * La pelota le pega a cada uno que atraviesa en el aire, y sigue. Sin esto, el primero que toca es
+   * donde termina el tiro.
    */
   pierces: boolean;
   /**
@@ -128,31 +103,30 @@ export const CHARGE_TIME = 0.85;
 
 /**
  * **Los cuatro palos comparten color.** Antes cada uno tenía el suyo y el del hierro era celeste, el
- * mismo de la escarcha: parecía que el palo traía el poder, cuando son cosas independientes. Los
- * colores son de los poderes; los palos se distinguen por su ícono y su tecla.
+ * mismo del hielo: parecía que el palo traía el poder, cuando son cosas independientes. Los colores
+ * son de las habilidades; los palos se distinguen por su ícono y su tecla.
  */
 export const CLUB_COLOR = 0xe6e2d3;
 
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
     id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
-    loftDeg: 3.5, minRange: 0, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0], effectSpread: [2.5, 3, 3.5],
+    loftDeg: 3.5, minRange: 0, maxRange: 66, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
     pierces: true, burstsOnGround: false, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
     knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 55, color: CLUB_COLOR,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
-    loftDeg: 27, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [1.8, 2.2, 2.7], effectSpread: [2.5, 3, 3.5],
+    loftDeg: 27, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [1.8, 2.2, 2.7],
     // modo por defecto: no atraviesa, y el área sale solo si le pega a alguien (ver IRON_MODES)
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
     areaDamage: [[1, 2, 4], [1, 2, 4], [1, 2, 4]],
-    powerOnGround: true,
     knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: [6, 6, 6], fixedRange: 0, color: CLUB_COLOR,
   },
   wedge: {
-    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no. Al del escudo hay que caerle detrás',
+    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no. Al del escudo hay que caerle detrás, o silenciarlo antes',
     loftDeg: 55, minRange: 0, maxRange: 55, chargeTime: CHARGE_TIME, spread: [4.2, 5, 6.3],
     pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto
@@ -161,7 +135,7 @@ export const CLUBS: Record<ClubId, Club> = {
   },
   putter: {
     id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno',
-    loftDeg: 0, minRange: 0, maxRange: 20, chargeTime: CHARGE_TIME, spread: [0, 0, 0], effectSpread: [2.5, 3, 3.5],
+    loftDeg: 0, minRange: 0, maxRange: 20, chargeTime: CHARGE_TIME, spread: [0, 0, 0],
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
     // siempre rueda los 20 m: apuntando cerca del enemigo frenaba antes de llegar. Y cuanto mejor el
@@ -173,25 +147,6 @@ export const CLUBS: Record<ClubId, Club> = {
 /** Radio del área de un palo para un nivel de golpe (1, 2, 3). 0 = no abre área. */
 export function spreadFor(club: Club, quality: number): number {
   return club.spread[Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1] ?? 0;
-}
-
-/**
- * Radio del área del **poder** para un nivel de golpe. Los tres palos que hacen daño de impacto tienen
- * la suya, aparte del área del daño; el wedge, que es puro zonal, usa la misma para las dos cosas.
- */
-export function powerSpreadFor(club: Club, quality: number): number {
-  const q = Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1;
-  return club.effectSpread?.[q] ?? spreadFor(club, quality);
-}
-
-/**
- * ¿El poder se **suma** al daño, en vez de reemplazarlo? Los tres palos que pegan de impacto sí: hacen
- * su daño de siempre y además enfrían o juntan alrededor de donde llegan. El wedge no: es puro zonal,
- * su daño *es* el área, y ahí el poder ocupa el lugar del daño. Por eso el wedge sigue siendo el que
- * elegís cuando lo que querés es el efecto y no el número.
- */
-export function stacksPower(club: Club): boolean {
-  return !!club.effectSpread;
 }
 
 /** Cuánto lo frena el pasto para un nivel de golpe. Sin tabla propia, la fricción normal del pasto. */
@@ -242,54 +197,12 @@ export function areaDamageFor(club: Club, meters: number, quality: number): numb
   return table[bandOf(meters)][Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1];
 }
 
-export interface Enchant {
-  id: EnchantId;
-  name: string;
-  title: string;
-  hint: string;
-  /** Segundos de recarga. El golpe no tiene: es el que siempre está. */
-  cooldown: number;
-  /**
-   * Símbolo que se dibuja en la punta de la línea de tiro, cerca del mouse. **Vacío = no se dibuja
-   * nada**, y es el caso normal: el golpe es el estado de reposo, así que un símbolo en cada tiro es
-   * ruido permanente, y el vendaval ya se anuncia con su rectángulo. El símbolo queda para lo que
-   * cambia el tiro y no se ve de otra forma. Los palos nunca tienen: tapaban la puntería.
-   */
-  icon: string;
-  color: number;
-}
-
-/**
- * Los poderes se eligen con Q, W y E, y valen para cualquier palo. **El golpe no tiene recarga: es el
- * estado de reposo.** Los otros dos sí, así que la decisión es cuándo gastarlos; después de usar uno
- * la mano vuelve sola al golpe, que siempre está.
- */
-export const ENCHANTS: Record<EnchantId, Enchant> = {
-  damage: {
-    id: 'damage', name: 'Golpe', title: 'daño', hint: 'Puro daño, el del palo a esa distancia. Siempre listo',
-    cooldown: 0, icon: '', color: 0xffb347,
-  },
-  ice: {
-    id: 'ice', name: 'Escarcha', title: 'los enfría', hint: 'Frío: camina lento, sin escudo y sin aura. No hace daño',
-    cooldown: 4, icon: '❄', color: 0x7fd4ff,
-  },
-  push: {
-    id: 'push', name: 'Vendaval', title: 'los junta', hint: 'Los junta sobre la línea del tiro, para el tiro siguiente. Con el driver el viento va detrás de la pelota por todo el recorrido; con los otros, donde cae',
-    cooldown: 3, icon: '', color: 0xff6b4a,
-  },
-};
-
 /**
  * Pelota de reserva (tecla S): la deja a los pies, en el puesto donde está parado. Es la salida para
  * cuando los guardias tiran las pelotas lejos y quedás mirando llegar a la horda sin nada que pegarle.
  * Se recarga sola, de a una, y se pueden guardar unas pocas: es un respiro, no una fuente infinita.
  */
 export const RESERVE = { cooldown: 10, max: 2 };
-
-export const ENCHANT_ORDER: EnchantId[] = ['damage', 'ice', 'push'];
-
-/** Tecla de cada poder, para el HUD. */
-export const ENCHANT_KEYS = ['Q', 'W', 'E'];
 
 /**
  * Calidad del golpe: puro timing, tres niveles. La barra sube y después rebota; soltar arriba del
@@ -312,29 +225,8 @@ export function isLob(club: Club): boolean {
 /** Radio de la explosión de los kamikazes. */
 export const EXPLOSION_RADIUS = 3.6;
 
-/**
- * Escarcha: enfría a los que alcanza (caminan lento, no se cubren con el escudo y, si son chamanes,
- * se les apaga el aura). No congela ni cambia el daño que reciben. El área la pone el palo y la
- * calidad del golpe; la duración, solo la calidad.
- */
-export const ICE_SLOW = 0.4;
-export const ICE_SECONDS = [3, 5, 8];
-/** Con el driver, que es lineal, el hielo va a cada uno que atraviesa. */
-export const ICE_LINE_SECONDS = [2, 4, 6];
-
-/**
- * Vendaval: barre un rectángulo orientado según la línea del tiro y empuja a cada uno **hacia la
- * línea**, justo lo que lo separa de ella, así que terminan todos en fila sobre el tiro, servidos
- * para el siguiente. Los que quedan a la misma profundidad no se enciman: quedan hombro con hombro.
- * Con el driver es un pasillo angosto a lo largo de todo el vuelo; con los globos, un rectángulo
- * ancho donde caen.
- */
-export const PUSH_LINE_HALF_WIDTH = 3;
 /** El empujón es una velocidad que se apaga con exp(-KNOCK_DECAY t): recorre velocidad / KNOCK_DECAY. */
 export const KNOCK_DECAY = 6;
-
-/** Cuánto agranda el área cada nivel de calidad. */
-export const QUALITY_AREA = [1, 1.2, 1.5];
 
 /** Palazo (botón aparte): no hace daño. Empuja hacia atrás a todo lo que tenga alrededor, con recarga. */
 export const MELEE_RANGE = 4;
