@@ -4,7 +4,7 @@
 // driver) y si **abre un área** (el hierro y el wedge, más grande cuanto más alto vuela). Los palos ya
 // no llevan poder: el hielo, el vendaval y la granada van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
-import { BALL_RADIUS, launch, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
+import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
 import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
@@ -27,6 +27,9 @@ export interface Ball {
   quality: number;
   /** De dónde salió, para saber a qué distancia pega. */
   from: THREE.Vector3;
+  /** Efecto: la curva del tiro, y cuánto va de ella. */
+  spin: Spin | null;
+  spinTime: number;
   hitIds: Set<number>;
   hits: number;
   /** Ya abrió su área: no la vuelve a abrir aunque siga rodando. */
@@ -87,9 +90,11 @@ export class Balls {
     const trail = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 }));
     trail.frustumCulled = false;
     this.scene.add(mesh, trail);
+    // el efecto curva hacia la derecha de la pantalla, que es el costado (-dz, dx) de la dirección
+    const spin = spinFor(state, range, shot.curve, -shot.dir.z, shot.dir.x, bounce.rollFriction ?? ROLL_FRICTION);
     const ball: Ball = {
       state, club: shot.club, bounce, quality: shot.quality,
-      from: shot.from.clone(),
+      from: shot.from.clone(), spin, spinTime: 0,
       hitIds: new Set(), hits: 0, burst: false, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
@@ -203,6 +208,8 @@ export class Balls {
       const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
       for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
+        applySpin(s, ball.spin, ball.spinTime, dt / steps);
+        ball.spinTime += dt / steps;
         const landed = stepBall(s, dt / steps, ball.bounce, relief.on ? heightAt : undefined);
         // la muralla devuelve la pelota
         if (s.pos.z < GATE_Z - 0.4 && s.vel.z < 0) {

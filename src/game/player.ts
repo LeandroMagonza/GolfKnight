@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CLUB_ORDER, CLUBS, MELEE_COOLDOWN, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
+import { CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, MELEE_COOLDOWN, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
@@ -22,6 +22,8 @@ export interface Shot {
   quality: number;
   /** Potencia cruda al soltar, para los sonidos. */
   power: number;
+  /** Efecto: metros que se corre el tiro al final, hacia la derecha de la pantalla (negativo, izquierda). */
+  curve: number;
   from: THREE.Vector3;
   dir: THREE.Vector3;
 }
@@ -222,12 +224,15 @@ export class Player {
       this.pendingClub = null;
       if (club.id === this.club.id) return;
       // si se había corrido con la pelota, sigue corrido: cambiar de palo no lo devuelve al puesto
+      // y el efecto también sigue, si el palo nuevo lo acepta
       const kept = this.shift;
+      const keptCurve = this.curve;
       this.cancelSwing();
       this.applyClub(club);
       this.anchor.x = this.spotXs[this.spotIndex];
       this.startSwing();
       this.shiftStance(kept);
+      this.bendShot(keptCurve);
       return;
     }
     if (this.mode !== 'free') {
@@ -252,6 +257,7 @@ export class Player {
     if (this.pendingClub) this.applyClub(this.pendingClub);
     this.mode = 'charging';
     this.shift = 0;
+    this.curve = 0;
     this.backswing = 0;
     this.meter.start(this.club.chargeTime);
   }
@@ -342,9 +348,26 @@ export class Player {
    * `SHIFT.reach` para cada lado: es para alinearse con una fila, no para caminar.
    */
   shiftStance(dx: number): void {
-    if (this.mode !== 'charging' || SHIFT.mode === 'apagado') return;
+    if (this.mode !== 'charging' || SHIFT.mode === 'apagado' || SHIFT.mode === 'efecto') return;
     this.shift = THREE.MathUtils.clamp(this.shift + dx, -SHIFT.reach, SHIFT.reach);
     this.anchor.x = this.spotXs[this.spotIndex] + this.shift;
+  }
+
+  /**
+   * Efecto en la mano, en metros de desvío al final del tiro: positivo curva hacia la derecha de la
+   * pantalla. Solo en el modo `efecto` y con los palos que lo aceptan (ver `CURVE`).
+   */
+  curve = 0;
+
+  /** ¿Con este palo, en este modo, A y D curvan el tiro? */
+  get curving(): boolean {
+    return SHIFT.mode === 'efecto' && CURVE_CLUBS.includes(this.club.id);
+  }
+
+  /** Suma `dm` metros de efecto hacia la derecha de la pantalla, sin pasarse de `CURVE.max`. */
+  bendShot(dm: number): void {
+    if (this.mode !== 'charging' || !this.curving) return;
+    this.curve = THREE.MathUtils.clamp(this.curve + dm, -CURVE.max, CURVE.max);
   }
 
   /**
@@ -369,6 +392,9 @@ export class Player {
     // modo continuo el toque no hace nada: lo que mueve es mantener apretado
     if (this.mode === 'charging' && SHIFT.mode !== 'apagado') {
       if (SHIFT.mode === 'pasos') this.shiftStance(delta * SHIFT.step);
+      // con efecto, el toque suma un escalón de curva. `delta` es hacia +x, que en pantalla es la
+      // izquierda: de ahí el signo
+      else if (SHIFT.mode === 'efecto' && CURVE.variant === 'discreto') this.bendShot(-delta * CURVE.step);
       return;
     }
     if (this.busy) {
@@ -411,7 +437,7 @@ export class Player {
 
   /** Daño sostenido (agarre): saca vida sin empujar ni cortar nada. */
   drain(amount: number): void {
-    if (!this.alive) return;
+    if (!this.alive || this.downed) return;
     this.hp = Math.max(0, this.hp - amount);
     this.flashTimer = 0.2;
     if (this.hp <= 0) {
@@ -423,7 +449,7 @@ export class Player {
 
   /** Recibe un golpe desde `from`: pierde vida, retrocede, parpadea en rojo. */
   hit(amount: number, from: THREE.Vector3): void {
-    if (!this.alive || this.invulnerable) return;
+    if (!this.alive || this.invulnerable || this.downed) return;
     this.hp = Math.max(0, this.hp - amount);
     this.flashTimer = 0.25;
     // con 3 de vida, un golpe da un respiro: invulnerable un momento, titilando
@@ -444,6 +470,23 @@ export class Player {
   dispose(scene: THREE.Scene): void {
     scene.remove(this.root, this.rig.club);
     for (const m of this.materials) m.dispose();
+  }
+
+  /** Ya perdió por otro lado (la puerta cayó): queda tirado en el piso, como cuando muere. */
+  downed = false;
+
+  /** Se cae y queda en el piso, con la misma animación de la muerte. */
+  fall(): void {
+    if (this.downed || !this.alive) return;
+    this.downed = true;
+    this.meter.cancel();
+    this.swingShot = null;
+    this.grabbedBy = null;
+    this.blinkTimer = 0;
+    this.knockTimer = 0;
+    this.mode = 'free';
+    this.animator.clearOneShot();
+    this.animator.playOneShot('Hard Landing', 1, true, 0.42);
   }
 
   heal(amount: number): void {
@@ -475,7 +518,7 @@ export class Player {
     if (this.stunned) {
       this.knockTimer -= dt;
       this.animator.setLocomotion('Idle', 1);
-    } else if (!this.alive) {
+    } else if (!this.alive || this.downed) {
       // queda en el piso
     } else if (this.mode === 'melee') {
       stance = true;
@@ -566,7 +609,10 @@ export class Player {
       this.onWhiff?.();
       return;
     }
-    this.onShot?.({ club: this.club, quality: qualityOf(shot.power), power: shot.power, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
+    // el efecto sale con el tiro y la mano vuelve a cero para el próximo
+    const curve = this.curving ? this.curve : 0;
+    this.curve = 0;
+    this.onShot?.({ club: this.club, curve, quality: qualityOf(shot.power), power: shot.power, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
   }
 
   /** Swing con clip de Mixamo: baja hasta el impacto, pega, y sigue hasta el final del gesto. */

@@ -67,9 +67,12 @@ export class Hud {
    * cuenta nada; con el cargador vacío el número grande es la espera, como en las recargas.
    * @param left segundos que faltan para la próxima carga
    */
-  setReserve(charges: number, left: number, total: number, max: number): void {
+  setReserve(enabled: boolean, charges: number, left: number, total: number, max: number): void {
     const el = this.enchantsEl.querySelector('[data-ench="ball"]') as HTMLElement | null;
     if (!el) return;
+    // apagada desde el panel de balance: la ficha no se muestra
+    el.classList.toggle('locked', !enabled);
+    if (!enabled) return;
     const full = charges >= max;
     const bar = el.querySelector('.cd') as HTMLElement;
     bar.style.height = full || total <= 0 ? '0%' : `${(100 * left) / total}%`;

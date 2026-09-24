@@ -31,6 +31,11 @@ const TOWER_CAP_RADIUS = 2.4;
  * cámara quedaba adentro de una y le tapaba media pantalla al jugador.
  */
 export const WALL_FRONT_Z = TOWER_Z + TOWER_CAP_RADIUS;
+/**
+ * Lo más alto de la muralla: la punta del techo de las torres (torre de WALL_HEIGHT + 1.2 y techo de
+ * 1.6). Una cámara más alta que esto ya no puede quedar adentro de una torre.
+ */
+export const WALL_TOP = WALL_HEIGHT + 1.2 + 1.6;
 
 function fairwayTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');

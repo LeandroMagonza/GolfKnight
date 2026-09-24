@@ -112,7 +112,19 @@ donde está el mouse, y se pueden tirar hasta con un tiro cargando. Se ganan jug
 **Correrse cargando** (experimental): mientras cargás el tiro, `A` y `D` te corren **con la pelota**
 hasta 1.2 m para cada lado (un 30 % de lo que hay entre puestos), sin cambiar de puesto, para alinearte
 con una fila. En el panel de balance se elige cómo: *continuo* (mantener apretado, 4 m/s; el de
-arranque), *pasos* (0.4 m por toque) o *apagado* (como antes).
+arranque), *pasos* (0.4 m por toque), *apagado* (como antes) o *efecto*: ahí no te corrés, sino que
+`A` y `D` **curvan el tiro** del driver o del putter, hasta 6 m de desvío al final, y la línea de tiro
+muestra la curva. La curva crece manteniendo (*continuo*) o de a escalones (*discreto*), y vuelve a
+cero al disparar o al soltar la tecla; las dos cosas se eligen en el panel.
+
+**El área pega parejo**: todo el que está adentro del radio del hierro o del wedge cobra el daño
+entero, esté en el centro o en el borde. Solo la explosión del kamikaze pierde fuerza hacia afuera.
+
+**La pelota de reserva (`S`) está apagada**: las habilidades ya traen su propia pelota. Se puede volver
+a prender desde el panel de balance.
+
+**La cámara se encuadra sola**: al subirla o inclinarla se aleja lo necesario para que la línea de los
+puestos quede siempre justo arriba de las barras de abajo. Se apaga o se ajusta en el panel.
 
 Todos esos números viven en `src/core/abilities.ts` y se tocan en vivo en el panel de balance.
 

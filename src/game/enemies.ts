@@ -812,11 +812,15 @@ export class Horde {
   }
 
   /**
-   * Daño en área con caída lineal hasta el borde. Devuelve a cuántos alcanzó. `skip` deja afuera a los
-   * que esa misma pelota ya golpeó al atravesarlos: el hierro atraviesa y además abre un área donde
-   * cae, y nadie tiene que cobrar las dos cosas por un solo tiro.
+   * Daño en área. Devuelve a cuántos alcanzó. `skip` deja afuera a los que esa misma pelota ya golpeó
+   * al atravesarlos: el hierro atraviesa y además abre un área donde cae, y nadie tiene que cobrar las
+   * dos cosas por un solo tiro.
+   *
+   * **El área de un palo pega parejo**: todo el que está adentro del radio cobra el daño entero, esté
+   * en el centro o en el borde. Antes caía hasta un 60 % hacia el borde, y el número del panel no era
+   * el que se cobraba. Solo la explosión del kamikaze pierde fuerza hacia afuera (`falloff`).
    */
-  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>): number {
+  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>, falloff = false): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -830,7 +834,7 @@ export class Horde {
         skip?.add(e.id);
         continue;
       }
-      const f = 1 - 0.6 * Math.max(0, d / radius);
+      const f = falloff ? 1 - 0.6 * Math.max(0, d / radius) : 1;
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
       this.damage(e, damage * f, dir.normalize(), knockback * f);
       skip?.add(e.id);
@@ -843,7 +847,7 @@ export class Horde {
   explode(source: Enemy, player: Player): void {
     const pos = source.position.clone();
     this.emit({ type: 'explosion', pos, radius: EXPLOSION_RADIUS });
-    this.blast(pos, EXPLOSION_RADIUS, BOMB_ENEMY_DAMAGE, 8, source);
+    this.blast(pos, EXPLOSION_RADIUS, BOMB_ENEMY_DAMAGE, 8, source, undefined, true);
     const toPlayer = Math.hypot(player.position.x - pos.x, player.position.z - pos.z);
     if (toPlayer < EXPLOSION_RADIUS && player.alive && !player.invulnerable) {
       player.hit(source.stats.damage, pos);

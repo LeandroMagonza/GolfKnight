@@ -218,14 +218,68 @@ function stepOnTerrain(s: BallState, dt: number, p: BounceParams, ground: Ground
 }
 
 /**
- * Trayectoria de una pelota ya lanzada, hasta que toca el terreno por primera vez. Sirve para que la
- * línea de tiro se corte donde el tiro se corta de verdad: en la loma que tapa.
+ * Efecto: una aceleración de costado, constante, que curva el tiro. Dura lo que el tiro tarda en llegar
+ * a su distancia, así que el desvío se nota al final y no sigue torciendo lo que rueda después.
  */
-export function previewOver(start: BallState, gravity: number, ground: Ground, points = 24, maxSeconds = 4): Vec3[] {
+export interface Spin {
+  ax: number;
+  az: number;
+  seconds: number;
+}
+
+/**
+ * El efecto que hace falta para que el tiro termine `deviation` metros corrido hacia (sideX, sideZ)
+ * (unitario), a la distancia `range`. Sale de cuánto tarda en llegar: el que vuela, lo que tarda en
+ * recorrer `range`, y ahí el desvío es a·t²/2. El que rueda tarda lo que tarda en frenar, y el pasto
+ * frena también lo que se va de costado: con el frenado parejo el desvío queda en a·t²/4, la mitad.
+ * Sin desvío devuelve null.
+ */
+export function spinFor(start: BallState, range: number, deviation: number, sideX: number, sideZ: number, rollFriction = ROLL_FRICTION): Spin | null {
+  if (Math.abs(deviation) < 0.01) return null;
+  const vh = Math.hypot(start.vel.x, start.vel.z);
+  if (vh < 0.1) return null;
+  const seconds = start.rolling ? vh / rollFriction : range / vh;
+  const a = ((start.rolling ? 4 : 2) * deviation) / (seconds * seconds);
+  return { ax: sideX * a, az: sideZ * a, seconds };
+}
+
+/** Le aplica el efecto a la velocidad durante `dt` segundos. `elapsed` es cuánto va del tiro. */
+export function applySpin(s: BallState, spin: Spin | null | undefined, elapsed: number, dt: number): void {
+  if (!spin || elapsed >= spin.seconds) return;
+  const k = Math.min(dt, spin.seconds - elapsed);
+  s.vel.x += spin.ax * k;
+  s.vel.z += spin.az * k;
+}
+
+/**
+ * Trayectoria de una pelota que rueda, paso a paso con la misma física del juego, hasta que frena. Es
+ * la del putter con efecto: una recta ya no alcanza para mostrarla.
+ */
+export function previewRoll(start: BallState, p: BounceParams, spin: Spin | null, points = 24, ground?: Ground, maxSeconds = 4): Vec3[] {
+  const s: BallState = { pos: { ...start.pos }, vel: { ...start.vel }, rolling: true, resting: false, bounces: 0 };
+  const path: Vec3[] = [{ ...s.pos }];
+  const dt = 1 / 120;
+  for (let t = 0; t < maxSeconds && !s.resting; t += dt) {
+    applySpin(s, spin, t, dt);
+    stepBall(s, dt, p, ground);
+    path.push({ ...s.pos });
+  }
+  const out: Vec3[] = [];
+  for (let i = 0; i <= points; i++) out.push(path[Math.round(((path.length - 1) * i) / points)]);
+  return out;
+}
+
+/**
+ * Trayectoria de una pelota ya lanzada, hasta que toca el terreno por primera vez. Sirve para que la
+ * línea de tiro se corte donde el tiro se corta de verdad: en la loma que tapa. Con `spin`, se curva
+ * igual que se va a curvar la pelota.
+ */
+export function previewOver(start: BallState, gravity: number, ground: Ground, points = 24, maxSeconds = 4, spin: Spin | null = null): Vec3[] {
   const s: BallState = { pos: { ...start.pos }, vel: { ...start.vel }, rolling: false, resting: false, bounces: 0 };
   const path: Vec3[] = [{ ...s.pos }];
   const dt = 1 / 240;
   for (let t = 0; t < maxSeconds; t += dt) {
+    applySpin(s, spin, t, dt);
     s.pos.x += s.vel.x * dt;
     s.pos.z += s.vel.z * dt;
     s.pos.y += s.vel.y * dt - 0.5 * gravity * dt * dt;

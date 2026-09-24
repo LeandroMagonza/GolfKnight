@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
-import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
+import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
 import { ABILITIES, ABILITY_KEYS, ABILITY_ORDER, ICE, type AbilityId } from './core/abilities';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityOf, RESERVE, SHIFT, type Club } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityOf, RESERVE, rollFrictionFor, SHIFT, CURVE, type Club } from './core/clubs';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
@@ -17,7 +17,7 @@ import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
-import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, World } from './game/world';
+import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { DebugPanel, loadBalance } from './debug';
 import { Hud } from './hud';
 import { Input } from './input';
@@ -231,7 +231,7 @@ function hasBallHere(): boolean {
  * recarga sola, de a una, y guarda pocas: es un respiro, no una fuente infinita.
  */
 function dropBall(): void {
-  if (!started || paused || ended || cardOpen || !player?.alive) return;
+  if (!RESERVE.enabled || !started || paused || ended || cardOpen || !player?.alive) return;
   if (reserve.charges <= 0) {
     hud.feedback(`Reserva: ${Math.ceil(RESERVE.cooldown - reserve.timer)} s para la próxima`, 'neutral');
     return;
@@ -259,6 +259,24 @@ function placeReserveBall(): boolean {
   return true;
 }
 
+/**
+ * La línea de un tiro con efecto: se simula igual que va a volar la pelota (mismo arranque que
+ * `Balls.fire`, misma curva), porque una recta o una parábola ya no la muestran. Así se ve adónde va a
+ * terminar y se puede alinear con la fila curvando, en vez de correrse.
+ */
+function curvedPath(club: Club, range: number, loft: number, lift: { speed: number; angle: number } | null, quality: number, curve: number) {
+  const dx = player.aimDir.x;
+  const dz = player.aimDir.z;
+  const friction = rollFrictionFor(club, quality);
+  const start = lift
+    ? launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, dx, dz, lift.speed, lift.angle)
+    : launch({ x: tee.x, y: BALL_RADIUS, z: tee.z }, dx, dz, range, loft, club.gravity, friction);
+  const spin = spinFor(start, range, curve, -dz, dx, friction ?? ROLL_FRICTION);
+  return start.rolling
+    ? previewRoll(start, { restitution: club.restitution, bounceKeep: club.bounceKeep, gravity: club.gravity, rollFriction: friction }, spin, PREVIEW_POINTS, relief.on ? heightAt : undefined)
+    : previewOver(start, club.gravity ?? GRAVITY, relief.on ? heightAt : () => 0, PREVIEW_POINTS, 4, spin);
+}
+
 function updatePreview(): void {
   const charging = player.mode === 'charging';
   const club = player.club;
@@ -280,10 +298,13 @@ function updatePreview(): void {
   // con relieve la línea se corta donde el tiro toca el terreno: así se ve cuándo una loma tapa
   const loft = THREE.MathUtils.degToRad(club.loftDeg);
   const lift = shotLift(club, range);
-  const path = lift
-    ? previewOver(launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, player.aimDir.x, player.aimDir.z, lift.speed, lift.angle), club.gravity ?? GRAVITY, heightAt, PREVIEW_POINTS)
-    // el rodado no tiene vuelo que calcular, pero sí tiene que ir pegado al piso: se le pasa el terreno
-    : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity, relief.on ? heightAt : undefined);
+  const curve = player.curving ? player.curve : 0;
+  const path = curve
+    ? curvedPath(club, range, loft, lift, quality, curve)
+    : lift
+      ? previewOver(launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, player.aimDir.x, player.aimDir.z, lift.speed, lift.angle), club.gravity ?? GRAVITY, heightAt, PREVIEW_POINTS)
+      // el rodado no tiene vuelo que calcular, pero sí tiene que ir pegado al piso: se le pasa el terreno
+      : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity, relief.on ? heightAt : undefined);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
   // el arco se ve siempre, no solo mientras se carga
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
@@ -316,6 +337,8 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string): v
   if (ended) return;
   ended = result;
   player.cancelSwing();
+  // si se perdió por la puerta, el golfista termina igual que cuando muere: tirado en el piso
+  if (result === 'defeat') player.fall();
   hud.showEnd(title, `${detail} · ${score} puntos · ${kills} bajas · ${shots} tiros`);
   if (result === 'victory') audio.victory();
   else audio.defeat();
@@ -574,7 +597,7 @@ function makeDebugPanel(): DebugPanel {
       location.href = url.toString();
     },
     courseIndex: () => relief.index,
-    camera: () => ({ pitch: cam.pitch, rise: cam.rise, dist: cam.dist }),
+    camera: () => cam,
   });
 }
 
@@ -874,8 +897,20 @@ camera.position.set(0, 11, -2);
  * La cámara, para poder probar ángulos sin tocar código: la rueda del mouse cambia la **inclinación**
  * (más alto = ves más lejos, más bajo = ves más el campo de frente) y las flechas arriba y abajo la
  * **suben y bajan sin girarla**. Los valores salen en "copiar configuración".
+ *
+ * Con **encuadre automático** (`auto`) la cámara se aleja o se acerca sola para que la línea de los
+ * puestos quede siempre justo arriba de las barras de abajo, a `margin` píxeles: al levantarla o
+ * inclinarla se retrasa lo necesario, y el golfista nunca queda tapado por el HUD. Sin él, mira un
+ * punto fijo `ahead` metros por delante del puesto, como antes.
  */
-const cam = { pitch: savedBalance.camera?.pitch ?? 32, dist: 18.9, rise: savedBalance.camera?.rise ?? 0, ahead: 5.5 };
+const cam = {
+  pitch: savedBalance.camera?.pitch ?? 32, dist: 18.9, rise: savedBalance.camera?.rise ?? 0, ahead: 5.5,
+  auto: savedBalance.camera?.auto ?? true, margin: savedBalance.camera?.margin ?? 24,
+};
+/** Dónde empieza el HUD de abajo, en píxeles desde arriba. Se mide cada tanto: casi no cambia. */
+let hudTop = innerHeight * 0.8;
+let hudMeasured = -Infinity;
+const hudBottom = document.getElementById('bottom')!;
 const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
 
 function tiltCamera(delta: number): void {
@@ -911,11 +946,30 @@ function updateCamera(dt: number): void {
   // Así la rueda cambia el ángulo sin cambiar qué tan lejos está, y las flechas suben las dos cosas a
   // la vez, que es mover la cámara para arriba sin girarla.
   const pitch = THREE.MathUtils.degToRad(cam.pitch);
-  const lookZ = player.anchor.z + cam.ahead;
+  const camY = cam.rise + Math.sin(pitch) * cam.dist;
+  let lookZ = player.anchor.z + cam.ahead;
+  if (cam.auto) {
+    const now = performance.now();
+    if (now - hudMeasured > 500) {
+      hudMeasured = now;
+      hudTop = hudBottom.getBoundingClientRect().top;
+    }
+    // A qué altura de la pantalla tiene que quedar la línea de los puestos, y cuántos grados por debajo
+    // del centro de la mirada es eso. La cámara mira con `pitch` hacia abajo, así que el rayo al puesto
+    // baja `pitch + debajo` grados: de ahí sale a cuántos metros por detrás del puesto va la cámara.
+    const targetPx = THREE.MathUtils.clamp(hudTop - cam.margin, innerHeight * 0.3, innerHeight);
+    const ndc = 1 - (2 * targetPx) / innerHeight;
+    const below = Math.atan(-ndc * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    const ray = Math.min(pitch + below, THREE.MathUtils.degToRad(88));
+    const back = (camY - heightAt(player.anchor.x, player.anchor.z)) / Math.tan(ray);
+    lookZ = player.anchor.z - back + Math.cos(pitch) * cam.dist;
+  }
   camLook.set(x, cam.rise, lookZ);
-  // nunca se retrasa más allá de la cara de las torres: bajándola desde un puesto del costado, la
-  // cámara quedaba adentro de una torre y el techo tapaba un pedazo de pantalla
-  camPos.set(x, cam.rise + Math.sin(pitch) * cam.dist, Math.max(lookZ - Math.cos(pitch) * cam.dist, WALL_FRONT_Z + 0.6));
+  // Baja, nunca se retrasa más allá de la cara de las torres: bajándola desde un puesto del costado,
+  // la cámara quedaba adentro de una torre y el techo tapaba un pedazo de pantalla. Más alta que las
+  // torres ya no hay nada con qué chocar, y el tope le arruinaba el encuadre al levantarla
+  const camZ = lookZ - Math.cos(pitch) * cam.dist;
+  camPos.set(x, camY, camY < WALL_TOP + 1.5 ? Math.max(camZ, WALL_FRONT_Z + 0.6) : camZ);
   const k = 1 - Math.exp(-5 * dt);
   camera.position.lerp(camPos, k);
   camLookNow.lerp(camLook, k);
@@ -971,7 +1025,9 @@ function frame(): void {
 
     if (started) gameClock += dt;
     // la reserva se repone de a una, y solo con la partida en curso
-    if (started && !ended && reserve.charges < RESERVE.max) {
+    if (!RESERVE.enabled) {
+      reserve.wanted = 0;
+    } else if (started && !ended && reserve.charges < RESERVE.max) {
       reserve.timer += dt;
       if (reserve.timer >= RESERVE.cooldown) {
         reserve.timer = 0;
@@ -987,9 +1043,15 @@ function frame(): void {
     }
     // correrse cargando, en el modo continuo: mantener A o D corre con la pelota. El derecho de la
     // pantalla es hacia -x, como en `step`
-    if (started && !ended && SHIFT.mode === 'continuo' && player.mode === 'charging') {
+    // Y el efecto: mantener A o D curva el tiro (continuo), y con «al soltar» vuelve a cero apenas no
+    // hay ninguna de las dos apretada
+    if (started && !ended && player.mode === 'charging') {
       const right = (input.keys.has('KeyD') || input.keys.has('ArrowRight') ? 1 : 0) - (input.keys.has('KeyA') || input.keys.has('ArrowLeft') ? 1 : 0);
-      if (right) player.shiftStance(-right * SHIFT.speed * dt);
+      if (SHIFT.mode === 'continuo' && right) player.shiftStance(-right * SHIFT.speed * dt);
+      if (player.curving) {
+        if (CURVE.variant === 'continuo' && right) player.bendShot(right * CURVE.rate * dt);
+        if (CURVE.reset === 'soltar' && !right) player.curve = 0;
+      }
     }
     updateAim();
     const active = started && !ended;
@@ -1013,7 +1075,7 @@ function frame(): void {
     hud.setClub(player.club, player.pendingClub);
     hud.setAbilities(abilities.cooldowns, abilities.owned);
     hud.setClubState(player.unlocked, player.meleeCooldown);
-    hud.setReserve(reserve.charges, Math.max(0, RESERVE.cooldown - reserve.timer), RESERVE.cooldown, RESERVE.max);
+    hud.setReserve(RESERVE.enabled, reserve.charges, Math.max(0, RESERVE.cooldown - reserve.timer), RESERVE.cooldown, RESERVE.max);
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScore(score, kills);

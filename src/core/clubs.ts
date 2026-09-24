@@ -201,8 +201,11 @@ export function areaDamageFor(club: Club, meters: number, quality: number): numb
  * Pelota de reserva (tecla S): la deja a los pies, en el puesto donde está parado. Es la salida para
  * cuando los guardias tiran las pelotas lejos y quedás mirando llegar a la horda sin nada que pegarle.
  * Se recarga sola, de a una, y se pueden guardar unas pocas: es un respiro, no una fuente infinita.
+ *
+ * **Apagada**: desde que las habilidades traen su propia pelota ya no hace falta. Se vuelve a prender
+ * desde el panel de balance.
  */
-export const RESERVE = { cooldown: 10, max: 2 };
+export const RESERVE = { enabled: false, cooldown: 10, max: 2 };
 
 /**
  * Correrse cargando (experimental): mientras cargás el tiro, A y D te corren **con la pelota** hacia
@@ -210,11 +213,29 @@ export const RESERVE = { cooldown: 10, max: 2 };
  * - **pasos**: cada toque corre `step` metros;
  * - **continuo**: mantener apretado corre a `speed` m/s, y podés tirar desde cualquier punto.
  * Nunca más de `reach` metros para cada lado (los puestos están a 4 m: 1.2 es un 30 %). **apagado**
- * es como antes: durante la carga, A y D quedan anotadas para después del tiro.
+ * es como antes: durante la carga, A y D quedan anotadas para después del tiro. **efecto** no mueve
+ * al golfista: A y D le dan efecto a la pelota y el tiro se curva (ver `CURVE`).
  */
-export type ShiftMode = 'apagado' | 'pasos' | 'continuo';
-export const SHIFT_MODES: ShiftMode[] = ['apagado', 'pasos', 'continuo'];
+export type ShiftMode = 'apagado' | 'pasos' | 'continuo' | 'efecto';
+export const SHIFT_MODES: ShiftMode[] = ['apagado', 'pasos', 'continuo', 'efecto'];
 export const SHIFT: { mode: ShiftMode; reach: number; step: number; speed: number } = { mode: 'continuo', reach: 1.2, step: 0.4, speed: 4 };
+
+/**
+ * Efecto (el modo `efecto` de `SHIFT`), **solo para el driver y el putter**: mientras cargás, A y D
+ * curvan el tiro hacia ese lado, y la línea de tiro muestra la curva. El efecto se mide en **metros de
+ * desvío al final del tiro**, hasta `max` para cada lado.
+ * - `variant`: *continuo* (mantener apretado lo hace crecer a `rate` m/s) o *discreto* (cada toque suma
+ *   `step` metros).
+ * - `reset`: cuándo vuelve a cero. *disparar*: se mantiene hasta que sale el tiro. *soltar*: vuelve a
+ *   cero apenas no hay ninguna de las dos teclas apretada (con *discreto*, hay que tocar y mantener).
+ */
+export type CurveVariant = 'continuo' | 'discreto';
+export type CurveReset = 'disparar' | 'soltar';
+export const CURVE_VARIANTS: CurveVariant[] = ['continuo', 'discreto'];
+export const CURVE_RESETS: CurveReset[] = ['disparar', 'soltar'];
+export const CURVE: { variant: CurveVariant; reset: CurveReset; max: number; step: number; rate: number } = { variant: 'continuo', reset: 'disparar', max: 6, step: 1.5, rate: 8 };
+/** Los palos que aceptan efecto: los dos que van derecho. El hierro y el wedge caen donde apuntás. */
+export const CURVE_CLUBS: ClubId[] = ['driver', 'putter'];
 
 /**
  * Calidad del golpe: puro timing, tres niveles. La barra sube y después rebota; soltar arriba del

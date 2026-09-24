@@ -7,7 +7,7 @@
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
 import { ABILITIES, ABILITY_ORDER, GRENADE, ICE, WIND } from './core/abilities';
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, SHIFT, SHIFT_MODES, type Club, type IronMode, type ShiftMode } from './core/clubs';
+import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import { RISE_CURVE } from './core/swing';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
@@ -32,8 +32,8 @@ export interface DebugHooks {
   setCourse(index: number | null): void;
   /** Qué campo está en juego, para marcarlo. */
   courseIndex(): number;
-  /** Cómo está la cámara ahora, para mostrarla y copiarla. */
-  camera(): { pitch: number; rise: number; dist: number };
+  /** La cámara en vivo: el panel la muestra, la copia y le cambia el encuadre automático. */
+  camera(): { pitch: number; rise: number; dist: number; auto: boolean; margin: number };
 }
 
 /**
@@ -65,7 +65,7 @@ function outdated(from: number, key: string): boolean {
 
 /** Lo que no vive en CLUBS ni en ENEMIES pero igual se guarda. */
 export interface SavedExtras {
-  camera?: { pitch: number; rise: number };
+  camera?: { pitch: number; rise: number; auto?: boolean; margin?: number };
   disabled?: string[];
 }
 
@@ -76,9 +76,11 @@ type Saved = SavedExtras & {
   iron?: IronMode;
   /** Dónde empieza cada nivel de golpe, en potencia 0..1. */
   quality?: number[];
-  reserve?: { cooldown: number; max: number };
+  reserve?: { enabled?: boolean; cooldown: number; max: number };
   /** Correrse cargando: el modo y sus números. */
   shift?: Partial<typeof SHIFT>;
+  /** El efecto: cómo crece, cuándo vuelve a cero y sus números. */
+  curve?: Partial<typeof CURVE>;
   /** Recarga y alcance de cada habilidad, y los números propios de cada una. */
   abilities?: Record<string, { cooldown: number; range: number }>;
   ice?: Partial<typeof ICE>;
@@ -116,9 +118,15 @@ export function loadBalance(): SavedExtras {
     if (saved.shift.mode && SHIFT_MODES.includes(saved.shift.mode)) SHIFT.mode = saved.shift.mode;
     for (const k of ['reach', 'step', 'speed'] as const) if (typeof saved.shift[k] === 'number') SHIFT[k] = saved.shift[k];
   }
+  if (saved.curve) {
+    if (saved.curve.variant && CURVE_VARIANTS.includes(saved.curve.variant)) CURVE.variant = saved.curve.variant;
+    if (saved.curve.reset && CURVE_RESETS.includes(saved.curve.reset)) CURVE.reset = saved.curve.reset;
+    for (const k of ['max', 'step', 'rate'] as const) if (typeof saved.curve[k] === 'number') CURVE[k] = saved.curve[k];
+  }
   if (saved.reserve) {
     if (typeof saved.reserve.cooldown === 'number') RESERVE.cooldown = saved.reserve.cooldown;
     if (typeof saved.reserve.max === 'number') RESERVE.max = saved.reserve.max;
+    if (typeof saved.reserve.enabled === 'boolean') RESERVE.enabled = saved.reserve.enabled;
   }
   for (const id of ABILITY_ORDER) {
     const from = saved.abilities?.[id];
@@ -156,8 +164,9 @@ export function saveBalance(extras: SavedExtras): void {
     out.iron = ironMode();
   }
   out.quality = [...QUALITY_FROM];
-  out.reserve = { cooldown: RESERVE.cooldown, max: RESERVE.max };
+  out.reserve = { enabled: RESERVE.enabled, cooldown: RESERVE.cooldown, max: RESERVE.max };
   out.shift = { ...SHIFT };
+  out.curve = { ...CURVE };
   for (const id of ABILITY_ORDER) out.abilities![id] = { cooldown: ABILITIES[id].cooldown, range: ABILITIES[id].range };
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
     const s = ENEMIES[kind];
@@ -293,7 +302,7 @@ export class DebugPanel {
   /** Guarda el balance tocado, con lo que vive fuera de CLUBS y ENEMIES. */
   save(): void {
     const c = this.hooks.camera();
-    saveBalance({ camera: { pitch: c.pitch, rise: c.rise }, disabled: [...this.hooks.disabled] });
+    saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled] });
   }
 
   private build(): void {
@@ -540,7 +549,9 @@ export class DebugPanel {
         ? 'Cada toque de A o D te corre un paso con la pelota'
         : mode === 'continuo'
           ? 'Mantener A o D te corre con la pelota, y podés tirar desde cualquier punto'
-          : 'Como antes: cargando, A y D quedan anotadas para después del tiro';
+          : mode === 'efecto'
+            ? 'No te corrés: A y D le dan efecto a la pelota y el tiro se curva. Solo driver y putter'
+            : 'Como antes: cargando, A y D quedan anotadas para después del tiro';
       b.addEventListener('click', () => {
         b.blur();
         SHIFT.mode = mode as ShiftMode;
@@ -563,6 +574,57 @@ export class DebugPanel {
       cell(row, unit, 'l');
     }
     el.append(shiftModes, shiftTable, note('Mientras cargás, A y D te corren con la pelota sin cambiar de puesto, para alinearte con una fila. Los puestos están a 4 m: un alcance de 1.2 es un 30 %.'));
+    // el modo «efecto»: cómo crece la curva y cuándo vuelve a cero
+    const choice = <T extends string>(label: string, options: T[], get: () => T, set: (v: T) => void, titles: Record<T, string>) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const tag = document.createElement('span');
+      tag.className = 'note';
+      tag.textContent = label;
+      tag.style.alignSelf = 'center';
+      tag.style.minWidth = '92px';
+      row.append(tag);
+      const buttons = options.map((o) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = o;
+        b.title = titles[o];
+        b.addEventListener('click', () => {
+          b.blur();
+          set(o);
+          for (const other of buttons) other.classList.toggle('on', other.textContent === get());
+          this.save();
+        });
+        return b;
+      });
+      for (const b of buttons) b.classList.toggle('on', b.textContent === get());
+      row.append(...buttons);
+      return row;
+    };
+    const curveTable = document.createElement('table');
+    for (const [label, get, set, step, unit] of [
+      ['curva máx.', () => CURVE.max, (v: number) => { CURVE.max = Math.max(0, v); }, 0.5, 'm de desvío para cada lado'],
+      ['escalón', () => CURVE.step, (v: number) => { CURVE.step = Math.max(0.1, v); }, 0.5, 'm por toque (discreto)'],
+      ['crece a', () => CURVE.rate, (v: number) => { CURVE.rate = Math.max(0.1, v); }, 1, 'm/s (continuo)'],
+    ] as [string, () => number, (v: number) => void, number, string][]) {
+      const row = curveTable.insertRow();
+      cell(row, label, 'l');
+      cell(row, this.field(get, set, step));
+      cell(row, unit, 'l');
+    }
+    el.append(
+      heading('Efecto (modo «efecto»: driver y putter)'),
+      choice('la curva', CURVE_VARIANTS, () => CURVE.variant, (v) => { CURVE.variant = v; }, {
+        continuo: 'Mientras mantenés A o D la curva va creciendo',
+        discreto: 'Cada toque de A o D suma un escalón de curva',
+      }),
+      choice('vuelve a cero', CURVE_RESETS, () => CURVE.reset, (v) => { CURVE.reset = v; }, {
+        disparar: 'La curva se mantiene hasta que sale el tiro',
+        soltar: 'La curva vuelve a cero apenas soltás las dos teclas (con discreto: tocá y mantené)',
+      }),
+      curveTable,
+      note('El desvío se mide al final del tiro: con 6 m, el driver termina 6 m corrido de donde apuntaste. La línea de tiro muestra la curva mientras cargás.'),
+    );
 
     // ---- pelota de reserva ----
     el.append(heading('Pelota de reserva (S)'));
@@ -572,7 +634,10 @@ export class DebugPanel {
     cell(resRow, this.field(() => RESERVE.cooldown, (v) => { RESERVE.cooldown = Math.max(0.5, v); }, 1)).title = 'segundos que tarda en reponerse una carga';
     cell(resRow, 'cargas', 'l');
     cell(resRow, this.field(() => RESERVE.max, (v) => { RESERVE.max = Math.max(1, Math.round(v)); }, 1)).title = 'cuántas pelotas se pueden tener guardadas a la vez';
-    el.append(res, note('S apoya una pelota en el puesto donde estás parado, si no hay una ya. Se repone de a una.'));
+    const resOn = document.createElement('div');
+    resOn.className = 'row';
+    resOn.append(this.toggleButton('Pelota de reserva prendida', () => RESERVE.enabled, (v) => { RESERVE.enabled = v; this.save(); }));
+    el.append(resOn, res, note('Apagada de arranque: las habilidades traen su propia pelota. Prendida, S apoya una pelota en el puesto donde estás parado, si no hay una ya, y se repone de a una.'));
 
     // ---- enemigos ----
     el.append(heading('Enemigos'));
@@ -638,7 +703,20 @@ export class DebugPanel {
     const camLine = document.createElement('p');
     camLine.className = 'note';
     this.camLine = camLine;
-    el.append(camLine, note('Rueda del mouse: inclinación. Flechas arriba y abajo: altura, sin girarla. Los valores van en «copiar configuración».'));
+    const frame = document.createElement('div');
+    frame.className = 'row';
+    const c = this.hooks.camera();
+    frame.append(this.toggleButton('Encuadre automático', () => c.auto, (v) => { c.auto = v; this.save(); }));
+    const marginTable = document.createElement('table');
+    const marginRow = marginTable.insertRow();
+    cell(marginRow, 'puestos sobre las barras', 'l');
+    cell(marginRow, this.field(() => c.margin, (v) => { c.margin = Math.max(0, v); }, 4));
+    cell(marginRow, 'px', 'l');
+    el.append(camLine, frame, marginTable, note(
+      'Rueda del mouse: inclinación. Flechas arriba y abajo: altura, sin girarla. '
+      + 'Con el encuadre automático la cámara se aleja o se acerca sola para que la línea de los puestos quede siempre justo arriba de las barras de abajo: '
+      + 'al levantarla o inclinarla se retrasa lo que haga falta. Los valores van en «copiar configuración».',
+    ));
 
     // ---- pruebas ----
     el.append(heading('Pruebas'));
@@ -716,7 +794,7 @@ export class DebugPanel {
     const lines = [
       '// Golf Knight · balance',
       `campo: ${COURSES[this.hooks.courseIndex()].name}`,
-      `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}`,
+      `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}, encuadre ${c.auto ? `automatico a ${c.margin} px de las barras` : 'fijo'}`,
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
       `hierro: modo ${ironMode()}`,
       `carga: barra llena ${CLUB_ORDER.map((id) => `${id} ${CLUBS[id].chargeTime}`).join(', ')} s`,
@@ -741,6 +819,7 @@ export class DebugPanel {
     lines.push(`  granada: radio ${GRENADE.radius} m, centro quieto ${Math.round(GRENADE.core * 100)}% del radio, fuerza ${GRENADE.push} m, silencio ${GRENADE.silence} s, vulnerable +${GRENADE.vulnerable}`);
     lines.push('', `pelota de reserva (S): ${RESERVE.max} cargas, una cada ${RESERVE.cooldown} s`);
     lines.push(`correrse cargando: modo ${SHIFT.mode}, alcance ${SHIFT.reach} m, paso ${SHIFT.step} m, velocidad ${SHIFT.speed} m/s`);
+    lines.push(`efecto: ${CURVE.variant}, vuelve a cero al ${CURVE.reset}, curva max ${CURVE.max} m, escalon ${CURVE.step} m, crece a ${CURVE.rate} m/s`);
     lines.push('', 'enemigos (vida, velocidad, daño):');
     for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
       const s = ENEMIES[kind];

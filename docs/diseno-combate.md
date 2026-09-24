@@ -1406,3 +1406,25 @@ poderes y hay que pasarlas a las habilidades.
 - El guardado del panel pasó a la versión 3: los números viejos de la granada y el vendaval vuelven al
   código; el resto de lo ajustado se conserva.
 - Leandro confirmó que las habilidades salen al apretar (smart cast), sin mantener para apuntar.
+
+### Tercera tanda del 24/9
+
+- **Cámara**: el HUD de abajo quedó pegado al borde (de abajo hacia arriba: fichas, barra de carga,
+  textos) y la cámara tiene **encuadre automático**. Mide dónde empieza el HUD y calcula cuánto
+  retrasarse para que la línea de los puestos quede justo arriba: al subirla o inclinarla se aleja
+  sola. Elegí esto en vez de teclas para alejar a mano porque es un control menos y el problema no
+  vuelve con ninguna combinación de inclinación y altura. Se apaga en el panel, y el margen sobre las
+  barras se ajusta ahí. El tope contra la muralla ahora vale solo si la cámara está más baja que las
+  torres: más alta no hay con qué chocar, y el tope le arruinaba el encuadre.
+- **Panel de balance** más ancho: 560 px.
+- **Derrota por la puerta**: el golfista cae al piso con la misma animación de la muerte
+  (`Player.fall`), y ya no recibe golpes.
+- **Efecto**, un cuarto modo de «correrse cargando», solo driver y putter: A y D curvan el tiro en vez
+  de correrte. El efecto se mide en metros de desvío al final del tiro (hasta 6), y la línea de tiro
+  simula la curva. Variantes: continuo o discreto, y vuelve a cero al disparar (el de arranque) o al
+  soltar. La física está en `spinFor` / `applySpin` de ballistics: aceleración de costado constante
+  mientras el tiro llega a su distancia. Para el que rueda se duplica, porque el pasto frena también lo
+  que se va de costado y el desvío queda en a·t²/4.
+- **Pelota de reserva apagada** (`RESERVE.enabled`); se prende desde el panel.
+- **Daño en área parejo**: había una caída lineal de hasta 60 % hacia el borde, y afectaba al hierro y
+  al wedge. Se sacó; solo la conserva la explosión del kamikaze.

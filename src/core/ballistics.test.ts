@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BALL_RADIUS, launch, launchSpeed, previewPath, stepBall, type BallState } from './ballistics';
+import { applySpin, BALL_RADIUS, launch, launchSpeed, previewPath, spinFor, stepBall, type BallState } from './ballistics';
 import { CLUBS, rangeFor } from './clubs';
 
 const rad = (deg: number) => (deg * Math.PI) / 180;
@@ -68,5 +68,35 @@ describe('ballistics', () => {
 
   it('launchSpeed crece con el alcance', () => {
     expect(launchSpeed(40, rad(30))).toBeGreaterThan(launchSpeed(20, rad(30)));
+  });
+});
+
+describe('efecto', () => {
+  /** Tira hacia +z con efecto hacia -x (la derecha de la pantalla) y mide cuánto se corrió al llegar. */
+  function deviation(loftDeg: number, range: number, curve: number, friction?: number): number {
+    const s = launch({ x: 0, y: BALL_RADIUS, z: 0 }, 0, 1, range, rad(loftDeg), undefined, friction);
+    const spin = spinFor(s, range, curve, -1, 0, friction);
+    const p = { restitution: 0, bounceKeep: 0, rollFriction: friction };
+    const dt = 1 / 240;
+    for (let t = 0; t < 6 && !s.resting && s.pos.z < range; t += dt) {
+      applySpin(s, spin, t, dt);
+      stepBall(s, dt, p);
+      if (!s.rolling && s.bounces > 0) break;
+    }
+    return -s.pos.x;
+  }
+
+  it('el driver termina corrido lo que dice el efecto', () => {
+    expect(deviation(CLUBS.driver.loftDeg, 55, 6)).toBeCloseTo(6, 0);
+    expect(deviation(CLUBS.driver.loftDeg, 55, -3)).toBeCloseTo(-3, 0);
+  });
+
+  it('el putter también, aunque rueda frenando', () => {
+    for (const friction of [20, 50, 80]) expect(deviation(0, 20, 4, friction), String(friction)).toBeCloseTo(4, 0);
+  });
+
+  it('sin efecto no hay curva', () => {
+    const s = launch({ x: 0, y: BALL_RADIUS, z: 0 }, 0, 1, 55, rad(3.5));
+    expect(spinFor(s, 55, 0, -1, 0)).toBeNull();
   });
 });
