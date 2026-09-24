@@ -715,7 +715,9 @@ const input = new Input({
     else player.startMelee();
   },
   restart() {
-    if (started) location.reload();
+    // R solo desde la pausa o desde el cartel del final, que son los dos lugares que la ofrecen. En
+    // pleno juego un toque de más te borraba la partida sin preguntar nada
+    if (started && (paused || ended)) location.reload();
   },
   pause: togglePause,
   muteToggle() {

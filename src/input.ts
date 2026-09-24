@@ -5,7 +5,7 @@
 // suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo**; **Q, W y E eligen el poder**.
 // La rueda del mouse inclina la cámara y las flechas arriba y abajo la suben y bajan, para probar
 // ángulos. Shift (o V) es el palazo, S saca una pelota de la reserva, B abre el panel de balance,
-// Escape pausa, R reinicia, C cambia el skin, M silencia la música.
+// Escape pausa, R reinicia (solo en pausa o al terminar), C cambia el skin, M silencia la música.
 
 export interface InputEvents {
   swingStart(): void;
