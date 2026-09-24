@@ -24,10 +24,19 @@ describe('habilidades', () => {
     expect(ICE.slow).toBeLessThan(1);
   });
 
-  it('el vendaval llega como el driver y deja vulnerables a los que silencia', () => {
+  it('el vendaval llega como el driver y solo los junta', () => {
     expect(ABILITIES.wind.range).toBe(CLUBS.driver.fixedRange);
-    expect(WIND.silence).toBeGreaterThan(0);
-    expect(WIND.vulnerable).toBe(1);
+    // con el silencio encima quedaba demasiado fuerte: ahora eso es de la granada
+    expect(Object.keys(WIND)).toEqual(['halfWidth']);
+  });
+
+  it('la granada silencia y deja vulnerables, con un centro que no se mueve', () => {
+    expect(GRENADE.silence).toBeGreaterThan(0);
+    expect(GRENADE.vulnerable).toBe(1);
+    // el centro es un tercio: tirada encima de un grupo, los deja donde están
+    expect(GRENADE.core).toBeCloseTo(1 / 3);
+    // y la fuerza los saca del área, así las dos filas quedan afuera
+    expect(GRENADE.push).toBeGreaterThan(GRENADE.radius);
   });
 
   it('la granada deja a todos a la misma distancia de la línea, cada uno de su lado', () => {

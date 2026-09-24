@@ -57,8 +57,9 @@ export type AbilityEvent =
   | { type: 'cast'; id: AbilityId }
   /** Cayó el hielo: la zona quedó armada y agarró a `hits` de entrada. */
   | { type: 'zone'; pos: THREE.Vector3; hits: number }
-  /** Terminó de pasar el vendaval: `hits` silenciados. */
-  | { type: 'silenced'; pos: THREE.Vector3; hits: number }
+  /** Terminó de pasar el vendaval: `hits` juntados sobre la línea. */
+  | { type: 'gust'; pos: THREE.Vector3; hits: number }
+  /** Cayó la granada: `hits` silenciados. */
   | { type: 'grenade'; pos: THREE.Vector3; hits: number };
 
 export type CastResult = 'ok' | 'locked' | 'cooling';
@@ -128,7 +129,9 @@ export class Abilities {
       this.onEvent?.({ type: 'zone', pos, hits });
     } else if (ball.id === 'grenade') {
       this.effects.explosion(pos, GRENADE.radius, ABILITIES.grenade.color);
-      const hits = this.horde.spread(pos, ball.dir, GRENADE.radius, GRENADE.push);
+      // el anillo chico marca el centro, el que no se mueve
+      this.effects.swipe(pos, GRENADE.radius * GRENADE.core);
+      const hits = this.horde.spread(pos, ball.dir, GRENADE.radius, GRENADE.radius * GRENADE.core, GRENADE.push, GRENADE.silence);
       this.onEvent?.({ type: 'grenade', pos, hits });
     }
   }
@@ -153,7 +156,7 @@ export class Abilities {
   /**
    * El viento del vendaval va **detrás** de la pelota: barre solo el tramo que ya pasó, así que a cada
    * uno lo acomoda después de pasarle por al lado, nunca antes. A cada uno que agarra lo junta sobre la
-   * línea y lo silencia.
+   * línea.
    */
   private blow(ball: AbilityBall): void {
     const s = ball.state;
@@ -161,7 +164,7 @@ export class Abilities {
     if (gone > ball.swept) {
       const mid = ball.from.clone().addScaledVector(ball.dir, (ball.swept + gone) / 2);
       mid.y = heightAt(mid.x, mid.z);
-      this.horde.sweep(mid, ball.dir, WIND.halfWidth, (gone - ball.swept) / 2, ball.caught, false, (e) => e.silence(WIND.silence));
+      this.horde.sweep(mid, ball.dir, WIND.halfWidth, (gone - ball.swept) / 2, ball.caught);
       // un remolino cada tantos metros: uno por cuadro sería una nube continua
       if (Math.floor(gone / 6) > Math.floor(ball.swept / 6)) {
         this.effects.swipe(new THREE.Vector3(s.pos.x, heightAt(s.pos.x, s.pos.z), s.pos.z), WIND.halfWidth);
@@ -172,7 +175,7 @@ export class Abilities {
       ball.done = true;
       const mid = ball.from.clone().addScaledVector(ball.dir, ball.swept / 2);
       mid.y = heightAt(mid.x, mid.z);
-      this.onEvent?.({ type: 'silenced', pos: mid, hits: ball.caught.size });
+      this.onEvent?.({ type: 'gust', pos: mid, hits: ball.caught.size });
     }
   }
 

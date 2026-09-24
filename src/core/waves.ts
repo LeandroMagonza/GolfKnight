@@ -91,10 +91,10 @@ export interface Wave {
 
 export const WAVES: Wave[] = [
   { title: 'Los cuatro palos', interval: 2.2, groups: [{ kind: 'goblin', count: 8 }, { kind: 'skeleton', count: 4 }] },
-  // el vendaval es lo que baja los escudos, así que llega justo con ellos
-  { title: 'Escudos al frente', unlock: 'wind', interval: 2.2, groups: [{ kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
+  // la granada es lo que baja los escudos, así que llega justo con ellos
+  { title: 'Escudos al frente', unlock: 'grenade', interval: 2.2, groups: [{ kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
   { title: 'La estampida', unlock: 'ice', interval: 1.5, groups: [{ kind: 'goblin', count: 10 }, { kind: 'kamikaze', count: 4 }, { kind: 'skeleton', count: 4 }] },
-  { title: 'Almas en pena', unlock: 'grenade', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
+  { title: 'Almas en pena', unlock: 'wind', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
   { title: 'El chamán los vuelve inmunes', interval: 1.6, groups: [{ kind: 'shaman', count: 2 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }] },
   { title: 'El Gólem de roca', interval: 1.5, groups: [{ kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }] },
 ];

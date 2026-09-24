@@ -6,7 +6,7 @@ import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launchSpeed, launchWith, previewOver, previewPath } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
 import { ABILITIES, ABILITY_KEYS, ABILITY_ORDER, ICE, type AbilityId } from './core/abilities';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityOf, RESERVE, type Club } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityOf, RESERVE, SHIFT, type Club } from './core/clubs';
 import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
@@ -220,8 +220,9 @@ let lastQuality = 0;
 
 /** ¿El golfista está parado en un puesto que tiene pelota? */
 function hasBallHere(): boolean {
-  const i = tees.nearest(player.anchor.x);
-  return Math.abs(tees.spots[i].x - player.anchor.x) < 0.1 && tees.hasBall(i);
+  // parado en el puesto, o corrido un poco cargando el tiro: la pelota va con él
+  const i = player.stanceSpot();
+  return i >= 0 && tees.hasBall(i);
 }
 
 /**
@@ -432,15 +433,15 @@ abilities.onEvent = (e) => {
       audio.frost();
       if (e.hits) hud.feedback(e.hits > 2 ? `¡Hielo ×${e.hits}!` : `Hielo ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
       break;
-    case 'silenced':
+    case 'gust':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
-      if (e.hits) hud.feedback(e.hits > 2 ? `¡Silenciados ×${e.hits}!` : `Silenciados ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
+      if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
       break;
     case 'grenade':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
       audio.explosion();
       if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.15);
-      if (e.hits >= 3) hud.feedback(`¡Granada! ×${e.hits}`, 'good');
+      if (e.hits) hud.feedback(e.hits > 2 ? `¡Silenciados ×${e.hits}!` : `Silenciados ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
       break;
   }
 };
@@ -750,8 +751,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
   if (ALL_CLUBS) for (const id of ABILITY_ORDER) abilities.owned.add(id);
   p.spotXs = tees.spots.map((s) => s.x);
   p.canFire = () => {
-    const i = tees.nearest(p.anchor.x);
-    return Math.abs(tees.spots[i].x - p.anchor.x) < 0.1 && tees.take(i);
+    const i = p.stanceSpot();
+    return i >= 0 && tees.take(i);
   };
   p.canStart = () => hasBallHere();
   p.onWhiff = () => {
@@ -941,8 +942,8 @@ function updateWaves(dt: number): void {
         // apagado desde el panel de balance: la oleada sigue igual, pero este tipo no sale
         if (disabledKinds.has(e.kind)) break;
         horde.spawn(e.kind);
-        if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. El vendaval lo deja vulnerable');
-        else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: silencialo con el vendaval (E)', 'bad');
+        if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
+        else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: silencialo con la granada (Q)', 'bad');
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacátela con el palazo (Shift)', 'bad');
         break;
       case 'cleared':
@@ -984,6 +985,12 @@ function frame(): void {
       reserve.wanted -= dt;
       if (placeReserveBall()) reserve.wanted = 0;
     }
+    // correrse cargando, en el modo continuo: mantener A o D corre con la pelota. El derecho de la
+    // pantalla es hacia -x, como en `step`
+    if (started && !ended && SHIFT.mode === 'continuo' && player.mode === 'charging') {
+      const right = (input.keys.has('KeyD') || input.keys.has('ArrowRight') ? 1 : 0) - (input.keys.has('KeyA') || input.keys.has('ArrowLeft') ? 1 : 0);
+      if (right) player.shiftStance(-right * SHIFT.speed * dt);
+    }
     updateAim();
     const active = started && !ended;
     if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
@@ -994,7 +1001,8 @@ function frame(): void {
       balls.update(dt);
       abilities.update(dt);
       const stance = player.mode === 'charging' || player.mode === 'swinging';
-      tees.update(dt, player.spotIndex, stance && player.atSpot ? player.spotIndex : -1);
+      // en la postura la pelota se dibuja a los pies del golfista, aunque se haya corrido cargando
+      tees.update(dt, player.spotIndex, stance && player.stanceSpot() >= 0 ? player.spotIndex : -1);
       traps.update(dt);
     }
     effects.update(dt);

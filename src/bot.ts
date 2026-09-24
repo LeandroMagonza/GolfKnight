@@ -4,7 +4,7 @@
 //
 // Juega con el reparto nuevo: elige **palo** por la distancia a la que está el blanco (el driver cobra
 // de lejos, el putter de cerca, el hierro y el wedge parejo) y tira **habilidades** según la situación
-// (vendaval para abrir defensas, hielo cuando lo rodean, granada a un grupo a media distancia). No busca
+// (granada para abrir defensas, hielo cuando lo rodean, vendaval a un grupo a media distancia). No busca
 // filas ni clava el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace
 // una persona.
 
@@ -127,11 +127,12 @@ export function startBot(): BotStats {
         stats.casts[id] = (stats.casts[id] ?? 0) + 1;
         setTimeout(() => key(ABILITY_KEYS[id]), 80);
       };
-      // 1) vendaval a quien haya que abrir: chamán conjurando, escudo en alto, jefe sin silenciar
-      const open = ab.ready('wind') && (alive.find((e) => e.casting && dist(e) < 50)
-        ?? alive.filter((e) => e.shieldUp && dist(e) < 50).sort((a, b) => a.position.z - b.position.z)[0]
-        ?? alive.find((e) => e.stats.boss && !e.silenced && dist(e) < 50));
-      if (open) return cast('wind', open.position.x, open.position.z);
+      // 1) granada encima de quien haya que abrir (chamán conjurando, escudo en alto, jefe sin
+      // silenciar): cae en el centro, así que lo silencia sin moverlo
+      const open = ab.ready('grenade') && (alive.find((e) => e.casting && dist(e) < 44)
+        ?? alive.filter((e) => e.shieldUp && dist(e) < 44).sort((a, b) => a.position.z - b.position.z)[0]
+        ?? alive.find((e) => e.stats.boss && !e.silenced && dist(e) < 44));
+      if (open) return cast('grenade', open.position.x, open.position.z);
       // 2) varios cerca: el hielo los frena ahí mismo
       const near = alive.filter((e) => dist(e) < 14);
       if (near.length >= 3 && ab.ready('ice')) {
@@ -139,12 +140,12 @@ export function startBot(): BotStats {
         const cz = near.reduce((s, e) => s + e.position.z, 0) / near.length;
         return cast('ice', cx, cz);
       }
-      // 3) un grupo a media distancia: la granada los ordena en dos filas para el driver
-      const mid = alive.filter((e) => dist(e) > 18 && dist(e) < 40);
-      if (mid.length >= 3 && ab.ready('grenade')) {
+      // 3) un grupo a media distancia: el vendaval los junta en fila para el driver
+      const mid = alive.filter((e) => dist(e) > 18 && dist(e) < 50);
+      if (mid.length >= 3 && ab.ready('wind')) {
         const cx = mid.reduce((s, e) => s + e.position.x, 0) / mid.length;
         const cz = mid.reduce((s, e) => s + e.position.z, 0) / mid.length;
-        return cast('grenade', cx, cz);
+        return cast('wind', cx, cz);
       }
     }
 

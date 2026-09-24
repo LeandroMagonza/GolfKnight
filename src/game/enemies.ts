@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { grenadeShift, ICE, WIND } from '../core/abilities';
+import { GRENADE, grenadeShift, ICE } from '../core/abilities';
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt } from '../core/terrain';
@@ -91,7 +91,7 @@ export class Enemy {
   /** Frío de la zona de hielo: segundos que le quedan y de cuántos. Solo lo hace caminar lento. */
   chillTimer = 0;
   chillMax = 1;
-  /** Silencio del vendaval: sin escudo, sin aura, sin inmunidad, y vulnerable. Segundos que le quedan. */
+  /** Silencio de la granada: sin escudo, sin aura, sin inmunidad, y vulnerable. Segundos que le quedan. */
   silenceTimer = 0;
   silenceMax = 1;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
@@ -256,7 +256,7 @@ export class Enemy {
   }
 
   /**
-   * Silenciado por el vendaval: no se cubre con el escudo, si es chamán no conjura, ningún aura lo
+   * Silenciado por la granada: no se cubre con el escudo, si es chamán no conjura, ningún aura lo
    * protege, y cada pelotazo le saca uno más (ver `Horde.damage`).
    */
   get silenced(): boolean {
@@ -365,7 +365,7 @@ export class Enemy {
     }
   }
 
-  /** Silencio del vendaval durante `seconds`: sin escudo, sin aura, sin inmunidad y vulnerable. */
+  /** Silencio de la granada durante `seconds`: sin escudo, sin aura, sin inmunidad y vulnerable. */
   silence(seconds: number): void {
     if (!this.alive || seconds <= 0) return;
     if (seconds >= this.silenceTimer) {
@@ -672,7 +672,7 @@ export class Enemy {
     return false;
   }
 
-  /** ¿Tiene el escudo en alto? Silenciado por el vendaval lo baja hasta que se le pasa. */
+  /** ¿Tiene el escudo en alto? Silenciado por la granada lo baja hasta que se le pasa. */
   get shieldUp(): boolean {
     return this.stats.shield && this.alive && !this.silenced && !this.passed;
   }
@@ -798,11 +798,11 @@ export class Horde {
       this.emit({ type: 'immune', enemy });
       return false;
     }
-    // El silenciado por el vendaval queda vulnerable: cada pelotazo le saca uno más, aunque el palo
-    // pegue cero. Es lo que hace que el vendaval sirva contra los jefes, no solo contra los grupos.
+    // El silenciado por la granada queda vulnerable: cada pelotazo le saca uno más, aunque el palo
+    // pegue cero. Es lo que hace que la granada sirva contra los jefes, no solo contra los grupos.
     // La vida va en enteros: todo golpe que entra saca al menos 1 (el redondeo es por la explosión del
     // kamikaze, que pierde fuerza hacia el borde)
-    const raw = amount + (enemy.silenced ? WIND.vulnerable : 0);
+    const raw = amount + (enemy.silenced ? GRENADE.vulnerable : 0);
     const dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
     const killed = enemy.damage(dealt, knockDir, knockback);
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
@@ -861,10 +861,10 @@ export class Horde {
    * Protege al que lo lleva, si la explosión le queda de frente, y **a los que tiene detrás**: el
    * escudo hace sombra, así que una fila parapetada atrás de un guerrero se cubre con él. De ahí sale
    * la respuesta: al del escudo no lo resolvés tirándole un globo a los pies, lo resolvés
-   * silenciándolo con el vendaval, o metiendo el globo **detrás** de él, que es de donde el escudo no
+   * silenciándolo con la granada, o metiendo el globo **detrás** de él, que es de donde el escudo no
    * lo tapa.
    *
-   * Las habilidades pasan igual: el vendaval es justamente la forma de sacarle el escudo, y si el
+   * Las habilidades pasan igual: la granada es justamente la forma de sacarle el escudo, y si el
    * escudo lo parara no habría con qué empezar.
    */
   shadowed(pos: THREE.Vector3, e: Enemy): boolean {
@@ -898,9 +898,9 @@ export class Horde {
    * Vendaval: barre un rectángulo centrado en `pos` y orientado según la línea del tiro (`along`,
    * unitario): halfDepth a lo largo de la línea y halfWidth a cada costado. Empuja a cada uno hacia la
    * línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del tiro: una
-   * fila servida para el driver. A cada uno que agarra le pasa `each` (el silencio). Devuelve a cuántos.
+   * fila servida para el driver. Devuelve a cuántos movió.
    */
-  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>, oval = false, each?: (e: Enemy) => void): number {
+  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>, oval = false): number {
     let count = 0;
     // el costado de la línea del tiro, en el piso
     const side = new THREE.Vector3(along.z, 0, -along.x);
@@ -919,7 +919,6 @@ export class Horde {
         if (u * u + v * v > 1) continue;
       } else if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
       if (Math.abs(lateral) > 0.05) e.shove(dir.copy(side).multiplyScalar(-Math.sign(lateral)), Math.abs(lateral) * KNOCK_DECAY);
-      each?.(e);
       skip?.add(e.id);
       count++;
     }
@@ -927,12 +926,13 @@ export class Horde {
   }
 
   /**
-   * Granada: agarra a todos los que estén a `radius` de `pos` y los tira **a los costados de la línea
-   * del tiro** (`along`, unitario), hasta dejarlos a `push` metros de ella. Quedan en dos filas
-   * paralelas al tiro, que apuntan hacia el golfista: servidas para el driver. No hace daño. El que cae
-   * justo sobre la línea sale para un lado al azar. Devuelve a cuántos movió.
+   * Granada: agarra a todos los que estén a `radius` de `pos`, los **silencia** `silence` segundos, y
+   * a los que no están en el centro los tira **a los costados de la línea del tiro** (`along`,
+   * unitario), hasta dejarlos a `push` metros de ella: dos filas paralelas al tiro, que apuntan hacia el
+   * golfista. Los del centro (a menos de `core` metros) se quedan quietos. No hace daño. El que cae
+   * justo sobre la línea sale para un lado al azar. Devuelve a cuántos agarró.
    */
-  spread(pos: THREE.Vector3, along: THREE.Vector3, radius: number, push: number): number {
+  spread(pos: THREE.Vector3, along: THREE.Vector3, radius: number, core: number, push: number, silence: number): number {
     let count = 0;
     const side = new THREE.Vector3(along.z, 0, -along.x);
     const dir = new THREE.Vector3();
@@ -940,13 +940,17 @@ export class Horde {
       if (!e.alive || e.passed) continue;
       const rx = e.position.x - pos.x;
       const rz = e.position.z - pos.z;
-      if (Math.hypot(rx, rz) - e.radius > radius) continue;
+      const d = Math.hypot(rx, rz);
+      if (d - e.radius > radius) continue;
+      e.silence(silence);
+      count++;
+      // el centro no se mueve: tirándola encima de un grupo, los dejás silenciados donde están
+      if (d <= core) continue;
       let lateral = rx * side.x + rz * side.z;
       if (Math.abs(lateral) < 0.05) lateral = Math.random() < 0.5 ? -0.05 : 0.05;
       const shift = grenadeShift(lateral, push);
       // la velocidad es lo que tiene que recorrer por KNOCK_DECAY: el empujón se apaga justo ahí
       if (shift !== 0) e.shove(dir.copy(side).multiplyScalar(Math.sign(shift)), Math.abs(shift) * KNOCK_DECAY);
-      count++;
     }
     return count;
   }
@@ -972,7 +976,7 @@ export class Horde {
   /**
    * Aura de los chamanes: todo enemigo dentro del radio de un chamán que está conjurando es inmune.
    * Un chamán nunca queda protegido, ni por su propia aura ni por la de otro: si no, dos chamanes
-   * juntos serían imposibles de matar. Y el silenciado por el vendaval tampoco: el silencio le saca
+   * juntos serían imposibles de matar. Y el silenciado por la granada tampoco: el silencio le saca
    * cualquier inmunidad.
    */
   private updateWards(): void {

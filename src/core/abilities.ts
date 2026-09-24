@@ -7,9 +7,11 @@
 //
 // Cada una nació de la combinación que más se usaba:
 // - **Hielo** es el wedge con escarcha: un globo que cae donde apuntás y deja una zona fría.
-// - **Vendaval** es el driver con vendaval: un tiro rasante que junta a todos sobre la línea. Y se quedó
-//   con lo que antes hacía el hielo: silencia (sin escudo, sin aura, sin inmunidad) y los deja vulnerables.
-// - **Granada** es nueva: un tiro rápido que no lastima, solo los reacomoda para el driver.
+// - **Vendaval** es el driver con vendaval: un tiro rasante que junta a todos sobre la línea. Nada más:
+//   con el silencio encima quedaba demasiado fuerte.
+// - **Granada** es nueva: un tiro rápido que no lastima. Se quedó con lo que antes hacía el hielo:
+//   silencia (sin escudo, sin aura, sin inmunidad) y los deja vulnerables. Y los reacomoda: a los del
+//   borde los tira a los costados, a los del centro los deja donde están.
 //
 // **Todos los números de las habilidades están acá**, y se tocan en vivo en el panel de balance (B).
 
@@ -29,8 +31,8 @@ export interface Ability {
 
 export const ABILITIES: Record<AbilityId, Ability> = {
   grenade: {
-    id: 'grenade', name: 'Granada', title: 'los alinea',
-    hint: 'Un tiro rápido que cae donde apuntás y los tira a los costados: quedan en dos filas mirando hacia vos, servidas para el driver. No hace daño',
+    id: 'grenade', name: 'Granada', title: 'los silencia',
+    hint: 'Un tiro rápido que cae donde apuntás y silencia a todos los que agarra: sin escudo, sin aura del chamán, sin inmunidad, y cada pelotazo les saca uno más. A los del borde los tira a los costados; a los del centro los deja quietos. No hace daño',
     cooldown: 6, range: 45, color: 0xffc94a,
   },
   ice: {
@@ -39,8 +41,8 @@ export const ABILITIES: Record<AbilityId, Ability> = {
     cooldown: 10, range: 55, color: 0x7fd4ff,
   },
   wind: {
-    id: 'wind', name: 'Vendaval', title: 'los silencia',
-    hint: 'Rasante, como el driver: los junta sobre la línea del tiro y los silencia. Sin escudo, sin aura del chamán, sin inmunidad, y cada pelotazo les saca uno más',
+    id: 'wind', name: 'Vendaval', title: 'los junta',
+    hint: 'Rasante, como el driver: el viento va detrás de la pelota y los junta sobre la línea del tiro, en fila para el próximo pelotazo',
     cooldown: 8, range: 55, color: 0xff6b4a,
   },
 };
@@ -55,17 +57,17 @@ export const ABILITY_KEYS = ['Q', 'W', 'E'];
  */
 export const ICE = { radius: 4, duration: 5, linger: 0.5, slow: 0.4 };
 
-/**
- * Vendaval: el pasillo de viento que va detrás de la pelota, `halfWidth` a cada lado de la línea.
- * Silencia `silence` segundos, y mientras dura cada pelotazo le saca `vulnerable` de más.
- */
-export const WIND = { halfWidth: 3, silence: 5, vulnerable: 1 };
+/** Vendaval: el pasillo de viento que va detrás de la pelota, `halfWidth` a cada lado de la línea. */
+export const WIND = { halfWidth: 3 };
 
 /**
- * Granada: agarra a todos los que estén a `radius` de donde cae y los tira a los costados de la línea
- * del tiro, hasta dejarlos a `push` metros de ella: dos filas paralelas al tiro.
+ * Granada: agarra a todos los que estén a `radius` de donde cae y los **silencia** `silence` segundos;
+ * mientras dura, cada pelotazo les saca `vulnerable` de más. Los del **centro** (hasta `core` del
+ * radio: un tercio) se quedan quietos; los de afuera salen hacia los costados de la línea del tiro,
+ * hasta quedar a `push` metros de ella. Tirada al costado de un grupo los aparta; encima, los deja
+ * donde están.
  */
-export const GRENADE = { radius: 4, push: 5 };
+export const GRENADE = { radius: 5, push: 6, core: 1 / 3, silence: 5, vulnerable: 1 };
 
 /**
  * Cuánto hay que correr hacia el costado a uno que está a `lateral` metros de la línea de la granada

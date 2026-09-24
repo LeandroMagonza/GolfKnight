@@ -94,17 +94,25 @@ donde está el mouse, y se pueden tirar hasta con un tiro cargando. Se ganan jug
 
 | Habilidad | Cómo llega | Qué hace | Recarga | Se gana en |
 | --- | --- | --- | --- | --- |
-| **E · Vendaval** | rasante, 55 m, como el driver | los junta sobre la línea y los **silencia** | 8 s | oleada 2 |
+| **Q · Granada** | tiro rápido que cae donde apuntás | los **silencia**; a los del borde los tira a los costados | 6 s | oleada 2 |
 | **W · Hielo** | globo que cae donde apuntás | deja una **zona fría** de 4 m durante 5 s | 10 s | oleada 3 |
-| **Q · Granada** | tiro rápido que cae donde apuntás | los tira **a los costados**, en dos filas | 6 s | oleada 4 |
+| **E · Vendaval** | rasante, 55 m, como el driver | los **junta** sobre la línea del tiro | 8 s | oleada 4 |
 
-- *Silencio* (vendaval): 5 s sin escudo, sin aura si es chamán y sin la inmunidad que da el aura. Y
-  **vulnerable**: cada pelotazo le saca 1 más, así que sirve contra el jefe, no solo contra los grupos.
-  El viento va detrás de la pelota: a cada uno lo acomoda después de pasarle por al lado.
+- *Granada*: no hace daño. A todos los que agarra (5 m) los **silencia** 5 s: sin escudo, sin aura si
+  es chamán y sin la inmunidad que da el aura. Y quedan **vulnerables**: cada pelotazo les saca 1 más,
+  así que sirve contra el jefe, no solo contra los grupos. Los del **centro** (un tercio del radio) se
+  quedan quietos; los de afuera salen hacia los costados de la línea del tiro hasta quedar a 6 m de
+  ella, en dos filas que apuntan hacia vos. Tirada al costado de un grupo los aparta; encima, los deja
+  donde están.
 - *Zona fría* (hielo): el que está adentro cuando cae, o entra mientras dura, camina al 40 %. Al salir,
-  el frío se le va a los 0.5 s. El hielo **ya no** baja escudos ni apaga al chamán: eso es del vendaval.
-- *Granada*: no hace daño. A los que agarra (4 m) los corre hacia los costados de la línea del tiro
-  hasta dejarlos a 5 m de ella: quedan en dos filas que apuntan hacia vos, servidas para el driver.
+  el frío se le va a los 0.5 s. El hielo **no** baja escudos ni apaga al chamán: eso es de la granada.
+- *Vendaval*: el viento va detrás de la pelota y a cada uno lo corre hasta la línea del tiro, después
+  de pasarle por al lado. Nada más: con el silencio encima quedaba demasiado fuerte.
+
+**Correrse cargando** (experimental): mientras cargás el tiro, `A` y `D` te corren **con la pelota**
+hasta 1.2 m para cada lado (un 30 % de lo que hay entre puestos), sin cambiar de puesto, para alinearte
+con una fila. En el panel de balance se elige cómo: *continuo* (mantener apretado, 4 m/s; el de
+arranque), *pasos* (0.4 m por toque) o *apagado* (como antes).
 
 Todos esos números viven en `src/core/abilities.ts` y se tocan en vivo en el panel de balance.
 

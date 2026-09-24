@@ -7,7 +7,7 @@
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
 import { ABILITIES, ABILITY_ORDER, GRENADE, ICE, WIND } from './core/abilities';
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, type Club, type IronMode } from './core/clubs';
+import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, SHIFT, SHIFT_MODES, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import { RISE_CURVE } from './core/swing';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
@@ -46,10 +46,22 @@ const STORE_KEY = 'gk.balance';
  * Sube cuando el juego **redefine** un valor que el panel guarda. Un guardado viejo lo trae con el
  * número de antes y pisa la decisión nueva sin que nadie se entere: pasó con el mínimo de distancia,
  * que ahora es 0 en los cuatro palos, y con la carga del putter, que se emparejó con la de los demás.
- * Al subir la versión esos dos vuelven al valor del código y el resto de lo tocado se conserva.
+ * Al subir la versión esos vuelven al valor del código y el resto de lo tocado se conserva.
+ *
+ * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
+ * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 2;
-const RESET_ON_UPGRADE: readonly string[] = ['minRange', 'chargeTime'];
+const VERSION = 3;
+const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
+  // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
+  2: ['minRange', 'chargeTime'],
+  // la granada creció y se quedó con el silencio; el vendaval lo perdió
+  3: ['grenade', 'wind'],
+};
+/** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
+function outdated(from: number, key: string): boolean {
+  return Object.entries(RESET_ON_UPGRADE).some(([v, keys]) => from < Number(v) && keys.includes(key));
+}
 
 /** Lo que no vive en CLUBS ni en ENEMIES pero igual se guarda. */
 export interface SavedExtras {
@@ -65,6 +77,8 @@ type Saved = SavedExtras & {
   /** Dónde empieza cada nivel de golpe, en potencia 0..1. */
   quality?: number[];
   reserve?: { cooldown: number; max: number };
+  /** Correrse cargando: el modo y sus números. */
+  shift?: Partial<typeof SHIFT>;
   /** Recarga y alcance de cada habilidad, y los números propios de cada una. */
   abilities?: Record<string, { cooldown: number; range: number }>;
   ice?: Partial<typeof ICE>;
@@ -82,13 +96,13 @@ export function loadBalance(): SavedExtras {
     return {};
   }
   if (saved.bands?.length === BAND_LIMITS.length) BAND_LIMITS.splice(0, BAND_LIMITS.length, ...saved.bands);
-  const stale = saved.version !== VERSION;
+  const version = saved.version ?? 1;
   for (const id of CLUB_ORDER) {
     const from = saved.clubs?.[id];
     if (!from) continue;
     const club = CLUBS[id];
     for (const k of ['minRange', 'maxRange', 'chargeTime', 'fixedRange'] as const) {
-      if (stale && RESET_ON_UPGRADE.includes(k)) continue;
+      if (outdated(version, k)) continue;
       if (typeof from[k] === 'number') club[k] = from[k];
     }
     if (from.spread?.length === club.spread.length) club.spread = from.spread;
@@ -98,6 +112,10 @@ export function loadBalance(): SavedExtras {
   }
   if (saved.iron && IRON_MODES[saved.iron]) setIronMode(saved.iron);
   if (saved.quality?.length === QUALITY_FROM.length) QUALITY_FROM.splice(0, QUALITY_FROM.length, ...saved.quality);
+  if (saved.shift) {
+    if (saved.shift.mode && SHIFT_MODES.includes(saved.shift.mode)) SHIFT.mode = saved.shift.mode;
+    for (const k of ['reach', 'step', 'speed'] as const) if (typeof saved.shift[k] === 'number') SHIFT[k] = saved.shift[k];
+  }
   if (saved.reserve) {
     if (typeof saved.reserve.cooldown === 'number') RESERVE.cooldown = saved.reserve.cooldown;
     if (typeof saved.reserve.max === 'number') RESERVE.max = saved.reserve.max;
@@ -108,7 +126,8 @@ export function loadBalance(): SavedExtras {
     if (typeof from?.range === 'number') ABILITIES[id].range = from.range;
   }
   // solo los números que el código todavía tiene: un guardado viejo no mete claves que ya no existen
-  for (const [into, from] of [[ICE, saved.ice], [WIND, saved.wind], [GRENADE, saved.grenade]] as [Record<string, number>, Record<string, number> | undefined][]) {
+  for (const [name, into, from] of [['ice', ICE, saved.ice], ['wind', WIND, saved.wind], ['grenade', GRENADE, saved.grenade]] as [string, Record<string, number>, Record<string, number> | undefined][]) {
+    if (outdated(version, name)) continue;
     for (const k of Object.keys(into)) if (typeof from?.[k] === 'number') into[k] = from[k];
   }
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
@@ -138,6 +157,7 @@ export function saveBalance(extras: SavedExtras): void {
   }
   out.quality = [...QUALITY_FROM];
   out.reserve = { cooldown: RESERVE.cooldown, max: RESERVE.max };
+  out.shift = { ...SHIFT };
   for (const id of ABILITY_ORDER) out.abilities![id] = { cooldown: ABILITIES[id].cooldown, range: ABILITIES[id].range };
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
     const s = ENEMIES[kind];
@@ -475,13 +495,14 @@ export class DebugPanel {
         ['camina al', () => Math.round(ICE.slow * 100), (v) => { ICE.slow = Math.min(1, Math.max(0, v / 100)); }, 5, '% de su velocidad'],
       ]],
       ['Vendaval', [
-        ['silencio', () => WIND.silence, (v) => { WIND.silence = Math.max(0, v); }, 0.5, 's sin escudo, aura ni inmunidad'],
-        ['vulnerable', () => WIND.vulnerable, (v) => { WIND.vulnerable = Math.max(0, v); }, 1, 'de daño de más por pelotazo'],
         ['ancho', () => WIND.halfWidth, (v) => { WIND.halfWidth = Math.max(0.5, v); }, 0.5, 'm a cada lado de la línea'],
       ]],
       ['Granada', [
         ['radio', () => GRENADE.radius, (v) => { GRENADE.radius = Math.max(0.5, v); }, 0.5, 'm de la explosión'],
+        ['centro', () => Math.round(GRENADE.core * 100), (v) => { GRENADE.core = Math.min(1, Math.max(0, v / 100)); }, 5, '% del radio que no se mueve'],
         ['fuerza', () => GRENADE.push, (v) => { GRENADE.push = Math.max(0, v); }, 0.5, 'm de la línea a los que los deja'],
+        ['silencio', () => GRENADE.silence, (v) => { GRENADE.silence = Math.max(0, v); }, 0.5, 's sin escudo, aura ni inmunidad'],
+        ['vulnerable', () => GRENADE.vulnerable, (v) => { GRENADE.vulnerable = Math.max(0, v); }, 1, 'de daño de más por pelotazo'],
       ]],
     ];
     for (const [name, rows] of own) {
@@ -501,9 +522,47 @@ export class DebugPanel {
     }
     el.append(note(
       'Cada habilidad tira su propia pelota: no gasta la del puesto. El hielo deja una zona: el que está adentro, o entra mientras dura, camina lento, y al salir se le pasa. '
-      + 'El vendaval los junta sobre la línea y los silencia: sin escudo, sin aura del chamán, sin inmunidad, y cada pelotazo les saca uno más. '
-      + 'La granada no lastima: los tira a los costados de la línea del tiro y los deja en dos filas, a «fuerza» metros de ella.',
+      + 'El vendaval los junta sobre la línea del tiro, nada más. '
+      + 'La granada no lastima: silencia a todos los que agarra (sin escudo, sin aura del chamán, sin inmunidad, y cada pelotazo les saca «vulnerable» de más). '
+      + 'Los del centro se quedan quietos; los de afuera salen a los costados de la línea del tiro y quedan en dos filas, a «fuerza» metros de ella.',
     ));
+
+    // ---- correrse cargando ----
+    el.append(heading('Correrse cargando (A / D, experimental)'));
+    const shiftModes = document.createElement('div');
+    shiftModes.className = 'row';
+    const shiftButtons: HTMLButtonElement[] = [];
+    for (const mode of SHIFT_MODES) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = mode;
+      b.title = mode === 'pasos'
+        ? 'Cada toque de A o D te corre un paso con la pelota'
+        : mode === 'continuo'
+          ? 'Mantener A o D te corre con la pelota, y podés tirar desde cualquier punto'
+          : 'Como antes: cargando, A y D quedan anotadas para después del tiro';
+      b.addEventListener('click', () => {
+        b.blur();
+        SHIFT.mode = mode as ShiftMode;
+        for (const other of shiftButtons) other.classList.toggle('on', other.textContent === SHIFT.mode);
+        this.save();
+      });
+      shiftButtons.push(b);
+      shiftModes.append(b);
+    }
+    for (const b of shiftButtons) b.classList.toggle('on', b.textContent === SHIFT.mode);
+    const shiftTable = document.createElement('table');
+    for (const [label, get, set, step, unit] of [
+      ['alcance', () => SHIFT.reach, (v: number) => { SHIFT.reach = Math.max(0, v); }, 0.1, 'm para cada lado'],
+      ['paso', () => SHIFT.step, (v: number) => { SHIFT.step = Math.max(0.05, v); }, 0.1, 'm por toque (pasos)'],
+      ['velocidad', () => SHIFT.speed, (v: number) => { SHIFT.speed = Math.max(0.1, v); }, 0.5, 'm/s (continuo)'],
+    ] as [string, () => number, (v: number) => void, number, string][]) {
+      const row = shiftTable.insertRow();
+      cell(row, label, 'l');
+      cell(row, this.field(get, set, step));
+      cell(row, unit, 'l');
+    }
+    el.append(shiftModes, shiftTable, note('Mientras cargás, A y D te corren con la pelota sin cambiar de puesto, para alinearte con una fila. Los puestos están a 4 m: un alcance de 1.2 es un 30 %.'));
 
     // ---- pelota de reserva ----
     el.append(heading('Pelota de reserva (S)'));
@@ -678,9 +737,10 @@ export class DebugPanel {
     lines.push('', 'habilidades (recarga en s, alcance en m):');
     for (const id of ABILITY_ORDER) lines.push(`  ${id}: recarga ${ABILITIES[id].cooldown}, alcance ${ABILITIES[id].range}`);
     lines.push(`  hielo: radio ${ICE.radius} m, dura ${ICE.duration} s, al salir ${ICE.linger} s, camina al ${Math.round(ICE.slow * 100)}%`);
-    lines.push(`  vendaval: silencio ${WIND.silence} s, vulnerable +${WIND.vulnerable}, ancho ${WIND.halfWidth} m a cada lado`);
-    lines.push(`  granada: radio ${GRENADE.radius} m, fuerza ${GRENADE.push} m`);
+    lines.push(`  vendaval: ancho ${WIND.halfWidth} m a cada lado`);
+    lines.push(`  granada: radio ${GRENADE.radius} m, centro quieto ${Math.round(GRENADE.core * 100)}% del radio, fuerza ${GRENADE.push} m, silencio ${GRENADE.silence} s, vulnerable +${GRENADE.vulnerable}`);
     lines.push('', `pelota de reserva (S): ${RESERVE.max} cargas, una cada ${RESERVE.cooldown} s`);
+    lines.push(`correrse cargando: modo ${SHIFT.mode}, alcance ${SHIFT.reach} m, paso ${SHIFT.step} m, velocidad ${SHIFT.speed} m/s`);
     lines.push('', 'enemigos (vida, velocidad, daño):');
     for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
       const s = ENEMIES[kind];

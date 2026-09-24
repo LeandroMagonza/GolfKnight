@@ -1389,3 +1389,20 @@ Arranque: hielo 4 m, 5 s, recarga 10 s; vendaval 5 s de silencio, recarga 8 s; g
 
 Pendiente: las pruebas de navegador (`tools/playtest.mjs`, `tools/relieve.mjs`) todavía usan la API de
 poderes y hay que pasarlas a las habilidades.
+
+### Segunda tanda del 24/9, después de probarlo
+
+- **El vendaval quedó demasiado fuerte**: pierde el silencio y el +1. Solo los junta sobre la línea.
+- **El silencio y la vulnerabilidad pasan a la granada**, que agarra un poco más (5 m de radio). Todos
+  los que agarra quedan silenciados y vulnerables. Los del **centro** (un tercio del radio) no se
+  mueven; los de afuera salen a los costados como antes. Tirada al costado los aparta, encima los deja
+  donde están. La fuerza subió de 5 a 6 m para que las dos filas sigan quedando afuera del área.
+- Como ahora la granada es la que baja escudos, **pasó a la oleada 2** (la de los escudos) y el
+  vendaval a la 4. Decisión mía, siguiendo la misma lógica que Leandro ya había aprobado.
+- **Correrse cargando** (experimental): mientras cargás, A y D te corren con la pelota sin cambiar de
+  puesto, hasta 1.2 m por lado (30 % de los 4 m entre puestos). Dos variantes elegibles en el panel,
+  más *apagado* para comparar con lo de antes: *pasos* (0.4 m por toque) y *continuo* (mantener
+  apretado, 4 m/s; es el de arranque). `SHIFT` en `src/core/clubs.ts`.
+- El guardado del panel pasó a la versión 3: los números viejos de la granada y el vendaval vuelven al
+  código; el resto de lo ajustado se conserva.
+- Leandro confirmó que las habilidades salen al apretar (smart cast), sin mantener para apuntar.

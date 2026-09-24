@@ -27,10 +27,10 @@ describe('waves', () => {
   });
 
   it('lo que dan las oleadas son habilidades, no palos: los cuatro palos están desde el principio', () => {
-    // se ganan jugando, de a una: el vendaval llega con los escudos, que es lo que los baja
+    // se ganan jugando, de a una: la granada llega con los escudos, que es lo que los baja
     expect(unlockedAt(-1)).toEqual([]);
     expect(unlockedAt(0)).toEqual([]);
-    expect(unlockedAt(1)).toEqual(['wind']);
+    expect(unlockedAt(1)).toEqual(['grenade']);
     expect(WAVES[1].groups.some((g) => g.kind === 'warrior')).toBe(true);
     expect(unlockedAt(WAVES.length - 1).sort()).toEqual(['grenade', 'ice', 'wind']);
     // ninguna oleada estrena dos habilidades a la vez

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CLUB_ORDER, CLUBS, MELEE_COOLDOWN, qualityOf, type Club, type ClubId } from '../core/clubs';
+import { CLUB_ORDER, CLUBS, MELEE_COOLDOWN, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
@@ -221,9 +221,13 @@ export class Player {
     if (this.mode === 'charging') {
       this.pendingClub = null;
       if (club.id === this.club.id) return;
+      // si se había corrido con la pelota, sigue corrido: cambiar de palo no lo devuelve al puesto
+      const kept = this.shift;
       this.cancelSwing();
       this.applyClub(club);
+      this.anchor.x = this.spotXs[this.spotIndex];
       this.startSwing();
+      this.shiftStance(kept);
       return;
     }
     if (this.mode !== 'free') {
@@ -247,6 +251,7 @@ export class Player {
     // encadenar otro tiro apenas pasó el impacto también cuenta como fin del tiro anterior
     if (this.pendingClub) this.applyClub(this.pendingClub);
     this.mode = 'charging';
+    this.shift = 0;
     this.backswing = 0;
     this.meter.start(this.club.chargeTime);
   }
@@ -329,6 +334,29 @@ export class Player {
     return Math.abs(this.anchor.x - this.spotXs[this.spotIndex]) < 0.05;
   }
 
+  /** Cuánto se corrió del puesto cargando el tiro, en metros de x (ver `SHIFT`). */
+  shift = 0;
+
+  /**
+   * Se corre `dx` metros con la pelota, sin cambiar de puesto. Solo mientras carga, y nunca más de
+   * `SHIFT.reach` para cada lado: es para alinearse con una fila, no para caminar.
+   */
+  shiftStance(dx: number): void {
+    if (this.mode !== 'charging' || SHIFT.mode === 'apagado') return;
+    this.shift = THREE.MathUtils.clamp(this.shift + dx, -SHIFT.reach, SHIFT.reach);
+    this.anchor.x = this.spotXs[this.spotIndex] + this.shift;
+  }
+
+  /**
+   * El puesto cuya pelota tiene a los pies, o -1. Parado en el puesto, o corrido un poco cargando el
+   * tiro, que se lleva la pelota con él.
+   */
+  stanceSpot(): number {
+    const off = Math.abs(this.anchor.x - this.spotXs[this.spotIndex]);
+    const inStance = this.mode === 'charging' || this.mode === 'swinging';
+    return off < 0.1 || (inStance && off <= SHIFT.reach + 0.05) ? this.spotIndex : -1;
+  }
+
   /**
    * Pide moverse `delta` puestos. Con el golfista libre se acumula: dos toques seguidos son dos puestos.
    * **Durante un tiro, no.** Ahí se guarda un solo toque, el último, y vale poco tiempo: apretar dos
@@ -337,6 +365,12 @@ export class Player {
    */
   step(delta: number): void {
     if (!this.alive) return;
+    // cargando, A y D corren con la pelota en vez de anotar un cambio de puesto (ver `SHIFT`). En el
+    // modo continuo el toque no hace nada: lo que mueve es mantener apretado
+    if (this.mode === 'charging' && SHIFT.mode !== 'apagado') {
+      if (SHIFT.mode === 'pasos') this.shiftStance(delta * SHIFT.step);
+      return;
+    }
     if (this.busy) {
       this.bufferedStep = delta;
       this.bufferLeft = STEP_BUFFER;

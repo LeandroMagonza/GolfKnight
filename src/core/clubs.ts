@@ -205,6 +205,18 @@ export function areaDamageFor(club: Club, meters: number, quality: number): numb
 export const RESERVE = { cooldown: 10, max: 2 };
 
 /**
+ * Correrse cargando (experimental): mientras cargás el tiro, A y D te corren **con la pelota** hacia
+ * un costado, sin cambiar de puesto, para alinearte con una fila. Dos formas, para probar cuál va:
+ * - **pasos**: cada toque corre `step` metros;
+ * - **continuo**: mantener apretado corre a `speed` m/s, y podés tirar desde cualquier punto.
+ * Nunca más de `reach` metros para cada lado (los puestos están a 4 m: 1.2 es un 30 %). **apagado**
+ * es como antes: durante la carga, A y D quedan anotadas para después del tiro.
+ */
+export type ShiftMode = 'apagado' | 'pasos' | 'continuo';
+export const SHIFT_MODES: ShiftMode[] = ['apagado', 'pasos', 'continuo'];
+export const SHIFT: { mode: ShiftMode; reach: number; step: number; speed: number } = { mode: 'continuo', reach: 1.2, step: 0.4, speed: 4 };
+
+/**
  * Calidad del golpe: puro timing, tres niveles. La barra sube y después rebota; soltar arriba del
  * todo es el nivel 3. No tiene nada que ver con la distancia, que la decide el mouse.
  */
