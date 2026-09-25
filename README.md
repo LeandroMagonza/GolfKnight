@@ -29,7 +29,7 @@ decir una sola cosa:
 | **Mouse** | hacia dónde y **a qué distancia** cae la pelota |
 | **Barra de carga** | **qué tan bien** le pegaste: tres niveles de calidad, puro timing |
 | **Palo** (`1`, `2`, `3`, `4`) | **cómo llega** la pelota, y cuánto pega a esa distancia |
-| **Habilidad** (`Q`, `W`, `E`) | granada, hielo y vendaval: salen en el acto, con su propia pelota |
+| **Habilidad** (`Q`, `W`, `E`, `R`) | las que elegiste en las cartas: salen en el acto, con su propia pelota |
 | **Rueda** del mouse / `↑` `↓` | inclinar la cámara / subirla y bajarla sin girarla |
 
 - **Puestos y pelotas.** El golfista no camina libre: se mueve de costado entre nueve puestos marcados
@@ -86,28 +86,61 @@ silenciándolo con el vendaval, cayéndole detrás con el wedge, o pegándole de
 El hierro tiene **dos modos** en el panel de balance, para probarle la identidad: *revienta* (el de
 arriba) y *atraviesa* (pasa de largo hasta a tres y abre su área donde cae, le pegue a alguien o no).
 
-### Las habilidades (`Q`, `W`, `E`)
+### Las habilidades (`Q`, `W`, `E`, `R`) y las cartas
 
-Los palos ya no llevan poder: pegan su golpe y nada más. Las habilidades van aparte, y **cada una tira
-su propia pelota**: no gasta la del puesto ni ninguna otra. Salen en el acto al apretar la tecla, hacia
-donde está el mouse, y se pueden tirar hasta con un tiro cargando. Se ganan jugando, una por oleada.
+**Al terminar cada oleada salen tres cartas y te quedás con una** (click, o `1`, `2`, `3`). Hay de tres
+clases:
 
-| Habilidad | Cómo llega | Qué hace | Recarga | Se gana en |
-| --- | --- | --- | --- | --- |
-| **Q · Granada** | tiro rápido que cae donde apuntás | los **silencia**; a los del borde los tira a los costados | 6 s | oleada 2 |
-| **W · Hielo** | globo que cae donde apuntás | deja una **zona fría** de 4 m durante 5 s | 10 s | oleada 3 |
-| **E · Vendaval** | rasante, 55 m, como el driver | los **junta** sobre la línea del tiro | 8 s | oleada 4 |
+- **Habilidad**: una nueva va al primer lugar libre de `Q`, `W`, `E` o `R`. Si ya la tenés, sube de
+  nivel (hasta 3): pega más o agarra más, pero **recarga un 30 % más lento por nivel**.
+- **Mejora**: cosas que valen para todo el juego. A propósito no tocan la tabla de daño de ningún palo,
+  para no romper la regla de «cada palo tiene su distancia».
+- **Curarse**: la puerta (+3) o vos (+1). **Ya no te curás solo entre oleadas**: curarse es elegir no
+  mejorar. Si la puerta está a la mitad o te queda una vida, una de las tres cartas es sí o sí para
+  curarse.
 
-- *Granada*: no hace daño. A todos los que agarra (5 m) los **silencia** 5 s: sin escudo, sin aura si
-  es chamán y sin la inmunidad que da el aura. Y quedan **vulnerables**: cada pelotazo les saca 1 más,
-  así que sirve contra el jefe, no solo contra los grupos. Los del **centro** (un tercio del radio) se
-  quedan quietos; los de afuera salen hacia los costados de la línea del tiro hasta quedar a 6 m de
-  ella, en dos filas que apuntan hacia vos. Tirada al costado de un grupo los aparta; encima, los deja
-  donde están.
-- *Zona fría* (hielo): el que está adentro cuando cae, o entra mientras dura, camina al 40 %. Al salir,
-  el frío se le va a los 0.5 s. El hielo **no** baja escudos ni apaga al chamán: eso es de la granada.
-- *Vendaval*: el viento va detrás de la pelota y a cada uno lo corre hasta la línea del tiro, después
-  de pasarle por al lado. Nada más: con el silencio encima quedaba demasiado fuerte.
+Cada habilidad tira **su propia pelota**: no gasta la del puesto. Sale en el acto hacia el mouse, aun con
+un tiro cargando.
+
+**Palo y elemento** (12): cualquier palo con hielo, fuego o rayo. Es un tiro de ese palo, instantáneo, con
+pelota gratis y **cargado al nivel de la habilidad**, que además:
+- *Hielo*: enfría a cada uno que alcanza.
+- *Fuego*: lo prende; pierde 1 de vida por segundo.
+- *Rayo*: salta al enemigo más cercano, una vez por nivel. **Nunca salta a uno que ya tocó**, así que
+  no puede dar vueltas matando a todo.
+
+**Las demás** (12):
+
+| Habilidad | Qué hace |
+| --- | --- |
+| Granada | silencia a los que agarra (sin escudo, sin aura, sin inmunidad, vulnerables); a los del borde los tira a los costados |
+| Hielo | zona fría que dura: el que está adentro camina lento |
+| Vendaval | rasante, los junta sobre la línea del tiro |
+| Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
+| Hoyo | el primero que lo pisa cae y no vuelve (los jefes no) |
+| Bandera | los que están cerca van hacia ella en vez de a la puerta |
+| Pólvora | marca; el marcado que muere explota, y encadena si los de al lado están marcados |
+| Boomerang | tirás el palo de la mano: va y vuelve pegando, y mientras vuela ese palo no se puede usar |
+| Lluvia de pelotas | una pelota en cada puesto |
+| Caddie dorado | unos segundos con pelota infinita en tu puesto |
+| Lupa | los agranda: más fáciles de pegar, y vulnerables |
+| Clon | una copia tuya repite tus próximos tiros desde donde la dejaste |
+
+**Mejoras**: Muñeca rápida (la barra carga un 15 % antes), Punto dulce (el perfecto un 35 % más ancho),
+Ritmo (cada tiro seguido que mata carga el próximo más rápido), Racha del albañil (5 tiros seguidos
+matando curan 1 de puerta), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
+Carcaj (si vas a pegar sin pelota, te aparece una; una cada 12 s), Pelota extra (los guardias mantienen
+una más), Segundo aire (apretar una habilidad que recarga la tira igual, y recarga él 30 s).
+
+**Maestrías**, que solo salen con dos habilidades del mismo elemento:
+- *Hielo*: un segundo hielo sobre el que ya está frío lo **congela**, y el golpe que rompe el hielo pega
+  el doble.
+- *Fuego*: el que muere prendido contagia a los de al lado.
+- *Rayo*: salta una vez más, y cada salto pega el doble.
+
+**Enemigos nuevos**: el *goblin acorazado* (1 de vida, pero le resta 1 a cada golpe: el driver de cerca
+no le hace nada) y el *esqueleto bendito* (el primer golpe no le entra, y el escudo se le recarga a los
+5 s).
 
 **Correrse cargando** (experimental): mientras cargás el tiro, `A` y `D` te corren **con la pelota**
 hasta 1.2 m para cada lado (un 30 % de lo que hay entre puestos), sin cambiar de puesto, para alinearte
@@ -126,7 +159,7 @@ a prender desde el panel de balance.
 **La cámara se encuadra sola**: al subirla o inclinarla se aleja lo necesario para que la línea de los
 puestos quede siempre justo arriba de las barras de abajo. Se apaga o se ajusta en el panel.
 
-Todos esos números viven en `src/core/abilities.ts` y se tocan en vivo en el panel de balance.
+Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se tocan en vivo en el panel de balance, que además tiene una sección para sacar cartas o tomar cualquier habilidad o mejora al instante.
 
 ### Lo demás
 

@@ -246,8 +246,21 @@ export const QUALITY_LEVELS = 3;
 export const QUALITY_FROM = [0, 0.55, 0.92];
 export function qualityOf(power: number): number {
   let q = 1;
-  for (let i = 1; i < QUALITY_FROM.length; i++) if (power >= QUALITY_FROM[i]) q = i + 1;
+  for (let i = 1; i < QUALITY_FROM.length; i++) if (power >= qualityStart(i)) q = i + 1;
   return q;
+}
+
+/**
+ * Lo que agrandan las mejoras la ventana del golpe perfecto (la carta «Punto dulce»). Va aparte de
+ * QUALITY_FROM porque ese lo guarda el panel de balance: si la mejora lo tocara, quedaría guardada para
+ * la partida siguiente.
+ */
+export const QUALITY_BONUS = { perfectWiden: 1 };
+
+/** Dónde empieza de verdad el nivel `i`, con la ventana del perfecto agrandada por las mejoras. */
+export function qualityStart(i: number): number {
+  if (i !== QUALITY_LEVELS - 1) return QUALITY_FROM[i];
+  return Math.max(QUALITY_FROM[i - 1] + 0.01, 1 - (1 - QUALITY_FROM[i]) * QUALITY_BONUS.perfectWiden);
 }
 
 /** Un globo se calcula para caer en el punto apuntado; el rasante y el rodado, no. */

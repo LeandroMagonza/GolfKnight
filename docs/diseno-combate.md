@@ -1428,3 +1428,33 @@ poderes y hay que pasarlas a las habilidades.
 - **Pelota de reserva apagada** (`RESERVE.enabled`); se prende desde el panel.
 - **Daño en área parejo**: había una caída lineal de hasta 60 % hacia el borde, y afectaba al hierro y
   al wedge. Se sacó, y el 25/9 también de la explosión del kamikaze: toda área pega parejo.
+
+## Hecho: cartas entre oleadas, 24 habilidades y mejoras (25/9/2026)
+
+Pedido de Leandro: implementar muchas habilidades y mejoras para probarlas, con un sistema de selección.
+
+- **Cartas**: al terminar cada oleada salen tres (`src/core/cards.ts`): habilidad nueva o subir de nivel,
+  mejora, o curarse. Se elige con click o 1, 2 y 3. La curación dejó de ser automática: ahora es una
+  carta, y sale sí o sí cuando la puerta está a la mitad o queda una vida. Las oleadas ya no regalan
+  habilidades.
+- **Cuatro lugares**: Q, W, E y R (la R reinicia solo en pausa o al terminar). Con los cuatro llenos,
+  solo salen subidas de nivel.
+- **Niveles**: hasta 3. Cada nivel pega o agarra más, y recarga un 30 % más lento (`LEVELS`).
+- **Palo y elemento**: las 12 combinaciones, como pidió: un tiro de ese palo al instante, con pelota
+  gratis, cargado al nivel de la habilidad. El wedge y el hierro agrandan el área con el nivel porque su
+  área ya crece con la calidad del golpe.
+- **Elementos**: hielo (enfría), fuego (1 por segundo), rayo (salta al más cercano, nunca a uno que ya
+  tocó: se evita el bucle que mataba a todo). Maestrías cuando hay dos fuentes del mismo elemento: el
+  hielo congela y el golpe que rompe el hielo pega el doble; el fuego contagia al morir; el rayo salta
+  una vez más y pega el doble.
+- **Otras**: carrito, hoyo, bandera, pólvora, boomerang de palo (bloquea ese palo mientras vuela),
+  lluvia de pelotas, caddie dorado, lupa y clon. Más las tres que ya estaban.
+- **Mejoras**: muñeca rápida, punto dulce (agranda la ventana del perfecto sin tocar QUALITY_FROM, que
+  lo guarda el panel), ritmo, racha del albañil, perfecto de regalo, carcaj (una pelota cada 12 s si
+  vas a pegar sin pelota), pelota extra y segundo aire (como lo aclaró Leandro: tira igual una habilidad
+  que está recargando, y el que recarga 30 s es él).
+- **Enemigos**: goblin acorazado (armadura 1, 1 de vida) y esqueleto bendito (escudo divino que se
+  recarga a los 5 s). Dos oleadas nuevas, «Acorazados» y «Los benditos»: ahora son ocho.
+
+Quedaron afuera a propósito: la escopeta, el doble driver, el driver fantasma y el tótem. Las cuatro
+se pueden sumar sobre la misma estructura.

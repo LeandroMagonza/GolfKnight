@@ -1,9 +1,8 @@
 // Oleadas: qué enemigos salen y cada cuánto. WaveDirector decide cuándo aparece el próximo.
 // Los enemigos salen sueltos, sin formación: las filas se arman y se desarman solas porque cada uno
 // camina a su ritmo, y encontrarlas es el juego.
-import type { AbilityId } from './abilities';
 
-export type EnemyKind = 'goblin' | 'skeleton' | 'kamikaze' | 'warrior' | 'knight' | 'shaman' | 'wraith' | 'golem';
+export type EnemyKind = 'goblin' | 'skeleton' | 'kamikaze' | 'warrior' | 'knight' | 'shaman' | 'wraith' | 'golem' | 'armored' | 'blessed';
 
 /**
  * melee: camina y pega. kamikaze: corre y explota. shaman: camina con el grupo y vuelve inmunes a los
@@ -40,6 +39,10 @@ export interface EnemyStats {
    * usan: su ritmo lo marca la animación del golpe.
    */
   attackEvery?: number;
+  /** Armadura: se le resta a cada golpe. Con 1, un golpe de 1 no le hace nada. */
+  armor?: number;
+  /** Escudo divino: el primer golpe no le entra, y se le recarga a los tantos segundos. */
+  divine?: number;
   /** Color con el que se tiñe el modelo (0 = sin teñir). */
   tint: number;
   score: number;
@@ -58,6 +61,8 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 10, speed: 1.5, damage: 1, gateDamage: 2, heavy: true, score: 50 },
   shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', height: 1.45, radius: 0.5, hp: 3, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
   wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
+  armored: { ...base, kind: 'armored', name: 'Goblin acorazado', mesh: 'Character_Goblin_WarChief', height: 1.6, radius: 0.6, hp: 1, speed: 2.4, damage: 1, gateDamage: 1, armor: 1, tint: 0xa9b1bb, score: 30 },
+  blessed: { ...base, kind: 'blessed', name: 'Esqueleto bendito', mesh: 'Character_Skeleton_Soldier_02', height: 1.8, radius: 0.55, hp: 3, speed: 2.2, damage: 1, gateDamage: 1, divine: 5, tint: 0xffe6a0, score: 35 },
   golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, attackEvery: GOLEM_THROW_EVERY, score: 500 },
 };
 
@@ -82,32 +87,24 @@ export interface Wave {
   groups: WaveGroup[];
   /** Segundos entre apariciones. */
   interval: number;
-  /**
-   * Habilidad que se estrena en esta oleada: es la que resuelve al enemigo nuevo. **Los cuatro palos
-   * están desde el principio**; lo que se gana jugando son las habilidades.
-   */
-  unlock?: AbilityId;
 }
 
+/**
+ * Las oleadas ya no regalan habilidades: al terminar cada una se eligen cartas (ver core/cards). Cada
+ * una presenta, como mucho, un enemigo nuevo.
+ */
 export const WAVES: Wave[] = [
   { title: 'Los cuatro palos', interval: 2.2, groups: [{ kind: 'goblin', count: 8 }, { kind: 'skeleton', count: 4 }] },
-  // la granada es lo que baja los escudos, así que llega justo con ellos
-  { title: 'Escudos al frente', unlock: 'grenade', interval: 2.2, groups: [{ kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
-  { title: 'La estampida', unlock: 'ice', interval: 1.5, groups: [{ kind: 'goblin', count: 10 }, { kind: 'kamikaze', count: 4 }, { kind: 'skeleton', count: 4 }] },
-  { title: 'Almas en pena', unlock: 'wind', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
-  { title: 'El chamán los vuelve inmunes', interval: 1.6, groups: [{ kind: 'shaman', count: 2 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }] },
-  { title: 'El Gólem de roca', interval: 1.5, groups: [{ kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }] },
+  { title: 'Escudos al frente', interval: 2.2, groups: [{ kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 5 }] },
+  { title: 'La estampida', interval: 1.5, groups: [{ kind: 'goblin', count: 10 }, { kind: 'kamikaze', count: 4 }, { kind: 'skeleton', count: 4 }] },
+  // el acorazado le resta 1 a cada golpe: el driver de cerca no le hace nada
+  { title: 'Acorazados', interval: 1.9, groups: [{ kind: 'armored', count: 5 }, { kind: 'goblin', count: 6 }, { kind: 'skeleton', count: 3 }] },
+  { title: 'Almas en pena', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
+  // el bendito se come el primer golpe: hay que pegarle dos veces seguidas
+  { title: 'Los benditos', interval: 1.8, groups: [{ kind: 'blessed', count: 4 }, { kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 6 }, { kind: 'armored', count: 2 }] },
+  { title: 'El chamán los vuelve inmunes', interval: 1.6, groups: [{ kind: 'shaman', count: 2 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }, { kind: 'blessed', count: 2 }] },
+  { title: 'El Gólem de roca', interval: 1.5, groups: [{ kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }, { kind: 'armored', count: 3 }, { kind: 'blessed', count: 2 }] },
 ];
-
-/** Habilidades disponibles durante la oleada número index. */
-export function unlockedAt(index: number, waves: Wave[] = WAVES): AbilityId[] {
-  const out: AbilityId[] = [];
-  for (let i = 0; i <= index && i < waves.length; i++) {
-    const u = waves[i].unlock;
-    if (u && !out.includes(u)) out.push(u);
-  }
-  return out;
-}
 
 /** Segundos de descanso entre oleadas. */
 export const INTERMISSION = 6;
@@ -180,11 +177,6 @@ export class WaveDirector {
     this.queue = [];
     this.phase = 'rest';
     this.timer = 0.05;
-  }
-
-  /** Habilidad que estrena la oleada que viene, si estrena alguna. */
-  get nextUnlock(): AbilityId | undefined {
-    return this.waves[this.index + 1]?.unlock;
   }
 
   get nextTitle(): string {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Element } from '../core/abilities';
 import { CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, MELEE_COOLDOWN, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
@@ -24,6 +25,10 @@ export interface Shot {
   power: number;
   /** Efecto: metros que se corre el tiro al final, hacia la derecha de la pantalla (negativo, izquierda). */
   curve: number;
+  /** Los tiros de habilidad de palo y elemento: el elemento que dejan. */
+  element?: Element;
+  /** El tiro es de una habilidad, con pelota gratis: no cuenta para las rachas. */
+  ability?: boolean;
   from: THREE.Vector3;
   dir: THREE.Vector3;
 }
@@ -219,7 +224,7 @@ export class Player {
    * las manos: el pedido queda en cola y entra cuando el tiro termina.
    */
   setClub(club: Club): void {
-    if (!this.unlocked.has(club.id)) return;
+    if (!this.unlocked.has(club.id) || club.id === this.thrownClub) return;
     if (this.mode === 'charging') {
       this.pendingClub = null;
       if (club.id === this.club.id) return;
@@ -259,7 +264,47 @@ export class Player {
     this.shift = 0;
     this.curve = 0;
     this.backswing = 0;
-    this.meter.start(this.club.chargeTime);
+    this.meter.start(this.chargeTime);
+    // perfecto de regalo: la barra arranca ya clavada arriba, y soltás cuando quieras
+    if (this.giftPerfect) {
+      this.giftPerfect = false;
+      this.meter.setPower(1);
+      this.meter.lock();
+      this.onGift?.();
+    }
+  }
+
+  /** Cuánto tarda la barra con este palo, con las mejoras de carga encima. */
+  get chargeTime(): number {
+    return this.club.chargeTime * this.chargeMul;
+  }
+
+  /** Multiplica el tiempo de carga: lo bajan la muñeca rápida y el ritmo. */
+  chargeMul = 1;
+  /** El próximo tiro arranca clavado en el perfecto (la mejora «Perfecto de regalo»). */
+  giftPerfect = false;
+  onGift: (() => void) | null = null;
+
+  /**
+   * El palo que está volando como boomerang: mientras tanto no se puede usar. Si era el de la mano, se
+   * cambia solo al siguiente, y si estabas cargando, la carga sigue con ese.
+   */
+  thrownClub: ClubId | null = null;
+
+  /** Tira el palo de la mano como boomerang. Devuelve cuál tiró, o null si no se puede. */
+  throwClub(): ClubId | null {
+    if (this.thrownClub || this.mode === 'swinging' || this.mode === 'melee') return null;
+    const thrown = this.club.id;
+    const next = CLUB_ORDER.map((_, i) => CLUB_ORDER[(CLUB_ORDER.indexOf(thrown) + 1 + i) % CLUB_ORDER.length]).find((id) => id !== thrown && this.unlocked.has(id));
+    if (!next) return null;
+    this.setClub(CLUBS[next]);
+    this.thrownClub = thrown;
+    return thrown;
+  }
+
+  /** Volvió el boomerang: el palo se puede usar de nuevo. */
+  catchClub(): void {
+    this.thrownClub = null;
   }
 
   releaseSwing(): void {
@@ -285,7 +330,7 @@ export class Player {
   restartCharge(): boolean {
     if (this.mode !== 'charging') return false;
     this.backswing = 0;
-    this.meter.start(this.club.chargeTime);
+    this.meter.start(this.chargeTime);
     return true;
   }
 

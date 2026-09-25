@@ -1,7 +1,7 @@
 // Los puestos de tiro. El golfista ya no camina libre: se mueve de costado entre puestos marcados con
 // un palito, y solo puede pegar donde hay una pelota. Las pelotas las tiran los guardias desde atrás.
 //
-// Reglas de las pelotas: nunca hay más de MAX_BALLS esperando, y cuantas menos quedan más rápido
+// Reglas de las pelotas: nunca hay más de BALLS.max esperando, y cuantas menos quedan más rápido
 // llega la siguiente. Así, quien tira rápido no se queda sin pelota, y quien tira despacio no las
 // acumula. Nunca caen en el puesto donde está parado el golfista: después de cada tiro hay que moverse.
 import * as THREE from 'three';
@@ -20,7 +20,8 @@ const SPOTS_PER_SIDE = 4;
  * la pelota la ponés vos con la reserva (tecla S): son puestos que se eligen, no que te tocan.
  */
 const SPAWN_PER_SIDE = 2;
-export const MAX_BALLS = 3;
+/** Cuántas pelotas mantienen los guardias esperando. La mejora «Pelota extra» lo sube. */
+export const BALLS = { max: 3 };
 /** Segundos hasta que sale la próxima pelota, según cuántas hay (contando las que vienen en el aire). */
 const REFILL_DELAY = [0.2, 0.7, 1.5];
 /** Cuánto tarda en llegar una pelota tirada por un guardia. */
@@ -33,6 +34,8 @@ interface Spot {
   /** Los guardias le tiran pelotas a este puesto. Los de las puntas no: ahí la pelota la ponés vos. */
   spawns: boolean;
   ball: boolean;
+  /** Pelota dorada, del caddie: se ve distinta. */
+  golden: boolean;
   /** Hay una pelota en el aire que viene para acá. */
   incoming: boolean;
   ballMesh: THREE.Mesh;
@@ -59,6 +62,7 @@ export class Tees {
   private timer = 0;
   private age = 0;
   private readonly ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff1b8, emissiveIntensity: 0.9 });
+  private readonly goldMat = new THREE.MeshStandardMaterial({ color: 0xffd66b, emissive: 0xffb300, emissiveIntensity: 1.1, metalness: 0.4, roughness: 0.35 });
   private readonly ringMat = new THREE.MeshBasicMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
 
   constructor(private readonly scene: THREE.Scene) {
@@ -87,7 +91,7 @@ export class Tees {
       ring.position.set(x, 0.05, TEE_Z);
       ring.visible = false;
       scene.add(stick, flag, ballMesh, ring);
-      this.spots.push({ x, spawns, ball: false, incoming: false, ballMesh, ring });
+      this.spots.push({ x, spawns, ball: false, golden: false, incoming: false, ballMesh, ring });
     }
   }
 
@@ -126,13 +130,31 @@ export class Tees {
     const s = this.spots[index];
     if (!s?.ball) return false;
     s.ball = false;
+    s.golden = false;
     return true;
   }
 
-  /** Pone una pelota ya mismo (arranque de la partida, y pruebas). */
-  place(index: number): void {
+  /** Pone una pelota ya mismo (arranque de la partida, el carcaj, el caddie, y pruebas). */
+  place(index: number, golden = false): void {
     const s = this.spots[index];
-    if (s) s.ball = true;
+    if (!s) return;
+    s.ball = true;
+    s.golden = golden;
+    s.ballMesh.material = golden ? this.goldMat : this.ballMat;
+  }
+
+  /**
+   * Lluvia de pelotas: una en cada puesto que no tenga. Como quedan más que `BALLS.max`, los guardias no
+   * tiran más hasta que se gasten las de sobra.
+   */
+  fillAll(): number {
+    let n = 0;
+    this.spots.forEach((s, i) => {
+      if (s.ball) return;
+      this.place(i);
+      n++;
+    });
+    return n;
   }
 
   private pickSpot(playerSpot: number): number {
@@ -147,9 +169,9 @@ export class Tees {
   update(dt: number, playerSpot: number, hideAt: number): void {
     this.age += dt;
     const pending = this.loaded + this.tosses.length;
-    if (pending < MAX_BALLS) {
+    if (pending < BALLS.max) {
       this.timer += dt;
-      if (this.timer >= REFILL_DELAY[pending]) {
+      if (this.timer >= REFILL_DELAY[Math.min(pending, REFILL_DELAY.length - 1)]) {
         this.timer = 0;
         const to = this.pickSpot(playerSpot);
         if (to >= 0) this.toss(to);
@@ -165,7 +187,7 @@ export class Tees {
       const s = this.spots[t.spot];
       t.mesh.position.set(t.from.x + (s.x - t.from.x) * u, t.from.y * (1 - u) + BALL_RADIUS * 1.35 * u + Math.sin(u * Math.PI) * 2.4, t.from.z + (TEE_Z - t.from.z) * u);
       if (u < 1) continue;
-      s.ball = true;
+      this.place(t.spot);
       s.incoming = false;
       this.scene.remove(t.mesh);
       this.tosses.splice(i, 1);

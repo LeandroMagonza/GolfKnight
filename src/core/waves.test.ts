@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMIES, spawnOrder, unlockedAt, WaveDirector, WAVES, type DirectorEvent, type Wave } from './waves';
+import { ENEMIES, spawnOrder, WaveDirector, WAVES, type DirectorEvent, type Wave } from './waves';
 
 const TEST_WAVES: Wave[] = [
   { title: 'uno', interval: 1, groups: [{ kind: 'goblin', count: 3 }] },
@@ -26,17 +26,21 @@ describe('waves', () => {
     }
   });
 
-  it('lo que dan las oleadas son habilidades, no palos: los cuatro palos están desde el principio', () => {
-    // se ganan jugando, de a una: la granada llega con los escudos, que es lo que los baja
-    expect(unlockedAt(-1)).toEqual([]);
-    expect(unlockedAt(0)).toEqual([]);
-    expect(unlockedAt(1)).toEqual(['grenade']);
-    expect(WAVES[1].groups.some((g) => g.kind === 'warrior')).toBe(true);
-    expect(unlockedAt(WAVES.length - 1).sort()).toEqual(['grenade', 'ice', 'wind']);
-    // ninguna oleada estrena dos habilidades a la vez
-    for (let i = 0; i < WAVES.length; i++) {
-      expect(unlockedAt(i).length - unlockedAt(i - 1).length, `oleada ${i + 1}`).toBeLessThanOrEqual(1);
+  it('los enemigos nuevos se presentan solos en su oleada', () => {
+    const firstWave = (kind: string) => WAVES.findIndex((w) => w.groups.some((g) => g.kind === kind));
+    const before = (i: number) => new Set(WAVES.slice(0, i).flatMap((w) => w.groups.map((g) => g.kind)));
+    for (const kind of ['armored', 'blessed']) {
+      const i = firstWave(kind);
+      const fresh = WAVES[i].groups.map((g) => g.kind).filter((k) => !before(i).has(k));
+      expect(fresh, kind).toEqual([kind]);
     }
+  });
+
+  it('el acorazado le resta a cada golpe, y el bendito se come el primero', () => {
+    expect(ENEMIES.armored.armor).toBe(1);
+    expect(ENEMIES.blessed.divine).toBeGreaterThan(0);
+    expect(WAVES.some((w) => w.groups.some((g) => g.kind === 'armored'))).toBe(true);
+    expect(WAVES.some((w) => w.groups.some((g) => g.kind === 'blessed'))).toBe(true);
   });
 
   it('todos los enemigos de las oleadas están definidos', () => {

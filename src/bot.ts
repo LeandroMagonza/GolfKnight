@@ -4,7 +4,7 @@
 //
 // Juega con el reparto nuevo: elige **palo** por la distancia a la que está el blanco (el driver cobra
 // de lejos, el putter de cerca, el hierro y el wedge parejo) y tira **habilidades** según la situación
-// (granada para abrir defensas, hielo cuando lo rodean, vendaval a un grupo a media distancia). No busca
+// (granada encima del que haya que abrir; las demás, al grupo más cercano) y elige cartas al azar. No busca
 // filas ni clava el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace
 // una persona.
 
@@ -24,8 +24,8 @@ export interface BotStats {
 
 /** Cada palo tiene su tecla: Digit1 a Digit4, en este orden. */
 const CLUB_ORDER = ['driver', 'iron', 'wedge', 'putter'];
-/** Cada habilidad tiene la suya: Q, W y E. */
-const ABILITY_KEYS: Record<string, string> = { grenade: 'KeyQ', ice: 'KeyW', wind: 'KeyE' };
+/** Las teclas de los cuatro lugares de habilidad. */
+const SLOT_KEYS = ['KeyQ', 'KeyW', 'KeyE', 'KeyR'];
 
 function key(code: string): void {
   dispatchEvent(new KeyboardEvent('keydown', { code }));
@@ -60,11 +60,14 @@ export function startBot(): BotStats {
   setInterval(() => {
     const pl = gk.player;
     // cartel de palo nuevo: lo deja un par de segundos, para que quien mira lo pueda leer, y lo cierra
+    // cartas entre oleadas: las deja un par de segundos, para que quien mira las pueda leer, y se queda
+    // con una al azar
     if (gk.cardOpen) {
       if (!cardSince) cardSince = performance.now();
       if (performance.now() - cardSince > 2500) {
         cardSince = 0;
-        gk.dismissCard();
+        if (gk.choice) gk.pickCard(Math.floor(Math.random() * gk.choice.length));
+        else gk.dismissCard();
       }
       return;
     }
@@ -121,31 +124,24 @@ export function startBot(): BotStats {
     // apunta, espera a que la puntería llegue al juego y aprieta la tecla. Una por vuelta.
     if (gk.clock - castAt > 1) {
       const ab = gk.abilities;
-      const cast = (id: string, x: number, z: number) => {
+      const center = (list: any[]) => [list.reduce((t, e) => t + e.position.x, 0) / list.length, list.reduce((t, e) => t + e.position.z, 0) / list.length];
+      // la granada va encima de quien haya que abrir (chamán conjurando, escudo en alto, jefe sin
+      // silenciar); todo lo demás, al grupo más cercano
+      const open = alive.find((e) => e.casting && dist(e) < 44)
+        ?? alive.filter((e) => e.shieldUp && dist(e) < 44).sort((a, b) => a.position.z - b.position.z)[0]
+        ?? alive.find((e) => e.stats.boss && !e.silenced && dist(e) < 44);
+      const group = alive.slice().sort((a, b) => dist(a) - dist(b)).slice(0, 4);
+      for (let i = 0; i < ab.slots.length; i++) {
+        if (ab.cooldowns[i] > 0) continue;
+        const id: string = ab.slots[i].id;
+        if (id === 'grenade' && !open) continue;
+        if (id !== 'grenade' && group.length < 2) continue;
+        const [x, z] = id === 'grenade' ? [open.position.x, open.position.z] : center(group);
         castAt = gk.clock;
         aim(x, z);
         stats.casts[id] = (stats.casts[id] ?? 0) + 1;
-        setTimeout(() => key(ABILITY_KEYS[id]), 80);
-      };
-      // 1) granada encima de quien haya que abrir (chamán conjurando, escudo en alto, jefe sin
-      // silenciar): cae en el centro, así que lo silencia sin moverlo
-      const open = ab.ready('grenade') && (alive.find((e) => e.casting && dist(e) < 44)
-        ?? alive.filter((e) => e.shieldUp && dist(e) < 44).sort((a, b) => a.position.z - b.position.z)[0]
-        ?? alive.find((e) => e.stats.boss && !e.silenced && dist(e) < 44));
-      if (open) return cast('grenade', open.position.x, open.position.z);
-      // 2) varios cerca: el hielo los frena ahí mismo
-      const near = alive.filter((e) => dist(e) < 14);
-      if (near.length >= 3 && ab.ready('ice')) {
-        const cx = near.reduce((s, e) => s + e.position.x, 0) / near.length;
-        const cz = near.reduce((s, e) => s + e.position.z, 0) / near.length;
-        return cast('ice', cx, cz);
-      }
-      // 3) un grupo a media distancia: el vendaval los junta en fila para el driver
-      const mid = alive.filter((e) => dist(e) > 18 && dist(e) < 50);
-      if (mid.length >= 3 && ab.ready('wind')) {
-        const cx = mid.reduce((s, e) => s + e.position.x, 0) / mid.length;
-        const cz = mid.reduce((s, e) => s + e.position.z, 0) / mid.length;
-        return cast('wind', cx, cz);
+        setTimeout(() => key(SLOT_KEYS[i]), 80);
+        return;
       }
     }
 

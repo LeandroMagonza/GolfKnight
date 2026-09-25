@@ -1,6 +1,7 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
-import { ABILITIES, ABILITY_KEYS, ABILITY_ORDER, type AbilityId } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, SLOTS, type AbilityId } from './core/abilities';
+import { PERK_NUMBERS } from './core/cards';
 import { CLUB_KEYS, CLUB_ORDER, CLUBS, MELEE_COOLDOWN, RESERVE, type Club, type ClubId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -49,15 +50,43 @@ export class Hud {
       const color = '#' + c.color.toString(16).padStart(6, '0');
       return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">hasta ${c.maxRange} m</div></div>`;
     }).join('');
-    // las habilidades, cada una con su pelota y su recarga. Y el palazo, que va aparte
-    this.enchantsEl.innerHTML = ABILITY_ORDER.map((id, i) => {
-      const a = ABILITIES[id];
-      const color = '#' + a.color.toString(16).padStart(6, '0');
-      return `<div class="club locked" data-ench="${id}" style="--c:${color}"><div class="cd"></div><span class="key">${ABILITY_KEYS[i]}</span><div class="name">${a.name}</div><div class="title">${a.title}</div><span class="cdlabel">⟳ ${a.cooldown} s</span><div class="cdnum"></div></div>`;
-    }).join('')
+    // los cuatro lugares de habilidad, que se llenan eligiendo cartas. Y el palazo, que va aparte
+    this.enchantsEl.innerHTML = Array.from({ length: SLOTS }, (_, i) =>
+      `<div class="club locked" data-ench="slot${i}" style="--c:#ffffff"><div class="cd"></div><span class="key">${ABILITY_KEYS[i]}</span><div class="name"></div><div class="title"></div><span class="cdlabel"></span><div class="cdnum"></div></div>`,
+    ).join('')
       + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`
       // la reserva: no es un poder, es de dónde sacás una pelota cuando no te queda ninguna cerca
-      + `<div class="club extra" data-ench="ball" style="--c:#fff1b8"><div class="cd"></div><span class="key">S</span><div class="name">Pelota</div><div class="title">×${RESERVE.max}</div><span class="cdlabel">llena</span><div class="cdnum"></div></div>`;
+      + `<div class="club extra" data-ench="ball" style="--c:#fff1b8"><div class="cd"></div><span class="key">S</span><div class="name">Pelota</div><div class="title">×${RESERVE.max}</div><span class="cdlabel">llena</span><div class="cdnum"></div></div>`
+      // el segundo aire: no se aprieta, salta solo cuando apretás una habilidad que está recargando
+      + `<div class="club extra locked" data-ench="wind2" style="--c:#8fe3b0"><div class="cd"></div><span class="key">auto</span><div class="name">Segundo aire</div><div class="title">otra vez</div><span class="cdlabel">⟳ ${PERK_NUMBERS.secondWindCooldown} s</span><div class="cdnum"></div></div>`;
+    this.choiceEl.addEventListener('click', (e) => {
+      const card = (e.target as HTMLElement).closest('.choice') as HTMLElement | null;
+      if (card) this.onPick?.(Number(card.dataset.i));
+    });
+  }
+
+  private choiceEl = $('choice');
+  /** Se eligió la carta número `i` (0, 1 o 2). */
+  onPick: ((i: number) => void) | null = null;
+
+  /** Las tres cartas entre oleadas. Se elige con click o con 1, 2 y 3. */
+  showChoice(cards: { tag: string; name: string; title: string; hint: string; color: number }[], next: string): void {
+    const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
+    (this.choiceEl.querySelector('.cards') as HTMLElement).innerHTML = cards.map((c, i) => {
+      const color = '#' + c.color.toString(16).padStart(6, '0');
+      return `<div class="choice" data-i="${i}" style="--c:${color}"><kbd>${i + 1}</kbd><div class="tag">${esc(c.tag)}</div><div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div><div class="hint">${esc(c.hint)}</div></div>`;
+    }).join('');
+    (this.choiceEl.querySelector('.next') as HTMLElement).textContent = next ? `Próxima oleada: ${next}` : '';
+    this.choiceEl.hidden = false;
+  }
+
+  hideChoice(): void {
+    this.choiceEl.hidden = true;
+  }
+
+  /** Lo ancho que se ve el golpe perfecto en la barra: lo agranda la mejora «Punto dulce». */
+  setPerfectWidth(fraction: number): void {
+    (this.meter.querySelector('.perfect') as HTMLElement).style.width = `${(fraction * 100).toFixed(1)}%`;
   }
 
   private shownReserve = '';
@@ -67,7 +96,7 @@ export class Hud {
    * cuenta nada; con el cargador vacío el número grande es la espera, como en las recargas.
    * @param left segundos que faltan para la próxima carga
    */
-  setReserve(enabled: boolean, charges: number, left: number, total: number, max: number): void {
+  setReserve(enabled: boolean, charges: number, left: number, total: number, max: number, name = 'Pelota', key = 'S'): void {
     const el = this.enchantsEl.querySelector('[data-ench="ball"]') as HTMLElement | null;
     if (!el) return;
     // apagada desde el panel de balance: la ficha no se muestra
@@ -76,9 +105,12 @@ export class Hud {
     const full = charges >= max;
     const bar = el.querySelector('.cd') as HTMLElement;
     bar.style.height = full || total <= 0 ? '0%' : `${(100 * left) / total}%`;
-    const key = `${charges}/${max}|${full ? '' : Math.ceil(left)}`;
-    if (key === this.shownReserve) return;
-    this.shownReserve = key;
+    const shown = `${name}|${charges}/${max}|${full ? '' : Math.ceil(left)}`;
+    if (shown === this.shownReserve) return;
+    this.shownReserve = shown;
+    // es la misma ficha para la pelota de reserva (S) y para el carcaj, que sale solo
+    (el.querySelector('.name') as HTMLElement).textContent = name;
+    (el.querySelector('.key') as HTMLElement).textContent = key;
     (el.querySelector('.title') as HTMLElement).textContent = `×${charges}`;
     (el.querySelector('.cdlabel') as HTMLElement).textContent = full ? 'llena' : `⟳ ${Math.ceil(left)} s`;
     (el.querySelector('.cdnum') as HTMLElement).textContent = charges > 0 ? '' : String(Math.ceil(left));
@@ -88,10 +120,10 @@ export class Hud {
   private shownState = '';
   private readonly shownCd = new Map<string, string>();
 
-  /** Qué palos están habilitados. Los palos no tienen recarga: la tienen los poderes. */
-  setClubState(unlocked: ReadonlySet<ClubId>, meleeLeft: number): void {
+  /** Qué palos están habilitados, y cuál está volando como boomerang. */
+  setClubState(unlocked: ReadonlySet<ClubId>, meleeLeft: number, thrown: ClubId | null = null): void {
     this.cooldownOn('melee', meleeLeft, MELEE_COOLDOWN);
-    const key = [...unlocked].join();
+    const key = [...unlocked].join() + `|${thrown ?? ''}`;
     if (key === this.shownState) return;
     const first = this.shownState === '';
     this.shownState = key;
@@ -104,6 +136,8 @@ export class Hud {
         setTimeout(() => el.classList.remove('appear'), 600);
       }
       el.classList.toggle('locked', !unlocked.has(id));
+      // el palo que está volando se ve apagado: no se puede elegir hasta que vuelva
+      el.classList.toggle('cooling', id === thrown);
     }
   }
 
@@ -128,25 +162,36 @@ export class Hud {
 
   private shownAbilities = '';
 
-  /** Cuáles habilidades ya se tienen y cuánto le falta a cada recarga. */
-  setAbilities(cooldowns: Record<AbilityId, number>, owned: ReadonlySet<AbilityId>): void {
-    for (const id of ABILITY_ORDER) this.cooldownOn(id, cooldowns[id], ABILITIES[id].cooldown);
-    // la recarga va en la clave: si se la cambia en el panel de balance, la ficha la muestra enseguida
-    const key = ABILITY_ORDER.map((id) => `${owned.has(id) ? 1 : 0}:${ABILITIES[id].cooldown}`).join();
+  /**
+   * Las habilidades de Q, W, E y R: cuál hay en cada lugar, de qué nivel, y cuánto le falta a cada
+   * recarga. Y el segundo aire, si se tiene.
+   */
+  setAbilities(slots: readonly { id: AbilityId; level: number }[], cooldowns: readonly number[], totals: readonly number[], secondWind: { owned: boolean; left: number }): void {
+    for (let i = 0; i < SLOTS; i++) this.cooldownOn(`slot${i}`, cooldowns[i] ?? 0, totals[i] ?? 0);
+    this.cooldownOn('wind2', secondWind.left, PERK_NUMBERS.secondWindCooldown);
+    const key = slots.map((s, i) => `${s.id}:${s.level}:${totals[i]}`).join() + `|${secondWind.owned}`;
     if (key === this.shownAbilities) return;
     const first = this.shownAbilities === '';
     this.shownAbilities = key;
-    for (const el of Array.from(this.enchantsEl.children) as HTMLElement[]) {
-      // en la fila también viven el palazo y la reserva, que no son habilidades: no se les toca el estado
-      const id = el.dataset.ench as AbilityId | undefined;
-      if (!id || !ABILITY_ORDER.includes(id)) continue;
+    (this.enchantsEl.querySelector('[data-ench="wind2"]') as HTMLElement).classList.toggle('locked', !secondWind.owned);
+    for (let i = 0; i < SLOTS; i++) {
+      const el = this.enchantsEl.querySelector(`[data-ench="slot${i}"]`) as HTMLElement;
+      const s = slots[i];
+      if (!s) {
+        el.classList.add('locked');
+        continue;
+      }
+      const a = ABILITIES[s.id];
       // una habilidad recién ganada entra a la barra con un saltito
-      if (el.classList.contains('locked') && owned.has(id) && !first) {
+      if (el.classList.contains('locked') && !first) {
         el.classList.add('appear');
         setTimeout(() => el.classList.remove('appear'), 600);
       }
-      el.classList.toggle('locked', !owned.has(id));
-      (el.querySelector('.cdlabel') as HTMLElement).textContent = `⟳ ${ABILITIES[id].cooldown} s`;
+      el.classList.remove('locked');
+      el.style.setProperty('--c', '#' + a.color.toString(16).padStart(6, '0'));
+      (el.querySelector('.name') as HTMLElement).textContent = a.name;
+      (el.querySelector('.title') as HTMLElement).textContent = s.level > 1 ? `${a.title} · nv ${s.level}` : a.title;
+      (el.querySelector('.cdlabel') as HTMLElement).textContent = `⟳ ${Math.round(totals[i])} s`;
     }
   }
 

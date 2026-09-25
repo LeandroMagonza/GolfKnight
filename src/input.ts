@@ -2,17 +2,18 @@
 // A y D mueven de puesto en puesto (un toque = un puesto; mantener apretado no repite) y el mouse
 // apunta y decide a qué distancia cae. Click izquierdo mantiene para cargar el swing y suelta para
 // pegar; click derecho (o X) cancela. Espacio clava la calidad del golpe, y el tiro sale cuando se
-// suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo**; **Q, W y E tiran una
-// habilidad** (granada, hielo y vendaval) hacia donde está el mouse, en el acto y con su propia pelota.
-// La rueda del mouse inclina la cámara y las flechas arriba y abajo la suben y bajan, para probar
-// ángulos. Shift (o V) es el palazo, S saca una pelota de la reserva (si está prendida), B abre el panel de balance,
-// Escape pausa, R reinicia (solo en pausa o al terminar), C cambia el skin, M silencia la música.
+// suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo** (y la carta, cuando hay
+// cartas en pantalla); **Q, W, E y R tiran la habilidad** de ese lugar hacia donde está el mouse, en el
+// acto y con su propia pelota. La rueda del mouse inclina la cámara y las flechas arriba y abajo la
+// suben y bajan, para probar ángulos. Shift (o V) es el palazo, S saca una pelota de la reserva (si
+// está prendida), B abre el panel de balance, Escape pausa, R en pausa o al terminar reinicia, C
+// cambia el skin, M silencia la música.
 
 export interface InputEvents {
   swingStart(): void;
   swingRelease(): void;
   swingCancel(): void;
-  /** Tira una habilidad: 0 = granada, 1 = hielo, 2 = vendaval. */
+  /** Tira la habilidad de un lugar: 0 = Q, 1 = W, 2 = E. La R pasa por `restart`, que decide. */
   castAbility(index: number): void;
   /** Elige palo por posición: 0 = driver, 1 = hierro, 2 = wedge, 3 = putter. */
   selectClub(index: number): void;

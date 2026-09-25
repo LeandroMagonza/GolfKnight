@@ -5,6 +5,7 @@
 // no llevan poder: el hielo, el vendaval y la granada van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
+import { ELEMENTS, lv, type Element } from '../core/abilities';
 import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
@@ -27,6 +28,12 @@ export interface Ball {
   quality: number;
   /** De dónde salió, para saber a qué distancia pega. */
   from: THREE.Vector3;
+  /** Tiros de habilidad (palo y elemento): el elemento que deja en cada uno que alcanza. */
+  element: Element | null;
+  /** Es de una habilidad, no del puesto: no cuenta para las rachas. */
+  ability: boolean;
+  /** A quiénes ya tocó el rayo de esta pelota: nunca salta dos veces al mismo. */
+  zapped: Set<number>;
   /** Efecto: la curva del tiro, y cuánto va de ella. */
   spin: Spin | null;
   spinTime: number;
@@ -54,7 +61,7 @@ export type BallEvent =
   | { type: 'bounce'; pos: THREE.Vector3 }
   | { type: 'blocked'; enemy: Enemy; warded: boolean }
   /** Un tiro ya se jugó: a cuántos alcanzó y cuántas bajas hizo. */
-  | { type: 'settled'; club: Club; hits: number; kills: number };
+  | { type: 'settled'; club: Club; hits: number; kills: number; ability: boolean };
 
 const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
 
@@ -95,6 +102,7 @@ export class Balls {
     const ball: Ball = {
       state, club: shot.club, bounce, quality: shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
+      element: shot.element ?? null, ability: !!shot.ability, zapped: new Set(),
       hitIds: new Set(), hits: 0, burst: false, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
@@ -118,7 +126,7 @@ export class Balls {
     // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie. Al que esta
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality);
-    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds);
+    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     ball.hits += hits;
     if (finish) ball.done = true;
@@ -139,7 +147,20 @@ export class Balls {
     const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback);
     if (killed) ball.kills++;
     this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
+    this.applyElement(ball, enemy);
     if (finish) ball.done = true;
+  }
+
+  /**
+   * El elemento de un tiro de habilidad, en uno que alcanzó (de impacto o de área). El nivel de la
+   * habilidad es la calidad del tiro, y decide cuánto dura el frío o el fuego y cuántas veces salta el
+   * rayo.
+   */
+  private applyElement(ball: Ball, enemy: Enemy): void {
+    if (!ball.element) return;
+    if (ball.element === 'ice') this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
+    else if (ball.element === 'fire') enemy.burn(lv(ELEMENTS.burnSeconds, ball.quality));
+    else this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality), ball.zapped);
   }
 
   /** La pelota tocó a alguien: según el palo, lo atraviesa, revienta ahí, o le pega solo a él. */
@@ -198,7 +219,7 @@ export class Balls {
   private settle(ball: Ball): void {
     if (ball.settled) return;
     ball.settled = true;
-    this.onEvent?.({ type: 'settled', club: ball.club, hits: ball.hits, kills: ball.kills });
+    this.onEvent?.({ type: 'settled', club: ball.club, hits: ball.hits, kills: ball.kills, ability: ball.ability });
   }
 
   update(dt: number): void {

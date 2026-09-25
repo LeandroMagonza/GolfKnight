@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { GRENADE, grenadeShift, ICE } from '../core/abilities';
+import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt } from '../core/terrain';
@@ -31,7 +31,18 @@ const ROCK_FLIGHT = 1.6;
 export type EnemyState = 'walk' | 'attack' | 'dying' | 'gone';
 
 export type HordeEvent =
-  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean }
+  /** `crit`: rompió un congelado y pegó el doble. */
+  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean }
+  /** El escudo divino se comió el golpe. */
+  | { type: 'divine'; enemy: Enemy }
+  /** La armadura se comió todo el golpe. */
+  | { type: 'armored'; enemy: Enemy }
+  /** La maestría del hielo lo congeló. */
+  | { type: 'frozen'; enemy: Enemy }
+  /** Un marcado con pólvora explotó al morir. */
+  | { type: 'powder'; pos: THREE.Vector3; radius: number }
+  /** Un rayo saltó de un enemigo a otro. */
+  | { type: 'zap'; from: THREE.Vector3; to: THREE.Vector3 }
   | { type: 'attack'; enemy: Enemy }
   | { type: 'playerHit'; enemy: Enemy; amount: number }
   | { type: 'gateHit'; enemy: Enemy; amount: number }
@@ -71,7 +82,10 @@ const auraGeo = new THREE.RingGeometry(0.96, 1, 64);
 const rockGeo = new THREE.DodecahedronGeometry(0.7, 0);
 const rockMat = new THREE.MeshStandardMaterial({ color: 0x77736b, roughness: 1, flatShading: true });
 
+const bubbleGeo = new THREE.SphereGeometry(1, 18, 12);
+
 const CHILL_TINT = new THREE.Color(0x8fd0ff);
+const FROZEN_TINT = new THREE.Color(0xdff6ff);
 const SILENCE_EMISSIVE = new THREE.Color(0x4a1a08);
 
 /** Suaviza entre 0 y 1. */
@@ -94,6 +108,22 @@ export class Enemy {
   /** Silencio de la granada: sin escudo, sin aura, sin inmunidad, y vulnerable. Segundos que le quedan. */
   silenceTimer = 0;
   silenceMax = 1;
+  /** Congelado (maestría del hielo): no se mueve ni ataca, y el golpe que lo rompe pega el doble. */
+  frozenTimer = 0;
+  /** Prendido fuego: segundos que le quedan, y cuánto falta para el próximo mordisco. */
+  burnTimer = 0;
+  burnTick = 0;
+  /** La bandera: hacia dónde camina en vez de ir a la puerta, y por cuánto. */
+  lureTimer = 0;
+  readonly lure = new THREE.Vector3();
+  /** La lupa: agrandado (más fácil de pegar) y vulnerable. */
+  growTimer = 0;
+  growScale = 1;
+  /** La pólvora: marcado, explota al morir. */
+  powderTimer = 0;
+  /** Escudo divino: el próximo golpe no le entra. Se recarga solo (ver `stats.divine`). */
+  divineReady: boolean;
+  divineTimer = 0;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
   warded = false;
   /** Ya pasó la línea del golfista: está fuera de juego (nada lo toca) y corre hasta la puerta. */
@@ -135,6 +165,8 @@ export class Enemy {
   private readonly aura: THREE.Mesh | null = null;
   /** El escudo del guerrero. Se ve solo mientras sirve: silenciado desaparece. */
   private shieldMesh: THREE.Object3D | null = null;
+  /** La burbuja dorada del escudo divino. */
+  private readonly bubble: THREE.Mesh | null = null;
   private readonly arms: THREE.Object3D[] = [];
   private readonly spine: THREE.Object3D | null;
 
@@ -142,6 +174,13 @@ export class Enemy {
   constructor(readonly stats: EnemyStats, template: Template) {
     this.position = this.group.position;
     this.maxHp = this.hp = stats.hp;
+    this.divineReady = !!stats.divine;
+    if (stats.divine) {
+      this.bubble = new THREE.Mesh(bubbleGeo, new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.22, depthWrite: false }));
+      this.bubble.scale.set(stats.radius * 1.6, stats.height * 0.62, stats.radius * 1.6);
+      this.bubble.position.y = stats.height * 0.5;
+      this.group.add(this.bubble);
+    }
     this.model = cloneSkinned(template.scene);
     this.model.scale.setScalar(template.scale);
     this.model.traverse((o) => {
@@ -268,12 +307,27 @@ export class Enemy {
     return this.stats.behavior === 'shaman' && this.alive && !this.silenced;
   }
 
+  /** Congelado por la maestría del hielo: quieto del todo. */
+  get frozen(): boolean {
+    return this.frozenTimer > 0;
+  }
+
+  /** Vulnerable: cada pelotazo le saca uno más (el silencio de la granada, la lupa). */
+  get vulnerable(): boolean {
+    return this.silenced || this.growTimer > 0;
+  }
+
+  get burning(): boolean {
+    return this.burnTimer > 0;
+  }
+
+  // agrandado por la lupa, también es más grande para las pelotas: esa es la gracia
   get radius(): number {
-    return this.stats.radius;
+    return this.stats.radius * this.growScale;
   }
 
   get height(): number {
-    return this.stats.height;
+    return this.stats.height * this.growScale;
   }
 
   /** Hacia dónde mira (unitario en el plano). */
@@ -338,11 +392,15 @@ export class Enemy {
       this.state = 'dying';
       this.dyingTime = 0;
       this.grabbing = false;
+      // la pólvora y el fuego los lee la horda después de este golpe: por eso no se borran acá
       this.chillTimer = 0;
       this.silenceTimer = 0;
+      this.frozenTimer = 0;
+      this.lureTimer = 0;
       this.refreshBar();
       this.refreshChill();
       if (this.aura) this.aura.visible = false;
+      if (this.bubble) this.bubble.visible = false;
       if (this.stats.behavior === 'kamikaze') this.fuse = 0.12;
       else this.animator.playOneShot('Hard Landing', 1.3, true, 0.42);
       return true;
@@ -372,6 +430,49 @@ export class Enemy {
       this.silenceTimer = seconds;
       this.silenceMax = seconds;
     }
+  }
+
+  /** Congelado `seconds`: quieto del todo, sin atacar. El próximo golpe lo rompe y pega el doble. */
+  freeze(seconds: number): void {
+    if (!this.alive) return;
+    this.frozenTimer = Math.max(this.frozenTimer, seconds);
+  }
+
+  /** Prendido fuego `seconds`. Si ya estaba prendido, le alarga el fuego sin mordisco extra. */
+  burn(seconds: number): void {
+    if (!this.alive) return;
+    if (!this.burning) this.burnTick = 0;
+    this.burnTimer = Math.max(this.burnTimer, seconds);
+  }
+
+  /** La bandera: camina hacia (x, z) durante `seconds` en vez de ir a la puerta. */
+  lureTo(x: number, z: number, seconds: number): void {
+    if (!this.alive || this.passed) return;
+    this.lure.set(x, 0, z);
+    this.lureTimer = Math.max(this.lureTimer, seconds);
+  }
+
+  /** La lupa: agrandado y vulnerable durante `seconds`. */
+  grow(seconds: number): void {
+    if (!this.alive) return;
+    this.growTimer = Math.max(this.growTimer, seconds);
+  }
+
+  /** La pólvora: marcado durante `seconds`; si muere marcado, explota. */
+  markPowder(seconds: number): void {
+    if (!this.alive) return;
+    this.powderTimer = Math.max(this.powderTimer, seconds);
+  }
+
+  /**
+   * Escudo divino: si está en alto, se lo come este golpe (no entra nada) y empieza a recargarse.
+   * Devuelve true si el golpe se lo comió el escudo.
+   */
+  spendDivine(): boolean {
+    if (!this.divineReady) return false;
+    this.divineReady = false;
+    this.divineTimer = this.stats.divine ?? 5;
+    return true;
   }
 
   /**
@@ -431,6 +532,18 @@ export class Enemy {
     this.knock.multiplyScalar(fade);
     if (this.chillTimer > 0) this.chillTimer = Math.max(0, this.chillTimer - dt);
     if (this.silenceTimer > 0) this.silenceTimer = Math.max(0, this.silenceTimer - dt);
+    if (this.frozenTimer > 0) this.frozenTimer = Math.max(0, this.frozenTimer - dt);
+    if (this.lureTimer > 0) this.lureTimer = Math.max(0, this.lureTimer - dt);
+    if (this.growTimer > 0) this.growTimer = Math.max(0, this.growTimer - dt);
+    if (this.powderTimer > 0) this.powderTimer = Math.max(0, this.powderTimer - dt);
+    if (!this.divineReady && this.stats.divine) {
+      this.divineTimer -= dt;
+      if (this.divineTimer <= 0) this.divineReady = true;
+    }
+    // la lupa agranda de a poco, y achica de a poco: que se vea que crece
+    const size = this.growTimer > 0 ? LENS.scale : 1;
+    this.growScale += (size - this.growScale) * (1 - Math.exp(-8 * dt));
+    this.group.scale.setScalar(this.growScale);
     this.refreshChill();
     const slow = this.chilled ? ICE.slow : 1;
     const behavior = this.stats.behavior;
@@ -446,9 +559,10 @@ export class Enemy {
       return;
     }
 
-    if (this.stunTimer > 0) {
-      this.stunTimer -= dt;
-      this.animator.setLocomotion('Idle', 1);
+    // congelado: ni camina ni ataca, y el ataque que tenía en curso queda en suspenso
+    if (this.stunTimer > 0 || this.frozen) {
+      if (this.stunTimer > 0) this.stunTimer -= dt;
+      this.animator.setLocomotion('Idle', this.frozen ? 0.001 : 1);
       this.clampToField();
       this.finishFrame(dt, 0);
       return;
@@ -483,6 +597,11 @@ export class Enemy {
       this.passed = true;
       this.chillTimer = 0;
       this.silenceTimer = 0;
+      this.frozenTimer = 0;
+      this.burnTimer = 0;
+      this.lureTimer = 0;
+      this.growTimer = 0;
+      this.powderTimer = 0;
       this.stunTimer = 0;
       this.knock.set(0, 0, 0);
       for (const { mat } of this.materials) {
@@ -499,8 +618,10 @@ export class Enemy {
     const holding = holdZ !== null && this.target === 'gate';
     const gateX = holding ? this.position.x : THREE.MathUtils.clamp(this.position.x, -GATE_HALF_WIDTH + 0.3, GATE_HALF_WIDTH - 0.3);
     const gateZ = holding ? holdZ : GATE_Z + this.radius + 0.3;
-    const tx = this.target === 'player' ? player.position.x : gateX;
-    const tz = this.target === 'player' ? player.position.z : gateZ;
+    // la bandera le gana a la puerta mientras dura; al alma en pena no la engaña, que va por vos
+    const lured = this.lureTimer > 0 && this.target === 'gate' && !this.passed;
+    const tx = lured ? this.lure.x : this.target === 'player' ? player.position.x : gateX;
+    const tz = lured ? this.lure.z : this.target === 'player' ? player.position.z : gateZ;
     const dx = tx - this.position.x;
     const dz = tz - this.position.z;
     const dist = Math.hypot(dx, dz);
@@ -515,6 +636,9 @@ export class Enemy {
         if (this.resolveAttack(player, horde, toPlayer)) return;
       }
       if (this.attackTime >= this.attackEnd) this.state = 'walk';
+      this.animator.setLocomotion('Idle', 1);
+    } else if (lured && dist <= 1.5) {
+      // llegó a la bandera: se queda dando vueltas hasta que se le pasa
       this.animator.setLocomotion('Idle', 1);
     } else if (dist <= reach) {
       if (holding) {
@@ -687,14 +811,25 @@ export class Enemy {
     const fuseOn = this.stats.behavior === 'kamikaze' && this.state === 'attack';
     const pulse = this.stats.behavior === 'kamikaze' ? 0.5 + 0.5 * Math.sin(this.age * (fuseOn ? 40 : 9)) : 0;
     const ward = this.warded && this.alive ? 0.55 + 0.25 * Math.sin(this.age * 6) : 0;
+    // el fuego parpadea, la pólvora late despacio
+    const flame = this.burning ? 0.55 + 0.45 * Math.sin(this.age * 23) * Math.sin(this.age * 7) : 0;
+    const powder = this.powderTimer > 0 ? 0.5 + 0.5 * Math.sin(this.age * 5) : 0;
+    if (this.bubble) {
+      this.bubble.visible = this.divineReady && this.alive && !this.passed;
+      (this.bubble.material as THREE.MeshBasicMaterial).opacity = 0.16 + 0.08 * Math.sin(this.age * 4);
+    }
     for (const { mat, color } of this.materials) {
       if (flash) mat.emissive.setHex(0xffffff);
+      else if (this.frozen) mat.emissive.setHex(0x3a7fa8);
+      else if (flame) mat.emissive.setRGB(0.75 * flame, 0.25 * flame, 0.02);
       else if (this.silenced) mat.emissive.copy(SILENCE_EMISSIVE);
+      else if (powder) mat.emissive.setRGB(0.4 * powder, 0.02, 0.02);
       else if (this.chilled) mat.emissive.setHex(0x0c2a3c);
       else if (ward) mat.emissive.setRGB(0.45 * ward, 0.12 * ward, 0.8 * ward);
       else mat.emissive.setRGB(pulse * 0.7, pulse * 0.08, 0);
       mat.emissiveIntensity = flash ? 0.6 : 1;
-      if (this.chilled) mat.color.copy(color).lerp(CHILL_TINT, 0.45);
+      if (this.frozen) mat.color.copy(color).lerp(FROZEN_TINT, 0.7);
+      else if (this.chilled) mat.color.copy(color).lerp(CHILL_TINT, 0.45);
       else mat.color.copy(color);
     }
   }
@@ -722,6 +857,7 @@ export class Enemy {
       this.pips.sprite.material.dispose();
     }
     if (this.aura) (this.aura.material as THREE.Material).dispose();
+    if (this.bubble) (this.bubble.material as THREE.Material).dispose();
   }
 }
 
@@ -791,23 +927,122 @@ export class Horde {
     return this.add(kind, (u * 2 - 1) * half, SPAWN_Z + Math.random() * 3);
   }
 
-  /** Daña a un enemigo y avisa. Devuelve true si lo mató. */
-  damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number): boolean {
+  /** Las maestrías que tiene el golfista: cambian qué hacen el hielo, el fuego y el rayo. */
+  readonly mastery = { ice: false, fire: false, lightning: false };
+
+  /**
+   * Daña a un enemigo y avisa. Devuelve true si lo mató. `dot` es el daño que no es un pelotazo (el
+   * fuego que va mordiendo): a ese no le suma la vulnerabilidad ni rompe el hielo.
+   */
+  damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number, dot = false): boolean {
     if (!enemy.alive || enemy.passed) return false;
     if (enemy.warded) {
       this.emit({ type: 'immune', enemy });
       return false;
     }
-    // El silenciado por la granada queda vulnerable: cada pelotazo le saca uno más, aunque el palo
-    // pegue cero. Es lo que hace que la granada sirva contra los jefes, no solo contra los grupos.
-    // La vida va en enteros: todo golpe que entra saca al menos 1
-    const raw = amount + (enemy.silenced ? GRENADE.vulnerable : 0);
-    const dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
+    // el escudo divino se come el primer golpe entero, sea lo que sea
+    if (enemy.spendDivine()) {
+      this.emit({ type: 'divine', enemy });
+      return false;
+    }
+    // El vulnerable (silenciado por la granada, o agrandado por la lupa) cobra uno más por pelotazo,
+    // aunque el palo pegue cero. Es lo que hace que la granada sirva contra los jefes, no solo contra
+    // los grupos. Y el congelado se rompe: ese golpe pega el doble.
+    let raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0);
+    const crit = enemy.frozen && !dot;
+    if (crit) {
+      raw *= 2;
+      enemy.frozenTimer = 0;
+    }
+    // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
+    // al acorazado un golpe de 1 no le hace nada
+    let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
+    const armor = enemy.stats.armor ?? 0;
+    if (armor > 0 && dealt > 0) {
+      dealt = Math.max(0, dealt - armor);
+      if (dealt === 0) this.emit({ type: 'armored', enemy });
+    }
+    const hadPowder = enemy.powderTimer > 0;
+    const wasBurning = enemy.burning;
     const killed = enemy.damage(dealt, knockDir, knockback);
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
-    if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed });
+    if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });
+    if (killed) {
+      enemy.powderTimer = 0;
+      enemy.burnTimer = 0;
+      // la pólvora: el marcado explota al morir, y si los de al lado también están marcados, siguen
+      if (hadPowder) {
+        const pos = enemy.position.clone();
+        this.emit({ type: 'powder', pos, radius: POWDER.blast });
+        this.blast(pos, POWDER.blast, this.powderDamage, 6, enemy);
+      }
+      // la maestría del fuego: el que muere prendido contagia a los que tiene al lado
+      if (wasBurning && this.mastery.fire) {
+        for (const e of this.enemies) {
+          if (e === enemy || !e.alive || e.passed) continue;
+          if (Math.hypot(e.position.x - enemy.position.x, e.position.z - enemy.position.z) - e.radius <= ELEMENTS.spreadRadius) e.burn(this.spreadBurn);
+        }
+      }
+    }
     return killed;
+  }
+
+  /**
+   * El hoyo: se lo traga entero, tenga la vida que tenga. El aura del chamán lo salva igual, y el
+   * escudo divino no (no es un golpe). Devuelve true si se lo tragó.
+   */
+  swallow(e: Enemy): boolean {
+    if (!e.alive || e.passed || e.warded) return false;
+    const hp = e.hp;
+    const killed = e.damage(hp, null, 0);
+    if (killed) this.emit({ type: 'damage', enemy: e, amount: hp, killed: true });
+    return killed;
+  }
+
+  /** Cuánto pega la explosión de la pólvora: lo fija el nivel de la habilidad al marcar. */
+  powderDamage = 2;
+  /** Cuánto dura el fuego contagiado. */
+  spreadBurn = 3;
+
+  /**
+   * Hielo de un golpe: enfría `seconds`. Con la maestría, al que **ya estaba frío** lo congela: la
+   * segunda fuente de hielo es la que congela. La zona de hielo no pasa por acá cuadro a cuadro (eso no
+   * es una segunda fuente), solo cuando cae.
+   */
+  applyIce(e: Enemy, seconds: number): void {
+    if (!e.alive || e.passed) return;
+    if (this.mastery.ice && e.chilled && !e.frozen) {
+      e.freeze(ELEMENTS.freezeSeconds);
+      this.emit({ type: 'frozen', enemy: e });
+    }
+    e.chill(seconds);
+  }
+
+  /**
+   * Rayo: salta de `from` al más cercano que no haya tocado todavía este mismo tiro (`seen`), y de ahí
+   * al siguiente, `jumps` veces. Nunca vuelve a uno que ya tocó: no puede dar vueltas matando a todo.
+   */
+  chain(from: Enemy, jumps: number, seen: Set<number>): void {
+    const damage = ELEMENTS.chainDamage * (this.mastery.lightning ? 2 : 1);
+    const total = jumps + (this.mastery.lightning ? 1 : 0);
+    seen.add(from.id);
+    let at = from.position.clone();
+    for (let j = 0; j < total; j++) {
+      let next: Enemy | null = null;
+      let best = ELEMENTS.chainRange;
+      for (const e of this.enemies) {
+        if (!e.alive || e.passed || seen.has(e.id)) continue;
+        const d = Math.hypot(e.position.x - at.x, e.position.z - at.z);
+        if (d < best) { best = d; next = e; }
+      }
+      if (!next) return;
+      seen.add(next.id);
+      const to = next.position.clone();
+      this.emit({ type: 'zap', from: at.clone().setY(at.y + 1), to: to.clone().setY(to.y + next.height * 0.6) });
+      this.damage(next, damage, null, 0);
+      at = to;
+    }
   }
 
   /**
@@ -819,7 +1054,7 @@ export class Horde {
    * daño entero, esté en el centro o en el borde. Antes caía hasta un 60 % hacia el borde, y el número
    * del panel no era el que se cobraba.
    */
-  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>): number {
+  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>, onHit?: (e: Enemy) => void): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -836,6 +1071,7 @@ export class Horde {
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
       this.damage(e, damage, dir.normalize(), knockback);
       skip?.add(e.id);
+      onHit?.(e);
       count++;
     }
     return count;
@@ -1050,6 +1286,16 @@ export class Horde {
 
   update(dt: number, player: Player): void {
     this.updateWards();
+    // el fuego va mordiendo: un poco cada tanto mientras dure
+    for (const e of this.enemies) {
+      if (!e.burning || !e.alive) continue;
+      e.burnTimer = Math.max(0, e.burnTimer - dt);
+      e.burnTick -= dt;
+      if (e.burnTick <= 0) {
+        e.burnTick += ELEMENTS.burnTick;
+        this.damage(e, ELEMENTS.burnDamage, null, 0, true);
+      }
+    }
     for (const e of this.enemies) e.update(dt, player, this);
     this.updateRocks(dt);
 

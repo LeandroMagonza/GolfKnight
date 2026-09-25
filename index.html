@@ -108,6 +108,20 @@
       #card .hint { font-size: 18px; line-height: 1.5; color: #e4e9f0; }
       #card .cool { margin-top: 10px; font-size: 14px; color: #9aa4b2; }
       #card .next { margin-top: 14px; font-size: 15px; color: #ffd66b; }
+      /* las tres cartas entre oleadas */
+      #choice { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(8, 12, 18, 0.66); pointer-events: auto; z-index: 5; }
+      #choice[hidden] { display: none; }
+      #choice h2 { margin: 0; font-size: 30px; letter-spacing: 3px; color: #ffd66b; text-shadow: 0 2px 10px #000; }
+      #choice .cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; max-width: 96vw; }
+      #choice .choice { position: relative; width: 250px; min-height: 230px; box-sizing: border-box; background: rgba(10, 16, 24, 0.95); border: 3px solid var(--c); border-radius: 14px; box-shadow: 0 0 22px var(--c); padding: 18px 18px 16px; cursor: pointer; text-align: center; animation: cardIn 0.3s ease-out; transition: transform 0.12s; }
+      #choice .choice:hover { transform: translateY(-6px) scale(1.03); }
+      #choice .choice kbd { position: absolute; top: 8px; left: 10px; font-size: 13px; color: #9aa4b2; }
+      #choice .tag { font-size: 11px; letter-spacing: 3px; color: #9aa4b2; }
+      #choice .name { font-size: 24px; font-weight: 800; color: #fff; margin-top: 6px; }
+      #choice .title { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--c); margin-top: 2px; }
+      #choice .hint { font-size: 14px; line-height: 1.45; color: #e4e9f0; margin-top: 12px; }
+      #choice .next { font-size: 15px; color: #ffd66b; }
+      #choice .go { font-size: 13px; color: #9aa4b2; }
       #card .go { margin-top: 16px; font-size: 14px; color: #9aa4b2; animation: queued 0.8s infinite alternate; }
       .club.space { margin-left: 14px; border-color: rgba(255,255,255,0.18); }
       .club.space.armed { opacity: 1; border-color: var(--c); box-shadow: 0 0 12px var(--c); }
@@ -180,6 +194,7 @@
         <div id="rows"><div id="clubs"></div><div id="enchants"></div></div>
       </div>
       <div id="card" hidden><div class="box"><div class="tag">HABILIDAD NUEVA</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>
+      <div id="choice" hidden><h2>Elegí una</h2><div class="cards"></div><div class="next"></div><div class="go">click, o 1 · 2 · 3</div></div>
       <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música</p></div>
       <div id="end" hidden><h2></h2><p class="detail"></p><p>R para jugar de nuevo</p></div>
     </div>

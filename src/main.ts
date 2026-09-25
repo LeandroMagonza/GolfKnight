@@ -5,14 +5,15 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ABILITY_ORDER, ICE, type AbilityId } from './core/abilities';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityOf, RESERVE, rollFrictionFor, SHIFT, CURVE, type Club } from './core/clubs';
-import { ENEMIES, unlockedAt, WaveDirector, type EnemyKind } from './core/waves';
+import { ABILITIES, ABILITY_KEYS, ICE, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { describe, drawCards, HEALS, PERK_NUMBERS, type Build, type Card, type PerkId } from './core/cards';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_BONUS, QUALITY_LEVELS, qualityOf, qualityStart, RESERVE, rollFrictionFor, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
+import { ENEMIES, WaveDirector, type EnemyKind } from './core/waves';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
 import { Effects } from './game/effects';
 import { Horde } from './game/enemies';
-import { TEE_Z, Tees } from './game/tees';
+import { BALLS, TEE_Z, Tees } from './game/tees';
 import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
@@ -202,10 +203,12 @@ function shotRange(club: Club): number {
  *
  * Sobre piso plano devuelve null y la pelota vuela como siempre.
  */
-function shotLift(club: Club, range: number): { speed: number; angle: number } | null {
+function shotLift(club: Club, range: number, from?: THREE.Vector3): { speed: number; angle: number } | null {
   if (!relief.on || club.loftDeg <= 0.001) return null;
   const angle = THREE.MathUtils.degToRad(club.loftDeg);
-  player.teePosition(tee);
+  // desde otro lugar (el clon) se calcula contra el terreno de ahí
+  if (from) tee.copy(from);
+  else player.teePosition(tee);
   if (!isLob(club)) return { speed: launchSpeed(range, angle, club.gravity), angle };
   const teeH = heightAt(tee.x, tee.z);
   const rise = heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH;
@@ -349,13 +352,45 @@ horde.onEvent = (e) => {
   switch (e.type) {
     case 'damage': {
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, e.killed ? `${e.amount} ☠` : String(e.amount), e.killed ? 'kill' : '');
+      const text = `${e.crit ? '✸ ' : ''}${e.amount}${e.killed ? ' ☠' : ''}`;
+      hud.float(s.x, s.y, text, e.killed || e.crit ? 'kill' : '');
       if (e.killed) {
         kills++;
         score += e.enemy.stats.score;
+        // perfecto de regalo: cada tantas bajas, el próximo tiro arranca clavado
+        if (perks.giftPerfect && ++giftKills >= PERK_NUMBERS.giftPerfect) {
+          giftKills = 0;
+          player.giftPerfect = true;
+          hud.feedback('Próximo tiro: perfecto', 'good');
+        }
       }
       break;
     }
+    case 'divine': {
+      const s = toScreen(e.enemy.position, e.enemy.height);
+      hud.float(s.x, s.y, '✦', 'hurt');
+      audio.bounce();
+      break;
+    }
+    case 'armored': {
+      const s = toScreen(e.enemy.position, e.enemy.height);
+      hud.float(s.x, s.y, 'blindado', 'hurt');
+      break;
+    }
+    case 'frozen': {
+      const s = toScreen(e.enemy.position, e.enemy.height);
+      hud.float(s.x, s.y, '❄ congelado', '');
+      audio.frost();
+      break;
+    }
+    case 'powder':
+      effects.explosion(e.pos, e.radius, ABILITIES.powder.color);
+      audio.explosion();
+      break;
+    case 'zap':
+      effects.lightning(e.from, e.to);
+      audio.zap();
+      break;
     case 'attack':
       audio.growl();
       break;
@@ -442,6 +477,14 @@ balls.onEvent = (e) => {
       break;
     }
     case 'settled':
+      // las rachas cuentan los tiros del puesto, no las habilidades
+      if (e.ability) break;
+      streak = e.kills > 0 ? streak + 1 : 0;
+      if (perks.masonStreak && streak > 0 && streak % PERK_NUMBERS.masonStreak === 0 && gateHp < GATE_MAX) {
+        gateHp++;
+        hud.feedback('¡Racha! La puerta +1', 'good');
+      }
+      updateChargeMul();
       break;
   }
 };
@@ -459,6 +502,18 @@ abilities.onEvent = (e) => {
     case 'gust':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
       if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
+      break;
+    case 'mark':
+      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
+      audio.explosion();
+      if (e.hits) hud.feedback(`${ABILITIES[e.id].name} ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
+      break;
+    case 'swallow':
+      audio.thud();
+      hud.feedback('¡Al hoyo!', 'good');
+      break;
+    case 'bump':
+      audio.thud();
       break;
     case 'grenade':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
@@ -480,6 +535,10 @@ function cycleClub(delta: number): void {
 
 /** 1, 2, 3 y 4 eligen palo. */
 function selectClub(index: number): void {
+  if (choice) {
+    pickCard(index);
+    return;
+  }
   if (cardOpen || !player || index < 0 || index >= CLUB_ORDER.length) return;
   const id = CLUB_ORDER[index];
   if (!player.unlocked.has(id)) {
@@ -490,18 +549,174 @@ function selectClub(index: number): void {
 }
 
 /**
- * Q, W y E tiran una habilidad **en el acto**, hacia donde está el mouse, con su propia pelota: no
- * gastan la del puesto ni cortan el tiro que se esté cargando. Se puede tirar corriendo entre puestos.
+ * Q, W, E y R tiran la habilidad de ese lugar **en el acto**, hacia donde está el mouse, con su propia
+ * pelota: no gastan la del puesto ni cortan el tiro que se esté cargando. Se puede tirar corriendo entre
+ * puestos. Los lugares se llenan eligiendo cartas entre oleadas.
  */
 function castAbility(index: number): void {
-  if (!started || paused || ended || cardOpen || !player || index < 0 || index >= ABILITY_ORDER.length) return;
+  if (!started || paused || ended || cardOpen || !player || index < 0 || index >= SLOTS) return;
   if (!player.alive || player.grabbedBy || player.stunned) return;
-  const id = ABILITY_ORDER[index];
   player.teePosition(tee);
-  const result = abilities.cast(id, tee, player.aimDir, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z));
-  if (result === 'locked') hud.feedback(`${ABILITIES[id].name}: todavía no la tenés`, 'neutral');
-  else if (result === 'cooling') hud.feedback(`${ABILITIES[id].name} recargando: ${abilities.cooldowns[id].toFixed(1)} s`, 'neutral');
+  const result = abilities.cast(index, tee, player.aimDir, aimPoint);
+  const slot = abilities.slots[index];
+  if (result === 'empty') hud.feedback(`${ABILITY_KEYS[index]}: vacío · se llena eligiendo cartas entre oleadas`, 'neutral');
+  else if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
+  else if (result === 'blocked') hud.feedback('No hay palo para tirar ahora', 'neutral');
 }
+
+// ---------- cartas y mejoras ----------
+/** Las mejoras tomadas, y cuántas veces cada una. */
+const perks: Partial<Record<PerkId, number>> = {};
+/** Las tres cartas en pantalla, o null. */
+let choice: Card[] | null = null;
+/** Tiros seguidos del puesto que mataron a alguien: el ritmo y la racha del albañil. */
+let streak = 0;
+/** Bajas desde el último perfecto de regalo. */
+let giftKills = 0;
+/** Carcaj: si hay pelota a mano, y cuánto falta para la próxima. */
+const quiver = { ready: true, timer: 0 };
+/** Caddie dorado: segundos que le quedan. */
+let caddieLeft = 0;
+
+function build(): Build {
+  return { slots: abilities.slots, perks, hp: player.hp, hpMax: player.maxHp, gate: gateHp, gateMax: GATE_MAX };
+}
+
+/**
+ * Al terminar una oleada salen tres cartas y te quedás con una. El juego queda frenado hasta que
+ * elegís, pero el descanso entre oleadas sigue corriendo: si lo pensaste con calma, la oleada arranca
+ * apenas elegís.
+ */
+function offerChoice(): boolean {
+  const cards = drawCards(build());
+  if (!cards.length) return false;
+  choice = cards;
+  cardOpen = true;
+  player.cancelSwing();
+  hud.showChoice(cards.map(describe), director.nextTitle);
+  return true;
+}
+
+function pickCard(i: number): void {
+  const card = choice?.[i];
+  if (!card) return;
+  choice = null;
+  cardOpen = false;
+  hud.hideChoice();
+  applyCard(card);
+}
+
+function applyCard(card: Card): void {
+  const d = describe(card);
+  if (card.kind === 'ability') {
+    // desde el panel se puede pedir una quinta: no hay lugar, y se avisa en vez de perderla callada
+    if (!abilities.learn(card.id)) {
+      hud.feedback(`${d.name}: no hay lugar (o ya está en el nivel máximo)`, 'neutral');
+      return;
+    }
+    const slot = abilities.slots.findIndex((s) => s.id === card.id);
+    hud.feedback(card.level > 1 ? `${d.name}: nivel ${card.level}` : `${d.name} en la ${ABILITY_KEYS[slot]}`, 'good');
+  } else if (card.kind === 'perk') {
+    perks[card.id] = (perks[card.id] ?? 0) + 1;
+    applyPerks();
+    hud.feedback(d.name, 'good');
+  } else if (card.id === 'gate') {
+    gateHp = Math.min(GATE_MAX, gateHp + HEALS.gate);
+    hud.feedback('Los albañiles remiendan la puerta', 'good');
+  } else {
+    player.heal(HEALS.player);
+    hud.feedback('Recuperás el aliento', 'good');
+  }
+}
+
+/** Pasa las mejoras tomadas a los números del juego. Se llama cada vez que se toma una. */
+function applyPerks(): void {
+  QUALITY_BONUS.perfectWiden = Math.pow(PERK_NUMBERS.sweetSpot, perks.sweetSpot ?? 0);
+  hud.setPerfectWidth(1 - qualityStart(QUALITY_LEVELS - 1));
+  BALLS.max = 3 + (perks.extraBall ?? 0);
+  abilities.secondWind.owned = !!perks.secondWind;
+  horde.mastery.ice = !!perks.masteryIce;
+  horde.mastery.fire = !!perks.masteryFire;
+  horde.mastery.lightning = !!perks.masteryLightning;
+  updateChargeMul();
+}
+
+/** La muñeca rápida siempre, y el ritmo según la racha. */
+function updateChargeMul(): void {
+  const wrist = Math.pow(PERK_NUMBERS.quickWrist, perks.quickWrist ?? 0);
+  const rhythm = perks.rhythm ? 1 - PERK_NUMBERS.rhythmStep * Math.min(streak, PERK_NUMBERS.rhythmMax) : 1;
+  player.chargeMul = wrist * rhythm;
+}
+
+/** Carcaj: vas a pegar donde no hay pelota y te aparece una a los pies, si está lista. */
+function useQuiver(): void {
+  if (!perks.quiver || !quiver.ready || !player.atSpot || hasBallHere()) return;
+  quiver.ready = false;
+  quiver.timer = PERK_NUMBERS.quiverCooldown;
+  tees.place(player.spotIndex);
+  audio.bounce();
+  hud.feedback('Carcaj', 'neutral');
+}
+
+/** Clon: una copia tuya que repite tus próximos tiros desde donde la dejaste. */
+let clone: { pos: THREE.Vector3; shots: number; left: number; mesh: THREE.Group } | null = null;
+function placeClone(shots: number, life: number): void {
+  removeClone();
+  player.teePosition(tee);
+  const mesh = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: ABILITIES.clone.color, transparent: true, opacity: 0.35, depthWrite: false });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 1.7, 12), mat);
+  body.position.y = 0.85;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), mat);
+  head.position.y = 1.9;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 28), new THREE.MeshBasicMaterial({ color: ABILITIES.clone.color, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.05;
+  mesh.add(body, head, ring);
+  mesh.position.set(tee.x, heightAt(tee.x, tee.z), tee.z - 0.4);
+  scene.add(mesh);
+  clone = { pos: tee.clone(), shots, left: life, mesh };
+  effects.blink(tee.clone(), ABILITIES.clone.color);
+}
+function removeClone(): void {
+  if (!clone) return;
+  scene.remove(clone.mesh);
+  clone = null;
+}
+
+/** Un palo simple para el boomerang: vara y cabeza, que gira. */
+function boomerangClub(): THREE.Object3D {
+  const g = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0xcfd6e0, metalness: 0.6, roughness: 0.3 });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), metal);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.08), metal);
+  head.position.set(0.08, -0.55, 0);
+  g.add(shaft, head);
+  return g;
+}
+
+abilities.hooks = {
+  fireShot(clubId: ClubId, quality: number, element: Element) {
+    const club = CLUBS[clubId];
+    player.teePosition(tee);
+    const range = shotRange(club);
+    audio.tock(quality >= QUALITY_LEVELS);
+    balls.fire({ club, quality, power: 1, curve: 0, element, ability: true, from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
+  },
+  fillSpots() {
+    const n = tees.fillAll();
+    if (n) hud.feedback(`¡Lluvia de pelotas! +${n}`, 'good');
+    return n;
+  },
+  startCaddie(seconds: number) {
+    caddieLeft = seconds;
+    hud.feedback('¡Caddie dorado!', 'good');
+  },
+  placeClone,
+  throwClub: () => player.throwClub(),
+  catchClub: () => player.catchClub(),
+  clubMesh: boomerangClub,
+};
 
 /**
  * Espacio: clava el daño donde esté la barra. La barra se queda quieta en ese nivel (el alcance sigue
@@ -519,31 +734,6 @@ function lockSwing(): void {
   if (player.lockSwing()) audio.chargeTick(qualityOf(player.meter.power));
 }
 
-/**
- * Si la oleada que viene estrena una **habilidad**, la habilita ya y muestra el cartel. El juego queda
- * frenado hasta que se lo cierre con un click, pero el descanso entre oleadas sigue corriendo: si se
- * leyó con calma, la oleada arranca apenas se cierra. Los palos no se desbloquean: están los cuatro
- * desde la primera oleada.
- */
-function offerUnlock(): boolean {
-  const id = director.nextUnlock;
-  if (!id || abilities.owned.has(id)) return false;
-  abilities.owned.add(id);
-  player.cancelSwing();
-  cardOpen = true;
-  const ability = ABILITIES[id];
-  hud.showCard({
-    name: ability.name,
-    title: ability.title,
-    key: ABILITY_KEYS[ABILITY_ORDER.indexOf(id)],
-    hint: ability.hint,
-    cooldown: ability.cooldown,
-    color: ability.color,
-    next: director.nextTitle,
-  });
-  return true;
-}
-
 function dismissCard(): void {
   if (!cardOpen) return;
   cardOpen = false;
@@ -556,6 +746,8 @@ async function startGame(): Promise<void> {
   await audio.start();
   audio.startMusic();
   overlay.hidden = true;
+  // con ?palos, para probar: arranca eligiendo una carta
+  if (ALL_CLUBS) offerChoice();
   if (BOT) {
     const { startBot } = await import('./bot');
     startBot();
@@ -583,7 +775,6 @@ function makeDebugPanel(): DebugPanel {
     },
     goToWave(index) {
       for (const e of horde.enemies) e.state = 'gone';
-      for (const id of unlockedAt(index)) abilities.owned.add(id);
       director.goTo(index);
       hud.showBanner(`Oleada ${index + 1}`, 'saltada desde el panel', 2);
     },
@@ -597,6 +788,10 @@ function makeDebugPanel(): DebugPanel {
       location.href = url.toString();
     },
     courseIndex: () => relief.index,
+    offerChoice() {
+      if (!cardOpen) offerChoice();
+    },
+    take: applyCard,
     camera: () => cam,
   });
 }
@@ -612,7 +807,9 @@ function togglePause(): void {
 
 const input = new Input({
   swingStart() {
-    if (started && !paused && !ended && !cardOpen) player.startSwing();
+    if (!started || paused || ended || cardOpen) return;
+    useQuiver();
+    player.startSwing();
   },
   swingRelease() {
     if (started && !paused && !ended && player.mode === 'charging') {
@@ -632,7 +829,7 @@ const input = new Input({
   },
   space() {
     if (!started) intro.advance();
-    else if (cardOpen) dismissCard();
+    else if (cardOpen && !choice) dismissCard();
     else lockSwing();
   },
   step(right) {
@@ -648,6 +845,8 @@ const input = new Input({
     // R solo desde la pausa o desde el cartel del final, que son los dos lugares que la ofrecen. En
     // pleno juego un toque de más te borraba la partida sin preguntar nada
     if (started && (paused || ended)) location.reload();
+    // en pleno juego la R es el cuarto lugar de habilidad
+    else castAbility(3);
   },
   pause: togglePause,
   muteToggle() {
@@ -771,7 +970,6 @@ async function makePlayer(skin: Skin): Promise<Player> {
   scene.add(root);
   playerClips = gltf.animations;
   const p = new Player(root, gltf.animations, scene, clubModel ? clubModel.clone() : null);
-  if (ALL_CLUBS) for (const id of ABILITY_ORDER) abilities.owned.add(id);
   p.spotXs = tees.spots.map((s) => s.x);
   p.canFire = () => {
     const i = p.stanceSpot();
@@ -788,7 +986,15 @@ async function makePlayer(skin: Skin): Promise<Player> {
     if (shot.quality >= QUALITY_LEVELS) hud.feedback('¡Golpe perfecto!', 'good');
     const range = shotRange(shot.club);
     balls.fire(shot, range, shotLift(shot.club, range));
+    // el clon repite el tiro desde donde quedó, hacia el mismo lado, igual de lejos
+    if (clone && clone.shots > 0) {
+      const from = clone.pos.clone();
+      balls.fire({ ...shot, from }, range, shotLift(shot.club, range, from));
+      effects.blink(from, ABILITIES.clone.color);
+      if (--clone.shots <= 0) removeClone();
+    }
   };
+  p.onGift = () => audio.chargeTick(QUALITY_LEVELS);
   // Palazo: botón aparte, con recarga. No hace daño: empuja hacia atrás a todo lo que haya alrededor de
   // un punto un paso adelante del golfista, hacia donde apunta.
   p.onMelee = () => {
@@ -836,6 +1042,10 @@ async function cycleSkin(delta = 1): Promise<void> {
     fresh.hp = player.hp;
     for (const id of player.unlocked) fresh.unlocked.add(id);
     fresh.meleeCooldown = player.meleeCooldown;
+    fresh.chargeMul = player.chargeMul;
+    fresh.giftPerfect = player.giftPerfect;
+    fresh.thrownClub = player.thrownClub;
+    fresh.onGift = player.onGift;
     fresh.setClub(player.club);
     fresh.aimDir.copy(player.aimDir);
     player.dispose(scene);
@@ -874,6 +1084,7 @@ async function loadModels(): Promise<void> {
   hud.setSkin(SKINS[skinIndex].name);
   hud.onSkinClick = () => void cycleSkin();
   hud.onCardDismiss = dismissCard;
+  hud.onPick = pickCard;
   debugPanel = makeDebugPanel();
   player.update(0);
 }
@@ -986,9 +1197,6 @@ function updateWaves(dt: number): void {
     switch (e.type) {
       case 'wave': {
         audio.waveHorn();
-        // cada oleada estrena, como mucho, un palo: el que resuelve al enemigo nuevo
-        // el palo nuevo ya se presentó con su cartel al terminar la oleada anterior; esto es la red de seguridad
-        for (const id of unlockedAt(e.index)) abilities.owned.add(id);
         hud.showBanner(`Oleada ${e.index + 1}`, e.wave.title);
         break;
       }
@@ -1001,11 +1209,8 @@ function updateWaves(dt: number): void {
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacátela con el palazo (Shift)', 'bad');
         break;
       case 'cleared':
-        if (e.index + 1 < director.waveCount) {
-          player.heal(1);
-          gateHp = Math.min(GATE_MAX, gateHp + 2);
-          if (!offerUnlock()) hud.showBanner('¡Oleada despejada!', 'Los albañiles remiendan la puerta · recuperás el aliento', 2.5);
-        }
+        // ya no se cura solo entre oleadas: curarse es una de las cartas, y elegirla es no mejorar
+        if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner('¡Oleada despejada!', '', 2.5);
         break;
       case 'victory':
         endGame('victory', '¡Valdehoyo resiste!', 'La profecía se cumplió… con un hierro 7');
@@ -1024,6 +1229,15 @@ function frame(): void {
   if (player && !paused && !cardOpen) {
 
     if (started) gameClock += dt;
+    // carcaj: se repone solo
+    if (!quiver.ready && (quiver.timer -= dt) <= 0) quiver.ready = true;
+    // caddie dorado: mientras dure, el puesto donde estás nunca se queda sin pelota
+    if (caddieLeft > 0) {
+      caddieLeft -= dt;
+      const i = player.stanceSpot();
+      if (i >= 0 && !tees.hasBall(i)) tees.place(i, true);
+    }
+    if (clone && (clone.left -= dt) <= 0) removeClone();
     // la reserva se repone de a una, y solo con la partida en curso
     if (!RESERVE.enabled) {
       reserve.wanted = 0;
@@ -1073,9 +1287,11 @@ function frame(): void {
     updatePreview();
 
     hud.setClub(player.club, player.pendingClub);
-    hud.setAbilities(abilities.cooldowns, abilities.owned);
-    hud.setClubState(player.unlocked, player.meleeCooldown);
-    hud.setReserve(RESERVE.enabled, reserve.charges, Math.max(0, RESERVE.cooldown - reserve.timer), RESERVE.cooldown, RESERVE.max);
+    hud.setAbilities(abilities.slots, abilities.cooldowns, abilities.slots.map((_, i) => abilities.cooldownOf(i)), abilities.secondWind);
+    hud.setClubState(player.unlocked, player.meleeCooldown, player.thrownClub);
+    // la ficha de la reserva la usa el carcaj cuando se lo tiene: es la misma idea, una pelota a mano
+    if (perks.quiver) hud.setReserve(true, quiver.ready ? 1 : 0, quiver.timer, PERK_NUMBERS.quiverCooldown, 1, 'Carcaj', 'auto');
+    else hud.setReserve(RESERVE.enabled, reserve.charges, Math.max(0, RESERVE.cooldown - reserve.timer), RESERVE.cooldown, RESERVE.max);
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScore(score, kills);
@@ -1130,7 +1346,13 @@ addEventListener('resize', () => {
   /** Color actual de la línea de tiro, para las pruebas. */
   get aimLine() { return { color: previewMat.color.getHex() }; },
   get cardOpen() { return cardOpen; },
-  offerUnlock,
+  offerChoice,
+  pickCard,
+  /** Las cartas en pantalla, y las mejoras tomadas. */
+  get choice() { return choice; },
+  get perks() { return perks; },
+  /** Toma una carta sin sortear, como si la hubieras elegido. */
+  take(card: Card) { applyCard(card); },
   dismissCard,
   get clock() { return gameClock; },
   /** Desde dónde sale la pelota ahora mismo. */
@@ -1141,7 +1363,10 @@ addEventListener('resize', () => {
   /** Las habilidades: cuáles se tienen, las recargas y las zonas de hielo en el piso. */
   get abilities() { return abilities; },
   /** Tira una habilidad por nombre, como si se apretara su tecla. */
-  cast(id: AbilityId) { castAbility(ABILITY_ORDER.indexOf(id)); },
+  cast(id: AbilityId) {
+    if (!abilities.slots.some((s) => s.id === id)) abilities.learn(id);
+    castAbility(abilities.slots.findIndex((s) => s.id === id));
+  },
   /** A qué fracción de su velocidad camina el que pisa hielo, para la anticipación del bot. */
   get iceSlow() { return ICE.slow; },
   cycleClub, castAbility, selectClub, setIronMode, ironMode, dropBall,
@@ -1152,7 +1377,8 @@ addEventListener('resize', () => {
   get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },
   get debug() { return debugPanel; },
   godMode,
-  unlockAll() { for (const id of ABILITY_ORDER) abilities.owned.add(id); },
+  /** Aprende (o sube de nivel) una habilidad, sin carta. */
+  learn(id: AbilityId) { return abilities.learn(id); },
   /** Recorrido de la mano derecha en un clip y sus fases, para revisar los clips de golf. */
   sampleClip(name: string, hz = 20) {
     const clip = playerClips.find((c) => c.name === name);

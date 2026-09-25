@@ -1,56 +1,75 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_KEYS, ABILITY_ORDER, GRENADE, grenadeShift, ICE, WIND } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, cooldownAt, elementOf, ELEMENTS, GRENADE, grenadeShift, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
 import { CLUBS, KNOCK_DECAY } from './clubs';
 
 describe('habilidades', () => {
-  it('son tres, van en Q, W y E, y cada una tiene su recarga', () => {
-    expect(ABILITY_ORDER).toEqual(['grenade', 'ice', 'wind']);
-    expect(ABILITY_KEYS).toEqual(['Q', 'W', 'E']);
-    for (const id of ABILITY_ORDER) {
-      expect(ABILITIES[id].id).toBe(id);
-      expect(ABILITIES[id].cooldown, id).toBeGreaterThan(0);
-      expect(ABILITIES[id].range, id).toBeGreaterThan(0);
-    }
-    // cada una con su color, para distinguir las pelotas en el aire
-    expect(new Set(ABILITY_ORDER.map((id) => ABILITIES[id].color)).size).toBe(ABILITY_ORDER.length);
+  it('van en cuatro lugares, Q, W, E y R', () => {
+    expect(ABILITY_KEYS).toEqual(['Q', 'W', 'E', 'R']);
+    expect(SLOTS).toBe(4);
   });
 
-  it('el hielo deja una zona que dura, y al salir el frío se va enseguida', () => {
-    expect(ICE.radius).toBeGreaterThan(0);
-    expect(ICE.duration).toBeGreaterThan(ICE.linger);
+  it('todas tienen nombre, recarga y color, y hay una por cada palo con cada elemento', () => {
+    for (const id of ABILITY_LIST) {
+      const a = ABILITIES[id];
+      expect(a.id).toBe(id);
+      expect(a.name, id).not.toBe('');
+      expect(a.cooldown, id).toBeGreaterThan(0);
+    }
+    for (const club of Object.keys(CLUBS)) {
+      for (const element of ['ice', 'fire', 'lightning']) expect(ABILITIES[`${club}-${element}`]?.kind, `${club}-${element}`).toBe('shot');
+    }
+    expect(ABILITY_LIST.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('subir de nivel recarga más lento: subir no es gratis', () => {
+    for (const id of ABILITY_LIST) {
+      for (let level = 2; level <= MAX_LEVEL; level++) expect(cooldownAt(ABILITIES[id], level), id).toBeGreaterThan(cooldownAt(ABILITIES[id], level - 1));
+    }
+  });
+
+  it('las tablas por nivel tienen un número por nivel, y ninguno baja al subir', () => {
+    for (const [name, table] of Object.entries(ABILITY_CONFIG)) {
+      for (const [key, value] of Object.entries(table)) {
+        if (!Array.isArray(value)) continue;
+        expect(value, `${name}.${key}`).toHaveLength(MAX_LEVEL);
+        for (let i = 1; i < value.length; i++) expect(value[i], `${name}.${key}`).toBeGreaterThanOrEqual(value[i - 1]);
+      }
+    }
+    expect(lv([1, 2, 3], 0)).toBe(1);
+    expect(lv([1, 2, 3], 9)).toBe(3);
+  });
+
+  it('el hielo y los tiros de hielo cuentan como hielo para la maestría', () => {
+    expect(elementOf('ice')).toBe('ice');
+    expect(elementOf('driver-ice')).toBe('ice');
+    expect(elementOf('wedge-fire')).toBe('fire');
+    expect(elementOf('grenade')).toBeNull();
+  });
+
+  it('el rayo salta pocas veces: no puede dar vueltas matando a todo', () => {
+    expect(ELEMENTS.chainJumps[0]).toBe(1);
+    expect(Math.max(...ELEMENTS.chainJumps)).toBeLessThanOrEqual(3);
+  });
+
+  it('la zona de hielo frena y al salir se va enseguida', () => {
     expect(ICE.linger).toBe(0.5);
-    // frena, pero no congela
     expect(ICE.slow).toBeGreaterThan(0);
     expect(ICE.slow).toBeLessThan(1);
   });
 
-  it('el vendaval llega como el driver y solo los junta', () => {
-    expect(ABILITIES.wind.range).toBe(CLUBS.driver.fixedRange);
-    // con el silencio encima quedaba demasiado fuerte: ahora eso es de la granada
-    expect(Object.keys(WIND)).toEqual(['halfWidth']);
-  });
-
-  it('la granada silencia y deja vulnerables, con un centro que no se mueve', () => {
-    expect(GRENADE.silence).toBeGreaterThan(0);
-    expect(GRENADE.vulnerable).toBe(1);
-    // el centro es un tercio: tirada encima de un grupo, los deja donde están
-    expect(GRENADE.core).toBeCloseTo(1 / 3);
-    // y la fuerza los saca del área, así las dos filas quedan afuera
-    expect(GRENADE.push).toBeGreaterThan(GRENADE.radius);
-  });
-
   it('la granada deja a todos a la misma distancia de la línea, cada uno de su lado', () => {
-    const { push } = GRENADE;
+    const push = GRENADE.push[0];
     for (const lateral of [-3.5, -1, -0.2, 0.2, 1, 3.5]) {
       const end = lateral + grenadeShift(lateral, push);
       expect(Math.abs(end)).toBeCloseTo(push);
-      // nadie se pasa al otro lado de la línea
       expect(Math.sign(end)).toBe(Math.sign(lateral));
     }
-    // al que ya está más lejos que eso no lo mueve: ordena, no aleja
+    // al que ya está más lejos no lo mueve: ordena, no aleja
     expect(grenadeShift(push + 2, push)).toBe(0);
     expect(grenadeShift(-(push + 2), push)).toBe(0);
-    // el empujón recorre velocidad / KNOCK_DECAY, así que termina justo donde tiene que terminar
+    // y la fuerza los saca del área, así las dos filas quedan afuera
+    for (let level = 1; level <= MAX_LEVEL; level++) expect(lv(GRENADE.push, level)).toBeGreaterThan(lv(GRENADE.radius, level));
+    expect(GRENADE.core).toBeCloseTo(1 / 3);
     const shift = grenadeShift(1, push);
     expect((Math.abs(shift) * KNOCK_DECAY) / KNOCK_DECAY).toBeCloseTo(push - 1);
   });
