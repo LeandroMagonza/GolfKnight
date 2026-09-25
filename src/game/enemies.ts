@@ -800,8 +800,7 @@ export class Horde {
     }
     // El silenciado por la granada queda vulnerable: cada pelotazo le saca uno más, aunque el palo
     // pegue cero. Es lo que hace que la granada sirva contra los jefes, no solo contra los grupos.
-    // La vida va en enteros: todo golpe que entra saca al menos 1 (el redondeo es por la explosión del
-    // kamikaze, que pierde fuerza hacia el borde)
+    // La vida va en enteros: todo golpe que entra saca al menos 1
     const raw = amount + (enemy.silenced ? GRENADE.vulnerable : 0);
     const dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
     const killed = enemy.damage(dealt, knockDir, knockback);
@@ -816,11 +815,11 @@ export class Horde {
    * al atravesarlos: el hierro atraviesa y además abre un área donde cae, y nadie tiene que cobrar las
    * dos cosas por un solo tiro.
    *
-   * **El área de un palo pega parejo**: todo el que está adentro del radio cobra el daño entero, esté
-   * en el centro o en el borde. Antes caía hasta un 60 % hacia el borde, y el número del panel no era
-   * el que se cobraba. Solo la explosión del kamikaze pierde fuerza hacia afuera (`falloff`).
+   * **Toda área pega parejo**, la de los palos y la del kamikaze: el que está adentro del radio cobra el
+   * daño entero, esté en el centro o en el borde. Antes caía hasta un 60 % hacia el borde, y el número
+   * del panel no era el que se cobraba.
    */
-  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>, falloff = false): number {
+  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -834,9 +833,8 @@ export class Horde {
         skip?.add(e.id);
         continue;
       }
-      const f = falloff ? 1 - 0.6 * Math.max(0, d / radius) : 1;
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
-      this.damage(e, damage * f, dir.normalize(), knockback * f);
+      this.damage(e, damage, dir.normalize(), knockback);
       skip?.add(e.id);
       count++;
     }
@@ -847,7 +845,7 @@ export class Horde {
   explode(source: Enemy, player: Player): void {
     const pos = source.position.clone();
     this.emit({ type: 'explosion', pos, radius: EXPLOSION_RADIUS });
-    this.blast(pos, EXPLOSION_RADIUS, BOMB_ENEMY_DAMAGE, 8, source, undefined, true);
+    this.blast(pos, EXPLOSION_RADIUS, BOMB_ENEMY_DAMAGE, 8, source);
     const toPlayer = Math.hypot(player.position.x - pos.x, player.position.z - pos.z);
     if (toPlayer < EXPLOSION_RADIUS && player.alive && !player.invulnerable) {
       player.hit(source.stats.damage, pos);

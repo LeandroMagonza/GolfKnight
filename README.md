@@ -117,8 +117,8 @@ arranque), *pasos* (0.4 m por toque), *apagado* (como antes) o *efecto*: ahí no
 muestra la curva. La curva crece manteniendo (*continuo*) o de a escalones (*discreto*), y vuelve a
 cero al disparar o al soltar la tecla; las dos cosas se eligen en el panel.
 
-**El área pega parejo**: todo el que está adentro del radio del hierro o del wedge cobra el daño
-entero, esté en el centro o en el borde. Solo la explosión del kamikaze pierde fuerza hacia afuera.
+**El área pega parejo**: todo el que está adentro del radio del hierro, del wedge o del kamikaze cobra el daño
+entero, esté en el centro o en el borde.
 
 **La pelota de reserva (`S`) está apagada**: las habilidades ya traen su propia pelota. Se puede volver
 a prender desde el panel de balance.

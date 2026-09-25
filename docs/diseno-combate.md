@@ -1427,4 +1427,4 @@ poderes y hay que pasarlas a las habilidades.
   que se va de costado y el desvío queda en a·t²/4.
 - **Pelota de reserva apagada** (`RESERVE.enabled`); se prende desde el panel.
 - **Daño en área parejo**: había una caída lineal de hasta 60 % hacia el borde, y afectaba al hierro y
-  al wedge. Se sacó; solo la conserva la explosión del kamikaze.
+  al wedge. Se sacó, y el 25/9 también de la explosión del kamikaze: toda área pega parejo.
