@@ -234,6 +234,12 @@ recargar. Va en pestañas:
 - **Enemigos**: vida, velocidad, daño y ritmo de ataque de cada uno (a los que ya están en el campo se
   les empareja), y **prender o apagar** un tipo entero sin cambiar la composición de las oleadas.
 - **Campo**: cambiar de campo (reinicia la partida: el terreno se arma una sola vez) y la cámara.
+- **Visual**: lo que se ve y no cambia cómo se juega, cada cosa con su interruptor y los cuadros por
+  segundo arriba para ver cuánto cuesta. **Sombras** del sol (con resolución), **corrección de color**
+  (ninguna, ACES, AgX, neutra) y exposición, **hora del día** (mediodía, tarde, atardecer: sol, cielo en
+  degradé y niebla; la altura y la dirección del sol se tocan sueltas), **contorno de luz** en los
+  personajes y **brillo** en lo que emite luz. *Todo apagado* deja el juego como era antes. Se guarda
+  aparte del balance, así que *Restaurar* no lo toca. Vive en `src/game/visuals.ts`.
 - **Pruebas**: **oleada infinita** (repite la composición de la oleada en curso), **vida infinita**,
   **puerta infinita** y **saltar a cualquier oleada**.
 
@@ -274,6 +280,9 @@ fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa e
   - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las 6 oleadas, para chequear balance. No
     camina ni busca filas: es una cota inferior. Con `--ver` abre una ventana para mirarlo.
   - `swingshot.mjs`: capturas de cerca de cada fase del swing, y distancia cabeza-pelota en el impacto.
+  - `visual.mjs`: capturas de la misma escena con la capa visual apagada y en cada hora del día
+    (`logs/visual-*.png`). Usa la GPU, no el render por software. Las pruebas automáticas arrancan con
+    lo visual apagado, salvo `?visual` en la URL.
   - `rootmotion.mjs`: chequeo de regresión del root motion. Mide el desplazamiento de la cadera en cada clip,
     para la horda y cada skin; falla si alguno pasa de 5 cm.
   - `clipinfo.mjs`: fases detectadas de los clips de golf (address, tope, impacto, final).

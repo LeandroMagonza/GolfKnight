@@ -1,6 +1,7 @@
 // Panel de balance y pruebas (tecla B). Toca los números del juego en vivo, en pestañas: los palos y
 // las bandas, la carga, el tiro (correrse y efecto), las habilidades, las mejoras, los enemigos, el campo
-// y la cámara, y las pruebas (oleada infinita, vida infinita, saltar a una oleada).
+// y la cámara, lo visual (sombras, color, luz, contorno y brillo) y las pruebas (oleada infinita, vida
+// infinita, saltar a una oleada).
 //
 // Las habilidades y las mejoras se dan y se sacan desde su lista, subiendo o bajando el nivel. Los
 // números de cada habilidad están en una ventanita propia, que se abre con su botón.
@@ -15,6 +16,7 @@ import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMo
 import { RISE_CURVE } from './core/swing';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
+import { LIGHTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type Tone } from './game/visuals';
 
 export interface DebugFlags {
   /** El golfista no recibe daño. */
@@ -60,6 +62,10 @@ export interface DebugHooks {
   courseIndex(): number;
   /** La cámara en vivo: el panel la muestra, la copia y le cambia el encuadre automático. */
   camera(): { pitch: number; rise: number; dist: number; auto: boolean; margin: number };
+  /** Pasa a la escena lo tocado en la pestaña Visual. */
+  applyVisual(): void;
+  /** Cuadros por segundo del último segundo. */
+  fps(): number;
 }
 
 /**
@@ -296,7 +302,7 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
   masteryFire: [[ELEMENTS, 'spreadRadius', 'contagio m']],
 };
 
-const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Pruebas'] as const;
+const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Visual', 'Pruebas'] as const;
 type Tab = (typeof TABS)[number];
 const TAB_KEY = 'gk.balanceTab';
 
@@ -307,6 +313,7 @@ export class DebugPanel {
   /** Lo que se repinta al abrir el panel, además de los campos: las teclas de cada habilidad. */
   private readonly onOpen: (() => void)[] = [];
   private camLine: HTMLElement | null = null;
+  private fpsLine: HTMLElement | null = null;
   /** Las casillas que muestran cuánto dura cada nivel del golpe: no se escriben, se calculan. */
   private readonly chargeCells: { td: HTMLTableCellElement; club: Club; level: number }[] = [];
   private readonly pages = new Map<Tab, HTMLElement>();
@@ -319,6 +326,7 @@ export class DebugPanel {
    */
   tick(): void {
     if (!this.open) return;
+    if (this.fpsLine) this.fpsLine.textContent = `${this.hooks.fps()} cuadros por segundo`;
     if (this.camLine) {
       const c = this.hooks.camera();
       this.camLine.textContent = `inclinación ${c.pitch.toFixed(0)}° · altura ${c.rise >= 0 ? '+' : ''}${c.rise.toFixed(1)} m · distancia ${c.dist.toFixed(1)} m`;
@@ -453,6 +461,7 @@ export class DebugPanel {
     this.buildPerks(this.pages.get('Mejoras')!);
     this.buildEnemies(this.pages.get('Enemigos')!);
     this.buildCourse(this.pages.get('Campo')!);
+    this.buildVisual(this.pages.get('Visual')!);
     this.buildTests(this.pages.get('Pruebas')!);
     this.buildFooter(el);
     let first: Tab = 'Palos';
@@ -940,6 +949,80 @@ export class DebugPanel {
     ));
   }
 
+  // ---- lo visual: no cambia cómo se juega, solo cómo se ve ----
+  private buildVisual(el: HTMLElement): void {
+    const fps = document.createElement('p');
+    fps.className = 'note';
+    this.fpsLine = fps;
+    const applied = () => { this.hooks.applyVisual(); saveVisual(); };
+    // cada control se repinta al abrir y al usar «todo prendido / apagado», que los cambia a todos juntos
+    const paints: (() => void)[] = [];
+    const toggle = (label: string, key: 'shadows' | 'rim' | 'bloom') => {
+      const b = this.button(label, () => { VISUAL[key] = !VISUAL[key]; applied(); paintAll(); });
+      paints.push(() => b.classList.toggle('on', VISUAL[key]));
+      return b;
+    };
+    const choice = <T extends string>(label: string, options: readonly T[], get: () => T, set: (v: T) => void, titles: Partial<Record<T, string>> = {}) => {
+      const r = this.row();
+      const tag = document.createElement('span');
+      tag.className = 'note';
+      tag.textContent = label;
+      tag.style.alignSelf = 'center';
+      tag.style.minWidth = '92px';
+      r.append(tag);
+      for (const o of options) {
+        const b = this.button(o, () => { set(o); applied(); paintAll(); }, titles[o] ?? '');
+        paints.push(() => b.classList.toggle('on', get() === o));
+        r.append(b);
+      }
+      return r;
+    };
+    const num = (rows: [string, keyof typeof VISUAL, number, string][]) => this.numbers(rows.map(([label, key, step, unit]) => [
+      label, () => VISUAL[key] as number, (v: number) => { (VISUAL as Record<string, unknown>)[key] = v; applied(); }, step, unit,
+    ] as [string, () => number, (v: number) => void, number, string])).table;
+    const paintAll = () => {
+      for (const p of paints) p();
+      this.refresh();
+    };
+    this.onOpen.push(() => { for (const p of paints) p(); });
+
+    const all = this.row(
+      this.button('Todo prendido', () => { resetVisual(); applied(); paintAll(); }, 'Los valores del código'),
+      this.button('Todo apagado (como antes)', () => { Object.assign(VISUAL, VISUAL_OFF); applied(); paintAll(); }, 'Sin sombras, sin corrección de color, sol de mediodía, sin contorno ni brillo'),
+    );
+    el.append(heading('Visual'), fps, all, note('Nada de esto cambia cómo se juega. Se guarda aparte del balance: «Restaurar» de abajo no lo toca.'));
+
+    el.append(heading('Sombras'), this.row(toggle('Sombras del sol', 'shadows')), choice('resolución', SHADOW_SIZES, () => VISUAL.shadowSize, (v) => { VISUAL.shadowSize = v; }), note(
+      'El sol proyecta sombra de verdad: los personajes quedan parados en el piso y las lomas se leen solas. Con sombras se apaga el círculo oscuro de abajo de cada enemigo. '
+      + 'Más resolución es más nítida y más cara; es lo que más cuadros puede costar.',
+    ));
+
+    el.append(heading('Color'), choice('corrección', TONES, () => VISUAL.tone, (v) => { VISUAL.tone = v; }, {
+      ninguno: 'Como antes: los claros se queman y los colores quedan de plástico',
+      ACES: 'La de cine: más contraste, colores más cálidos y apagados',
+      AgX: 'Suave y natural, respeta los colores',
+      neutro: 'La que menos cambia los colores',
+    } as Record<Tone, string>), num([['exposición', 'exposure', 0.05, '×']]), note('La corrección de color decide cómo se aprieta la luz fuerte para que entre en la pantalla. La exposición aclara u oscurece todo.'));
+
+    el.append(heading('Luz'), choice('hora', LIGHTS, () => VISUAL.light, (v: LightName) => setLight(v)), num([
+      ['altura del sol', 'elevation', 2, '°'],
+      ['dirección', 'azimuth', 5, '°'],
+      ['fuerza del sol', 'sunIntensity', 0.1, ''],
+    ]), note('La hora cambia el sol, el cielo y la niebla del fondo. Elegirla pisa los tres números; después se pueden tocar sueltos. Dirección 0 es el sol desde el fondo del campo, −90 desde la izquierda.'));
+
+    el.append(heading('Contorno'), this.row(toggle('Contorno de luz', 'rim')), num([
+      ['fuerza', 'rimStrength', 0.05, ''],
+      ['finura', 'rimPower', 0.25, ''],
+    ]), note('Aclara el borde de los personajes, para despegarlos del pasto. Más finura es un borde más angosto.'));
+
+    el.append(heading('Brillo'), this.row(toggle('Brillo', 'bloom')), num([
+      ['fuerza', 'bloomStrength', 0.05, ''],
+      ['radio', 'bloomRadius', 0.05, ''],
+      ['desde', 'bloomThreshold', 0.05, ''],
+    ]), note('Lo que emite luz (pelotas, hielo, fuego, el perfecto) brilla alrededor. «Desde» es qué tan fuerte tiene que ser una luz para brillar: más bajo, brilla más cosas.'));
+    paintAll();
+  }
+
   // ---- pruebas ----
   private buildTests(el: HTMLElement): void {
     el.append(heading('Pruebas'));
@@ -998,6 +1081,7 @@ export class DebugPanel {
       `campo: ${COURSES[this.hooks.courseIndex()].name}`,
       `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}, encuadre ${c.auto ? `automatico a ${c.margin} px de las barras` : 'fijo'}`,
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
+      `visual: ${JSON.stringify(VISUAL)}`,
       `hierro: modo ${ironMode()}`,
       `carga: barra llena ${CLUB_ORDER.map((id) => `${id} ${CLUBS[id].chargeTime}`).join(', ')} s`,
       `  niveles desde ${QUALITY_FROM.map((p) => `${Math.round(p * 100)}%`).join(' / ')} de la barra`,

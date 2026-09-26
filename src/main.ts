@@ -12,13 +12,14 @@ import { ENEMIES, WaveDirector, type EnemyKind } from './core/waves';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
 import { Effects } from './game/effects';
-import { Horde } from './game/enemies';
+import { Horde, shadowMat } from './game/enemies';
 import { BALLS, TEE_Z, Tees } from './game/tees';
 import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
 import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
+import { loadVisual, Visuals } from './game/visuals';
 import { DebugPanel, loadBalance } from './debug';
 import { Hud, type PerkChip } from './hud';
 import { Input } from './input';
@@ -40,6 +41,8 @@ const gameCourse = pickCourse(params.has('plano') ? 'plano' : params.get('campo'
 // esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
 const savedBalance = loadBalance();
 const world = new World(scene);
+loadVisual(params);
+const visuals = new Visuals(renderer, scene, camera, world.sun, world.hemi, shadowMat);
 const effects = new Effects(scene);
 const horde = new Horde(scene);
 const balls = new Balls(scene, horde, effects);
@@ -803,6 +806,8 @@ function makeDebugPanel(): DebugPanel {
     },
     refreshPerks: applyPerks,
     camera: () => cam,
+    applyVisual: () => visuals.apply(),
+    fps: () => frameTimes.filter((t) => performance.now() - t < 1000).length,
   });
 }
 
@@ -1288,7 +1293,7 @@ function frame(): void {
   }
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos
   debugPanel?.tick();
-  renderer.render(scene, camera);
+  visuals.render();
 }
 renderer.setAnimationLoop(frame);
 
@@ -1296,6 +1301,7 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  visuals.resize(innerWidth, innerHeight);
 });
 
 // Para inspección automática (Playwright) y debugging en consola.

@@ -73,14 +73,16 @@ export class World {
   private readonly doorMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.9 });
   private doorFlash = 0;
   private readonly guardMixers: THREE.AnimationMixer[] = [];
+  /** La luz del cielo y el sol: los números finales (hora del día, sombras) los pone game/visuals. */
+  readonly hemi = new THREE.HemisphereLight(0xdff1ff, 0x4a6b3a, 1.5);
+  readonly sun = new THREE.DirectionalLight(0xfff2d6, 2.4);
 
   constructor(scene: THREE.Scene) {
     scene.background = new THREE.Color(0x9fd3f0);
     scene.fog = new THREE.Fog(0x9fd3f0, 70, 140);
-    scene.add(new THREE.HemisphereLight(0xdff1ff, 0x4a6b3a, 1.5));
-    const sun = new THREE.DirectionalLight(0xfff2d6, 2.4);
-    sun.position.set(-10, 18, -6);
-    scene.add(sun);
+    scene.add(this.hemi);
+    this.sun.position.set(-10, 18, -6);
+    scene.add(this.sun);
 
     if (relief.on) {
       this.buildTerrain(scene);

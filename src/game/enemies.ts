@@ -74,7 +74,8 @@ interface Rock {
 
 let nextId = 1;
 const shadowGeo = new THREE.CircleGeometry(1, 20);
-const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false });
+/** El círculo oscuro bajo cada enemigo: la sombra de mentira, que se apaga cuando hay sombras de verdad. */
+export const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false });
 const shieldGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.06, 14);
 const shieldMat = new THREE.MeshStandardMaterial({ color: 0x7a5a32, roughness: 0.8, metalness: 0.1 });
 const shieldRimMat = new THREE.MeshStandardMaterial({ color: 0x3c3c3c, roughness: 0.5, metalness: 0.6 });

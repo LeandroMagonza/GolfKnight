@@ -1478,3 +1478,22 @@ Pedido de Leandro después de probar las cartas:
 - **Gólem**: al tirar la piedra miraba al punto donde se planta, que queda a centímetros y a veces a su
   espalda, así que se daba vuelta, tiraba de espaldas y volvía. Ahora sigue mirando a la puerta, y
   levanta la piedra con los dos brazos.
+
+## Hecho: capa visual (26/9/2026)
+
+No cambia nada del juego, solo cómo se ve. Todo en `src/game/visuals.ts`, con su pestaña **Visual** en el
+panel B: un interruptor por efecto y los cuadros por segundo arriba.
+
+- **Sombras del sol** (mapa de 2048, se puede subir o bajar). Con sombras se apaga el círculo negro de
+  abajo de cada enemigo.
+- **Corrección de color ACES** (antes no había ninguna). Probé AgX: lava los colores y todo queda gris.
+- **Tarde** como hora por defecto: sol a 32° de atrás a la izquierda, así las sombras caen hacia el campo;
+  cielo en degradé y niebla del color del horizonte. *Mediodía* es la luz de antes y *atardecer* es más
+  dramático, pero oscurece mucho el campo.
+- **Contorno de luz** suave en los personajes (en el shader, sin costo). Más fuerte blanqueaba a todos.
+- **Brillo** en lo que emite luz, desde 1.4: brillan las pelotas y no las líneas blancas del piso.
+
+En una GTX 1050 Ti va a 60 cuadros con todo prendido. *Todo apagado* deja el juego exactamente como era.
+Lo que sigue, si convence: pasto con variación, respuesta a los golpes (destello, polvo, estela), y
+probar sombreado cel.
+
