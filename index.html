@@ -26,6 +26,8 @@
       #overlay button:disabled { background: #556; color: #aab; cursor: wait; }
       #overlay button#skip { background: transparent; color: #9aa4b2; font-size: 15px; font-weight: 400; border: 1px solid #4a5666; padding: 8px 18px; }
       #overlay button#skip:disabled { opacity: 0.4; }
+      #cinelink { color: #9aa4b2; font-size: 14px; }
+      #cinelink:hover { color: #ffd66b; }
 
       #hud { position: fixed; inset: 0; pointer-events: none; }
       .bars { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; justify-content: space-between; gap: 24px; }
@@ -211,6 +213,7 @@
         <button id="skip" type="button" disabled>Saltar intro</button>
         <button id="start" type="button" disabled>Cargando…</button>
       </div>
+      <a id="cinelink" href="./cine.html">Ver la intro animada (prueba)</a>
     </div>
     <div id="hud">
       <div class="bars">

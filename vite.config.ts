@@ -4,5 +4,9 @@ import { defineConfig } from 'vite';
 // y tiene que andar igual abierto desde cualquier ruta.
 export default defineConfig({
   base: './',
-  build: { chunkSizeWarningLimit: 1500 },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    // la cinemática es una página aparte (cine.html), mientras sea una prueba
+    rollupOptions: { input: { main: 'index.html', cine: 'cine.html' } },
+  },
 });

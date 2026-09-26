@@ -250,6 +250,28 @@ Los cambios valen desde el tiro siguiente y desde el enemigo siguiente, y **se g
 al recargar vuelven. Hace falta porque cambiar de campo recarga la página. El botón *Restaurar* los
 borra y devuelve los valores del código.
 
+## Cinemática de la intro (prueba)
+
+`cine.html` (https://leandromagonza.github.io/GolfKnight/cine.html, y el link *Ver la intro animada* en
+la pantalla de inicio) cuenta la historia con los modelos 3D: la feria medieval, el atropello en el
+estacionamiento, el círculo de runas, el mago y los palos de golf como arma. Todavía no reemplaza a las
+placas de la intro. La historia y el plan están en `docs/cinematica.md`.
+
+- El guion es `src/cine/intro.ts`: planos con escenario, cámara, qué hace cada actor, textos, sonidos y
+  números que cambian con el tiempo (fundidos, brillo de las runas y de los palos, faros). Los campos
+  están explicados en `src/cine/types.ts`.
+- El reproductor (`src/cine/player.ts`) calcula todo como función del tiempo, así que se puede ir a
+  cualquier segundo: la barra de abajo se arrastra, `?t=12.5` en la URL abre pausado ahí, espacio pausa,
+  las flechas mueven un segundo y `,` `.` un cuadro.
+- Escenarios y utilería (carpas, autos, bolsa de palos, círculo de runas) son figuras simples, en
+  `src/cine/sets.ts`.
+- `node tools/cine.mjs` saca tres cuadros por plano (o los segundos que se le pasen) a
+  `logs/cine-*.png`, con la GPU.
+- Modelos propios: `cine-dungeon.glb` (los personajes de PolygonDungeon con los clips de la
+  cinemática: Hit By Car, Getting Up, Looking Around, Pointing, Rallying, Reacting, Talking) y
+  `mage.glb` (el mago, un personaje de Mixamo, con las texturas bajadas a 1024 con
+  `fbx_to_glb.py --max-texture=1024`).
+
 ## Publicar
 
 El juego está en https://leandromagonza.github.io/GolfKnight/, junto a los otros juegos de la landing

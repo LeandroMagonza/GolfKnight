@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Knight · Intro</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: system-ui, sans-serif; color: #eee; user-select: none; }
+      canvas { display: block; }
+      #layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+      /* franjas de cine: la imagen queda en 2.2:1 y los subtítulos van en la de abajo */
+      .bar { position: absolute; left: 0; right: 0; height: max(0px, calc((100vh - 100vw / 2.2) / 2)); background: #000; z-index: 3; }
+      .bar.top { top: 0; }
+      .bar.bottom { bottom: 0; }
+      .veil { position: absolute; inset: 0; opacity: 0; z-index: 2; }
+      .cue { position: absolute; opacity: 0; z-index: 4; }
+      .cue.caption { left: 50%; bottom: max(18px, calc((100vh - 100vw / 2.2) / 4 - 14px)); transform: translateX(-50%); width: min(900px, 90vw); text-align: center; font-size: clamp(16px, 2.2vw, 24px); color: #f2ead8; text-shadow: 0 2px 4px #000; }
+      .cue.say { transform: translate(-50%, -100%); max-width: 320px; background: #fffaf0; color: #1a1a1a; font-size: clamp(14px, 1.6vw, 19px); line-height: 1.35; padding: 10px 16px; border-radius: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.35); text-align: center; z-index: 1; }
+      .cue.say::after { content: ''; position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); border: 8px solid transparent; border-top: 12px solid #fffaf0; border-bottom: 0; }
+      .cue.card { left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; font: italic 400 clamp(22px, 3.2vw, 40px) Georgia, serif; color: #e8e2d4; }
+      .cue.title { left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; font: 700 clamp(44px, 8vw, 110px) Georgia, serif; letter-spacing: 6px; color: #ffd66b; text-shadow: 0 4px 0 #7a4b12, 0 0 30px rgba(255, 200, 90, .5); }
+      #start { position: fixed; inset: 0; display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; background: #05070b; z-index: 10; }
+      #start[hidden] { display: none; }
+      #start h1 { margin: 0; font: 700 44px Georgia, serif; color: #ffd66b; }
+      #start p { margin: 0; color: #9aa4b2; }
+      #start button, #controls button { font-size: 17px; padding: 10px 26px; border-radius: 8px; border: 0; background: #5be07a; color: #102; cursor: pointer; font-weight: 600; }
+      #start button:disabled { background: #556; color: #aab; cursor: wait; }
+      #controls { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; align-items: center; padding: 8px 14px; background: rgba(8, 12, 18, .85); z-index: 8; opacity: 0; transition: opacity .2s; font-size: 13px; }
+      #controls:hover, body.paused #controls { opacity: 1; }
+      #controls button { font-size: 13px; padding: 5px 12px; background: #2c3644; color: #e4e9f0; }
+      #controls input { flex: 1; }
+      #controls .time { font-variant-numeric: tabular-nums; min-width: 150px; color: #cfd6e0; }
+      #controls a { color: #9aa4b2; }
+    </style>
+  </head>
+  <body>
+    <div id="layer"><div class="bar top"></div><div class="bar bottom"></div></div>
+    <div id="start">
+      <h1>Golf Knight</h1>
+      <p id="status">Cargando modelos…</p>
+      <button id="play" disabled>Ver la intro</button>
+    </div>
+    <div id="controls">
+      <button id="toggle">Pausa</button>
+      <input id="scrub" type="range" min="0" step="0.01" value="0" />
+      <span class="time" id="time"></span>
+      <a href="./index.html">Saltar al juego</a>
+    </div>
+    <script type="module" src="/src/cine/main.ts"></script>
+  </body>
+</html>

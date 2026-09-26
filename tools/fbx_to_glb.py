@@ -1,7 +1,8 @@
 """Convert an FBX model (+ optional Mixamo/Unity-style '@clip' FBX files) into one GLB.
-usage: blender -b --python tools/fbx_to_glb.py -- "<base.fbx>" "<out.glb>" [--scene-anim] [clip.fbx ...]
+usage: blender -b --python tools/fbx_to_glb.py -- "<base.fbx>" "<out.glb>" [--scene-anim] [--max-texture=N] [clip.fbx ...]
   clips        : each clip FBX's armature action becomes a glTF animation named after the part after '@'
   --scene-anim : no clips; export the file's own animation as one glTF animation (all objects together)
+  --max-texture=N : shrink every texture larger than N px (Mixamo characters bring 4K maps: too heavy for the web)
 """
 import bpy, sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -13,6 +14,7 @@ rest = argv[2:]
 scene_anim = "--scene-anim" in rest
 normalize = "--normalize-humanoid" in rest   # mixamorig rig: stand up on +Z, face -Y, 1.75 m, feet at 0
 clips = [c for c in rest if not c.startswith("--")]
+max_texture = next((int(a.split("=", 1)[1]) for a in rest if a.startswith("--max-texture=")), 0)
 TARGET_H = 1.75
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -121,6 +123,10 @@ if normalize:
 
 fix_missing_images(os.path.dirname(os.path.dirname(base)))
 for im in bpy.data.images:
+    if max_texture and max(im.size) > max_texture:
+        k = max_texture / max(im.size)
+        im.scale(max(1, round(im.size[0] * k)), max(1, round(im.size[1] * k)))
+        im.pack()   # the exporter reads packed data: repack the shrunk pixels, not the original file
     print("image", im.name, tuple(im.size), os.path.basename(im.filepath))
 print("fps", bpy.context.scene.render.fps, "frame range", bpy.context.scene.frame_start, bpy.context.scene.frame_end)
 
