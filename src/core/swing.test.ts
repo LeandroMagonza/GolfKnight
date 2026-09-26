@@ -100,4 +100,34 @@ describe('SwingMeter', () => {
     expect(r.power).toBe(MIN_POWER);
     expect(r.perfect).toBe(false);
   });
+
+  it('apurar la carga adelanta el golpe 3 pero no achica su ventana', () => {
+    // la muñeca rápida achicaba toda la barra: el perfecto llegaba antes, pero duraba un 15 % menos
+    const from = 0.81;
+    const window = (rush: number) => {
+      const m = new SwingMeter();
+      m.start(1, rush, from);
+      let start = -1;
+      let end = -1;
+      for (let t = 0; t < 1.2; t += 1 / 2000) {
+        m.update(1 / 2000);
+        if (start < 0 && m.power >= from) start = t;
+        if (start >= 0 && end < 0 && m.power >= 1 - 1e-9) end = t;
+      }
+      return { start, length: end - start };
+    };
+    const plain = window(1);
+    const quick = window(0.7);
+    expect(quick.start).toBeCloseTo(plain.start * 0.7, 2);
+    expect(quick.length).toBeCloseTo(plain.length, 2);
+  });
+
+  it('con apuro, setPower igual deja la barra en esa potencia', () => {
+    const m = new SwingMeter();
+    m.start(1, 0.6, 0.8);
+    for (const p of [0.2, 0.79, 0.9, 1]) {
+      m.setPower(p);
+      expect(m.power).toBeCloseTo(p);
+    }
+  });
 });

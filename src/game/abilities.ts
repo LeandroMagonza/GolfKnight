@@ -154,6 +154,30 @@ export class Abilities {
     return true;
   }
 
+  /**
+   * Pone una habilidad en un nivel, desde el panel de balance: 0 la saca (y las de la derecha se corren
+   * un lugar), y una que no tenías va al primer lugar libre. Devuelve false si no había lugar.
+   */
+  setLevel(id: AbilityId, level: number): boolean {
+    const to = Math.max(0, Math.min(MAX_LEVEL, Math.round(level)));
+    const i = this.slots.findIndex((s) => s.id === id);
+    if (to === 0) {
+      if (i >= 0) {
+        this.slots.splice(i, 1);
+        this.cooldowns.splice(i, 1);
+        this.cooldowns.push(0);
+      }
+      return true;
+    }
+    if (i >= 0) {
+      this.slots[i].level = to;
+      return true;
+    }
+    if (this.slots.length >= SLOTS || !ABILITIES[id]) return false;
+    this.slots.push({ id, level: to });
+    return true;
+  }
+
   /** Recarga total del lugar `i`, con el nivel de lo que tiene. */
   cooldownOf(i: number): number {
     const s = this.slots[i];

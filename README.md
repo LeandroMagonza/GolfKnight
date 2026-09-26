@@ -126,11 +126,16 @@ pelota gratis y **cargado al nivel de la habilidad**, que además:
 | Lupa | los agranda: más fáciles de pegar, y vulnerables |
 | Clon | una copia tuya repite tus próximos tiros desde donde la dejaste |
 
-**Mejoras**: Muñeca rápida (la barra carga un 15 % antes), Punto dulce (el perfecto un 35 % más ancho),
-Ritmo (cada tiro seguido que mata carga el próximo más rápido), Racha del albañil (5 tiros seguidos
+**Mejoras**: Muñeca rápida (llegás al golpe 3 un 15 % antes, y la ventana del perfecto dura lo mismo),
+Punto dulce (el perfecto un 35 % más ancho), Ritmo (cada tiro seguido que mata te hace llegar antes al
+golpe 3 en el próximo), Racha del albañil (5 tiros seguidos
 matando curan 1 de puerta), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
 Carcaj (si vas a pegar sin pelota, te aparece una; una cada 12 s), Pelota extra (los guardias mantienen
 una más), Segundo aire (apretar una habilidad que recarga la tira igual, y recarga él 30 s).
+
+Las mejoras tomadas se ven en **una columna a la izquierda**, con lo que cuentan: cuánto le falta al
+carcaj o al segundo aire, cuántas bajas llevás para el perfecto de regalo, cómo va cada racha. El
+perfecto de regalo no se pierde si cancelás el tiro o volvés a empezar la carga: queda para el próximo.
 
 **Maestrías**, que solo salen con dos habilidades del mismo elemento:
 - *Hielo*: un segundo hielo sobre el que ya está frío lo **congela**, y el golpe que rompe el hielo pega
@@ -153,13 +158,10 @@ cero al disparar o al soltar la tecla; las dos cosas se eligen en el panel.
 **El área pega parejo**: todo el que está adentro del radio del hierro, del wedge o del kamikaze cobra el daño
 entero, esté en el centro o en el borde.
 
-**La pelota de reserva (`S`) está apagada**: las habilidades ya traen su propia pelota. Se puede volver
-a prender desde el panel de balance.
-
 **La cámara se encuadra sola**: al subirla o inclinarla se aleja lo necesario para que la línea de los
 puestos quede siempre justo arriba de las barras de abajo. Se apaga o se ajusta en el panel.
 
-Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se tocan en vivo en el panel de balance, que además tiene una sección para sacar cartas o tomar cualquier habilidad o mejora al instante.
+Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se tocan en vivo en el panel de balance, donde además se da o se saca cualquier habilidad o mejora subiéndole o bajándole el nivel.
 
 ### Lo demás
 
@@ -170,7 +172,7 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
   te pasa por encima te atropella: te saca 1 y muere en el choque. A la puerta cada enemigo le saca 1
   (el caballero y el kamikaze, 2). Después de recibir un golpe hay un segundo de respiro, titilando.
   **El que ya pasó tu línea queda fuera de juego**: se desvanece, no se le puede pegar y corre hasta
-  la puerta. Entre oleadas se recupera 1 de vida y 2 de puerta.
+  la puerta. Entre oleadas no se cura solo: curarse es una de las cartas.
 - La puntería tiene un arco de 180 grados: de costado a costado, pero no para atrás.
 
 | Enemigo (vida) | Qué lo hace distinto |
@@ -183,6 +185,8 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
 | Chamán goblin (3) | hace inmunes a los que tiene a 8 m; a él nadie lo protege |
 | Alma en pena (2) | la única que te persigue: te agarra y te desangra |
 | Gólem de roca (80) | el jefe: tira piedras a la puerta desde lejos |
+| Goblin acorazado (1) | le resta 1 a cada golpe: el driver de cerca no le hace nada |
+| Esqueleto bendito (3) | el primer golpe no le entra; el escudo se le recarga a los 5 s |
 
 ## El campo: cuatro mapas, uno por partida
 
@@ -213,21 +217,28 @@ La altura sale de `src/core/terrain.ts` (ahí se agregan mapas nuevos), y la pel
 ## Panel de balance y pruebas (`B`)
 
 `B`, o el botón *Balance*, abre un panel al costado que toca los números del juego en vivo, sin
-recargar:
+recargar. Va en pestañas:
 
-- el **daño de cada palo** en cada banda de distancia y para cada nivel de golpe, más su alcance y el
-  radio de su área;
-- dónde **cortan las bandas** (20 y 40 m por defecto);
-- las **habilidades**: recarga, alcance y los números de cada una (radio y duración del hielo,
-  silencio y vulnerabilidad del vendaval, radio y fuerza de la granada);
-- el **tiempo de carga** y la **rapidez del putter**;
-- la **vida, velocidad, daño y ritmo de ataque de cada enemigo** (a los que ya están en el campo se les
-  empareja), y **prender o apagar** un tipo entero sin cambiar la composición de las oleadas;
-- **cambiar de campo** (reinicia la partida: el terreno se arma una sola vez);
-- botones de prueba: **oleada infinita** (repite la composición de la oleada en curso, no se termina
-  nunca), **vida infinita**, **puerta infinita** y **saltar a la oleada 1 a 6**;
-- **Copiar configuración**, que deja en el portapapeles todo el balance como texto para pasarlo y
-  llevarlo al código.
+- **Palos**: el daño de cada palo en cada banda de distancia y para cada nivel de golpe, su alcance, el
+  radio de su área, la rapidez del rodado, la distancia fija y los dos modos del hierro; y dónde
+  **cortan las bandas** (20 y 40 m por defecto).
+- **Carga**: cuánto tarda la barra de cada palo y dónde empieza cada nivel del golpe, con los segundos
+  que dura cada uno.
+- **Tiro**: qué hacen A y D mientras cargás (nada, correrse de a pasos, correrse seguido o darle
+  efecto). Cada modo muestra solo sus números.
+- **Habilidades**: la lista de las 24 con el **nivel que tiene** cada una. Subirlo se la da (va al primer
+  lugar libre) y bajarlo a 0 se la saca; si ya tiene cuatro, avisa. El botón *números* abre una
+  ventanita con la recarga, el alcance y lo que hace en cada nivel. Arriba, *Sacar tres cartas ahora*.
+- **Mejoras**: lo mismo con las mejoras (cuántas veces tomada cada una, con sus números al lado), y las
+  dos curaciones.
+- **Enemigos**: vida, velocidad, daño y ritmo de ataque de cada uno (a los que ya están en el campo se
+  les empareja), y **prender o apagar** un tipo entero sin cambiar la composición de las oleadas.
+- **Campo**: cambiar de campo (reinicia la partida: el terreno se arma una sola vez) y la cámara.
+- **Pruebas**: **oleada infinita** (repite la composición de la oleada en curso), **vida infinita**,
+  **puerta infinita** y **saltar a cualquier oleada**.
+
+Abajo, en todas, **Copiar configuración** deja en el portapapeles todo el balance como texto para
+pasarlo y llevarlo al código.
 
 Los cambios valen desde el tiro siguiente y desde el enemigo siguiente, y **se guardan en el navegador**:
 al recargar vuelven. Hace falta porque cambiar de campo recarga la página. El botón *Restaurar* los

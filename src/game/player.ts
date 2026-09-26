@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Element } from '../core/abilities';
-import { CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, MELEE_COOLDOWN, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
+import { CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, MELEE_COOLDOWN, QUALITY_LEVELS, qualityOf, qualityStart, SHIFT, type Club, type ClubId } from '../core/clubs';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
@@ -264,26 +264,40 @@ export class Player {
     this.shift = 0;
     this.curve = 0;
     this.backswing = 0;
-    this.meter.start(this.chargeTime);
+    this.startMeter();
     // perfecto de regalo: la barra arranca ya clavada arriba, y soltás cuando quieras
     if (this.giftPerfect) {
       this.giftPerfect = false;
+      this.giftInHand = true;
       this.meter.setPower(1);
       this.meter.lock();
       this.onGift?.();
     }
   }
 
-  /** Cuánto tarda la barra con este palo, con las mejoras de carga encima. */
-  get chargeTime(): number {
-    return this.club.chargeTime * this.chargeMul;
+  /**
+   * Arranca la barra con el apuro de las mejoras. El apuro vale solo hasta donde empieza el golpe
+   * perfecto: la ventana de arriba dura lo mismo que sin mejoras (ver SwingMeter).
+   */
+  private startMeter(): void {
+    this.meter.start(this.club.chargeTime, this.chargeMul, qualityStart(QUALITY_LEVELS - 1));
   }
 
-  /** Multiplica el tiempo de carga: lo bajan la muñeca rápida y el ritmo. */
+  /** Cuánto tarda el tramo de abajo de la barra: lo bajan la muñeca rápida y el ritmo. */
   chargeMul = 1;
   /** El próximo tiro arranca clavado en el perfecto (la mejora «Perfecto de regalo»). */
   giftPerfect = false;
+  /**
+   * El tiro que se está cargando es el perfecto de regalo. Si se cancela o se vuelve a empezar la
+   * carga, el regalo no se pierde: queda para el próximo.
+   */
+  private giftInHand = false;
   onGift: (() => void) | null = null;
+
+  /** ¿Hay un perfecto de regalo esperando, o en la mano? Para la ficha del HUD. */
+  get giftReady(): boolean {
+    return this.giftPerfect || this.giftInHand;
+  }
 
   /**
    * El palo que está volando como boomerang: mientras tanto no se puede usar. Si era el de la mano, se
@@ -310,6 +324,7 @@ export class Player {
   releaseSwing(): void {
     if (this.mode !== 'charging') return;
     this.swingShot = this.meter.release();
+    this.giftInHand = false;
     this.mode = 'swinging';
     this.swingTime = 0;
     this.sinceImpact = 0;
@@ -330,12 +345,21 @@ export class Player {
   restartCharge(): boolean {
     if (this.mode !== 'charging') return false;
     this.backswing = 0;
-    this.meter.start(this.chargeTime);
+    this.keepGift();
+    this.startMeter();
     return true;
+  }
+
+  /** El regalo que estaba en la mano vuelve a quedar guardado. */
+  private keepGift(): void {
+    if (!this.giftInHand) return;
+    this.giftInHand = false;
+    this.giftPerfect = true;
   }
 
   cancelSwing(): void {
     if (this.mode !== 'charging') return;
+    this.keepGift();
     this.meter.cancel();
     this.mode = 'free';
     if (this.swingClip) this.animator.clearOneShot();

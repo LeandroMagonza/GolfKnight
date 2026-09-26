@@ -6,8 +6,8 @@ import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
 import { ABILITIES, ABILITY_KEYS, ICE, SLOTS, type AbilityId, type Element } from './core/abilities';
-import { describe, drawCards, HEALS, PERK_NUMBERS, type Build, type Card, type PerkId } from './core/cards';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_BONUS, QUALITY_LEVELS, qualityOf, qualityStart, RESERVE, rollFrictionFor, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
+import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_BONUS, QUALITY_LEVELS, qualityOf, qualityStart, rollFrictionFor, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { ENEMIES, WaveDirector, type EnemyKind } from './core/waves';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
@@ -20,7 +20,7 @@ import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
 import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { DebugPanel, loadBalance } from './debug';
-import { Hud } from './hud';
+import { Hud, type PerkChip } from './hud';
 import { Input } from './input';
 import { Intro } from './intro';
 
@@ -81,17 +81,6 @@ const BOT = params.has('bot');
 const godMode = { godPlayer: false, godGate: false };
 /** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
 const disabledKinds = new Set<EnemyKind>((savedBalance.disabled ?? []) as EnemyKind[]);
-/**
- * Pelotas de reserva (tecla S). Arranca con el cargador lleno y se repone de a una; los números están
- * en core/clubs y se tocan en el panel de balance. `timer` cuenta hacia la próxima carga.
- */
-const reserve = { charges: RESERVE.max, timer: 0, wanted: 0 };
-/**
- * Segundos que espera una S apretada en movimiento. Apretarla mientras corrés a otro puesto no tiene
- * por qué perderse: la pelota se apoya al llegar. Vence sola para que no te aparezca una pelota tres
- * puestos después, cuando ya te habías olvidado.
- */
-const BALL_BUFFER = 1.5;
 
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
@@ -226,40 +215,6 @@ function hasBallHere(): boolean {
   // parado en el puesto, o corrido un poco cargando el tiro: la pelota va con él
   const i = player.stanceSpot();
   return i >= 0 && tees.hasBall(i);
-}
-
-/**
- * S: saca una pelota de la reserva y la apoya en el puesto donde está parado. Es la salida para cuando
- * los guardias las tiran todas lejos y te toca mirar cómo llega la horda sin nada que pegarle. Se
- * recarga sola, de a una, y guarda pocas: es un respiro, no una fuente infinita.
- */
-function dropBall(): void {
-  if (!RESERVE.enabled || !started || paused || ended || cardOpen || !player?.alive) return;
-  if (reserve.charges <= 0) {
-    hud.feedback(`Reserva: ${Math.ceil(RESERVE.cooldown - reserve.timer)} s para la próxima`, 'neutral');
-    return;
-  }
-  // apretada en movimiento queda anotada: la pelota se apoya sola al llegar al puesto
-  if (!placeReserveBall()) {
-    reserve.wanted = BALL_BUFFER;
-    hud.feedback('Pelota al llegar', 'neutral');
-  }
-}
-
-/** Apoya la pelota en el puesto, si se puede. Devuelve false si todavía no es momento. */
-function placeReserveBall(): boolean {
-  if (!player.atSpot || reserve.charges <= 0) return false;
-  const i = tees.nearest(player.anchor.x);
-  if (Math.abs(tees.spots[i].x - player.anchor.x) >= 0.1) return false;
-  if (tees.hasBall(i)) {
-    hud.feedback('Acá ya hay pelota', 'neutral');
-    return true;
-  }
-  reserve.charges--;
-  tees.place(i);
-  audio.bounce();
-  hud.feedback(reserve.charges ? `Pelota de la reserva · queda ${reserve.charges}` : 'Última pelota de la reserva', 'good');
-  return true;
 }
 
 /**
@@ -658,6 +613,52 @@ function useQuiver(): void {
   hud.feedback('Carcaj', 'neutral');
 }
 
+/**
+ * Las fichas de las mejoras tomadas, para la columna del HUD: las que saltan solas muestran cuánto les
+ * falta, y las rachas, cuánto llevás.
+ */
+function perkStatus(): PerkChip[] {
+  const out: PerkChip[] = [];
+  for (const id of PERK_LIST) {
+    const n = perks[id] ?? 0;
+    if (!n) continue;
+    const p = PERKS[id];
+    const chip: PerkChip = { id, name: p.max > 1 && n > 1 ? `${p.name} ×${n}` : p.name, color: p.color, hint: p.hint, status: '', cooling: 0, ready: false };
+    switch (id) {
+      case 'giftPerfect':
+        chip.ready = player.giftReady;
+        chip.status = chip.ready ? '¡listo!' : `bajas ${giftKills}/${PERK_NUMBERS.giftPerfect}`;
+        break;
+      case 'quiver':
+        chip.ready = quiver.ready;
+        chip.status = quiver.ready ? 'lista' : `⟳ ${Math.ceil(quiver.timer)} s`;
+        chip.cooling = quiver.ready ? 0 : quiver.timer / PERK_NUMBERS.quiverCooldown;
+        break;
+      case 'secondWind': {
+        const left = abilities.secondWind.left;
+        chip.ready = left <= 0;
+        chip.status = chip.ready ? 'listo' : `⟳ ${Math.ceil(left)} s`;
+        chip.cooling = left / PERK_NUMBERS.secondWindCooldown;
+        break;
+      }
+      case 'rhythm': {
+        const k = Math.min(streak, PERK_NUMBERS.rhythmMax);
+        chip.status = `racha ${k}/${PERK_NUMBERS.rhythmMax}`;
+        chip.ready = k >= PERK_NUMBERS.rhythmMax;
+        break;
+      }
+      case 'masonStreak':
+        chip.status = `racha ${streak % PERK_NUMBERS.masonStreak}/${PERK_NUMBERS.masonStreak}`;
+        break;
+      case 'extraBall':
+        chip.status = `+${n}`;
+        break;
+    }
+    out.push(chip);
+  }
+  return out;
+}
+
 /** Clon: una copia tuya que repite tus próximos tiros desde donde la dejaste. */
 let clone: { pos: THREE.Vector3; shots: number; left: number; mesh: THREE.Group } | null = null;
 function placeClone(shots: number, life: number): void {
@@ -792,6 +793,15 @@ function makeDebugPanel(): DebugPanel {
       if (!cardOpen) offerChoice();
     },
     take: applyCard,
+    slots: () => abilities.slots,
+    setAbilityLevel: (id, level) => abilities.setLevel(id, level),
+    perks: () => perks,
+    setPerkLevel(id, level) {
+      if (level > 0) perks[id] = level;
+      else delete perks[id];
+      applyPerks();
+    },
+    refreshPerks: applyPerks,
     camera: () => cam,
   });
 }
@@ -835,7 +845,6 @@ const input = new Input({
   step(right) {
     if (started && !paused && !ended && !cardOpen && player) player.step(-right);
   },
-  dropBall,
   melee() {
     if (!started || paused || ended || cardOpen || !player) return;
     if (player.meleeCooldown > 0) hud.feedback(`Palazo recargando: ${player.meleeCooldown.toFixed(1)} s`, 'neutral');
@@ -1238,23 +1247,6 @@ function frame(): void {
       if (i >= 0 && !tees.hasBall(i)) tees.place(i, true);
     }
     if (clone && (clone.left -= dt) <= 0) removeClone();
-    // la reserva se repone de a una, y solo con la partida en curso
-    if (!RESERVE.enabled) {
-      reserve.wanted = 0;
-    } else if (started && !ended && reserve.charges < RESERVE.max) {
-      reserve.timer += dt;
-      if (reserve.timer >= RESERVE.cooldown) {
-        reserve.timer = 0;
-        reserve.charges++;
-      }
-    } else if (reserve.charges >= RESERVE.max) {
-      reserve.timer = 0;
-    }
-    // la S apretada en movimiento: se cumple apenas llega al puesto
-    if (reserve.wanted > 0) {
-      reserve.wanted -= dt;
-      if (placeReserveBall()) reserve.wanted = 0;
-    }
     // correrse cargando, en el modo continuo: mantener A o D corre con la pelota. El derecho de la
     // pantalla es hacia -x, como en `step`
     // Y el efecto: mantener A o D curva el tiro (continuo), y con «al soltar» vuelve a cero apenas no
@@ -1287,11 +1279,9 @@ function frame(): void {
     updatePreview();
 
     hud.setClub(player.club, player.pendingClub);
-    hud.setAbilities(abilities.slots, abilities.cooldowns, abilities.slots.map((_, i) => abilities.cooldownOf(i)), abilities.secondWind);
+    hud.setAbilities(abilities.slots, abilities.cooldowns, abilities.slots.map((_, i) => abilities.cooldownOf(i)));
     hud.setClubState(player.unlocked, player.meleeCooldown, player.thrownClub);
-    // la ficha de la reserva la usa el carcaj cuando se lo tiene: es la misma idea, una pelota a mano
-    if (perks.quiver) hud.setReserve(true, quiver.ready ? 1 : 0, quiver.timer, PERK_NUMBERS.quiverCooldown, 1, 'Carcaj', 'auto');
-    else hud.setReserve(RESERVE.enabled, reserve.charges, Math.max(0, RESERVE.cooldown - reserve.timer), RESERVE.cooldown, RESERVE.max);
+    hud.setPerks(perkStatus());
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScore(score, kills);
@@ -1369,9 +1359,8 @@ addEventListener('resize', () => {
   },
   /** A qué fracción de su velocidad camina el que pisa hielo, para la anticipación del bot. */
   get iceSlow() { return ICE.slow; },
-  cycleClub, castAbility, selectClub, setIronMode, ironMode, dropBall,
+  cycleClub, castAbility, selectClub, setIronMode, ironMode,
   /** Pelotas de reserva (S): cuántas quedan y cuánto falta para la próxima. */
-  get reserve() { return { charges: reserve.charges, left: +Math.max(0, RESERVE.cooldown - reserve.timer).toFixed(1), max: RESERVE.max, cooldown: RESERVE.cooldown }; },
   /** Qué campo salió esta partida, y el panel de balance. */
   get course() { return { index: relief.index, name: gameCourse.name, relieve: relief.on }; },
   get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },

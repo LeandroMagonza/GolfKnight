@@ -185,6 +185,32 @@ const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).fla
 export const ABILITIES: Record<AbilityId, Ability> = Object.fromEntries([...BASE, ...SHOTS].map((a) => [a.id, a]));
 export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);
 
+/** Las claves de ELEMENTS que usa cada elemento. */
+const ELEMENT_KEYS: Record<Element, string[]> = {
+  ice: ['iceSeconds', 'freezeSeconds'],
+  fire: ['burnSeconds', 'burnTick', 'burnDamage', 'spreadRadius'],
+  lightning: ['chainJumps', 'chainRange', 'chainDamage'],
+};
+const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
+  grenade: 'granada', iceZone: 'hielo', wind: 'vendaval', cart: 'carrito', hole: 'hoyo', flag: 'bandera',
+  powder: 'pólvora', boomerang: 'boomerang', caddie: 'caddie', lens: 'lupa', clone: 'clon',
+};
+
+/**
+ * Los números propios de una habilidad: en qué tabla de ABILITY_CONFIG están y cuáles de sus claves son
+ * suyos. Las de palo y elemento comparten la tabla del elemento: tocar el fuego del driver toca el de
+ * los cuatro palos. La lluvia de pelotas no tiene números.
+ */
+export function configOf(id: AbilityId): { name: string; table: Record<string, number | number[]>; keys: string[]; shared: boolean } | null {
+  const a = ABILITIES[id];
+  if (!a) return null;
+  if (a.kind === 'shot') return { name: 'elementos', table: ELEMENTS, keys: ELEMENT_KEYS[a.element!], shared: true };
+  const name = KIND_CONFIG[a.kind];
+  if (!name) return null;
+  const table = ABILITY_CONFIG[name];
+  return { name, table, keys: Object.keys(table), shared: false };
+}
+
 /** Qué elemento aporta una habilidad, para las maestrías: el hielo cuenta como hielo. */
 export function elementOf(id: AbilityId): Element | null {
   const a = ABILITIES[id];

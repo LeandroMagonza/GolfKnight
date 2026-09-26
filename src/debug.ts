@@ -1,14 +1,17 @@
-// Panel de balance y pruebas (tecla B). Toca los números del juego en vivo: el daño de cada palo en
-// cada banda de distancia, las bandas, las habilidades y la vida y velocidad de cada enemigo. Abajo
-// están los botones para probar: oleada infinita, vida infinita, puerta infinita y saltar a una oleada.
+// Panel de balance y pruebas (tecla B). Toca los números del juego en vivo, en pestañas: los palos y
+// las bandas, la carga, el tiro (correrse y efecto), las habilidades, las mejoras, los enemigos, el campo
+// y la cámara, y las pruebas (oleada infinita, vida infinita, saltar a una oleada).
+//
+// Las habilidades y las mejoras se dan y se sacan desde su lista, subiendo o bajando el nivel. Los
+// números de cada habilidad están en una ventanita propia, que se abre con su botón.
 //
 // Los cambios se aplican sobre los objetos del juego (CLUBS, ABILITIES, ENEMIES), así que valen desde el
 // siguiente tiro y desde el siguiente enemigo que aparece; a los que ya están en el campo se les
 // empareja la vida y la velocidad. El botón de copiar saca el texto con todo lo cambiado, para pasarlo
 // e incorporarlo al juego.
-import { ABILITIES, ABILITY_CONFIG, ABILITY_LIST, LEVELS, VULNERABLE } from './core/abilities';
-import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card } from './core/cards';
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, RESERVE, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, ELEMENTS, LEVELS, MAX_LEVEL, SLOTS, VULNERABLE, type AbilityId } from './core/abilities';
+import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from './core/cards';
+import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import { RISE_CURVE } from './core/swing';
 import { COURSES } from './core/terrain';
 import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
@@ -31,8 +34,18 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
 export interface DebugHooks {
   /** Saca tres cartas ya, como al terminar una oleada. */
   offerChoice(): void;
-  /** Toma una carta directo, sin sortear. */
+  /** Toma una carta directo, sin sortear (las de curarse). */
   take(card: Card): void;
+  /** Las habilidades en Q, W, E y R, con su nivel. */
+  slots(): readonly { id: AbilityId; level: number }[];
+  /** Pone una habilidad en un nivel: 0 la saca. Devuelve false si no quedaba lugar. */
+  setAbilityLevel(id: AbilityId, level: number): boolean;
+  /** Las mejoras tomadas, y cuántas veces. */
+  perks(): Partial<Record<PerkId, number>>;
+  /** Pone una mejora en tantas veces tomada: 0 la saca. */
+  setPerkLevel(id: PerkId, level: number): void;
+  /** Vuelve a pasar las mejoras a los números del juego: después de tocar uno de sus números. */
+  refreshPerks(): void;
   director: WaveDirector;
   flags: DebugFlags;
   /** Les pasa a los enemigos vivos la vida y la velocidad nuevas. */
@@ -89,7 +102,6 @@ type Saved = SavedExtras & {
   iron?: IronMode;
   /** Dónde empieza cada nivel de golpe, en potencia 0..1. */
   quality?: number[];
-  reserve?: { enabled?: boolean; cooldown: number; max: number };
   /** Correrse cargando: el modo y sus números. */
   shift?: Partial<typeof SHIFT>;
   /** El efecto: cómo crece, cuándo vuelve a cero y sus números. */
@@ -135,11 +147,6 @@ export function loadBalance(): SavedExtras {
     if (saved.curve.reset && CURVE_RESETS.includes(saved.curve.reset)) CURVE.reset = saved.curve.reset;
     for (const k of ['max', 'step', 'rate'] as const) if (typeof saved.curve[k] === 'number') CURVE[k] = saved.curve[k];
   }
-  if (saved.reserve) {
-    if (typeof saved.reserve.cooldown === 'number') RESERVE.cooldown = saved.reserve.cooldown;
-    if (typeof saved.reserve.max === 'number') RESERVE.max = saved.reserve.max;
-    if (typeof saved.reserve.enabled === 'boolean') RESERVE.enabled = saved.reserve.enabled;
-  }
   for (const id of ABILITY_LIST) {
     const from = saved.abilities?.[id];
     if (typeof from?.cooldown === 'number') ABILITIES[id].cooldown = from.cooldown;
@@ -182,7 +189,6 @@ export function saveBalance(extras: SavedExtras): void {
     out.iron = ironMode();
   }
   out.quality = [...QUALITY_FROM];
-  out.reserve = { enabled: RESERVE.enabled, cooldown: RESERVE.cooldown, max: RESERVE.max };
   out.shift = { ...SHIFT };
   out.curve = { ...CURVE };
   for (const id of ABILITY_LIST) out.abilities![id] = { cooldown: ABILITIES[id].cooldown, range: ABILITIES[id].range };
@@ -263,13 +269,49 @@ function note(text: string): HTMLElement {
   return p;
 }
 
+/** Cómo se llama cada número de las tablas de habilidades, en el panel. Si falta, se muestra la clave. */
+const LABELS: Record<string, string> = {
+  radius: 'radio m', duration: 'dura s', linger: 'el frío sigue s', slow: 'velocidad adentro ×',
+  halfWidth: 'ancho a cada lado m', push: 'los corre hasta m', core: 'centro quieto (fracción)', silence: 'silencio s',
+  damage: 'daño', speed: 'velocidad m/s', width: 'ancho m', swallows: 'se traga', life: 'dura s',
+  seconds: 'dura s', blast: 'radio de la explosión m', reach: 'alcance m', hitRadius: 'radio del golpe m',
+  scale: 'crecen ×', shots: 'tiros repetidos',
+  iceSeconds: 'frío s', freezeSeconds: 'congelado s (maestría)', burnSeconds: 'fuego s', burnTick: 'pierde cada s',
+  burnDamage: 'daño por vez', spreadRadius: 'contagio m (maestría)', chainJumps: 'saltos',
+  chainRange: 'salta hasta m', chainDamage: 'daño por salto',
+  cooldownGrowth: 'recarga de más por nivel', bonus: 'daño de más al vulnerable',
+  gate: 'la puerta +', player: 'vos +',
+};
+
+/** Los números de cada mejora: de qué tabla y con qué nombre. */
+const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, string, string][]>> = {
+  quickWrist: [[PERK_NUMBERS, 'quickWrist', 'el tramo de abajo tarda ×']],
+  sweetSpot: [[PERK_NUMBERS, 'sweetSpot', 'perfecto más ancho ×']],
+  rhythm: [[PERK_NUMBERS, 'rhythmStep', 'más rápido por tiro'], [PERK_NUMBERS, 'rhythmMax', 'hasta tiros']],
+  masonStreak: [[PERK_NUMBERS, 'masonStreak', 'tiros seguidos']],
+  giftPerfect: [[PERK_NUMBERS, 'giftPerfect', 'cada bajas']],
+  quiver: [[PERK_NUMBERS, 'quiverCooldown', 'una cada s']],
+  secondWind: [[PERK_NUMBERS, 'secondWindCooldown', 'recarga s']],
+  masteryIce: [[ELEMENTS, 'freezeSeconds', 'congelado s']],
+  masteryFire: [[ELEMENTS, 'spreadRadius', 'contagio m']],
+};
+
+const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Pruebas'] as const;
+type Tab = (typeof TABS)[number];
+const TAB_KEY = 'gk.balanceTab';
+
 export class DebugPanel {
   private readonly el = $('balance');
   private readonly btn = $<HTMLButtonElement>('balancebtn');
   private readonly fields: HTMLInputElement[] = [];
+  /** Lo que se repinta al abrir el panel, además de los campos: las teclas de cada habilidad. */
+  private readonly onOpen: (() => void)[] = [];
   private camLine: HTMLElement | null = null;
   /** Las casillas que muestran cuánto dura cada nivel del golpe: no se escriben, se calculan. */
   private readonly chargeCells: { td: HTMLTableCellElement; club: Club; level: number }[] = [];
+  private readonly pages = new Map<Tab, HTMLElement>();
+  private readonly tabButtons = new Map<Tab, HTMLButtonElement>();
+  private modal: HTMLElement | null = null;
 
   /**
    * Lo que el panel no lee de un campo sino que calcula: la cámara (se mueve con la rueda con el panel
@@ -303,8 +345,14 @@ export class DebugPanel {
 
   toggle(): void {
     this.el.hidden = !this.el.hidden;
-    // los números se releen al abrir: pudieron cambiar desde la consola o desde otro botón
-    if (this.open) for (const f of this.fields) f.dispatchEvent(new Event('refresh'));
+    if (!this.open) this.closeModal();
+    // los números se releen al abrir: pudieron cambiar desde la consola, desde una carta o desde otro botón
+    if (this.open) this.refresh();
+  }
+
+  private refresh(): void {
+    for (const f of this.fields) f.dispatchEvent(new Event('refresh'));
+    for (const paint of this.onOpen) paint();
   }
 
   /** Registra un campo para que se reescriba solo cuando se vuelve a abrir el panel. */
@@ -318,10 +366,67 @@ export class DebugPanel {
     return this.track(numberField(get, (v) => { set(v); this.save(); }, step), get);
   }
 
+  /** Un campo que guarda pero no queda registrado: los de la ventanita, que se arma de nuevo cada vez. */
+  private loose(get: () => number, set: (v: number) => void, step = 1): HTMLInputElement {
+    return numberField(get, (v) => { set(v); this.save(); }, step);
+  }
+
   /** Guarda el balance tocado, con lo que vive fuera de CLUBS y ENEMIES. */
   save(): void {
     const c = this.hooks.camera();
     saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled] });
+  }
+
+  private button(label: string, onClick: (b: HTMLButtonElement) => void, title = ''): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    if (title) b.title = title;
+    b.addEventListener('click', () => { b.blur(); onClick(b); });
+    return b;
+  }
+
+  private row(...children: HTMLElement[]): HTMLElement {
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.append(...children);
+    return r;
+  }
+
+  /** Una fila de botones de los que se prende uno solo. `after` corre después de cada cambio. */
+  private choiceRow<T extends string>(label: string, options: readonly T[], get: () => T, set: (v: T) => void, titles: Record<T, string>, after?: () => void): HTMLElement {
+    const r = this.row();
+    if (label) {
+      const tag = document.createElement('span');
+      tag.className = 'note';
+      tag.textContent = label;
+      tag.style.alignSelf = 'center';
+      tag.style.minWidth = '92px';
+      r.append(tag);
+    }
+    const buttons = options.map((o) => this.button(o, () => {
+      set(o);
+      for (const other of buttons) other.classList.toggle('on', other.textContent === get());
+      this.save();
+      after?.();
+    }, titles[o]));
+    for (const b of buttons) b.classList.toggle('on', b.textContent === get());
+    r.append(...buttons);
+    return r;
+  }
+
+  /** Una tabla chica de números sueltos: etiqueta, casilla y unidad. */
+  private numbers(rows: [string, () => number, (v: number) => void, number, string][]): { table: HTMLTableElement; rows: HTMLTableRowElement[] } {
+    const table = document.createElement('table');
+    const out: HTMLTableRowElement[] = [];
+    for (const [label, get, set, step, unit] of rows) {
+      const r = table.insertRow();
+      cell(r, label, 'l');
+      cell(r, this.field(get, set, step));
+      cell(r, unit, 'l');
+      out.push(r);
+    }
+    return { table, rows: out };
   }
 
   private build(): void {
@@ -329,10 +434,47 @@ export class DebugPanel {
     el.innerHTML = '';
     const title = document.createElement('h3');
     title.textContent = 'Balance';
-    el.append(title, note('Los cambios entran en el próximo tiro. B cierra el panel.'));
+    const bar = document.createElement('div');
+    bar.className = 'tabs';
+    el.append(title, note('Los cambios entran en el próximo tiro. B cierra el panel.'), bar);
+    for (const tab of TABS) {
+      const page = document.createElement('div');
+      page.className = 'page';
+      this.pages.set(tab, page);
+      const b = this.button(tab, () => this.show(tab));
+      this.tabButtons.set(tab, b);
+      bar.append(b);
+      el.append(page);
+    }
+    this.buildClubs(this.pages.get('Palos')!);
+    this.buildCharge(this.pages.get('Carga')!);
+    this.buildShot(this.pages.get('Tiro')!);
+    this.buildAbilities(this.pages.get('Habilidades')!);
+    this.buildPerks(this.pages.get('Mejoras')!);
+    this.buildEnemies(this.pages.get('Enemigos')!);
+    this.buildCourse(this.pages.get('Campo')!);
+    this.buildTests(this.pages.get('Pruebas')!);
+    this.buildFooter(el);
+    let first: Tab = 'Palos';
+    try {
+      const saved = localStorage.getItem(TAB_KEY) as Tab | null;
+      if (saved && TABS.includes(saved)) first = saved;
+    } catch { /* sin localStorage arranca en la primera */ }
+    this.show(first);
+  }
 
-    // ---- palos: daño por banda de distancia y nivel de golpe ----
-    el.append(heading('Palos: daño por distancia'));
+  private show(tab: Tab): void {
+    for (const [t, page] of this.pages) page.hidden = t !== tab;
+    for (const [t, b] of this.tabButtons) b.classList.toggle('on', t === tab);
+    this.el.scrollTop = 0;
+    try {
+      localStorage.setItem(TAB_KEY, tab);
+    } catch { /* no hace falta recordarla */ }
+  }
+
+  // ---- palos: daño por banda de distancia y nivel de golpe, y las bandas ----
+  private buildClubs(el: HTMLElement): void {
+    el.append(heading('Daño por distancia'));
     for (const id of CLUB_ORDER) {
       const club = CLUBS[id];
       const table = document.createElement('table');
@@ -390,8 +532,6 @@ export class DebugPanel {
       cell(legend, '');
       el.append(table);
       // distancia fija: el mouse decide solo la dirección
-      const fixedRow = document.createElement('div');
-      fixedRow.className = 'row';
       const fixed = document.createElement('button');
       fixed.type = 'button';
       fixed.title = 'El mouse decide solo la dirección: el tiro siempre llega igual de lejos';
@@ -412,31 +552,13 @@ export class DebugPanel {
       paintFixed();
       this.track(box, () => club.fixedRange || club.maxRange);
       box.style.width = '70px';
-      fixedRow.append(fixed, box);
-      el.append(fixedRow);
+      el.append(this.row(fixed, box));
       // el hierro tiene dos formas de entregar: se prueban acá
       if (club.id === 'iron') {
-        const modes = document.createElement('div');
-        modes.className = 'row';
-        const buttons: HTMLButtonElement[] = [];
-        for (const mode of Object.keys(IRON_MODES) as IronMode[]) {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.textContent = mode;
-          b.title = mode === 'revienta'
-            ? 'No atraviesa: explota en el piso, abajo del primero que toca. Si cae al piso sin tocar a nadie, no hace nada'
-            : 'Atraviesa hasta a tres y además abre su área donde cae, le pegue a alguien o no';
-          b.addEventListener('click', () => {
-            b.blur();
-            setIronMode(mode);
-            for (const other of buttons) other.classList.toggle('on', other.textContent === ironMode());
-            this.save();
-          });
-          buttons.push(b);
-          modes.append(b);
-        }
-        for (const b of buttons) b.classList.toggle('on', b.textContent === ironMode());
-        el.append(modes);
+        el.append(this.choiceRow('', Object.keys(IRON_MODES) as IronMode[], ironMode, setIronMode, {
+          revienta: 'No atraviesa: explota en el piso, abajo del primero que toca. Si cae al piso sin tocar a nadie, no hace nada',
+          atraviesa: 'Atraviesa hasta a tres y además abre su área donde cae, le pegue a alguien o no',
+        } as Record<IronMode, string>));
       }
     }
     el.append(note(
@@ -449,7 +571,6 @@ export class DebugPanel {
       + 'El wedge y el putter solo hacen área, así que su tabla ya es la del área.',
     ));
 
-    // ---- bandas ----
     el.append(heading('Bandas de distancia (iguales para todos los palos)'));
     const bands = document.createElement('table');
     const bandRow = bands.insertRow();
@@ -458,9 +579,11 @@ export class DebugPanel {
     cell(bandRow, 'media hasta', 'l');
     cell(bandRow, this.field(() => BAND_LIMITS[1], (v) => { BAND_LIMITS[1] = v; }));
     el.append(bands, note('Los metros se cuentan desde la línea de los puestos, la que dice 0 en el campo.'));
+  }
 
-    // ---- carga: cuánto dura cada nivel del golpe ----
-    el.append(heading('Carga: cuánto dura cada nivel del golpe'));
+  // ---- carga: cuánto dura cada nivel del golpe ----
+  private buildCharge(el: HTMLElement): void {
+    el.append(heading('Cuánto dura cada nivel del golpe'));
     const charge = document.createElement('table');
     const chargeHead = charge.insertRow();
     for (const h of ['', 'barra llena', 'golpe 1', 'golpe 2', 'golpe 3']) {
@@ -489,201 +612,272 @@ export class DebugPanel {
     }
     el.append(thresholds, note(
       'La barra no sube pareja: arranca lenta y termina rápida, así que el golpe 1 dura mucho más que el 3 aunque los umbrales estén parejos. '
-      + 'Los segundos de la tabla ya tienen eso adentro: son lo que dura cada nivel de verdad. '
+      + 'Los segundos de la tabla ya tienen eso adentro: son lo que dura cada nivel de verdad, sin mejoras. '
       + 'Y al llegar arriba la barra rebota y baja hasta abajo, así que el golpe 3 vuelve a pasar en cada rebote, igual de corto. '
-      + 'Subir el «barra llena» de un palo estira los tres niveles a la vez; los porcentajes reparten la barra entre ellos y valen para los cuatro palos.',
+      + 'Subir el «barra llena» de un palo estira los tres niveles a la vez; los porcentajes reparten la barra entre ellos y valen para los cuatro palos. '
+      + 'La muñeca rápida y el ritmo apuran solo lo de abajo, hasta el golpe 3: la ventana del perfecto dura lo mismo.',
     ));
+  }
 
-    // ---- cartas: para probar sin esperar el final de la oleada ----
-    el.append(heading('Cartas (para probar)'));
-    const deal = document.createElement('div');
-    deal.className = 'row';
-    const dealBtn = document.createElement('button');
-    dealBtn.type = 'button';
-    dealBtn.className = 'wide';
-    dealBtn.textContent = 'Sacar tres cartas ahora';
-    dealBtn.addEventListener('click', () => { dealBtn.blur(); this.toggle(); this.hooks.offerChoice(); });
-    deal.append(dealBtn);
-    el.append(deal, note('O tomá cualquiera directo: una habilidad que ya tenés sube de nivel. Hay lugar para cuatro (Q, W, E, R).'));
-    const grant = (label: string, color: number, title: string, card: Card) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = label;
-      b.title = title;
-      b.style.borderColor = '#' + color.toString(16).padStart(6, '0');
-      b.addEventListener('click', () => { b.blur(); this.hooks.take(card); });
-      return b;
+  // ---- el tiro: correrse cargando o darle efecto ----
+  private buildShot(el: HTMLElement): void {
+    el.append(heading('A y D mientras cargás'));
+    const shift = this.numbers([
+      ['alcance', () => SHIFT.reach, (v) => { SHIFT.reach = Math.max(0, v); }, 0.1, 'm para cada lado'],
+      ['paso', () => SHIFT.step, (v) => { SHIFT.step = Math.max(0.05, v); }, 0.1, 'm por toque'],
+      ['velocidad', () => SHIFT.speed, (v) => { SHIFT.speed = Math.max(0.1, v); }, 0.5, 'm/s'],
+    ]);
+    const shiftBox = document.createElement('div');
+    shiftBox.append(shift.table, note('Mientras cargás, A y D te corren con la pelota sin cambiar de puesto, para alinearte con una fila. Los puestos están a 4 m: un alcance de 1.2 es un 30 %.'));
+    const curve = this.numbers([
+      ['curva máx.', () => CURVE.max, (v) => { CURVE.max = Math.max(0, v); }, 0.5, 'm de desvío para cada lado'],
+      ['escalón', () => CURVE.step, (v) => { CURVE.step = Math.max(0.1, v); }, 0.5, 'm por toque'],
+      ['crece a', () => CURVE.rate, (v) => { CURVE.rate = Math.max(0.1, v); }, 1, 'm/s'],
+    ]);
+    const curveBox = document.createElement('div');
+    const offNote = note('Como antes: cargando, A y D quedan anotadas para después del tiro.');
+    // cada modo muestra solo lo suyo: los números de efecto no tienen nada que ver con correrse
+    const paint = () => {
+      const moving = SHIFT.mode === 'pasos' || SHIFT.mode === 'continuo';
+      shiftBox.hidden = !moving;
+      shift.rows[1].hidden = SHIFT.mode !== 'pasos';
+      shift.rows[2].hidden = SHIFT.mode !== 'continuo';
+      curveBox.hidden = SHIFT.mode !== 'efecto';
+      curve.rows[1].hidden = CURVE.variant !== 'discreto';
+      curve.rows[2].hidden = CURVE.variant !== 'continuo';
+      offNote.hidden = SHIFT.mode !== 'apagado';
     };
-    const abilityRow = document.createElement('div');
-    abilityRow.className = 'row';
-    for (const id of ABILITY_LIST) {
-      const a = ABILITIES[id];
-      abilityRow.append(grant(a.name, a.color, a.hint, { kind: 'ability', id, level: 1 }));
-    }
-    const perkRow = document.createElement('div');
-    perkRow.className = 'row';
-    for (const id of PERK_LIST) perkRow.append(grant(PERKS[id].name, PERKS[id].color, PERKS[id].hint, { kind: 'perk', id, level: 1 }));
-    perkRow.append(
-      grant('Albañiles', 0xc9b38a, 'La puerta +3', { kind: 'heal', id: 'gate' }),
-      grant('Respiro', 0x5be07a, 'Vos +1', { kind: 'heal', id: 'player' }),
-    );
-    el.append(abilityRow, perkRow);
-
-    // ---- habilidades ----
-    el.append(heading('Habilidades: recarga y alcance'));
-    const abil = document.createElement('table');
-    const abilHead = abil.insertRow();
-    for (const h of ['', 'recarga s', 'alcance m']) {
-      const th = document.createElement('th');
-      th.textContent = h;
-      if (!h) th.className = 'l';
-      abilHead.appendChild(th);
-    }
-    for (const id of ABILITY_LIST) {
-      const a = ABILITIES[id];
-      const row = abil.insertRow();
-      cell(row, a.name, 'l');
-      cell(row, this.field(() => a.cooldown, (v) => { a.cooldown = Math.max(0, v); }, 0.5)).title = 'recarga a nivel 1; cada nivel más le suma lo de «niveles»';
-      if (a.range > 0) cell(row, this.field(() => a.range, (v) => { a.range = Math.max(1, v); }, 1));
-      else cell(row, '—');
-    }
-    el.append(abil);
-    // Los números propios de cada una, las mejoras y los niveles. Las tablas por nivel muestran una
-    // columna por nivel; los números sueltos, una sola casilla
-    el.append(heading('Habilidades y mejoras: sus números'));
-    for (const [name, table] of Object.entries(CONFIGS)) {
-      const t = document.createElement('table');
-      const head = t.insertRow();
-      for (const h of [name, 'nv 1', 'nv 2', 'nv 3']) {
-        const th = document.createElement('th');
-        th.textContent = h;
-        if (h === name) th.className = 'l';
-        head.appendChild(th);
-      }
-      for (const key of Object.keys(table)) {
-        const row = t.insertRow();
-        cell(row, key, 'l');
-        const value = table[key];
-        if (Array.isArray(value)) {
-          for (let q = 0; q < value.length; q++) cell(row, this.field(() => (table[key] as number[])[q], (v) => { (table[key] as number[])[q] = v; }, 0.25));
-        } else {
-          cell(row, this.field(() => table[key] as number, (v) => { table[key] = v; }, 0.05));
-          cell(row, '');
-          cell(row, '');
-        }
-      }
-      el.append(t);
-    }
-    el.append(note(
-      'Cada habilidad tira su propia pelota: no gasta la del puesto. Las tablas con tres columnas van por nivel de la habilidad. '
-      + '«niveles»: cuánto más recarga cada nivel. «vulnerable»: lo que les saca de más cada pelotazo a los silenciados y agrandados. '
-      + 'Los cambios de mejoras que ya tomaste valen desde la próxima que tomes.',
-    ));
-
-    // ---- correrse cargando ----
-    el.append(heading('Correrse cargando (A / D, experimental)'));
-    const shiftModes = document.createElement('div');
-    shiftModes.className = 'row';
-    const shiftButtons: HTMLButtonElement[] = [];
-    for (const mode of SHIFT_MODES) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = mode;
-      b.title = mode === 'pasos'
-        ? 'Cada toque de A o D te corre un paso con la pelota'
-        : mode === 'continuo'
-          ? 'Mantener A o D te corre con la pelota, y podés tirar desde cualquier punto'
-          : mode === 'efecto'
-            ? 'No te corrés: A y D le dan efecto a la pelota y el tiro se curva. Solo driver y putter'
-            : 'Como antes: cargando, A y D quedan anotadas para después del tiro';
-      b.addEventListener('click', () => {
-        b.blur();
-        SHIFT.mode = mode as ShiftMode;
-        for (const other of shiftButtons) other.classList.toggle('on', other.textContent === SHIFT.mode);
-        this.save();
-      });
-      shiftButtons.push(b);
-      shiftModes.append(b);
-    }
-    for (const b of shiftButtons) b.classList.toggle('on', b.textContent === SHIFT.mode);
-    const shiftTable = document.createElement('table');
-    for (const [label, get, set, step, unit] of [
-      ['alcance', () => SHIFT.reach, (v: number) => { SHIFT.reach = Math.max(0, v); }, 0.1, 'm para cada lado'],
-      ['paso', () => SHIFT.step, (v: number) => { SHIFT.step = Math.max(0.05, v); }, 0.1, 'm por toque (pasos)'],
-      ['velocidad', () => SHIFT.speed, (v: number) => { SHIFT.speed = Math.max(0.1, v); }, 0.5, 'm/s (continuo)'],
-    ] as [string, () => number, (v: number) => void, number, string][]) {
-      const row = shiftTable.insertRow();
-      cell(row, label, 'l');
-      cell(row, this.field(get, set, step));
-      cell(row, unit, 'l');
-    }
-    el.append(shiftModes, shiftTable, note('Mientras cargás, A y D te corren con la pelota sin cambiar de puesto, para alinearte con una fila. Los puestos están a 4 m: un alcance de 1.2 es un 30 %.'));
-    // el modo «efecto»: cómo crece la curva y cuándo vuelve a cero
-    const choice = <T extends string>(label: string, options: T[], get: () => T, set: (v: T) => void, titles: Record<T, string>) => {
-      const row = document.createElement('div');
-      row.className = 'row';
-      const tag = document.createElement('span');
-      tag.className = 'note';
-      tag.textContent = label;
-      tag.style.alignSelf = 'center';
-      tag.style.minWidth = '92px';
-      row.append(tag);
-      const buttons = options.map((o) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = o;
-        b.title = titles[o];
-        b.addEventListener('click', () => {
-          b.blur();
-          set(o);
-          for (const other of buttons) other.classList.toggle('on', other.textContent === get());
-          this.save();
-        });
-        return b;
-      });
-      for (const b of buttons) b.classList.toggle('on', b.textContent === get());
-      row.append(...buttons);
-      return row;
-    };
-    const curveTable = document.createElement('table');
-    for (const [label, get, set, step, unit] of [
-      ['curva máx.', () => CURVE.max, (v: number) => { CURVE.max = Math.max(0, v); }, 0.5, 'm de desvío para cada lado'],
-      ['escalón', () => CURVE.step, (v: number) => { CURVE.step = Math.max(0.1, v); }, 0.5, 'm por toque (discreto)'],
-      ['crece a', () => CURVE.rate, (v: number) => { CURVE.rate = Math.max(0.1, v); }, 1, 'm/s (continuo)'],
-    ] as [string, () => number, (v: number) => void, number, string][]) {
-      const row = curveTable.insertRow();
-      cell(row, label, 'l');
-      cell(row, this.field(get, set, step));
-      cell(row, unit, 'l');
-    }
-    el.append(
-      heading('Efecto (modo «efecto»: driver y putter)'),
-      choice('la curva', CURVE_VARIANTS, () => CURVE.variant, (v) => { CURVE.variant = v; }, {
+    curveBox.append(
+      this.choiceRow('la curva', CURVE_VARIANTS, () => CURVE.variant, (v) => { CURVE.variant = v; }, {
         continuo: 'Mientras mantenés A o D la curva va creciendo',
         discreto: 'Cada toque de A o D suma un escalón de curva',
-      }),
-      choice('vuelve a cero', CURVE_RESETS, () => CURVE.reset, (v) => { CURVE.reset = v; }, {
+      }, paint),
+      this.choiceRow('vuelve a cero', CURVE_RESETS, () => CURVE.reset, (v) => { CURVE.reset = v; }, {
         disparar: 'La curva se mantiene hasta que sale el tiro',
         soltar: 'La curva vuelve a cero apenas soltás las dos teclas (con discreto: tocá y mantené)',
       }),
-      curveTable,
-      note('El desvío se mide al final del tiro: con 6 m, el driver termina 6 m corrido de donde apuntaste. La línea de tiro muestra la curva mientras cargás.'),
+      curve.table,
+      note('Solo driver y putter. El desvío se mide al final del tiro: con 6 m, el driver termina 6 m corrido de donde apuntaste. La línea de tiro muestra la curva mientras cargás.'),
     );
+    el.append(
+      this.choiceRow('', SHIFT_MODES, () => SHIFT.mode, (v) => { SHIFT.mode = v as ShiftMode; }, {
+        apagado: 'Como antes: cargando, A y D quedan anotadas para después del tiro',
+        pasos: 'Cada toque de A o D te corre un paso con la pelota',
+        continuo: 'Mantener A o D te corre con la pelota, y podés tirar desde cualquier punto',
+        efecto: 'No te corrés: A y D le dan efecto a la pelota y el tiro se curva. Solo driver y putter',
+      } as Record<ShiftMode, string>, paint),
+      offNote, shiftBox, curveBox,
+    );
+    paint();
+  }
 
-    // ---- pelota de reserva ----
-    el.append(heading('Pelota de reserva (S)'));
-    const res = document.createElement('table');
-    const resRow = res.insertRow();
-    cell(resRow, 'recarga', 'l');
-    cell(resRow, this.field(() => RESERVE.cooldown, (v) => { RESERVE.cooldown = Math.max(0.5, v); }, 1)).title = 'segundos que tarda en reponerse una carga';
-    cell(resRow, 'cargas', 'l');
-    cell(resRow, this.field(() => RESERVE.max, (v) => { RESERVE.max = Math.max(1, Math.round(v)); }, 1)).title = 'cuántas pelotas se pueden tener guardadas a la vez';
-    const resOn = document.createElement('div');
-    resOn.className = 'row';
-    resOn.append(this.toggleButton('Pelota de reserva prendida', () => RESERVE.enabled, (v) => { RESERVE.enabled = v; this.save(); }));
-    el.append(resOn, res, note('Apagada de arranque: las habilidades traen su propia pelota. Prendida, S apoya una pelota en el puesto donde estás parado, si no hay una ya, y se repone de a una.'));
+  // ---- habilidades: cuáles tiene, en qué nivel, y sus números en una ventanita ----
+  private buildAbilities(el: HTMLElement): void {
+    el.append(this.row(this.button('Sacar tres cartas ahora', () => { this.toggle(); this.hooks.offerChoice(); })));
+    (el.lastElementChild!.firstElementChild as HTMLElement).className = 'wide';
+    const status = note('');
+    status.className = 'note warn';
+    el.append(heading(`Las que tiene (hasta ${SLOTS}: ${ABILITY_KEYS.join(', ')})`), status);
+    const paints: (() => void)[] = [];
+    const paintAll = () => { for (const p of paints) p(); };
+    const list = (ids: AbilityId[], label: string) => {
+      const t = document.createElement('table');
+      t.className = 'list';
+      const head = t.insertRow();
+      for (const h of [label, 'tecla', 'nivel', '']) {
+        const th = document.createElement('th');
+        th.textContent = h;
+        if (h === label) th.className = 'l';
+        head.appendChild(th);
+      }
+      for (const id of ids) {
+        const a = ABILITIES[id];
+        const r = t.insertRow();
+        const name = cell(r, a.name, 'l');
+        name.style.color = '#' + a.color.toString(16).padStart(6, '0');
+        name.title = a.hint;
+        const key = cell(r, '');
+        const level = this.levelField(id, status, paintAll);
+        cell(r, level).className = 'lv';
+        cell(r, this.button('números', () => this.openAbility(id, paintAll), 'Recarga, alcance y sus números propios'));
+        paints.push(() => {
+          const i = this.hooks.slots().findIndex((s) => s.id === id);
+          key.textContent = i >= 0 ? ABILITY_KEYS[i] : '';
+          r.classList.toggle('have', i >= 0);
+          level.value = String(this.levelOf(id));
+        });
+      }
+      el.append(t);
+    };
+    list(ABILITY_LIST.filter((id) => !ABILITIES[id].club), 'propias');
+    list(ABILITY_LIST.filter((id) => ABILITIES[id].club), 'palo y elemento');
+    this.onOpen.push(() => { status.textContent = ''; paintAll(); });
+    paintAll();
 
-    // ---- enemigos ----
+    el.append(heading('Para todas'));
+    el.append(this.numbers([
+      [LABELS.cooldownGrowth, () => LEVELS.cooldownGrowth, (v) => { LEVELS.cooldownGrowth = Math.max(0, v); }, 0.05, 'de la base (0.3 = +30 %)'],
+      [LABELS.bonus, () => VULNERABLE.bonus, (v) => { VULNERABLE.bonus = Math.max(0, v); }, 1, 'a los silenciados y agrandados'],
+    ]).table, note(
+      'Subí el nivel para darle una habilidad y bajalo a 0 para sacársela. Cada habilidad tira su propia pelota: no gasta la del puesto. '
+      + '«números» abre su recarga, su alcance y lo que hace en cada nivel.',
+    ));
+  }
+
+  private levelOf(id: AbilityId): number {
+    return this.hooks.slots().find((s) => s.id === id)?.level ?? 0;
+  }
+
+  /** La casilla del nivel de una habilidad: subirla la da, bajarla a 0 la saca. */
+  private levelField(id: AbilityId, status: HTMLElement, after: () => void): HTMLInputElement {
+    const f = numberField(() => this.levelOf(id), (v) => {
+      const to = Math.max(0, Math.min(MAX_LEVEL, Math.round(v)));
+      if (!this.hooks.setAbilityLevel(id, to)) {
+        status.textContent = `No hay más lugares: ya tiene ${SLOTS}. Bajá otra a 0 para darle ${ABILITIES[id].name}.`;
+      } else {
+        status.textContent = '';
+      }
+      after();
+    }, 1);
+    f.min = '0';
+    f.max = String(MAX_LEVEL);
+    return f;
+  }
+
+  /** La ventanita con los números de una habilidad. */
+  private openAbility(id: AbilityId, after: () => void): void {
+    this.closeModal();
+    const a = ABILITIES[id];
+    const color = '#' + a.color.toString(16).padStart(6, '0');
+    const back = document.createElement('div');
+    back.className = 'balmodal';
+    back.addEventListener('mousedown', (e) => { if (e.target === back) this.closeModal(); });
+    const box = document.createElement('div');
+    box.className = 'box';
+    box.style.borderColor = color;
+    back.append(box);
+    const title = document.createElement('h3');
+    title.textContent = a.name;
+    title.style.color = color;
+    box.append(title, note(a.hint));
+
+    const status = note('');
+    status.className = 'note warn';
+    const top = document.createElement('table');
+    const lvRow = top.insertRow();
+    cell(lvRow, 'nivel que tiene', 'l');
+    cell(lvRow, this.levelField(id, status, after));
+    cell(lvRow, '0 = no la tiene', 'l');
+    const perLevel = document.createElement('span');
+    const paintCooldown = () => {
+      perLevel.textContent = [1, 2, 3].map((l) => `${+cooldownAt(a, l).toFixed(1)}`).join(' / ') + ' s';
+    };
+    const cdRow = top.insertRow();
+    cell(cdRow, 'recarga (nivel 1)', 'l');
+    cell(cdRow, this.loose(() => a.cooldown, (v) => { a.cooldown = Math.max(0, v); paintCooldown(); }, 0.5));
+    cell(cdRow, 's', 'l');
+    const cdLevels = top.insertRow();
+    cell(cdLevels, 'recarga por nivel', 'l');
+    cell(cdLevels, perLevel, 'l').colSpan = 2;
+    paintCooldown();
+    if (a.range > 0) {
+      const rRow = top.insertRow();
+      cell(rRow, 'alcance', 'l');
+      cell(rRow, this.loose(() => a.range, (v) => { a.range = Math.max(1, v); }, 1));
+      cell(rRow, 'm', 'l');
+    }
+    box.append(status, top);
+
+    const config = configOf(id);
+    if (config) {
+      const t = document.createElement('table');
+      const head = t.insertRow();
+      for (const h of ['', 'nv 1', 'nv 2', 'nv 3']) {
+        const th = document.createElement('th');
+        th.textContent = h;
+        if (!h) th.className = 'l';
+        head.appendChild(th);
+      }
+      const { table } = config;
+      for (const key of config.keys) {
+        const r = t.insertRow();
+        cell(r, LABELS[key] ?? key, 'l').title = key;
+        const value = table[key];
+        if (Array.isArray(value)) {
+          for (let q = 0; q < value.length; q++) cell(r, this.loose(() => (table[key] as number[])[q], (v) => { (table[key] as number[])[q] = v; }, 0.25));
+        } else {
+          const td = cell(r, this.loose(() => table[key] as number, (v) => { table[key] = v; }, 0.05));
+          td.title = 'igual en los tres niveles';
+          cell(r, '');
+          cell(r, '');
+        }
+      }
+      box.append(heading('Lo que hace'), t);
+      if (config.shared) box.append(note(`Estos números son del ${a.element === 'ice' ? 'hielo' : a.element === 'fire' ? 'fuego' : 'rayo'}: valen para los cuatro palos con ese elemento.`));
+    } else {
+      box.append(note('No tiene números propios.'));
+    }
+    box.append(this.row(this.button('Cerrar', () => this.closeModal())));
+    (box.lastElementChild!.firstElementChild as HTMLElement).className = 'wide';
+    document.body.append(back);
+    this.modal = back;
+  }
+
+  private closeModal(): void {
+    this.modal?.remove();
+    this.modal = null;
+  }
+
+  // ---- mejoras: cuáles tiene y sus números, y curarse ----
+  private buildPerks(el: HTMLElement): void {
+    el.append(heading('Las que tiene'));
+    const t = document.createElement('table');
+    t.className = 'list';
+    const head = t.insertRow();
+    for (const h of ['', 'veces', 'sus números']) {
+      const th = document.createElement('th');
+      th.textContent = h;
+      if (h !== 'veces') th.className = 'l';
+      head.appendChild(th);
+    }
+    for (const id of PERK_LIST) {
+      const p = PERKS[id];
+      const r = t.insertRow();
+      const name = cell(r, p.name, 'l');
+      name.style.color = '#' + p.color.toString(16).padStart(6, '0');
+      name.title = p.hint + (p.needs ? ' (en las cartas, solo sale con dos habilidades de ese elemento)' : '');
+      const n = this.field(() => this.hooks.perks()[id] ?? 0, (v) => {
+        this.hooks.setPerkLevel(id, Math.max(0, Math.min(p.max, Math.round(v))));
+        r.classList.toggle('have', (this.hooks.perks()[id] ?? 0) > 0);
+      }, 1);
+      n.min = '0';
+      n.max = String(p.max);
+      n.title = `hasta ${p.max}`;
+      cell(r, n).className = 'lv';
+      const kv = document.createElement('div');
+      kv.className = 'kv';
+      for (const [table, key, label] of PERK_FIELDS[id] ?? []) {
+        const tag = document.createElement('span');
+        tag.textContent = label;
+        kv.append(tag, this.field(() => table[key] as number, (v) => { table[key] = v; this.hooks.refreshPerks(); }, 0.05));
+      }
+      cell(r, kv, 'l');
+      this.onOpen.push(() => r.classList.toggle('have', (this.hooks.perks()[id] ?? 0) > 0));
+    }
+    el.append(t, note('Las maestrías acá se pueden dar aunque no tenga dos habilidades del elemento. Pasá el mouse por el nombre para ver qué hace.'));
+
+    el.append(heading('Curarse'));
+    const heals = this.numbers([
+      ['Albañiles: la puerta +', () => HEALS.gate, (v) => { HEALS.gate = Math.max(0, Math.round(v)); }, 1, ''],
+      ['Respiro: vos +', () => HEALS.player, (v) => { HEALS.player = Math.max(0, Math.round(v)); }, 1, ''],
+    ]);
+    cell(heals.rows[0], this.button('curar ya', () => this.hooks.take({ kind: 'heal', id: 'gate' })));
+    cell(heals.rows[1], this.button('curar ya', () => this.hooks.take({ kind: 'heal', id: 'player' })));
+    el.append(heals.table, note('Entre oleadas ya no se cura solo: curarse es una de las cartas. Sale sí o sí si la puerta está a la mitad o te queda una vida.'));
+  }
+
+  // ---- enemigos ----
+  private buildEnemies(el: HTMLElement): void {
     el.append(heading('Enemigos'));
     const enemies = document.createElement('table');
     const eHead = enemies.insertRow();
@@ -698,20 +892,17 @@ export class DebugPanel {
       const row = enemies.insertRow();
       cell(row, s.name, 'l');
       // apagar un tipo lo saca de las oleadas, sin tocar su composición: sirve para aislar a uno
-      const on = document.createElement('button');
-      on.type = 'button';
-      const paint = () => {
-        const alive = !this.hooks.disabled.has(kind);
-        on.textContent = alive ? 'sí' : 'no';
-        on.classList.toggle('on', alive);
-      };
-      on.addEventListener('click', () => {
-        on.blur();
+      const on = this.button('', () => {
         if (this.hooks.disabled.has(kind)) this.hooks.disabled.delete(kind);
         else this.hooks.disabled.add(kind);
         paint();
         this.save();
       });
+      const paint = () => {
+        const alive = !this.hooks.disabled.has(kind);
+        on.textContent = alive ? 'sí' : 'no';
+        on.classList.toggle('on', alive);
+      };
       paint();
       cell(row, on);
       cell(row, this.field(() => s.hp, (v) => { s.hp = v; this.hooks.refreshEnemies(); }));
@@ -722,77 +913,50 @@ export class DebugPanel {
       else cell(row, this.field(() => s.attackEvery ?? 0, (v) => { s.attackEvery = Math.max(0.2, v); }, 0.5)).title = 'segundos entre ataques';
     }
     el.append(enemies, note('«sale» lo saca de todas las oleadas sin cambiar el resto. La vida y la velocidad se les pasan también a los que ya están en el campo.'));
+  }
 
-    // ---- campo ----
+  // ---- campo y cámara ----
+  private buildCourse(el: HTMLElement): void {
     el.append(heading('Campo'));
-    const courses = document.createElement('div');
-    courses.className = 'row';
+    const courses = this.row();
     for (let i = 0; i < COURSES.length; i++) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = COURSES[i].name;
+      const b = this.button(COURSES[i].name, () => this.hooks.setCourse(i));
       b.classList.toggle('on', this.hooks.courseIndex() === i);
-      b.addEventListener('click', () => { b.blur(); this.hooks.setCourse(i); });
       courses.append(b);
     }
-    const anyCourse = document.createElement('button');
-    anyCourse.type = 'button';
-    anyCourse.textContent = 'Sortear';
-    anyCourse.addEventListener('click', () => { anyCourse.blur(); this.hooks.setCourse(null); });
-    courses.append(anyCourse);
+    courses.append(this.button('Sortear', () => this.hooks.setCourse(null)));
     el.append(courses, note('Cambiar de campo reinicia la partida: el terreno se arma una sola vez, al cargar.'));
 
-    // ---- cámara ----
     el.append(heading('Cámara'));
     const camLine = document.createElement('p');
     camLine.className = 'note';
     this.camLine = camLine;
-    const frame = document.createElement('div');
-    frame.className = 'row';
     const c = this.hooks.camera();
-    frame.append(this.toggleButton('Encuadre automático', () => c.auto, (v) => { c.auto = v; this.save(); }));
-    const marginTable = document.createElement('table');
-    const marginRow = marginTable.insertRow();
-    cell(marginRow, 'puestos sobre las barras', 'l');
-    cell(marginRow, this.field(() => c.margin, (v) => { c.margin = Math.max(0, v); }, 4));
-    cell(marginRow, 'px', 'l');
-    el.append(camLine, frame, marginTable, note(
+    const margin = this.numbers([['puestos sobre las barras', () => c.margin, (v) => { c.margin = Math.max(0, v); }, 4, 'px']]);
+    el.append(camLine, this.row(this.toggleButton('Encuadre automático', () => c.auto, (v) => { c.auto = v; this.save(); })), margin.table, note(
       'Rueda del mouse: inclinación. Flechas arriba y abajo: altura, sin girarla. '
       + 'Con el encuadre automático la cámara se aleja o se acerca sola para que la línea de los puestos quede siempre justo arriba de las barras de abajo: '
       + 'al levantarla o inclinarla se retrasa lo que haga falta. Los valores van en «copiar configuración».',
     ));
+  }
 
-    // ---- pruebas ----
+  // ---- pruebas ----
+  private buildTests(el: HTMLElement): void {
     el.append(heading('Pruebas'));
-    const toggles = document.createElement('div');
-    toggles.className = 'row';
-    toggles.append(
+    const toggles = this.row(
       this.toggleButton('Oleada infinita', () => this.hooks.director.endless, (v) => { this.hooks.director.endless = v; }),
       this.toggleButton('Vida infinita', () => this.hooks.flags.godPlayer, (v) => { this.hooks.flags.godPlayer = v; }),
       this.toggleButton('Puerta infinita', () => this.hooks.flags.godGate, (v) => { this.hooks.flags.godGate = v; }),
     );
-    const waves = document.createElement('div');
-    waves.className = 'row';
-    for (let i = 0; i < WAVES.length; i++) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = `Oleada ${i + 1}`;
-      b.title = WAVES[i].title;
-      b.addEventListener('click', () => { b.blur(); this.hooks.goToWave(i); });
-      waves.append(b);
-    }
+    const waves = this.row();
+    for (let i = 0; i < WAVES.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), WAVES[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
+  }
 
-    // ---- copiar ----
-    const copyRow = document.createElement('div');
-    copyRow.className = 'row';
-    const copy = document.createElement('button');
-    copy.type = 'button';
-    copy.className = 'wide';
-    copy.textContent = 'Copiar configuración';
+  // ---- copiar y restaurar: fuera de las pestañas, siempre a mano ----
+  private buildFooter(el: HTMLElement): void {
     const said = document.createElement('span');
-    copy.addEventListener('click', async () => {
-      copy.blur();
+    const copy = this.button('Copiar configuración', async () => {
       const text = this.config();
       try {
         await navigator.clipboard.writeText(text);
@@ -806,29 +970,23 @@ export class DebugPanel {
       }
       setTimeout(() => { said.textContent = ''; }, 2500);
     });
-    const reset = document.createElement('button');
-    reset.type = 'button';
-    reset.textContent = 'Restaurar';
-    reset.title = 'Borra lo guardado y vuelve a los valores del código';
-    reset.addEventListener('click', () => {
-      reset.blur();
+    copy.className = 'wide';
+    const reset = this.button('Restaurar', () => {
       clearBalance();
       location.reload();
-    });
-    copyRow.append(copy, reset, said);
-    el.append(copyRow, note('Pegámelo y lo incorporo al juego. Lo que toques se guarda en este navegador y vuelve al recargar; «Restaurar» lo borra.'));
+    }, 'Borra lo guardado y vuelve a los valores del código');
+    const foot = document.createElement('div');
+    foot.className = 'foot';
+    foot.append(this.row(copy, reset, said), note('Pegámelo y lo incorporo al juego. Lo que toques se guarda en este navegador y vuelve al recargar; «Restaurar» lo borra.'));
+    el.append(foot);
   }
 
   private toggleButton(label: string, get: () => boolean, set: (v: boolean) => void): HTMLButtonElement {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = label;
-    b.classList.toggle('on', get());
-    b.addEventListener('click', () => {
-      b.blur();
+    const b = this.button(label, () => {
       set(!get());
       b.classList.toggle('on', get());
     });
+    b.classList.toggle('on', get());
     return b;
   }
 
@@ -860,8 +1018,7 @@ export class DebugPanel {
     for (const id of ABILITY_LIST) lines.push(`  ${id}: recarga ${ABILITIES[id].cooldown}, alcance ${ABILITIES[id].range}`);
     lines.push('', 'numeros de habilidades y mejoras ([nv1, nv2, nv3] donde van por nivel):');
     for (const [name, table] of Object.entries(CONFIGS)) lines.push(`  ${name}: ${JSON.stringify(table)}`);
-    lines.push('', `pelota de reserva (S): ${RESERVE.max} cargas, una cada ${RESERVE.cooldown} s`);
-    lines.push(`correrse cargando: modo ${SHIFT.mode}, alcance ${SHIFT.reach} m, paso ${SHIFT.step} m, velocidad ${SHIFT.speed} m/s`);
+    lines.push('', `correrse cargando: modo ${SHIFT.mode}, alcance ${SHIFT.reach} m, paso ${SHIFT.step} m, velocidad ${SHIFT.speed} m/s`);
     lines.push(`efecto: ${CURVE.variant}, vuelve a cero al ${CURVE.reset}, curva max ${CURVE.max} m, escalon ${CURVE.step} m, crece a ${CURVE.rate} m/s`);
     lines.push('', 'enemigos (vida, velocidad, daño):');
     for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {

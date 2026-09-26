@@ -75,7 +75,7 @@
       /* el ícono del palo, a la izquierda de la tarjeta: es lo que distingue a uno de otro */
       .club .clubicon { position: absolute; left: 6px; top: 50%; width: 30px; height: 30px; margin-top: -15px; opacity: 0.55; transition: opacity 0.15s; }
       .club.active .clubicon { opacity: 1; filter: drop-shadow(0 0 5px var(--c)); }
-      /* daño clavado con S: la barra queda quieta y encendida hasta que se suelte el tiro */
+      /* daño clavado con espacio: la barra queda quieta y encendida hasta que se suelte el tiro */
       #meter.locked { border-color: #fff; box-shadow: 0 0 14px rgba(255,255,255,0.85); }
       #meter .perfect { position: absolute; top: 0; bottom: 0; right: 0; width: 8%; background: rgba(255,45,60,0.75); }
       #meter .power { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: linear-gradient(90deg, #5be07a, #ffd66b 70%, #ff6b4a); }
@@ -134,6 +134,15 @@
       .club .key { float: right; font-size: 12px; color: #9aa4b2; }
       .club .name { font-size: 15px; font-weight: 700; }
       .club .title { font-size: 12px; color: var(--c); letter-spacing: 1px; text-transform: uppercase; }
+      /* las mejoras tomadas: una columna a la izquierda, lejos de las barras de abajo (el encuadre de la cámara se mide contra ellas) */
+      #perks { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 4px; }
+      .perk { position: relative; overflow: hidden; min-width: 150px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 9px 4px 10px; background: rgba(0,0,0,0.55); border-left: 3px solid var(--c); border-radius: 6px; font-size: 12px; opacity: 0.8; }
+      .perk .name { position: relative; font-weight: 700; }
+      .perk .status { position: relative; color: var(--c); font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .perk .cd { position: absolute; top: 0; bottom: 0; right: 0; width: 0; background: rgba(0,0,0,0.6); pointer-events: none; }
+      .perk.on { opacity: 1; box-shadow: 0 0 10px var(--c); }
+      .perk.cooling .name { opacity: 0.55; }
+      .perk.ready { animation: slotReady 0.45s ease-out; }
       #hint { font-size: 13px; color: #e4e9f0; text-shadow: 0 1px 3px #000; min-height: 17px; }
 
       /* panel de balance y pruebas: columna a la derecha, con el juego corriendo detrás */
@@ -158,6 +167,35 @@
       #balance button.on { background: #5be07a; color: #102; border-color: #5be07a; font-weight: 600; }
       #balance button.wide { flex: 1; }
       #balance .done { color: #5be07a; }
+      /* las pestañas quedan arriba al bajar; copiar y restaurar, abajo, en todas */
+      #balance .tabs { position: sticky; top: -14px; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px; margin: 8px -16px 0; padding: 8px 16px; background: rgba(8, 12, 18, 0.98); border-bottom: 1px solid #2c3644; }
+      #balance .tabs button { padding: 5px 9px; }
+      #balance .page[hidden] { display: none; }
+      #balance .foot { margin-top: 18px; border-top: 1px solid #2c3644; padding-top: 6px; }
+      #balance p.warn { color: #ff8a6b; min-height: 0; }
+      #balance table.list tr.have td.l:first-child { font-weight: 700; }
+      #balance table.list tr:not(.have) td.l:first-child { opacity: 0.6; }
+      #balance table.list td.lv { width: 58px; }
+      #balance table.list td { text-align: center; }
+      #balance table.list button { padding: 2px 8px; font-size: 11px; }
+      #balance .kv { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 11px; color: #9aa4b2; }
+      #balance .kv input { width: 58px; }
+      /* la ventanita con los números de una habilidad */
+      .balmodal { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55); pointer-events: auto; font-size: 13px; }
+      .balmodal .box { width: min(460px, calc(100vw - 32px)); max-height: 88vh; overflow-y: auto; box-sizing: border-box; background: #0c121a; border: 2px solid #4a5666; border-radius: 12px; padding: 14px 16px; color: #eee; }
+      .balmodal h3 { margin: 0 0 4px; font-size: 20px; }
+      .balmodal h4 { margin: 14px 0 6px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #9aa4b2; border-bottom: 1px solid #2c3644; padding-bottom: 4px; }
+      .balmodal p.note { margin: 2px 0 0; color: #9aa4b2; font-size: 11px; line-height: 1.5; }
+      .balmodal p.warn { color: #ff8a6b; }
+      .balmodal table { width: 100%; border-collapse: collapse; }
+      .balmodal th { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #9aa4b2; font-weight: 400; padding: 2px; }
+      .balmodal td { padding: 1px 2px; }
+      .balmodal td.l, .balmodal th.l { text-align: left; font-size: 12px; white-space: nowrap; }
+      .balmodal input { width: 100%; box-sizing: border-box; background: #1a2430; border: 1px solid #3a4655; color: #fff; border-radius: 4px; padding: 3px 4px; font: inherit; text-align: center; }
+      .balmodal input:focus { outline: none; border-color: #ffd66b; }
+      .balmodal .row { display: flex; gap: 6px; margin-top: 12px; }
+      .balmodal button { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      .balmodal button.wide { flex: 1; }
       #pause, #end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(8, 12, 18, 0.78); text-align: center; }
       #pause[hidden], #end[hidden] { display: none; }
       #pause h2, #end h2 { margin: 0 0 12px; font-size: 44px; color: #ffd66b; }
@@ -193,6 +231,7 @@
         <div id="meter"><div class="power"></div><div class="floor"></div><div class="perfect"></div></div>
         <div id="rows"><div id="clubs"></div><div id="enchants"></div></div>
       </div>
+      <div id="perks"></div>
       <div id="card" hidden><div class="box"><div class="tag">HABILIDAD NUEVA</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>
       <div id="choice" hidden><h2>Elegí una</h2><div class="cards"></div><div class="next"></div><div class="go">click, o 1 · 2 · 3</div></div>
       <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música</p></div>

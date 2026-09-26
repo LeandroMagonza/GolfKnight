@@ -1,8 +1,7 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
 import { ABILITIES, ABILITY_KEYS, SLOTS, type AbilityId } from './core/abilities';
-import { PERK_NUMBERS } from './core/cards';
-import { CLUB_KEYS, CLUB_ORDER, CLUBS, MELEE_COOLDOWN, RESERVE, type Club, type ClubId } from './core/clubs';
+import { CLUB_KEYS, CLUB_ORDER, CLUBS, MELEE_COOLDOWN, type Club, type ClubId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -11,6 +10,20 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 export type Tone = 'good' | 'bad' | 'neutral';
+
+/** Una mejora tomada, como se ve en la columna de la izquierda. */
+export interface PerkChip {
+  id: string;
+  name: string;
+  color: number;
+  hint: string;
+  /** Lo que cuenta: «bajas 5/8», «⟳ 7 s», «¡listo!». Vacío si la mejora no cuenta nada. */
+  status: string;
+  /** Qué parte de la recarga falta, 0..1: una cortina como la de las habilidades. */
+  cooling: number;
+  /** Lista para saltar: se enciende. */
+  ready: boolean;
+}
 
 export class Hud {
   private gate = $('gate');
@@ -54,11 +67,7 @@ export class Hud {
     this.enchantsEl.innerHTML = Array.from({ length: SLOTS }, (_, i) =>
       `<div class="club locked" data-ench="slot${i}" style="--c:#ffffff"><div class="cd"></div><span class="key">${ABILITY_KEYS[i]}</span><div class="name"></div><div class="title"></div><span class="cdlabel"></span><div class="cdnum"></div></div>`,
     ).join('')
-      + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`
-      // la reserva: no es un poder, es de dónde sacás una pelota cuando no te queda ninguna cerca
-      + `<div class="club extra" data-ench="ball" style="--c:#fff1b8"><div class="cd"></div><span class="key">S</span><div class="name">Pelota</div><div class="title">×${RESERVE.max}</div><span class="cdlabel">llena</span><div class="cdnum"></div></div>`
-      // el segundo aire: no se aprieta, salta solo cuando apretás una habilidad que está recargando
-      + `<div class="club extra locked" data-ench="wind2" style="--c:#8fe3b0"><div class="cd"></div><span class="key">auto</span><div class="name">Segundo aire</div><div class="title">otra vez</div><span class="cdlabel">⟳ ${PERK_NUMBERS.secondWindCooldown} s</span><div class="cdnum"></div></div>`;
+      + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
     this.choiceEl.addEventListener('click', (e) => {
       const card = (e.target as HTMLElement).closest('.choice') as HTMLElement | null;
       if (card) this.onPick?.(Number(card.dataset.i));
@@ -89,32 +98,32 @@ export class Hud {
     (this.meter.querySelector('.perfect') as HTMLElement).style.width = `${(fraction * 100).toFixed(1)}%`;
   }
 
-  private shownReserve = '';
+  private perksEl = $('perks');
+  private shownPerks = '';
 
   /**
-   * Pelotas de reserva (S): cuántas quedan y cuánto falta para la próxima. Con el cargador lleno no
-   * cuenta nada; con el cargador vacío el número grande es la espera, como en las recargas.
-   * @param left segundos que faltan para la próxima carga
+   * Las mejoras tomadas, en una columna a la izquierda. Casi todas no se aprietan: saltan solas (el
+   * carcaj, el segundo aire, el perfecto de regalo) o van contando algo (las rachas). Sin esto eran
+   * invisibles: no había forma de saber cuánto faltaba para el próximo perfecto.
    */
-  setReserve(enabled: boolean, charges: number, left: number, total: number, max: number, name = 'Pelota', key = 'S'): void {
-    const el = this.enchantsEl.querySelector('[data-ench="ball"]') as HTMLElement | null;
-    if (!el) return;
-    // apagada desde el panel de balance: la ficha no se muestra
-    el.classList.toggle('locked', !enabled);
-    if (!enabled) return;
-    const full = charges >= max;
-    const bar = el.querySelector('.cd') as HTMLElement;
-    bar.style.height = full || total <= 0 ? '0%' : `${(100 * left) / total}%`;
-    const shown = `${name}|${charges}/${max}|${full ? '' : Math.ceil(left)}`;
-    if (shown === this.shownReserve) return;
-    this.shownReserve = shown;
-    // es la misma ficha para la pelota de reserva (S) y para el carcaj, que sale solo
-    (el.querySelector('.name') as HTMLElement).textContent = name;
-    (el.querySelector('.key') as HTMLElement).textContent = key;
-    (el.querySelector('.title') as HTMLElement).textContent = `×${charges}`;
-    (el.querySelector('.cdlabel') as HTMLElement).textContent = full ? 'llena' : `⟳ ${Math.ceil(left)} s`;
-    (el.querySelector('.cdnum') as HTMLElement).textContent = charges > 0 ? '' : String(Math.ceil(left));
-    el.classList.toggle('cooling', charges === 0);
+  setPerks(chips: readonly PerkChip[]): void {
+    const key = chips.map((c) => `${c.id}|${c.name}|${c.status}|${c.ready}|${c.cooling > 0}`).join('§');
+    if (key !== this.shownPerks) {
+      const was = new Set(this.shownPerks.split('§').filter((k) => k.endsWith('|true|false')).map((k) => k.split('|')[0]));
+      this.shownPerks = key;
+      const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+      this.perksEl.innerHTML = chips.map((c) => {
+        const color = '#' + c.color.toString(16).padStart(6, '0');
+        // la que recién quedó lista da un saltito, como las habilidades al terminar de recargar
+        const pop = c.ready && !was.has(c.id) ? ' ready' : '';
+        return `<div class="perk${c.ready ? ' on' : ''}${c.cooling > 0 ? ' cooling' : ''}${pop}" data-perk="${c.id}" style="--c:${color}" title="${esc(c.hint)}"><div class="cd"></div><span class="name">${esc(c.name)}</span><span class="status">${esc(c.status)}</span></div>`;
+      }).join('');
+    }
+    // la cortina sí se mueve en cada cuadro
+    for (const c of chips) {
+      const bar = this.perksEl.querySelector(`[data-perk="${c.id}"] .cd`) as HTMLElement | null;
+      if (bar) bar.style.width = `${Math.max(0, Math.min(1, c.cooling)) * 100}%`;
+    }
   }
 
   private shownState = '';
@@ -164,16 +173,14 @@ export class Hud {
 
   /**
    * Las habilidades de Q, W, E y R: cuál hay en cada lugar, de qué nivel, y cuánto le falta a cada
-   * recarga. Y el segundo aire, si se tiene.
+   * recarga.
    */
-  setAbilities(slots: readonly { id: AbilityId; level: number }[], cooldowns: readonly number[], totals: readonly number[], secondWind: { owned: boolean; left: number }): void {
+  setAbilities(slots: readonly { id: AbilityId; level: number }[], cooldowns: readonly number[], totals: readonly number[]): void {
     for (let i = 0; i < SLOTS; i++) this.cooldownOn(`slot${i}`, cooldowns[i] ?? 0, totals[i] ?? 0);
-    this.cooldownOn('wind2', secondWind.left, PERK_NUMBERS.secondWindCooldown);
-    const key = slots.map((s, i) => `${s.id}:${s.level}:${totals[i]}`).join() + `|${secondWind.owned}`;
+    const key = slots.map((s, i) => `${s.id}:${s.level}:${totals[i]}`).join();
     if (key === this.shownAbilities) return;
     const first = this.shownAbilities === '';
     this.shownAbilities = key;
-    (this.enchantsEl.querySelector('[data-ench="wind2"]') as HTMLElement).classList.toggle('locked', !secondWind.owned);
     for (let i = 0; i < SLOTS; i++) {
       const el = this.enchantsEl.querySelector(`[data-ench="slot${i}"]`) as HTMLElement;
       const s = slots[i];

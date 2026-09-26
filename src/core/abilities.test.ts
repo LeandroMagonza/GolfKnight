@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, cooldownAt, elementOf, ELEMENTS, GRENADE, grenadeShift, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, elementOf, ELEMENTS, GRENADE, grenadeShift, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
 import { CLUBS, KNOCK_DECAY } from './clubs';
 
 describe('habilidades', () => {
@@ -72,5 +72,22 @@ describe('habilidades', () => {
     expect(GRENADE.core).toBeCloseTo(1 / 3);
     const shift = grenadeShift(1, push);
     expect((Math.abs(shift) * KNOCK_DECAY) / KNOCK_DECAY).toBeCloseTo(push - 1);
+  });
+
+  it('el panel encuentra los números de cada una, y todos existen en su tabla', () => {
+    for (const id of ABILITY_LIST) {
+      const c = configOf(id);
+      if (ABILITIES[id].kind === 'rain') {
+        expect(c).toBeNull();
+        continue;
+      }
+      expect(c, id).not.toBeNull();
+      expect(c!.keys.length).toBeGreaterThan(0);
+      for (const k of c!.keys) expect(c!.table[k], `${id}.${k}`).toBeDefined();
+    }
+    // las de palo y elemento comparten la tabla del elemento, y cada una ve solo lo suyo
+    expect(configOf('driver-fire')!.table).toBe(ELEMENTS);
+    expect(configOf('driver-fire')!.keys).toContain('burnSeconds');
+    expect(configOf('driver-fire')!.keys).not.toContain('chainJumps');
   });
 });

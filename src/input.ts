@@ -5,9 +5,8 @@
 // suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo** (y la carta, cuando hay
 // cartas en pantalla); **Q, W, E y R tiran la habilidad** de ese lugar hacia donde está el mouse, en el
 // acto y con su propia pelota. La rueda del mouse inclina la cámara y las flechas arriba y abajo la
-// suben y bajan, para probar ángulos. Shift (o V) es el palazo, S saca una pelota de la reserva (si
-// está prendida), B abre el panel de balance, Escape pausa, R en pausa o al terminar reinicia, C
-// cambia el skin, M silencia la música.
+// suben y bajan, para probar ángulos. Shift (o V) es el palazo, B abre el panel de balance, Escape
+// pausa, R en pausa o al terminar reinicia, C cambia el skin, M silencia la música.
 
 export interface InputEvents {
   swingStart(): void;
@@ -29,8 +28,6 @@ export interface InputEvents {
   muteToggle(): void;
   skin(): void;
   melee(): void;
-  /** Saca una pelota de la reserva y la apoya en el puesto. */
-  dropBall(): void;
   /** Un toque de movimiento lateral: +1 hacia la derecha de la pantalla, -1 hacia la izquierda. */
   step(right: number): void;
 }
@@ -74,7 +71,7 @@ export class Input {
     // Con el mouse encima de un panel que scrollea, la rueda es del panel: si no, buscando un número
     // abajo de todo en el balance se te iba girando la cámara.
     addEventListener('wheel', (e) => {
-      if ((e.target as HTMLElement | null)?.closest?.('#balance')) return;
+      if ((e.target as HTMLElement | null)?.closest?.('#balance, .balmodal')) return;
       this.ev.tiltCamera(e.deltaY > 0 ? -1 : 1);
     }, { passive: true });
   }
@@ -107,7 +104,6 @@ export class Input {
       case 'KeyC': this.ev.skin(); break;
       case 'KeyD': case 'ArrowRight': this.ev.step(1); break;
       case 'KeyA': case 'ArrowLeft': this.ev.step(-1); break;
-      case 'KeyS': this.ev.dropBall(); break;
       case 'ShiftLeft': case 'ShiftRight': case 'KeyV': this.ev.melee(); break;
     }
   }

@@ -198,16 +198,6 @@ export function areaDamageFor(club: Club, meters: number, quality: number): numb
 }
 
 /**
- * Pelota de reserva (tecla S): la deja a los pies, en el puesto donde está parado. Es la salida para
- * cuando los guardias tiran las pelotas lejos y quedás mirando llegar a la horda sin nada que pegarle.
- * Se recarga sola, de a una, y se pueden guardar unas pocas: es un respiro, no una fuente infinita.
- *
- * **Apagada**: desde que las habilidades traen su propia pelota ya no hace falta. Se vuelve a prender
- * desde el panel de balance.
- */
-export const RESERVE = { enabled: false, cooldown: 10, max: 2 };
-
-/**
  * Correrse cargando (experimental): mientras cargás el tiro, A y D te corren **con la pelota** hacia
  * un costado, sin cambiar de puesto, para alinearte con una fila. Dos formas, para probar cuál va:
  * - **pasos**: cada toque corre `step` metros;

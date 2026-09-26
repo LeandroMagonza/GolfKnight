@@ -1458,3 +1458,23 @@ Pedido de Leandro: implementar muchas habilidades y mejoras para probarlas, con 
 
 Quedaron afuera a propósito: la escopeta, el doble driver, el driver fantasma y el tótem. Las cuatro
 se pueden sumar sobre la misma estructura.
+
+## Hecho: panel en pestañas, fichas de mejoras y ajustes (26/9/2026)
+
+Pedido de Leandro después de probar las cartas:
+
+- **Panel de balance en pestañas** (Palos, Carga, Tiro, Habilidades, Mejoras, Enemigos, Campo,
+  Pruebas). Las habilidades y las mejoras se dan y se sacan subiendo o bajando su nivel en la lista; si
+  no quedan lugares, avisa. Los números de cada habilidad van en una ventanita propia. En «Tiro», cada
+  modo de A y D muestra solo lo suyo: lo del efecto no aparece si no estás en modo efecto.
+- **Fichas de mejoras** en una columna a la izquierda: las que saltan solas muestran cuánto les falta
+  (carcaj, segundo aire) y las que cuentan, cuánto llevás (bajas para el perfecto de regalo, rachas).
+  Eran invisibles.
+- **Muñeca rápida**: achicaba toda la barra, así que la ventana del perfecto también duraba un 15 %
+  menos. Ahora apura solo el tramo hasta el golpe 3; el golpe 3 y el rebote van a su ritmo. El ritmo
+  funciona igual.
+- **Perfecto de regalo**: cancelar el tiro o volver a empezar la carga ya no lo gasta.
+- **Pelota de reserva (S)**: sacada. El carcaj cumple ese papel.
+- **Gólem**: al tirar la piedra miraba al punto donde se planta, que queda a centímetros y a veces a su
+  espalda, así que se daba vuelta, tiraba de espaldas y volvía. Ahora sigue mirando a la puerta, y
+  levanta la piedra con los dos brazos.

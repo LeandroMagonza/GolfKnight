@@ -27,7 +27,10 @@ export interface Perk {
 
 /** Los números de las mejoras. Se tocan en el panel de balance. */
 export const PERK_NUMBERS = {
-  /** Muñeca rápida: la barra se llena en esta fracción del tiempo, por cada vez que la tomás. */
+  /**
+   * Muñeca rápida: el tramo de la barra hasta el golpe 3 tarda esta fracción, por cada vez que la
+   * tomás. El golpe 3 y el rebote van a su ritmo: la ventana del perfecto dura lo mismo.
+   */
   quickWrist: 0.85,
   /** Punto dulce: la ventana del golpe 3 se agranda esta proporción, por cada vez. */
   sweetSpot: 1.35,
@@ -45,9 +48,9 @@ export const PERK_NUMBERS = {
 };
 
 export const PERKS: Record<PerkId, Perk> = {
-  quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'La barra llega arriba un 15 % antes, con todos los palos' },
+  quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'Llegás al golpe 3 un 15 % antes, con todos los palos. La ventana del perfecto dura lo mismo' },
   sweetSpot: { id: 'sweetSpot', name: 'Punto dulce', title: 'perfecto más ancho', max: 2, color: 0xff6b6b, hint: 'La ventana del golpe perfecto se agranda un 35 %' },
-  rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada tiro seguido que mata a alguien hace cargar el próximo un 10 % más rápido, hasta tres. Un tiro que no mata corta la racha' },
+  rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada tiro seguido que mata a alguien te hace llegar al golpe 3 un 10 % antes en el próximo, hasta tres. Un tiro que no mata corta la racha' },
   masonStreak: { id: 'masonStreak', name: 'Racha del albañil', title: 'la puerta se arregla', max: 1, color: 0xc9b38a, hint: 'Cinco tiros seguidos matando a alguien (sin contar habilidades) le devuelven 1 a la puerta' },
   giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'cada 8 bajas', max: 1, color: 0xff2d3c, hint: 'Cada 8 bajas, el próximo tiro arranca ya clavado en el golpe perfecto: soltás cuando quieras' },
   quiver: { id: 'quiver', name: 'Carcaj', title: 'pelota a mano', max: 1, color: 0xfff1b8, hint: 'Si vas a pegar donde no hay pelota, te aparece una a los pies. Una cada 12 segundos' },

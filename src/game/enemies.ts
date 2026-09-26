@@ -199,8 +199,9 @@ export class Enemy {
     const right = this.model.getObjectByName('mixamorigRightArm');
     const left = this.model.getObjectByName('mixamorigLeftArm');
     if (right) this.arms.push(right);
-    // el chamán conjura con los dos brazos, y el alma en pena agarra con los dos
-    if (left && (stats.behavior === 'shaman' || stats.behavior === 'grabber')) this.arms.push(left);
+    // el chamán conjura con los dos brazos, el alma en pena agarra con los dos, y el gólem levanta la
+    // piedra con los dos por encima de la cabeza
+    if (left && (stats.behavior === 'shaman' || stats.behavior === 'grabber' || stats.behavior === 'golem')) this.arms.push(left);
     this.spine = this.model.getObjectByName('mixamorigSpine1') ?? null;
 
     if (stats.shield) {
@@ -636,6 +637,12 @@ export class Enemy {
         if (this.resolveAttack(player, horde, toPlayer)) return;
       }
       if (this.attackTime >= this.attackEnd) this.state = 'walk';
+      // el que tira plantado sigue mirando a la puerta: mirar al punto donde se planta, que queda a
+      // centímetros y a veces a su espalda, lo hacía darse vuelta para tirar la piedra de espaldas
+      if (holding) {
+        lookX = -this.position.x * 0.2;
+        lookZ = GATE_Z - this.position.z;
+      }
       this.animator.setLocomotion('Idle', 1);
     } else if (lured && dist <= 1.5) {
       // llegó a la bandera: se queda dando vueltas hasta que se le pasa
