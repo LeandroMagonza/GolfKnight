@@ -1777,6 +1777,41 @@ export class Horde {
   readonly spells: Spell[] = [];
 
   /**
+   * Ráfaga (hierro de viento): los que están a `radius` de `pos` salen `distance` metros hacia `dir`
+   * (unitario en el piso), sin daño. Devuelve cuántos.
+   */
+  gust(pos: THREE.Vector3, radius: number, dir: THREE.Vector3, distance: number): number {
+    let n = 0;
+    for (const e of this.enemies) {
+      if (!e.alive || e.passed || e.stats.boss) continue;
+      if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) > radius + e.radius) continue;
+      e.shove(dir, distance * KNOCK_DECAY);
+      n++;
+    }
+    return n;
+  }
+
+  /**
+   * Remolino (wedge de viento): los que están a `radius` de `pos` se van hacia el centro, hasta quedar
+   * casi pegados, sin daño. Devuelve cuántos.
+   */
+  whirl(pos: THREE.Vector3, radius: number): number {
+    let n = 0;
+    const dir = new THREE.Vector3();
+    for (const e of this.enemies) {
+      if (!e.alive || e.passed || e.stats.boss) continue;
+      dir.set(pos.x - e.position.x, 0, pos.z - e.position.z);
+      const d = dir.length();
+      if (d > radius + e.radius) continue;
+      n++;
+      // hasta un metro del centro: no los apila todos en el mismo punto
+      const travel = d - 1;
+      if (travel > 0.05) e.shove(dir.normalize(), travel * KNOCK_DECAY);
+    }
+    return n;
+  }
+
+  /**
    * La carga llegó a 2 apuntando desde `from` hacia `dir` (unitario en el piso): los que esquivan y están
    * «más o menos» en la línea del tiro saltan al costado. Para el lado en que ya estaban (así el salto
    * los saca de la línea), o al azar si estaban justo en el medio; y nunca para afuera del campo.

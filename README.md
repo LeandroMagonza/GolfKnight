@@ -27,7 +27,7 @@ decir una sola cosa:
 | Control | Qué decide |
 | --- | --- |
 | **Mouse** | hacia dónde y **a qué distancia** cae la pelota |
-| **Barra de carga** | **qué tan bien** le pegaste: tres niveles de calidad, puro timing |
+| **Arco de carga** | **qué tan bien** le pegaste: tres niveles de calidad, puro timing |
 | **Palo** (`1`, `2`, `3`, `4`) | **cómo llega** la pelota, y cuánto pega a esa distancia |
 | **Habilidad** (`Q`, `W`, `E`, `R`) | las que elegiste en las cartas: salen en el acto, con su propia pelota |
 | **Rueda** del mouse / `↑` `↓` | inclinar la cámara / subirla y bajarla sin girarla |
@@ -46,6 +46,10 @@ decir una sola cosa:
   de apretar, y dura 0.06 s en cada pasada. Después del tope rebota por todo el rango y vuelve a pasar
   por el fuerte, que dura otra vez lo mismo. Las mejoras mueven esos tiempos (ver más abajo). La barra
   **no tiene nada que ver con la distancia**: eso lo decide el mouse.
+- **La barra se ve como un arco**, entre los palos y las habilidades, como en los juegos de golf: verde
+  (débil) en los dos bordes, amarillo (medio) y rojo (fuerte) arriba en el medio. La aguja sube por la
+  izquierda, pasa por arriba en el tope y el rebote la baja por la derecha; al volver a subir cruza de
+  nuevo, y así.
 - La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad. El anillo marca
   dónde cae, y con el wedge, el tamaño del área.
 - **El campo tiene marcas de distancia cada 10 m, contadas desde la línea de los puestos**: la raya
@@ -114,20 +118,26 @@ clases:
 Cada habilidad tira **su propia pelota**: no gasta la del puesto. Sale en el acto hacia el mouse, aun con
 un tiro cargando.
 
-**Palo y elemento** (12): cualquier palo con hielo, fuego o rayo. Es un tiro de ese palo, instantáneo, con
-pelota gratis y **cargado al nivel de la habilidad**, que además:
+**Palo y elemento** (15): cualquier palo con hielo, fuego o rayo, y el driver, el hierro y el wedge con
+viento. Es un tiro de ese palo, instantáneo, con pelota gratis y **cargado al nivel de la habilidad**, que
+además:
 - *Hielo*: enfría a cada uno que alcanza.
 - *Fuego*: lo prende; pierde 1 de vida por segundo.
 - *Rayo*: salta al enemigo más cercano, una vez por nivel. **Nunca salta a uno que ya tocó**, así que
   no puede dar vueltas matando a todo.
+- *Viento* (antes era el vendaval, solo rasante), distinto con cada palo:
+  - driver: el viento va detrás de la pelota y **junta sobre la línea** a los que pasa (3 m de cada
+    lado; 3.75 y 4.5 en los niveles 2 y 3), para el próximo tiro;
+  - hierro: donde revienta, una ráfaga **manda para atrás** 6 m (8 y 10) a los que están a 3.5 m;
+  - wedge: donde cae, un remolino **los amontona** hacia el centro, desde 4.5 m (5.25 y 6).
+  Con el putter no hay.
 
-**Las demás** (13):
+**Las demás** (12):
 
 | Habilidad | Qué hace |
 | --- | --- |
 | Granada | silencia a los que agarra (sin escudo, sin aura, sin inmunidad, vulnerables); a los del borde los tira a los costados |
 | Hielo | zona fría que dura: el que está adentro camina lento |
-| Vendaval | rasante, los junta sobre la línea del tiro |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
 | Hoyo | el primero que lo pisa cae y no vuelve (los jefes no) |
 | Bandera | los que están cerca van hacia ella en vez de a la puerta |
@@ -242,8 +252,9 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   invencible; y el Gólem de roca con la esquiva.
 - **El reparto**: un tercio de los enemigos de cada oleada sale con poder. La mitad de esos con el nuevo
   (el primero que aparece lo presenta) y el resto con alguno de los que ya se vieron, sobre cualquier
-  cuerpo que pueda tenerlo: con mala suerte, un caballero etéreo. El escudo y el blindaje salen en 1
-  cuando se presentan y suben de nivel con la partida (el escudo hasta 5, y a veces la calavera).
+  cuerpo que pueda tenerlo: con mala suerte, un caballero etéreo. El blindaje sale en 1 cuando se presenta, y el escudo de 1 a 3; los dos suben de nivel con la partida
+  (el escudo hasta 5, y a veces la calavera). En cada oleada, los escudos sorteados salen **de menor a
+  mayor**, y la de los escudos la cierra un esqueleto con la calavera.
 - El caballero y el gólem chico cierran la oleada en que se presentan.
 - **De pasada**: el escudo divino lo presenta uno solo en la cuarta, y la bandera uno solo en la de
   cavar. Desde la oleada siguiente entran en el sorteo como los demás.
@@ -288,7 +299,7 @@ recargar. Va en pestañas:
   mejoras que tenés, y dónde se dibuja cada tramo.
 - **Tiro**: qué hacen A y D mientras cargás (nada, correrse de a pasos, correrse seguido o darle
   efecto). Cada modo muestra solo sus números.
-- **Habilidades**: la lista de las 25 con el **nivel que tiene** cada una. Subirlo se la da (va al primer
+- **Habilidades**: la lista de las 27 con el **nivel que tiene** cada una. Subirlo se la da (va al primer
   lugar libre) y bajarlo a 0 se la saca; si ya tiene cuatro, avisa. El botón *números* abre una
   ventanita con la recarga, el alcance y lo que hace en cada nivel. Arriba, *Sacar tres cartas ahora*.
 - **Mejoras**: lo mismo con las mejoras (cuántas veces tomada cada una, con sus números al lado), y las

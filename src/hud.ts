@@ -36,7 +36,8 @@ export class Hud {
   private feedbackEl = $('feedback');
   private floats = $('floats');
   private meter = $('meter');
-  private power = this.meter.querySelector('.power') as HTMLElement;
+  private needle: SVGGElement | null = null;
+  private marksKey = '';
   private range = $('range');
   private hint = $('hint');
   private clubsEl = $('clubs');
@@ -92,9 +93,36 @@ export class Hud {
     this.choiceEl.hidden = true;
   }
 
-  /** Lo ancho que se ve el golpe perfecto en la barra: lo agranda la mejora «Punto dulce». */
-  setPerfectWidth(fraction: number): void {
-    (this.meter.querySelector('.perfect') as HTMLElement).style.width = `${(fraction * 100).toFixed(1)}%`;
+  /**
+   * Arma el arco del medidor con los umbrales de la barra (`midFrom` y `strongFrom`, en fracción de la
+   * potencia). El arco va de borde a borde pasando por arriba: la potencia 0 está en los dos bordes y la
+   * 1 arriba en el medio, así que las zonas quedan en espejo: verde (débil) en las puntas, amarillo
+   * (medio) y rojo (fuerte) en el centro.
+   */
+  setMarks(midFrom: number, strongFrom: number): void {
+    // se llama en cada cuadro (los umbrales se tocan en el panel): solo se rearma si cambiaron
+    const key = `${midFrom}/${strongFrom}`;
+    if (key === this.marksKey) return;
+    this.marksKey = key;
+    const R = 66;
+    const r = 44;
+    const deg = (p: number) => (1 - p) * 90;
+    const at = (rad: number, a: number) => `${(rad * Math.sin((a * Math.PI) / 180)).toFixed(2)} ${(-rad * Math.cos((a * Math.PI) / 180)).toFixed(2)}`;
+    const sector = (a1: number, a2: number, color: string) =>
+      `<path class="zone" fill="${color}" d="M ${at(R, a1)} A ${R} ${R} 0 0 1 ${at(R, a2)} L ${at(r, a2)} A ${r} ${r} 0 0 0 ${at(r, a1)} Z" />`;
+    const g = deg(midFrom);
+    const y = deg(strongFrom);
+    const green = '#5be07a';
+    const yellow = '#ffd66b';
+    const red = '#ff2d3c';
+    // un fondo oscuro un poco más grande, como tenía la barra: sobre el pasto el verde se perdía
+    const back = `<path fill="rgba(0,0,0,0.6)" d="M ${at(R + 4, -92)} A ${R + 4} ${R + 4} 0 0 1 ${at(R + 4, 92)} L ${at(r - 4, 92)} A ${r - 4} ${r - 4} 0 0 0 ${at(r - 4, -92)} Z" />`;
+    this.meter.innerHTML = `<svg viewBox="-72 -72 144 78">` + back
+      + sector(-90, -g, green) + sector(-g, -y, yellow) + sector(-y, y, red) + sector(y, g, yellow) + sector(g, 90, green)
+      + `<g class="needle"><line x1="0" y1="-30" x2="0" y2="-72" stroke="#0b0f14" stroke-width="6" stroke-linecap="round" />`
+      + `<line x1="0" y1="-30" x2="0" y2="-72" stroke="#ffffff" stroke-width="3" stroke-linecap="round" /></g>`
+      + `<circle r="5" fill="#ffffff" stroke="#0b0f14" stroke-width="2" /></svg>`;
+    this.needle = this.meter.querySelector('.needle');
   }
 
   private perksEl = $('perks');
@@ -252,10 +280,12 @@ export class Hud {
     this.hint.textContent = queued ? `Próximo: ${queued.name} · ${queued.hint}` : hint || club.hint;
   }
 
-  setMeter(charging: boolean, power: number, locked: boolean, label: string): void {
+  /** La aguja del arco: `side` dice por qué lado va (-1 izquierda, 1 derecha; ver SwingMeter.side). */
+  setMeter(charging: boolean, power: number, locked: boolean, label: string, side = -1): void {
     this.meter.classList.toggle('on', charging);
     this.meter.classList.toggle('locked', charging && locked);
-    this.power.style.width = `${charging ? power * 100 : 0}%`;
+    const angle = charging ? side * (1 - Math.min(1, Math.max(0, power))) * 90 : -90;
+    this.needle?.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
     this.range.textContent = charging ? label : '';
   }
 

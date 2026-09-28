@@ -226,13 +226,13 @@ export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal
 
 /**
  * Un poder, según cuántas oleadas pasaron desde que se presentó (`age`, 0 en la suya): el escudo y el
- * blindaje suben de nivel con la partida. En su oleada salen siempre en 1.
+ * blindaje suben de nivel con la partida. El blindaje sale en 1 en su oleada; el escudo, de 1 a 3.
  */
 export const POWERS: Record<PowerKey, (age: number, rand: () => number) => EnemyMods> = {
-  // hasta 1 al presentarse, uno más cada oleada y media, hasta 5; desde la sexta después, a veces la calavera
+  // de 1 a 3 al presentarse, uno más cada oleada y media, hasta 5; desde la sexta después, a veces la calavera
   shield: (age, rand) => {
     if (age >= 6 && rand() < 0.15) return { shield: SHIELD_WALL };
-    return { shield: 1 + Math.floor(rand() * Math.min(5, 1 + Math.floor(age / 1.5))) };
+    return { shield: 1 + Math.floor(rand() * Math.min(5, 3 + Math.floor(age / 1.5))) };
   },
   // hasta 1 al presentarse, hasta 2 a las tres oleadas y hasta 3 a las seis
   armor: (age, rand) => ({ armor: 1 + Math.floor(rand() * Math.min(3, 1 + Math.floor(age / 3))) }),
@@ -278,8 +278,9 @@ export interface Wave {
  */
 export const WAVES: Wave[] = [
   { title: 'Los cuatro palos', interval: 2.1, groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 2 }, { kind: 'skeleton', count: 2 }] },
-  { title: 'Escudos al frente', interval: 2.0, power: 'shield', groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }] },
-  { title: 'Acorazados', interval: 2.0, power: 'armor', groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
+  // los escudos salen de menor a mayor, y cierra un esqueleto con la calavera: de frente no le entra nada
+  { title: 'Escudos al frente', interval: 2.4, power: 'shield', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 2 }, { kind: 'skeleton', count: 2 }, { kind: 'skeleton', count: 1, at: 1, mods: { shield: SHIELD_WALL } }] },
+  { title: 'Acorazados', interval: 1.9, power: 'armor', groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
   { title: 'La estampida', interval: 1.7, power: 'explode', extra: 'divine', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
   { title: 'Hechiceros', interval: 2.05, power: 'ranged', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }] },
   { title: 'La tierra se levanta', interval: 2.2, power: 'dig', extra: 'banner', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 2 }] },
@@ -341,6 +342,10 @@ export function spawnOrder(waves: Wave[], index: number, rand: () => number = Ma
   }
   // el de pasada: uno solo, cualquiera que pueda tenerlo
   if (wave.extra) give(POWERS[wave.extra](0, rand), false);
+  // los escudos que salieron sorteados van de menor a mayor a lo largo de la oleada: el más duro, al final
+  const shielded = order.filter((s) => s.mods?.shield && s.mods.shield < SHIELD_WALL && !wave.groups.some((g) => g.mods === s.mods));
+  const levels = shielded.map((s) => s.mods!.shield!).sort((a, b) => a - b);
+  shielded.forEach((s, i) => { s.mods = { ...s.mods, shield: levels[i] }; });
   return order;
 }
 

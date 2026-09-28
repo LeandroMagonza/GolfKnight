@@ -7,7 +7,7 @@
 // pelotas, el caddie, el clon y el palo que se tira) lo hace el juego, a través de `hooks`.
 import * as THREE from 'three';
 import {
-  ABILITIES, BOOMERANG, CADDIE, CART, CLONE, cooldownAt, FLAG, GRENADE, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS, WIND,
+  ABILITIES, BOOMERANG, CADDIE, CART, CLONE, cooldownAt, FLAG, GRENADE, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
   type AbilityId, type Element,
 } from '../core/abilities';
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
@@ -42,7 +42,6 @@ export interface AbilityHooks {
 type Flight = { loftDeg: number; gravity: number; bounce: BounceParams };
 const LOB: Flight = { loftDeg: 55, gravity: 40, bounce: { restitution: 0, bounceKeep: 0, gravity: 40 } };
 const QUICK: Flight = { loftDeg: 30, gravity: 40, bounce: { restitution: 0, bounceKeep: 0, gravity: 40 } };
-const FLAT: Flight = { loftDeg: 3.5, gravity: 22, bounce: { restitution: 0.3, bounceKeep: 0.8, gravity: 22 } };
 
 const TRAIL_POINTS = 14;
 const MAX_STEP = 0.3;
@@ -58,9 +57,6 @@ interface AbilityBall {
   from: THREE.Vector3;
   dir: THREE.Vector3;
   range: number;
-  /** Vendaval: hasta dónde llegó el viento, que va detrás de la pelota, y a quiénes ya agarró. */
-  swept: number;
-  caught: Set<number>;
   age: number;
   done: boolean;
   mesh: THREE.Mesh;
@@ -107,8 +103,6 @@ export type AbilityEvent =
   | { type: 'cast'; id: AbilityId }
   /** Cayó el hielo: la zona quedó armada y agarró a `hits` de entrada. */
   | { type: 'zone'; pos: THREE.Vector3; hits: number }
-  /** Terminó de pasar el vendaval: `hits` juntados sobre la línea. */
-  | { type: 'gust'; pos: THREE.Vector3; hits: number }
   /** Cayó la granada: `hits` silenciados. */
   | { type: 'grenade'; pos: THREE.Vector3; hits: number }
   /** Cayó una habilidad que marca o agranda: `hits` alcanzados. */
@@ -209,7 +203,6 @@ export class Abilities {
     switch (a.kind) {
       case 'grenade': this.throwBall(s.id, level, QUICK, from, dir, range); break;
       case 'iceZone': case 'powder': case 'lens': this.throwBall(s.id, level, LOB, from, dir, range); break;
-      case 'wind': this.throwBall(s.id, level, FLAT, from, dir, a.range); break;
       case 'hole': this.makeMark('hole', at, HOLE.radius, HOLE.life, lv(HOLE.swallows, level)); break;
       case 'flag': this.makeMark('flag', at, lv(FLAG.radius, level), lv(FLAG.seconds, level), 0); break;
       case 'cart': this.sendCart(at.z, from.x, level); break;
@@ -242,9 +235,8 @@ export class Abilities {
   private throwBall(id: AbilityId, level: number, flight: Flight, from: THREE.Vector3, dir: THREE.Vector3, range: number): void {
     const angle = THREE.MathUtils.degToRad(flight.loftDeg);
     const startH = heightAt(from.x, from.z);
-    // lo que cae se calcula para caer en el punto apuntado aunque esté más alto o más bajo; lo rasante
-    // sale siempre igual, y si hay una loma en el medio, choca
-    const rise = flight === FLAT || !terrainOn() ? 0 : heightAt(from.x + dir.x * range, from.z + dir.z * range) - startH;
+    // lo que cae se calcula para caer en el punto apuntado aunque esté más alto o más bajo
+    const rise = !terrainOn() ? 0 : heightAt(from.x + dir.x * range, from.z + dir.z * range) - startH;
     const speed = launchSpeed(range, angle, flight.gravity, rise);
     const state = launchWith({ x: from.x, y: startH + BALL_RADIUS, z: from.z }, dir.x, dir.z, speed, angle);
     const color = ABILITIES[id].color;
@@ -259,7 +251,7 @@ export class Abilities {
     this.scene.add(mesh, trail);
     this.balls.push({
       id, level, flight, state, from: from.clone(), dir: new THREE.Vector3(dir.x, 0, dir.z).normalize(), range,
-      swept: 0, caught: new Set(), age: 0, done: false, mesh, trail, trailPositions,
+      age: 0, done: false, mesh, trail, trailPositions,
     });
   }
 
@@ -400,32 +392,6 @@ export class Abilities {
     this.boomerangs.push({ club, level, from: from.clone(), dir: d, side: new THREE.Vector3(-d.z, 0, d.x), t: 0, out: new Set(), back: new Set(), mesh });
   }
 
-  /**
-   * El viento del vendaval va **detrás** de la pelota: barre solo el tramo que ya pasó, así que a cada
-   * uno lo acomoda después de pasarle por al lado, nunca antes. A cada uno que agarra lo junta sobre la
-   * línea.
-   */
-  private blow(ball: AbilityBall): void {
-    const s = ball.state;
-    const half = lv(WIND.halfWidth, ball.level);
-    const gone = Math.min(ball.range, (s.pos.x - ball.from.x) * ball.dir.x + (s.pos.z - ball.from.z) * ball.dir.z);
-    if (gone > ball.swept) {
-      const mid = ball.from.clone().addScaledVector(ball.dir, (ball.swept + gone) / 2);
-      mid.y = heightAt(mid.x, mid.z);
-      this.horde.sweep(mid, ball.dir, half, (gone - ball.swept) / 2, ball.caught);
-      // un remolino cada tantos metros: uno por cuadro sería una nube continua
-      if (Math.floor(gone / 6) > Math.floor(ball.swept / 6)) {
-        this.effects.swipe(new THREE.Vector3(s.pos.x, heightAt(s.pos.x, s.pos.z), s.pos.z), half);
-      }
-      ball.swept = gone;
-    }
-    if (ball.swept >= ball.range - 0.05 || s.resting || ball.age > 4) {
-      ball.done = true;
-      const mid = ball.from.clone().addScaledVector(ball.dir, ball.swept / 2);
-      mid.y = heightAt(mid.x, mid.z);
-      this.onEvent?.({ type: 'gust', pos: mid, hits: ball.caught.size });
-    }
-  }
 
   update(dt: number): void {
     for (let i = 0; i < SLOTS; i++) this.cooldowns[i] = Math.max(0, this.cooldowns[i] - dt);
@@ -442,17 +408,15 @@ export class Abilities {
       ball.age += dt;
       const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
-      const wind = ABILITIES[ball.id].kind === 'wind';
       for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
         const landed = stepBall(s, dt / steps, ball.flight.bounce, terrainOn() ? heightAt : undefined);
         if (s.pos.z < GATE_Z - 0.4 && s.vel.z < 0) {
           s.pos.z = GATE_Z - 0.4;
           s.vel.z *= -0.5;
         }
-        if (landed && !wind) this.land(ball);
+        if (landed) this.land(ball);
       }
-      if (wind && !ball.done) this.blow(ball);
-      else if (!ball.done && (s.resting || ball.age > 6)) this.land(ball);
+      if (!ball.done && (s.resting || ball.age > 6)) this.land(ball);
 
       ball.mesh.position.set(s.pos.x, s.pos.y, s.pos.z);
       const t = ball.trailPositions;

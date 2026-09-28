@@ -260,7 +260,8 @@ function updatePreview(): void {
   const damage = damageFor(club, range, quality);
   const areaHit = areaDamageFor(club, range, quality);
   const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
-  hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`);
+  hud.setMarks(...qualityMarks());
+  hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`, player.meter.side);
   if (!show) return;
   player.teePosition(tee);
   // con relieve la línea se corta donde el tiro toca el terreno: así se ve cuándo una loma tapa
@@ -559,10 +560,6 @@ abilities.onEvent = (e) => {
       audio.frost();
       if (e.hits) hud.feedback(e.hits > 2 ? `¡Hielo ×${e.hits}!` : `Hielo ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
       break;
-    case 'gust':
-      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
-      if (e.hits >= 3) hud.feedback(`¡Vendaval! ×${e.hits}`, 'good');
-      break;
     case 'mark':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
       audio.explosion();
@@ -726,7 +723,6 @@ function applyCard(card: Card): void {
 
 /** Pasa las mejoras tomadas a los números del juego. Se llama cada vez que se toma una. */
 function applyPerks(): void {
-  hud.setPerfectWidth(1 - qualityMarks()[1]);
   BALLS.max = 3 + (perks.extraBall ?? 0);
   abilities.secondWind.owned = !!perks.secondWind;
   player.runCharge = !!perks.runCharge;

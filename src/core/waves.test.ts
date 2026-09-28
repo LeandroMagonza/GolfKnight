@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { behaviorOf, canTake, ENEMIES, powerPool, POWERS, spawnOrder, WaveDirector, WAVES, type DirectorEvent, type EnemyMods, type Wave } from './waves';
+import { behaviorOf, canTake, ENEMIES, powerPool, POWERS, SHIELD_WALL, spawnOrder, WaveDirector, WAVES, type DirectorEvent, type EnemyMods, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -78,8 +78,10 @@ describe('waves', () => {
         const open = order.filter((o) => !ENEMIES[o.kind].boss);
         const powered = order.filter((o) => o.mods);
         // en la primera no hay poderes todavía
-        // más el de pasada, si la oleada trae uno
-        expect(powered.length, w.title).toBe((pool.fresh || pool.old.length ? Math.round(open.length / 3) : 0) + (w.extra ? 1 : 0));
+        // más el de pasada, si la oleada trae uno, y los que tienen su poder fijo en el grupo
+        const fixed = w.groups.filter((g) => g.mods).reduce((n, g) => n + g.count, 0);
+        const drawn = open.length - fixed;
+        expect(powered.length, w.title).toBe((pool.fresh || pool.old.length ? Math.round(drawn / 3) : 0) + (w.extra ? 1 : 0) + fixed);
         // el jefe nunca; nadie recibe un poder que no pueda tener
         expect(order.filter((o) => ENEMIES[o.kind].boss).every((o) => !o.mods)).toBe(true);
         for (const o of powered) expect(canTake(o.kind, o.mods!), `${w.title}: ${o.kind}`).toBe(true);
@@ -89,9 +91,9 @@ describe('waves', () => {
             const key = pool.fresh!;
             return key === 'heal' ? m.aura === 'heal' : key === 'ward' ? m.aura === 'ward' : m[key as keyof EnemyMods] !== undefined;
           };
-          const shared = powered.length - (w.extra ? 1 : 0);
+          const shared = powered.length - (w.extra ? 1 : 0) - fixed;
           const want = pool.old.length ? Math.ceil(shared / 2) : shared;
-          expect(powered.filter(isFresh).length, w.title).toBe(want);
+          expect(powered.filter((o) => isFresh(o) && !w.groups.some((g) => g.mods === o.mods)).length, w.title).toBe(want);
           // el primero que puede tenerlo es el que lo presenta
           const probe = POWERS[pool.fresh](0, () => 0);
           expect(isFresh(order.find((o) => !ENEMIES[o.kind].boss && canTake(o.kind, probe))!), w.title).toBe(true);
@@ -111,7 +113,17 @@ describe('waves', () => {
     };
     const shieldAt = WAVES.findIndex((w) => w.power === 'shield');
     const armorAt = WAVES.findIndex((w) => w.power === 'armor');
-    expect([...levels(shieldAt, 'shield')]).toEqual([1]);
+    // en la suya, de 1 a 3, y cierra la calavera
+    const debut = levels(shieldAt, 'shield');
+    expect(Math.max(...[...debut].filter((l) => l < SHIELD_WALL))).toBe(3);
+    expect(debut.has(SHIELD_WALL)).toBe(true);
+    for (let seed = 1; seed < 20; seed++) {
+      const order = spawnOrder(WAVES, shieldAt, seeded(seed));
+      expect(order[order.length - 1].mods?.shield).toBe(SHIELD_WALL);
+      // de menor a mayor a lo largo de la oleada
+      const ls = order.map((o) => o.mods?.shield).filter((l): l is number => !!l);
+      expect(ls).toEqual([...ls].sort((a, b) => a - b));
+    }
     expect([...levels(armorAt, 'armor')]).toEqual([1]);
     expect(Math.max(...levels(WAVES.length - 1, 'shield'))).toBeGreaterThanOrEqual(5);
     expect(Math.max(...levels(WAVES.length - 1, 'armor'))).toBe(3);

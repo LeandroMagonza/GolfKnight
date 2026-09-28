@@ -6,17 +6,17 @@
 // 3): pega más o agarra más, pero **también tarda más en recargar**, así que subir no es gratis.
 //
 // Hay de dos familias:
-// - **Palo y elemento**: cualquier palo con hielo, fuego o rayo. Es un tiro de ese palo, instantáneo,
-//   con pelota gratis y cargado al nivel de la habilidad: el driver de hielo a nivel 1 es un driver nivel
-//   1 que además enfría a cada uno que atraviesa.
-// - **Las demás**, cada una con su mecánica propia: granada, hielo, vendaval, carrito, hoyo, bandera,
-//   pólvora, boomerang, lluvia de pelotas, caddie dorado, lupa, clon y palazo.
+// - **Palo y elemento**: cualquier palo con hielo, fuego o rayo, y el driver, el hierro y el wedge con
+//   viento. Es un tiro de ese palo, instantáneo, con pelota gratis y cargado al nivel de la habilidad: el
+//   driver de hielo a nivel 1 es un driver nivel 1 que además enfría a cada uno que atraviesa.
+// - **Las demás**, cada una con su mecánica propia: granada, hielo, carrito, hoyo, bandera, pólvora,
+//   boomerang, lluvia de pelotas, caddie dorado, lupa, clon y palazo.
 import type { ClubId } from './clubs';
 
 export type AbilityId = string;
-export type Element = 'ice' | 'fire' | 'lightning';
+export type Element = 'ice' | 'fire' | 'lightning' | 'wind';
 export type AbilityKind =
-  | 'grenade' | 'iceZone' | 'wind' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'boomerang' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee';
+  | 'grenade' | 'iceZone' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'boomerang' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee';
 
 export interface Ability {
   id: AbilityId;
@@ -60,7 +60,6 @@ export const VULNERABLE = { bonus: 1 };
 export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5, slow: 0.4 };
 
 /** Vendaval: el pasillo de viento que va detrás de la pelota, `halfWidth` a cada lado de la línea. */
-export const WIND = { halfWidth: [3, 3.75, 4.5] };
 
 /**
  * Granada: agarra a todos los que estén a `radius` de donde cae y los **silencia** `silence` segundos
@@ -84,6 +83,10 @@ export const ELEMENTS = {
   iceSeconds: [3, 4, 5], freezeSeconds: 2,
   burnSeconds: [3, 4, 5], burnTick: 1, burnDamage: 1, spreadRadius: 2.5,
   chainJumps: [1, 2, 3], chainRange: 6, chainDamage: 1,
+  // el viento hace algo distinto con cada palo (ver WIND_HINT): el driver junta sobre la línea a los de
+  // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a
+  // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`
+  windLine: [3, 3.75, 4.5], windPush: [6, 8, 10], windPushRadius: 3.5, windPull: [4.5, 5.25, 6],
 };
 
 /** Carrito de golf: cruza el campo de costado a costado, a la altura que apuntás, y atropella. */
@@ -115,7 +118,7 @@ export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1,
 
 /** Todas las tablas de números de las habilidades, por nombre: el panel de balance las recorre. */
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
-  hielo: ICE, vendaval: WIND, granada: GRENADE, elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
+  hielo: ICE, granada: GRENADE, elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
   bandera: FLAG, 'pólvora': POWDER, boomerang: BOOMERANG, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
 };
 
@@ -127,10 +130,6 @@ const BASE: Ability[] = [
   {
     id: 'ice', kind: 'iceZone', name: 'Hielo', title: 'zona fría', cooldown: 10, range: 55, color: 0x7fd4ff,
     hint: 'Un globo que cae donde apuntás y deja el piso helado unos segundos: el que está adentro, o entra después, camina lento',
-  },
-  {
-    id: 'wind', kind: 'wind', name: 'Vendaval', title: 'los junta', cooldown: 8, range: 55, color: 0x8fe3b0,
-    hint: 'Rasante, como el driver: el viento va detrás de la pelota y los junta sobre la línea del tiro',
   },
   {
     id: 'cart', kind: 'cart', name: 'Carrito', title: 'atropella', cooldown: 14, range: 60, color: 0xe9e2cf,
@@ -181,16 +180,26 @@ export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: n
   ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: 'enfría a cada uno que alcanza' },
   fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a cada uno que alcanza, que va perdiendo vida' },
   lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'de cada uno que alcanza salta un rayo al que tenga más cerca' },
+  wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los que agarra' },
 };
-export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning'];
+export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning', 'wind'];
 
-/** Las doce de palo y elemento. */
-const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).flatMap((club) => ELEMENT_ORDER.map((element): Ability => ({
-  id: `${club}-${element}`, kind: 'shot', club, element,
-  name: `${CLUB_LABEL[club]} ${ELEMENT_INFO[element].adj}`, title: ELEMENT_INFO[element].name.toLowerCase(),
-  hint: `Un tiro de ${CLUB_LABEL[club].toLowerCase()} al instante, con pelota gratis y cargado al nivel de la habilidad, que además ${ELEMENT_INFO[element].hint}`,
-  cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
-})));
+/** El viento hace algo distinto con cada palo. Con el putter no tiene sentido: no hay. */
+const WIND_HINT: Partial<Record<ClubId, string>> = {
+  driver: 'el viento va detrás de la pelota y junta sobre la línea del tiro a los que pasa, para el próximo',
+  iron: 'donde revienta, una ráfaga manda para atrás a los que están alrededor',
+  wedge: 'donde cae, un remolino chupa hacia el centro a los de alrededor: quedan amontonados',
+};
+
+/** Las de palo y elemento: los cuatro palos con hielo, fuego y rayo, y tres con viento. */
+const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).flatMap((club) => ELEMENT_ORDER
+  .filter((element) => element !== 'wind' || WIND_HINT[club])
+  .map((element): Ability => ({
+    id: `${club}-${element}`, kind: 'shot', club, element,
+    name: `${CLUB_LABEL[club]} ${ELEMENT_INFO[element].adj}`, title: ELEMENT_INFO[element].name.toLowerCase(),
+    hint: `Un tiro de ${CLUB_LABEL[club].toLowerCase()} al instante, con pelota gratis y cargado al nivel de la habilidad, que además ${element === 'wind' ? WIND_HINT[club] : ELEMENT_INFO[element].hint}`,
+    cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
+  })));
 
 export const ABILITIES: Record<AbilityId, Ability> = Object.fromEntries([...BASE, ...SHOTS].map((a) => [a.id, a]));
 export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);
@@ -200,9 +209,10 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
   ice: ['iceSeconds', 'freezeSeconds'],
   fire: ['burnSeconds', 'burnTick', 'burnDamage', 'spreadRadius'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
+  wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
-  grenade: 'granada', iceZone: 'hielo', wind: 'vendaval', cart: 'carrito', hole: 'hoyo', flag: 'bandera',
+  grenade: 'granada', iceZone: 'hielo', cart: 'carrito', hole: 'hoyo', flag: 'bandera',
   powder: 'pólvora', boomerang: 'boomerang', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
 };
 

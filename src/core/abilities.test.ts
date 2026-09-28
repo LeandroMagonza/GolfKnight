@@ -18,6 +18,10 @@ describe('habilidades', () => {
     for (const club of Object.keys(CLUBS)) {
       for (const element of ['ice', 'fire', 'lightning']) expect(ABILITIES[`${club}-${element}`]?.kind, `${club}-${element}`).toBe('shot');
     }
+    // el viento, en tres palos: con el putter no tiene sentido
+    for (const club of ['driver', 'iron', 'wedge']) expect(ABILITIES[`${club}-wind`]?.element, club).toBe('wind');
+    expect(ABILITIES['putter-wind']).toBeUndefined();
+    expect(ABILITIES.wind).toBeUndefined();
     expect(ABILITY_LIST.length).toBeGreaterThanOrEqual(20);
   });
 

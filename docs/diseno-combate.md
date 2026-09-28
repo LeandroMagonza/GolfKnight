@@ -1851,3 +1851,43 @@ con poder, y que desde la siguiente entra en el sorteo.
 - **Bandera** en la 6 (La tierra se levanta), con el que cava: los dos se plantan lejos, así que se
   aprenden juntos a buscar al que se queda atrás. La bandera no se acumula: con dos abanderados vivos,
   sigue siendo +1.
+
+## Hecho: el arco de carga, el viento por palo y la oleada de los escudos (28/9/2026)
+
+### El arco
+
+La barra pasó a ser un **arco** (un segmento de corona circular), como en los juegos de golf, entre los
+palos y las habilidades. La potencia 0 está en los dos bordes y la 1 arriba en el medio, así que las
+zonas quedan en espejo, con los colores que pidió Leandro: **verde en los bordes, amarillo, y rojo en
+el centro**. La aguja sube por la izquierda; en el tope pasa por arriba y el rebote la baja por la
+derecha; al volver a subir cruza de nuevo (`SwingMeter.side`). Así el rebote se ve como un péndulo y no
+como una barra que se vacía. Los ángulos son proporcionales a la potencia, igual que el ancho en la
+barra, y el arco se rearma solo si se tocan los umbrales en el panel. Clavar con espacio deja la aguja
+quieta y hace brillar el arco.
+
+### El viento por palo
+
+El vendaval era una habilidad aparte: una pelota rasante sin daño que juntaba sobre la línea. Ahora el
+viento es un **elemento más**, como el hielo, el fuego y el rayo, en tres palos (con el putter no
+tiene sentido): un tiro de verdad, con su daño, que además mueve.
+
+- **Driver de viento**: lo de antes. El viento va detrás de la pelota y junta sobre la línea a los que
+  pasa. La pelota les pega primero, así que el viento acomoda a los que quedan para el próximo tiro.
+- **Hierro de viento**: donde revienta, una ráfaga manda para atrás a los de alrededor. Gana tiempo.
+- **Wedge de viento**: donde cae, un remolino los amontona hacia el centro, hasta un metro. Deja un
+  grupo armado para un área.
+- El jefe no se mueve con ninguno. Los números están en `ELEMENTS` (`windLine`, `windPush`,
+  `windPushRadius`, `windPull`). Probado: el hierro mandó 6 m atrás a dos caballeros, el wedge juntó a
+  tres que estaban a 3.5 m, y el driver trajo a la línea al que estaba a 2.5 m de costado.
+
+### La oleada de los escudos
+
+Pedido: que en la de los escudos ya haya distintos niveles, y que el último tenga el más fuerte.
+
+- El escudo sale de **1 a 3** en su oleada (antes, siempre 1), y sube desde ahí.
+- En toda oleada, los escudos sorteados se ordenan **de menor a mayor** a lo largo de la aparición.
+- La de los escudos **la cierra un esqueleto con la calavera** (`WaveGroup.at: 1`, con el poder fijo):
+  de frente no le entra nada, así que desde la segunda oleada hay que pegarle de costado, por detrás o
+  con la granada.
+- La oleada quedó más liviana (15 enemigos, cada 2.4 s) para que el salto desde la primera no pase del
+  30 %. La cuenta de `tools/oleadas.mts` exagera la calavera, que es uno solo.

@@ -2,7 +2,7 @@
 //
 // Dos cosas independientes: si el palo **atraviesa** (le pega a cada uno que toca en el aire y sigue: el
 // driver) y si **abre un área** (el hierro y el wedge, más grande cuanto más alto vuela). Los palos ya
-// no llevan poder: el hielo, el vendaval y la granada van con su propia pelota (ver game/abilities).
+// no llevan poder: el hielo, el viento y la granada van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
 import { ELEMENTS, lv, type Element } from '../core/abilities';
@@ -34,6 +34,10 @@ export interface Ball {
   ability: boolean;
   /** A quiénes ya tocó el rayo de esta pelota: nunca salta dos veces al mismo. */
   zapped: Set<number>;
+  /** Driver de viento: hacia dónde sale, cuántos metros ya barrió el viento y a quiénes ya acomodó. */
+  dir: THREE.Vector3;
+  windSwept: number;
+  windCaught: Set<number>;
   /** Efecto: la curva del tiro, y cuánto va de ella. */
   spin: Spin | null;
   spinTime: number;
@@ -117,6 +121,7 @@ export class Balls {
       state, club: shot.club, bounce, quality: shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
       element: shot.element ?? null, ability: !!shot.ability, zapped: new Set(),
+      dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
       hitIds: new Set(), hits: 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
@@ -156,6 +161,7 @@ export class Balls {
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
     const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
+    if (ball.element === 'wind') this.windBurst(ball, pos);
     ball.hits += hits;
     this.checkConnected(ball);
     if (finish) ball.done = true;
@@ -190,10 +196,44 @@ export class Balls {
    * rayo.
    */
   private applyElement(ball: Ball, enemy: Enemy): void {
-    if (!ball.element) return;
+    // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst)
+    if (!ball.element || ball.element === 'wind') return;
     if (ball.element === 'ice') this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
     else if (ball.element === 'fire') enemy.burn(lv(ELEMENTS.burnSeconds, ball.quality));
-    else this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality), ball.zapped);
+    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality), ball.zapped);
+  }
+
+  /**
+   * El viento donde revienta la pelota: con el wedge, un remolino que los amontona; con el hierro, una
+   * ráfaga que los manda para atrás, hacia donde iba el tiro.
+   */
+  private windBurst(ball: Ball, pos: THREE.Vector3): void {
+    const level = ball.quality;
+    if (ball.club.id === 'wedge') {
+      const radius = lv(ELEMENTS.windPull, level);
+      this.horde.whirl(pos, radius);
+      this.effects.swipe(pos, radius);
+    } else if (ball.club.id === 'iron') {
+      this.horde.gust(pos, ELEMENTS.windPushRadius, ball.dir, lv(ELEMENTS.windPush, level));
+      this.effects.swipe(pos, ELEMENTS.windPushRadius);
+    }
+  }
+
+  /**
+   * Driver de viento: el viento va **detrás** de la pelota y barre el tramo que ya pasó, así que a cada
+   * uno lo acomoda después de que la pelota le pegó: los junta sobre la línea del tiro para el próximo.
+   */
+  private windTrail(ball: Ball): void {
+    const s = ball.state;
+    const gone = (s.pos.x - ball.from.x) * ball.dir.x + (s.pos.z - ball.from.z) * ball.dir.z;
+    if (gone <= ball.windSwept) return;
+    const half = lv(ELEMENTS.windLine, ball.quality);
+    const mid = ball.from.clone().addScaledVector(ball.dir, (ball.windSwept + gone) / 2);
+    mid.y = heightAt(mid.x, mid.z);
+    this.horde.sweep(mid, ball.dir, half, (gone - ball.windSwept) / 2, ball.windCaught);
+    // un remolino cada tantos metros: uno por cuadro sería una nube continua
+    if (Math.floor(gone / 6) > Math.floor(ball.windSwept / 6)) this.effects.swipe(new THREE.Vector3(s.pos.x, heightAt(s.pos.x, s.pos.z), s.pos.z), half);
+    ball.windSwept = gone;
   }
 
   /** La pelota tocó a alguien: según el palo, lo atraviesa, revienta ahí, o le pega solo a él. */
@@ -283,6 +323,7 @@ export class Balls {
         }
         this.collide(ball);
       }
+      if (ball.element === 'wind' && ball.club.id === 'driver' && !ball.done) this.windTrail(ball);
       // la que para sin haber tocado a nadie y abre área por el piso (el globo) hace su efecto ahí
       if (s.resting && !ball.done && !ball.burst && ball.club.burstsOnGround && hasArea(ball.club)) this.burst(ball);
       if (s.resting) ball.restTime += dt;

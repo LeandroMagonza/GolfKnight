@@ -78,6 +78,8 @@ export class SwingMeter {
   charging = false;
   /** Potencia clavada a mano, o null si la barra sigue corriendo. */
   private lockedPower: number | null = null;
+  /** De qué lado quedó la aguja al clavar. */
+  private lockedSide = -1;
 
   /**
    * @param times los segundos de cada tramo, ya con las mejoras
@@ -126,6 +128,23 @@ export class SwingMeter {
     return (b * (e - rebound)) / rebound;
   }
 
+  /**
+   * De qué lado del arco va la aguja: -1 a la izquierda, 1 a la derecha. En el arco el tope (el fuerte)
+   * está arriba en el medio y el 0 en los dos bordes: la aguja sube por la izquierda, pasa por arriba y
+   * el rebote la baja por la derecha; al volver a subir cruza otra vez, y así. Cambia de lado cada vez
+   * que pasa por el tope.
+   */
+  get side(): number {
+    if (!this.charging) return -1;
+    if (this.lockedPower !== null) return this.lockedSide;
+    const { weak, mid, strong, rebound } = this.times;
+    const e = this.elapsed - weak - mid;
+    if (e < 0) return -1;
+    const cycle = strong + 2 * rebound;
+    const peaks = Math.floor(e / cycle) + ((e % cycle) >= strong / 2 ? 1 : 0);
+    return peaks % 2 === 0 ? -1 : 1;
+  }
+
   /** Alcance 0..1: llega a 1 cuando la barra llega al tope por primera vez, y no vuelve a bajar. */
   get reach(): number {
     if (!this.charging) return 0;
@@ -140,6 +159,7 @@ export class SwingMeter {
   /** Clava la potencia donde está. Devuelve false si no se estaba cargando o ya estaba clavada. */
   lock(): boolean {
     if (!this.charging || this.lockedPower !== null) return false;
+    this.lockedSide = this.side;
     this.lockedPower = Math.max(MIN_POWER, this.power);
     return true;
   }
