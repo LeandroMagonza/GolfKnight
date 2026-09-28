@@ -95,6 +95,29 @@ la narradora irónica en "sospechosamente buenos" y seca en "Y después, nada.".
 - La key de OpenAI se lee de `E:sistente\.env` sin imprimirla. Una pasada completa son unos 30 s de
   audio: menos de un centavo de dólar.
 
+## Los extras de la feria (28/9)
+
+Pedido de Leandro: en vez del goblin y el esqueleto, otros disfrazados como el protagonista (los de
+"sospechosamente buenos"). Son **tres caballeros** (el mismo `Character_Hero_Knight_Male`) y **tres
+caballeras** (`Character_Hero_Knight_Female`, la Caballera del juego), en tres grupitos charlando
+junto a las carpas. Para que no parezcan clones, cada uno lleva `look` en el guion:
+
+- **Colores**: cada uno tiene su copia del atlas de paleta recoloreada (`src/cine/looks.ts`). Los grises
+  son el metal (`armor`), los rojos la tela y los detalles (`accent`), el marrón del pelo de la Caballera
+  (`hair`) y la piel (`skin`, más clara o más oscura). Se cambia el tono y se conserva qué tan claro era
+  cada color, así las sombras pintadas del modelo siguen ahí.
+- **Cuerpo**: alto distinto (1.60 a 1.90 m) y ancho distinto (`scale`, de 0.94 a 1.14 de ancho),
+  que no deforma porque se aplica a todo el modelo, no a los huesos.
+
+| Extra | Armadura | Detalles | Pelo | Cuerpo |
+| --- | --- | --- | --- | --- |
+| Caballero 1 | dorada | azul | — | 1.80 m, ancho |
+| Caballero 2 | acero oscuro | verde | — | 1.90 m, flaco |
+| Caballero 3 | bronce | violeta | — | 1.66 m, algo ancho |
+| Caballera 1 | plateada azulada | turquesa | rubio | 1.70 m |
+| Caballera 2 | negra | roja | negro, piel más oscura | 1.78 m, ancha |
+| Caballera 3 | cobriza | azul marino | colorado | 1.60 m, flaca |
+
 ## Lo que falta o conviene mejorar
 
 - El mago es de otro estilo (Mixamo pintado) que los de Synty. Se nota poco con la luz de noche, pero

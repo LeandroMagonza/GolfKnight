@@ -45,8 +45,8 @@ export const INTRO: Script = {
         k1: { path: [{ at: 0, x: -7.8, z: -3.5, face: -110 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 3 }] },
         k2: { path: [{ at: 0, x: -4.6, z: -3.3, face: 50 }], anim: [{ at: 0, clip: 'Talking 2', loop: true, from: 0.8 }] },
         kf2: { path: [{ at: 0, x: -3.1, z: -3.7, face: -60 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 1.3 }] },
-        k3: { path: [{ at: 0, x: -16.6, z: -3.1, face: 70 }], anim: [{ at: 0, clip: 'Talking', loop: true, from: 1.5 }] },
-        kf3: { path: [{ at: 0, x: -15.2, z: -3.6, face: -110 }], anim: [{ at: 0, clip: 'Rallying', loop: true, from: 0.6 }] },
+        k3: { path: [{ at: 0, x: -18.4, z: -2.9, face: 70 }], anim: [{ at: 0, clip: 'Talking', loop: true, from: 1.5 }] },
+        kf3: { path: [{ at: 0, x: -17.0, z: -3.6, face: -110 }], anim: [{ at: 0, clip: 'Rallying', loop: true, from: 0.6 }] },
       },
       text: [
         { at: 0.5, until: 3.2, kind: 'caption', text: 'Sábado. Feria medieval.', voice: 'narra-sabado' },
