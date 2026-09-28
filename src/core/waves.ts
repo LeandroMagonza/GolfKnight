@@ -6,8 +6,11 @@
 // cómo se ve: una escalera de vida de 1 a 10 que se lee por el tamaño. El poder (escudo, blindaje,
 // explota, fantasma, aura, tierra, bandera, hechizo...) se le reparte **al azar** en cada oleada, así
 // que no siempre es el mismo bicho el que viene con el mismo poder.
+//
+// Cada oleada suma un cuerpo y un poder. Un tercio de los enemigos sale con poder: la mitad con el nuevo
+// de la oleada (el primero que aparece lo presenta) y el resto con alguno de los que ya se vieron.
 
-export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'healer' | 'knight' | 'stoneling' | 'wraith' | 'golem';
+export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'knight' | 'stoneling' | 'wraith' | 'golem';
 
 /**
  * melee: camina y pega. kamikaze: corre y explota. shaman: se planta cerca de la puerta y sostiene su
@@ -21,12 +24,12 @@ export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' |
  */
 export type Behavior = 'melee' | 'kamikaze' | 'shaman' | 'grabber' | 'golem' | 'banner' | 'geomancer' | 'ranged';
 
-/** Aura: «ward» vuelve inmunes a los de alrededor (el chamán); «heal» los cura de a poco (el curandero). */
+/** Aura: «ward» vuelve inmunes a los de alrededor (el invencible); «heal» los cura de a poco (el que cura). */
 export type Aura = 'ward' | 'heal';
 
 /**
- * **Poderes**: lo que se le suma a un cuerpo. Se ven en íconos arriba de la vida. En una oleada van fijos
- * por grupo (`WaveGroup.mods`) o repartidos al azar (`Wave.powers`).
+ * **Poderes**: lo que se le suma a un cuerpo. Se ven en íconos arriba de la vida. En una oleada se
+ * reparten al azar (ver `spawnOrder`), o van fijos por grupo (`WaveGroup.mods`).
  */
 export interface EnemyMods {
   /** Armadura: se le resta a cada golpe (1 a 3). */
@@ -108,8 +111,8 @@ export const SHIELD_WALL = 10;
 export const GOLEM_THROW_EVERY = 4;
 
 /**
- * Los cuerpos, por vida: una escalera de 1 a 10 que se lee por el tamaño. El chamán y el curandero
- * comparten modelo (el curandero va teñido de verde): el pack trae un solo chamán.
+ * Los cuerpos, por vida: una escalera de 1 a 10 que se lee por el tamaño. El chamán es un cuerpo más: el
+ * aura es un poder, y le puede tocar a cualquiera.
  */
 export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   goblin: { ...base, kind: 'goblin', name: 'Goblin', mesh: 'Character_Goblin_Male', height: 1.25, radius: 0.45, hp: 1, speed: 3.6, runs: true, damage: 1, gateDamage: 1, score: 10 },
@@ -117,8 +120,7 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   orc: { ...base, kind: 'orc', name: 'Orco', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 3, speed: 2.6, damage: 1, gateDamage: 1, score: 20 },
   skeleton: { ...base, kind: 'skeleton', name: 'Esqueleto', mesh: 'Character_Skeleton_Soldier_01', height: 1.8, radius: 0.55, hp: 4, speed: 2.1, damage: 1, gateDamage: 1, score: 25 },
   warchief: { ...base, kind: 'warchief', name: 'Jefe goblin', mesh: 'Character_Goblin_WarChief', height: 1.65, radius: 0.62, hp: 5, speed: 2.3, damage: 1, gateDamage: 1, score: 30 },
-  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', aura: 'ward', height: 1.45, radius: 0.5, hp: 6, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
-  healer: { ...base, kind: 'healer', name: 'Curandero goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', aura: 'heal', height: 1.45, radius: 0.5, hp: 7, speed: 2.2, damage: 0, gateDamage: 0, tint: 0x9be58f, score: 60 },
+  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', height: 1.45, radius: 0.5, hp: 6, speed: 2.2, damage: 1, gateDamage: 1, score: 40 },
   knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 8, speed: 1.5, damage: 1, gateDamage: 2, heavy: true, score: 50 },
   stoneling: { ...base, kind: 'stoneling', name: 'Gólem chico', mesh: 'Character_Rock_Golem', height: 2.1, radius: 0.95, hp: 10, speed: 1.4, damage: 1, gateDamage: 2, heavy: true, score: 70 },
   wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
@@ -129,8 +131,8 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
 const BEHAVIOR_POWERS = ['explode', 'dig', 'banner', 'ranged', 'aura'] as const;
 
 /**
- * Cómo se comporta un cuerpo con sus poderes. El alma en pena, el gólem y los chamanes tienen el suyo; el
- * resto camina y pega, salvo que un poder diga otra cosa.
+ * Cómo se comporta un cuerpo con sus poderes. El alma en pena y el gólem tienen el suyo; el resto camina y
+ * pega, salvo que un poder diga otra cosa.
  */
 export function behaviorOf(stats: EnemyStats, mods: EnemyMods = {}): Behavior {
   if (stats.behavior !== 'melee') return stats.behavior;
@@ -194,13 +196,41 @@ export interface WaveGroup {
   count: number;
   /** Poderes fijos para todos los de este grupo. */
   mods?: EnemyMods;
+  /**
+   * En qué punto de la oleada salen, de 0 a 1. Sin esto, los grupos grandes se reparten parejo y los de
+   * uno o dos salen hacia la mitad. El caballero y el gólem chico, cuando se presentan, cierran la oleada.
+   */
+  at?: number;
 }
 
-/** Poderes que se reparten al azar en la oleada: `count` enemigos (que puedan tenerlo) salen con `mods`. */
-export interface WavePower {
-  mods: EnemyMods;
-  count: number;
-}
+/** Los poderes que se reparten al azar. */
+export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'divine' | 'banner';
+
+/**
+ * Un poder, según cuántas oleadas pasaron desde que se presentó (`age`, 0 en la suya): el escudo y el
+ * blindaje suben de nivel con la partida. En su oleada salen siempre en 1.
+ */
+export const POWERS: Record<PowerKey, (age: number, rand: () => number) => EnemyMods> = {
+  // hasta 1 al presentarse, uno más cada oleada y media, hasta 5; desde la sexta después, a veces la calavera
+  shield: (age, rand) => {
+    if (age >= 6 && rand() < 0.15) return { shield: SHIELD_WALL };
+    return { shield: 1 + Math.floor(rand() * Math.min(5, 1 + Math.floor(age / 1.5))) };
+  },
+  // hasta 1 al presentarse, hasta 2 a las tres oleadas y hasta 3 a las seis
+  armor: (age, rand) => ({ armor: 1 + Math.floor(rand() * Math.min(3, 1 + Math.floor(age / 3))) }),
+  explode: () => ({ explode: true }),
+  ranged: () => ({ ranged: true }),
+  dig: () => ({ dig: true }),
+  heal: () => ({ aura: 'heal' }),
+  ethereal: () => ({ ethereal: true }),
+  ward: () => ({ aura: 'ward' }),
+  divine: () => ({ divine: 5 }),
+  banner: () => ({ banner: true }),
+};
+
+/** Qué parte de los enemigos de una oleada sale con poder, y de esos, cuántos con el nuevo. */
+export const POWERED_SHARE = 1 / 3;
+export const FRESH_SHARE = 0.5;
 
 /** Una aparición: el tipo y sus poderes. */
 export interface Spawn {
@@ -211,64 +241,78 @@ export interface Spawn {
 export interface Wave {
   title: string;
   groups: WaveGroup[];
-  /** Poderes repartidos al azar entre los de la oleada. */
-  powers?: WavePower[];
+  /** El poder que presenta esta oleada. De ahí en adelante entra en el sorteo de todas. */
+  power?: PowerKey;
   /** Segundos entre apariciones. */
   interval: number;
 }
 
 /**
- * Las oleadas. Cada una presenta, como mucho, una cosa nueva (un cuerpo o un poder), y la dificultad sube
+ * Las oleadas: cada una suma un cuerpo (subiendo la escalera de vida) y un poder. La dificultad sube
  * pareja: ver «Balance de las oleadas» en docs/diseno-combate.md, y `tools/oleadas.mts` para medirla.
  */
 export const WAVES: Wave[] = [
-  { title: 'Los cuatro palos', interval: 2.2, groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 2 }, { kind: 'skeleton', count: 2 }] },
-  { title: 'Escudos al frente', interval: 2.1, groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }],
-    powers: [{ mods: { shield: 1 }, count: 4 }] },
-  { title: 'La estampida', interval: 1.6, groups: [{ kind: 'goblin', count: 10 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 1 }],
-    powers: [{ mods: { explode: true }, count: 4 }, { mods: { shield: 1 }, count: 2 }] },
-  { title: 'Acorazados', interval: 2.0, groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }, { kind: 'warchief', count: 1 }],
-    powers: [{ mods: { armor: 1 }, count: 4 }, { mods: { shield: 2 }, count: 2 }] },
-  { title: 'Almas en pena', interval: 1.9, groups: [{ kind: 'wraith', count: 2 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }],
-    powers: [{ mods: { explode: true }, count: 2 }, { mods: { shield: 2 }, count: 2 }, { mods: { armor: 1 }, count: 2 }] },
-  { title: 'Los benditos', interval: 1.9, groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 1 }],
-    powers: [{ mods: { divine: 5 }, count: 4 }, { mods: { armor: 1 }, count: 2 }, { mods: { explode: true }, count: 2 }] },
-  { title: 'Fantasmas', interval: 1.85, groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'knight', count: 1 }],
-    powers: [{ mods: { ethereal: true }, count: 4 }, { mods: { shield: 2 }, count: 2 }, { mods: { explode: true }, count: 2 }] },
-  { title: 'La tierra se levanta', interval: 1.8, groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 4 }, { kind: 'skeleton', count: 4 }, { kind: 'warchief', count: 1 }],
-    powers: [{ mods: { dig: true }, count: 2 }, { mods: { armor: 2 }, count: 2 }, { mods: { shield: 3 }, count: 1 }, { mods: { divine: 5 }, count: 2 }] },
-  { title: 'Los chamanes', interval: 1.8, groups: [{ kind: 'shaman', count: 1 }, { kind: 'healer', count: 1 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }],
-    powers: [{ mods: { shield: 3 }, count: 2 }, { mods: { explode: true }, count: 2 }, { mods: { ethereal: true }, count: 2 }] },
-  { title: 'Hechiceros', interval: 1.75, groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 4 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'stoneling', count: 1 }],
-    powers: [{ mods: { ranged: true }, count: 2 }, { mods: { armor: 2 }, count: 2 }, { mods: { shield: 4 }, count: 1 }, { mods: { explode: true }, count: 3 }, { mods: { divine: 5 }, count: 2 }] },
-  { title: 'Bajo la bandera', interval: 1.7, groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 4 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'knight', count: 1 }, { kind: 'healer', count: 1 }],
-    powers: [{ mods: { banner: true }, count: 1 }, { mods: { shield: SHIELD_WALL }, count: 1 }, { mods: { armor: 3 }, count: 1 }, { mods: { shield: 4 }, count: 2 }, { mods: { ethereal: true }, count: 2 }, { mods: { dig: true }, count: 1 }, { mods: { explode: true }, count: 3 }] },
+  { title: 'Los goblins', interval: 1.6, groups: [{ kind: 'goblin', count: 20 }] },
+  { title: 'Escudos al frente', interval: 2.0, power: 'shield', groups: [{ kind: 'goblin', count: 9 }, { kind: 'goblina', count: 7 }] },
+  { title: 'Acorazados', interval: 1.9, power: 'armor', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 4 }] },
+  { title: 'La estampida', interval: 1.8, power: 'explode', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
+  { title: 'Hechiceros', interval: 1.9, power: 'ranged', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }] },
+  { title: 'La tierra se levanta', interval: 1.9, power: 'dig', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 2 }] },
+  { title: 'Los que curan', interval: 1.85, power: 'heal', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1, at: 1 }] },
+  { title: 'Fantasmas', interval: 1.8, power: 'ethereal', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1 }, { kind: 'stoneling', count: 1, at: 1 }] },
+  { title: 'Los invencibles', interval: 1.75, power: 'ward', groups: [{ kind: 'wraith', count: 2 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1 }] },
   // el jefe solo ya tiene 80 de vida: la escolta es más chica que la de la oleada anterior, para que el
-  // salto no sea de golpe
-  { title: 'El Gólem de roca', interval: 1.7, groups: [{ kind: 'golem', count: 1 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }, { kind: 'warchief', count: 1 }, { kind: 'wraith', count: 1 }],
-    powers: [{ mods: { banner: true }, count: 1 }, { mods: { ranged: true }, count: 1 }, { mods: { shield: 5 }, count: 1 }, { mods: { explode: true }, count: 3 }, { mods: { ethereal: true }, count: 1 }] },
+  // salto no sea de golpe. No presenta poder: sortea entre todos los que ya se vieron
+  { title: 'El Gólem de roca', interval: 1.75, groups: [{ kind: 'golem', count: 1 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }, { kind: 'warchief', count: 1 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 1 }] },
 ];
 
 /** Segundos de descanso entre oleadas. */
 export const INTERMISSION = 6;
 
+/** Los poderes en juego en la oleada `index`: el que presenta y los que ya se vieron, con su edad. */
+export function powerPool(waves: Wave[], index: number): { fresh?: PowerKey; old: { key: PowerKey; age: number }[] } {
+  const old: { key: PowerKey; age: number }[] = [];
+  for (let i = 0; i < index; i++) {
+    const key = waves[i].power;
+    if (key && !old.some((o) => o.key === key)) old.push({ key, age: index - i });
+  }
+  const fresh = waves[index]?.power;
+  return fresh && !old.some((o) => o.key === fresh) ? { fresh, old } : { old };
+}
+
 /**
- * Orden de aparición de una oleada: mezcla los grupos de forma pareja y determinista. Después reparte
- * los poderes al azar (`rand`) entre los que puedan recibirlos: uno por enemigo.
+ * Orden de aparición de la oleada `index`: mezcla los grupos de forma pareja. Después reparte los poderes
+ * al azar (`rand`): un tercio de los enemigos sale con uno, la mitad de esos con el nuevo de la oleada y
+ * el resto con alguno de los que ya se vieron. El primero que aparece y puede tenerlo presenta el nuevo.
+ * Los poderes caen en cualquier cuerpo que pueda tenerlos: con mala suerte, un caballero fantasma.
  */
-export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[] {
+export function spawnOrder(waves: Wave[], index: number, rand: () => number = Math.random): Spawn[] {
+  const wave = waves[index];
   const slots: { spawn: Spawn; at: number }[] = [];
   for (const g of wave.groups) {
-    // los grupos de uno o dos (jefe, chamanes) salen hacia la mitad de la oleada
-    for (let i = 0; i < g.count; i++) slots.push({ spawn: g.mods ? { kind: g.kind, mods: g.mods } : { kind: g.kind }, at: g.count <= 2 ? 0.4 + 0.2 * i : (i + 0.5) / g.count });
+    for (let i = 0; i < g.count; i++) {
+      const at = g.at ?? (g.count <= 2 ? 0.4 + 0.2 * i : (i + 0.5) / g.count);
+      slots.push({ spawn: g.mods ? { kind: g.kind, mods: g.mods } : { kind: g.kind }, at });
+    }
   }
   slots.sort((a, b) => a.at - b.at);
   const order = slots.map((s) => s.spawn);
-  for (const p of wave.powers ?? []) {
-    const free = order.filter((s) => !s.mods && canTake(s.kind, p.mods));
-    for (let i = 0; i < p.count && free.length; i++) {
-      const pick = free.splice(Math.floor(rand() * free.length), 1)[0];
-      pick.mods = p.mods;
+
+  const pool = powerPool(waves, index);
+  const open = () => order.filter((s) => !s.mods && !ENEMIES[s.kind].boss);
+  const total = Math.round(open().length * POWERED_SHARE);
+  const fresh = pool.fresh ? (pool.old.length ? Math.ceil(total * FRESH_SHARE) : total) : 0;
+  const give = (mods: EnemyMods, first: boolean) => {
+    const free = open().filter((s) => canTake(s.kind, mods));
+    if (!free.length) return;
+    const pick = first ? free[0] : free[Math.floor(rand() * free.length)];
+    pick.mods = mods;
+  };
+  for (let i = 0; i < total; i++) {
+    if (i < fresh) give(POWERS[pool.fresh!](0, rand), i === 0);
+    else if (pool.old.length) {
+      const o = pool.old[Math.floor(rand() * pool.old.length)];
+      give(POWERS[o.key](o.age, rand), false);
     }
   }
   return order;
@@ -345,7 +389,7 @@ export class WaveDirector {
       if (this.timer > 0) return events;
       this.index++;
       const wave = this.waves[this.index];
-      this.queue = spawnOrder(wave);
+      this.queue = spawnOrder(this.waves, this.index);
       this.phase = 'spawning';
       this.timer = 0;
       events.push({ type: 'wave', index: this.index, wave });
@@ -357,7 +401,7 @@ export class WaveDirector {
         this.timer += this.waves[this.index].interval;
       }
       if (!this.queue.length) {
-        if (this.endless) this.queue = spawnOrder(this.waves[this.index]);
+        if (this.endless) this.queue = spawnOrder(this.waves, this.index);
         else this.phase = 'fighting';
       }
       return events;

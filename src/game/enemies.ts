@@ -114,6 +114,8 @@ const flagMat = new THREE.MeshStandardMaterial({ color: 0xc8322b, roughness: 0.8
 const STEEL_TINT = 0xa9b1bb;
 /** El que explota va rojizo (y late en rojo): era el color del kamikaze. */
 const BOMB_TINT = 0xffa08a;
+/** El que cura: verde, como su aura. */
+const HEAL_TINT = 0x9be58f;
 /**
  * Los escudos del pack, por nivel (el 1 es el de madera hecho por código). Los carga el juego de
  * shields.glb y los deja acá, ya acomodados: centrados, del tamaño justo y mirando para adelante.
@@ -392,7 +394,7 @@ export class Enemy {
       const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
       mat.metalness = 0;
       mat.roughness = 0.85;
-      const tint = mods.armor ? STEEL_TINT : mods.explode ? BOMB_TINT : stats.tint;
+      const tint = mods.armor ? STEEL_TINT : mods.explode ? BOMB_TINT : mods.aura === 'heal' ? HEAL_TINT : stats.tint;
       if (tint) mat.color.setHex(tint);
       if (this.ethereal) {
         mat.transparent = true;

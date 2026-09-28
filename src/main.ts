@@ -472,8 +472,7 @@ function announce(kind: EnemyKind, mods?: EnemyMods): void {
     hud.feedback(text, 'bad');
   };
   // los cuerpos nuevos
-  if (kind === 'healer') once('healer', '¡Curandero! Los que tiene cerca recuperan vida de a poco');
-  else if (kind === 'stoneling') once('stoneling', '¡Gólem chico! 10 de vida: carga el golpe');
+  if (kind === 'stoneling') once('stoneling', '¡Gólem chico! 10 de vida: carga el golpe');
   // los poderes: se presentan la primera vez que aparecen, estén en el bicho que estén
   if (!mods) return;
   if (mods.shield && mods.shield >= SHIELD_WALL) once('wall', '¡Escudo calavera! De frente no le entra nada: por detrás, de costado o con la granada');
@@ -485,8 +484,8 @@ function announce(kind: EnemyKind, mods?: EnemyMods): void {
   if (mods.dig) once('dig', '¡Ese cava! Se planta y levanta una loma: matalo antes de que termine');
   if (mods.banner) once('banner', '¡Abanderado! Se queda al fondo, y mientras viva todos tienen 1 de vida más');
   if (mods.ranged) once('ranged', '¡Hechicero! Te tira al puesto donde estás: cuando el piso se marca en rojo, movete');
-  if (mods.aura === 'heal') once('healMod', 'Ese cura a los de alrededor: el aura verde');
-  if (mods.aura === 'ward') once('wardMod', 'Ese vuelve inmunes a los de alrededor: el aura violeta');
+  if (mods.aura === 'heal') once('healMod', '¡Ese cura! Los que tiene cerca recuperan vida de a poco: el aura verde');
+  if (mods.aura === 'ward') once('wardMod', '¡Invencible! Los que tiene cerca son inmunes: silencialo con la granada (Q)');
 }
 
 balls.onEvent = (e) => {
@@ -1354,7 +1353,6 @@ function updateWaves(dt: number): void {
         horde.spawn(e.kind, undefined, e.mods);
         announce(e.kind, e.mods);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
-        else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: silencialo con la granada (Q)', 'bad');
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacátela con el palazo (Shift)', 'bad');
         break;
       case 'cleared':

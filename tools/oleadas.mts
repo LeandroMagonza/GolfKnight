@@ -50,7 +50,7 @@ WAVES.forEach((w, i) => {
   let hp = 0;
   let n = 0;
   for (let r = 0; r < RUNS; r++) {
-    const order = spawnOrder(w, rand);
+    const order = spawnOrder(WAVES, i, rand);
     n = order.length;
     for (const sp of order) {
       eff += effective(sp.kind, sp.mods) / RUNS;

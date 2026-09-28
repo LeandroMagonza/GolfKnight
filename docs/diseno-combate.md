@@ -1752,3 +1752,42 @@ El gólem es el pico a propósito, y la cuenta lo exagera: lo trata como si corr
 se planta lejos. Su escolta es más chica que la de la oleada anterior. Es una cuenta a ojo, no una
 simulación: sirve para comparar oleadas, no para saber si se gana. Falta jugarla.
 
+## Hecho: diez oleadas, un cuerpo y un poder por oleada (28/9/2026)
+
+Pedido de Leandro: sacar el curandero como cuerpo (la escalera queda goblin 1, goblina 2, orco 3,
+esqueleto 4, jefe goblin 5, chamán 6, caballero 8, gólem chico 10), y que cada oleada sume un cuerpo y un
+poder.
+
+- **El chamán es un cuerpo más**: camina y pega, sin aura propia. Las dos auras son poderes: **cura**
+  (verde, y tiñe de verde al que la lleva) e **invencible** (violeta). Cualquier cuerpo que camina puede
+  tenerlas, y al tenerlas se planta cerca de la puerta con los brazos en alto.
+- **El reparto** (`spawnOrder`): un tercio de los enemigos sale con poder. De esos, la mitad con el nuevo
+  de la oleada y el resto con alguno de los ya vistos, elegido al azar. El primero que aparece y puede
+  tenerlo presenta el nuevo. Después, cada poder cae en cualquier cuerpo que pueda tenerlo (el jefe
+  ninguno; el alma en pena solo los de defensa): puede venir un caballero etéreo.
+- **Niveles**: el escudo y el blindaje salen en 1 en su oleada y suben con la edad del poder. El escudo
+  llega hasta 5 una oleada y media después por nivel, y desde la sexta después sale la calavera un 15 %
+  de las veces. El blindaje llega a 2 a las tres oleadas y a 3 a las seis (`POWERS`).
+- El caballero y el gólem chico **cierran** la oleada en que se presentan (`WaveGroup.at`).
+
+| Ola | Título | Cuerpo nuevo | Poder nuevo | Enemigos | Por segundo | Salto |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Los goblins | goblin | (ninguno) | 20 | 0.36 | |
+| 2 | Escudos al frente | goblina | escudo | 16 | 0.46 | +27 % |
+| 3 | Acorazados | orco | blindaje | 17 | 0.59 | +30 % |
+| 4 | La estampida | esqueleto | explota | 19 | 0.76 | +28 % |
+| 5 | Hechiceros | jefe goblin | hechicero | 19 | 0.98 | +29 % |
+| 6 | La tierra se levanta | chamán | cava | 20 | 1.19 | +21 % |
+| 7 | Los que curan | caballero | cura | 20 | 1.33 | +11 % |
+| 8 | Fantasmas | gólem chico | etéreo | 21 | 1.46 | +10 % |
+| 9 | Los invencibles | alma en pena | invencible | 23 | 1.55 | +6 % |
+| 10 | El Gólem de roca | Gólem de roca | (sortea entre todos) | 19 | 2.49 | +61 % |
+
+Con la mitad de los poderes para el nuevo, en una oleada de 20 salen unos 3 o 4 con él: 3 o 4 que cavan
+en la 6, o 3 o 4 invencibles en la 9. La cuenta de `tools/oleadas.mts` no ve eso del todo. Si en el juego
+se siente demasiado, el primer ajuste es un tope por poder para los que se plantan (cava, cura,
+invencible).
+
+**Quedaron afuera** divino y bandera: siguen en el código (`POWERS`) pero hoy ninguna oleada los
+presenta.
+

@@ -206,8 +206,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | Orco | 3 | |
 | Esqueleto | 4 | lento |
 | Jefe goblin | 5 | |
-| Chamán goblin | 6 | aura violeta: vuelve inmunes a los que tiene a 8 m; se planta cerca de la puerta |
-| Curandero goblin | 7 | el mismo modelo que el chamán, en verde: aura que cura 1 cada 3 s a los que tiene a 6 m |
+| Chamán goblin | 6 | un cuerpo más: el aura es un poder y le puede tocar a cualquiera |
 | Caballero esqueleto | 8 | pesado; cae justo con el mejor golpe |
 | Gólem chico | 10 | pesado; el único, además del jefe, que aguanta el mejor golpe |
 | Alma en pena | 2 | la única que te persigue: te agarra y te desangra |
@@ -224,7 +223,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
 | **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |
-| **Aura** | inmunidad o curación, como el chamán o el curandero, sobre cualquier cuerpo |
+| **Cura** | se planta cerca de la puerta y cada 3 s le devuelve 1 de vida a los que tiene a 6 m. Aura y cuerpo verdes |
+| **Invencible** | se planta cerca de la puerta y vuelve inmunes a los que tiene a 8 m. Aura violeta |
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.
@@ -233,9 +233,17 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   (apagado mientras recarga). Lo que la granada silencia (escudo, blindaje, auras, bandera, loma,
   hechizo) se tacha con un prohibido rojo mientras dura.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
-- En las oleadas: `groups` (cuerpos, con poderes fijos si hace falta) y `powers` (poderes que se reparten
-  al azar), en `WAVES` (`src/core/waves.ts`). `node --experimental-transform-types tools/oleadas.mts`
-  mide qué tan difícil es cada una.
+- **Diez oleadas, y cada una suma un cuerpo y un poder**: goblins sin poderes; goblina y escudo; orco y
+  blindaje; esqueleto y explota; jefe goblin y hechicero; chamán y cava; caballero y cura; gólem chico y
+  etéreo; alma en pena e invencible; y el Gólem de roca, que no trae poder nuevo.
+- **El reparto**: un tercio de los enemigos de cada oleada sale con poder. La mitad de esos con el nuevo
+  (el primero que aparece lo presenta) y el resto con alguno de los que ya se vieron, sobre cualquier
+  cuerpo que pueda tenerlo: con mala suerte, un caballero etéreo. El escudo y el blindaje salen en 1
+  cuando se presentan y suben de nivel con la partida (el escudo hasta 5, y a veces la calavera).
+- El caballero y el gólem chico cierran la oleada en que se presentan.
+- Divino y bandera siguen en el código, pero hoy no salen en ninguna oleada.
+- En `WAVES` (`src/core/waves.ts`): `groups` (los cuerpos) y `power` (el que presenta). El reparto está en
+  `spawnOrder`, y `node --experimental-transform-types tools/oleadas.mts` mide qué tan difícil es cada una.
 
 ## El campo: cuatro mapas, uno por partida
 
@@ -351,7 +359,7 @@ fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa e
   - `oleadas.mts`: la dificultad de cada oleada (vida efectiva por segundo), para que la curva suba pareja.
     Se corre con `node --experimental-transform-types tools/oleadas.mts`.
   - `props_to_glb.py`: junta props de PolygonDungeon (los escudos) en un GLB con el atlas del pack.
-  - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las 6 oleadas, para chequear balance. No
+  - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las oleadas, para chequear balance. No
     camina ni busca filas: es una cota inferior. Con `--ver` abre una ventana para mirarlo.
   - `swingshot.mjs`: capturas de cerca de cada fase del swing, y distancia cabeza-pelota en el impacto.
   - `visual.mjs`: capturas de la misma escena con la capa visual apagada y en cada hora del día
