@@ -32,6 +32,8 @@ export interface AbilityHooks {
   throwClub(): ClubId | null;
   /** Volvió el boomerang. */
   catchClub(): void;
+  /** Palazo al nivel `level`. Devuelve false si no se puede ahora (en pleno swing, aturdido). */
+  melee(level: number): boolean;
   /** Una copia del modelo del palo, para que el boomerang sea el palo de verdad. */
   clubMesh(): THREE.Object3D;
 }
@@ -225,6 +227,13 @@ export class Abilities {
       case 'rain': this.hooks?.fillSpots(); break;
       case 'caddie': this.hooks?.startCaddie(lv(CADDIE.seconds, level)); break;
       case 'clone': this.hooks?.placeClone(lv(CLONE.shots, level), CLONE.life); break;
+      case 'melee':
+        if (!this.hooks?.melee(level)) {
+          // en pleno swing no sale, y no se gasta
+          this.cooldowns[slot] = 0;
+          return 'blocked';
+        }
+        break;
     }
     this.onEvent?.({ type: 'cast', id: s.id });
     return 'ok';

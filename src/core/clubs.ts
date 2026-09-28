@@ -262,18 +262,6 @@ export const EXPLOSION_RADIUS = 3.6;
 /** El empujón es una velocidad que se apaga con exp(-KNOCK_DECAY t): recorre velocidad / KNOCK_DECAY. */
 export const KNOCK_DECAY = 6;
 
-/** Palazo (botón aparte): no hace daño. Empuja hacia atrás a todo lo que tenga alrededor, con recarga. */
-export const MELEE_RANGE = 4;
-/**
- * Impulso del palazo en m/s. El empujón se frena solo (decae a razón de 6 por segundo), así que el
- * enemigo recorre impulso / 6: con 84 son 14 m.
- */
-export const MELEE_KNOCKBACK = 84;
-export const MELEE_COOLDOWN = 2.5;
-export const MELEE_MAX_TARGETS = 12;
-/** Segundos que quedan trastabillando los golpeados (les corta el ataque en curso). */
-export const MELEE_STAGGER = 0.7;
-
 /**
  * Tótem del putter: en pausa. El código sigue en `src/game/traps.ts` y volver a prenderlo es plantar
  * uno cuando para la pelota del putter. Quedó afuera al separar palo de encantamiento, para ver

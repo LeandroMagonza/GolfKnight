@@ -27,6 +27,8 @@ function effective(kind: EnemyKind, mods: EnemyMods = {}): number {
   // el escudo se esquiva (de costado, por detrás, con la granada): cuesta tiempo, no tanto como la vida
   if (shield) e += shield >= 10 ? 4 : shield * 0.5;
   if (mods.divine ?? s.divine) e += 2.5;
+  // obliga a esperar o a cargar mirando a otro lado: cuesta un tiro de tanto en tanto
+  if (mods.dodge) e += 1.5;
   if (mods.ethereal ?? s.ethereal) e += hp * 1.2;
   const b = behaviorOf(s, mods);
   if (b === 'kamikaze') e += 1;

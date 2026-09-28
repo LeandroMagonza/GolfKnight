@@ -73,16 +73,24 @@ export function startBot(): BotStats {
     }
     if (!pl || gk.ended || gk.paused || !pl.alive || gk.director.index < 0) return;
     const p = pl.position;
+    // el palazo es una habilidad más: sale si está en algún lugar y no está recargando
+    const shoveSlot = () => gk.abilities.slots.findIndex((s: any) => s.id === 'shove');
+    const shoveReady = () => shoveSlot() >= 0 && gk.abilities.cooldowns[shoveSlot()] <= 0;
+    const shove = () => {
+      if (!shoveReady()) return false;
+      key(['KeyQ', 'KeyW', 'KeyE', 'KeyR'][shoveSlot()]);
+      stats.melee++;
+      return true;
+    };
     const dist = (e: any) => Math.hypot(e.position.x - p.x, e.position.z - p.z);
 
-    // agarrado: la única salida es el palazo, que la suelta y la deja aturdida
+    // agarrado: palazo si lo tiene y está listo; si no, se sacude con A y D
     if (pl.grabbedBy) {
-      if (escaping || pl.meleeCooldown > 0) return;
+      if (escaping) return;
       escaping = true;
       stats.grabs++;
-      key('ShiftLeft');
-      stats.melee++;
-      setTimeout(() => { escaping = false; }, 200);
+      if (!shove()) key(stats.grabs % 2 ? 'KeyA' : 'KeyD');
+      setTimeout(() => { escaping = false; }, 120);
       return;
     }
     // Nadie lo persigue, pero el que le pasa por encima lo atropella. Si uno viene derecho hacia su puesto:
@@ -91,10 +99,9 @@ export function startBot(): BotStats {
       && e.position.z > p.z - 0.5 && e.position.z - p.z < 4.5 && Math.abs(e.position.x - p.x) < 1.8);
     if (threat && pl.atSpot && performance.now() - dodgedAt > 500) {
       dodgedAt = performance.now();
-      if (pl.meleeCooldown <= 0 && pl.mode !== 'swinging' && threat.behavior === 'melee' && dist(threat) < 3.2) {
+      if (shoveReady() && pl.mode !== 'swinging' && threat.behavior === 'melee' && dist(threat) < 3.2) {
         aim(threat.position.x, threat.position.z);
-        stats.melee++;
-        setTimeout(() => key('ShiftLeft'), 40);
+        setTimeout(shove, 40);
         return;
       }
       stats.dodges++;

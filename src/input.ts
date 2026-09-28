@@ -5,7 +5,7 @@
 // suelta el click (en la intro, avanza). **1, 2, 3 y 4 eligen el palo** (y la carta, cuando hay
 // cartas en pantalla); **Q, W, E y R tiran la habilidad** de ese lugar hacia donde está el mouse, en el
 // acto y con su propia pelota. La rueda del mouse inclina la cámara y las flechas arriba y abajo la
-// suben y bajan, para probar ángulos. Shift (o V) es el palazo, B abre el panel de balance, Escape
+// suben y bajan, para probar ángulos. B abre el panel de balance, Escape
 // pausa, R en pausa o al terminar reinicia, C cambia el skin, M silencia la música.
 
 export interface InputEvents {
@@ -27,7 +27,6 @@ export interface InputEvents {
   pause(): void;
   muteToggle(): void;
   skin(): void;
-  melee(): void;
   /** Un toque de movimiento lateral: +1 hacia la derecha de la pantalla, -1 hacia la izquierda. */
   step(right: number): void;
 }
@@ -104,7 +103,6 @@ export class Input {
       case 'KeyC': this.ev.skin(); break;
       case 'KeyD': case 'ArrowRight': this.ev.step(1); break;
       case 'KeyA': case 'ArrowLeft': this.ev.step(-1); break;
-      case 'ShiftLeft': case 'ShiftRight': case 'KeyV': this.ev.melee(); break;
     }
   }
 

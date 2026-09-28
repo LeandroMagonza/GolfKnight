@@ -5,9 +5,9 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ICE, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, ICE, lv, PALAZO, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods } from './core/waves';
 import { timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
@@ -282,7 +282,11 @@ function updatePreview(): void {
   previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
   previewMat.size = charging ? (quality >= QUALITY_LEVELS ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
-  if (charging && quality !== lastLevel) audio.chargeTick(quality);
+  if (charging && quality !== lastLevel) {
+    audio.chargeTick(quality);
+    // al pasar a la carga 2, los que esquivan y están en la línea del tiro saltan al costado
+    if (lastLevel === 1 && quality === 2) horde.dodgeAim(tee, player.aimDir);
+  }
   lastLevel = charging ? quality : 0;
   const end = path[path.length - 1];
   const radius = spreadFor(club, quality);
@@ -404,9 +408,12 @@ horde.onEvent = (e) => {
     }
     case 'grab':
       audio.growl();
-      hud.feedback('¡Te atrapó! Shift para sacártela de encima', 'bad');
+      hud.feedback(abilities.levelOf('shove') ? '¡Te atrapó! Sacudite con A y D, o sacátela con el palazo' : '¡Te atrapó! Sacudite con A y D', 'bad');
       break;
     case 'release':
+      break;
+    case 'dodged':
+      audio.whoosh(0.5);
       break;
     case 'rockThrown':
       audio.growl();
@@ -485,6 +492,7 @@ function announce(kind: EnemyKind, mods?: EnemyMods): void {
   if (mods.banner) once('banner', '¡Abanderado! Se queda al fondo, y mientras viva todos tienen 1 de vida más');
   if (mods.ranged) once('ranged', '¡Hechicero! Te tira al puesto donde estás: cuando el piso se marca en rojo, movete');
   if (mods.aura === 'heal') once('healMod', '¡Ese cura! Los que tiene cerca recuperan vida de a poco: el aura verde');
+  if (mods.dodge) once('dodge', '¡Ese esquiva! Si le apuntás cuando la carga llega a 2, salta al costado: cargá mirando a otro lado y apuntale al final');
   if (mods.aura === 'ward') once('wardMod', '¡Invencible! Los que tiene cerca son inmunes: silencialo con la granada (Q)');
 }
 
@@ -601,13 +609,15 @@ function selectClub(index: number): void {
  */
 function castAbility(index: number): void {
   if (!started || paused || ended || cardOpen || !player || index < 0 || index >= SLOTS) return;
-  if (!player.alive || player.grabbedBy || player.stunned) return;
+  if (!player.alive || player.stunned) return;
+  // agarrado solo sale el palazo, que es justamente para sacársela de encima
+  if (player.grabbedBy && ABILITIES[abilities.slots[index]?.id]?.kind !== 'melee') return;
   player.teePosition(tee);
   const result = abilities.cast(index, tee, player.aimDir, aimPoint);
   const slot = abilities.slots[index];
   if (result === 'empty') hud.feedback(`${ABILITY_KEYS[index]}: vacío · se llena eligiendo cartas entre oleadas`, 'neutral');
   else if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
-  else if (result === 'blocked') hud.feedback('No hay palo para tirar ahora', 'neutral');
+  else if (result === 'blocked') hud.feedback(ABILITIES[slot.id].kind === 'melee' ? 'En pleno swing no hay palazo' : 'No hay palo para tirar ahora', 'neutral');
 }
 
 // ---------- cartas y mejoras ----------
@@ -648,6 +658,8 @@ let giftKills = 0;
 const quiver = { ready: true, timer: 0 };
 /** Caddie dorado: segundos que le quedan. */
 let caddieLeft = 0;
+/** Nivel del palazo que se está dando: lo pone la habilidad al salir, lo usa el golpe al conectar. */
+let meleeLevel = 1;
 
 function build(): Build {
   return { slots: abilities.slots, perks, hp: player.hp, hpMax: player.maxHp, gate: gateHp, gateMax: GATE_MAX };
@@ -865,6 +877,10 @@ abilities.hooks = {
     hud.feedback('¡Caddie dorado!', 'good');
   },
   placeClone,
+  melee(level: number) {
+    meleeLevel = level;
+    return player.startMelee();
+  },
   throwClub: () => player.throwClub(),
   catchClub: () => player.catchClub(),
   clubMesh: boomerangClub,
@@ -1004,11 +1020,6 @@ const input = new Input({
   step(right) {
     if (started && !paused && !ended && !cardOpen && player) player.step(-right);
   },
-  melee() {
-    if (!started || paused || ended || cardOpen || !player) return;
-    if (player.meleeCooldown > 0) hud.feedback(`Palazo recargando: ${player.meleeCooldown.toFixed(1)} s`, 'neutral');
-    else player.startMelee();
-  },
   restart() {
     // R solo desde la pausa o desde el cartel del final, que son los dos lugares que la ofrecen. En
     // pleno juego un toque de más te borraba la partida sin preguntar nada
@@ -1139,9 +1150,10 @@ async function makePlayer(skin: Skin): Promise<Player> {
     }
   };
   p.onGift = () => audio.chargeTick(QUALITY_LEVELS);
-  // Palazo: botón aparte, con recarga. No hace daño: empuja hacia atrás a todo lo que haya alrededor de
-  // un punto un paso adelante del golfista, hacia donde apunta.
+  // Palazo (una habilidad más): no hace daño. Empuja hacia atrás a todo lo que haya alrededor de un punto
+  // un paso adelante del golfista, hacia donde apunta.
   p.onMelee = () => {
+    const radius = lv(PALAZO.radius, meleeLevel);
     // agarrado, el palazo es la forma de zafar: la suelta y la deja aturdida
     const held = p.grabbedBy;
     if (held) {
@@ -1150,16 +1162,16 @@ async function makePlayer(skin: Skin): Promise<Player> {
       hud.feedback('¡Te la sacaste de encima!', 'good');
     }
     const center = p.position.clone().addScaledVector(p.aimDir, 1);
-    const targets = horde.nearest(center, MELEE_RANGE, new Set(), MELEE_MAX_TARGETS);
-    effects.swipe(center, MELEE_RANGE);
+    const targets = horde.nearest(center, radius, new Set(), PALAZO.targets);
+    effects.swipe(center, radius);
     audio.whoosh(0.9);
     const dir = new THREE.Vector3();
     for (const e of targets) {
       // los manda hacia atrás, por donde vinieron, apenas abiertos hacia el costado de donde estaban
       dir.set((e.position.x - p.position.x) * 0.25, 0, 1).normalize();
-      e.shove(dir, MELEE_KNOCKBACK);
+      e.shove(dir, PALAZO.knockback);
       // es el botón de sacárselos de encima: además les corta el ataque
-      e.stagger(MELEE_STAGGER);
+      e.stagger(lv(PALAZO.stagger, meleeLevel));
     }
     if (targets.length) {
       audio.thud();
@@ -1185,7 +1197,6 @@ async function cycleSkin(delta = 1): Promise<void> {
     fresh.position.copy(player.position);
     fresh.hp = player.hp;
     for (const id of player.unlocked) fresh.unlocked.add(id);
-    fresh.meleeCooldown = player.meleeCooldown;
     fresh.timing = player.timing;
     fresh.giftPerfect = player.giftPerfect;
     fresh.thrownClub = player.thrownClub;
@@ -1353,7 +1364,7 @@ function updateWaves(dt: number): void {
         horde.spawn(e.kind, undefined, e.mods);
         announce(e.kind, e.mods);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
-        else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacátela con el palazo (Shift)', 'bad');
+        else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacudite con A y D', 'bad');
         break;
       case 'cleared':
         // ya no se cura solo entre oleadas: curarse es una de las cartas, y elegirla es no mejorar. Salvo
@@ -1423,7 +1434,7 @@ function frame(): void {
 
     hud.setClub(player.club, player.pendingClub);
     hud.setAbilities(abilities.slots, abilities.cooldowns, abilities.slots.map((_, i) => abilities.cooldownOf(i)));
-    hud.setClubState(player.unlocked, player.meleeCooldown, player.thrownClub);
+    hud.setClubState(player.unlocked, player.thrownClub);
     hud.setPerks(perkStatus());
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);

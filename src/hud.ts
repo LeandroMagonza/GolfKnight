@@ -1,7 +1,7 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
 import { ABILITIES, ABILITY_KEYS, SLOTS, type AbilityId } from './core/abilities';
-import { CLUB_KEYS, CLUB_ORDER, CLUBS, MELEE_COOLDOWN, type Club, type ClubId } from './core/clubs';
+import { CLUB_KEYS, CLUB_ORDER, CLUBS, type Club, type ClubId } from './core/clubs';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -63,11 +63,10 @@ export class Hud {
       const color = '#' + c.color.toString(16).padStart(6, '0');
       return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">hasta ${c.maxRange} m</div></div>`;
     }).join('');
-    // los cuatro lugares de habilidad, que se llenan eligiendo cartas. Y el palazo, que va aparte
+    // los cuatro lugares de habilidad, que se llenan eligiendo cartas
     this.enchantsEl.innerHTML = Array.from({ length: SLOTS }, (_, i) =>
       `<div class="club locked" data-ench="slot${i}" style="--c:#ffffff"><div class="cd"></div><span class="key">${ABILITY_KEYS[i]}</span><div class="name"></div><div class="title"></div><span class="cdlabel"></span><div class="cdnum"></div></div>`,
-    ).join('')
-      + `<div class="club extra" data-ench="melee" style="--c:#fff1b8"><div class="cd"></div><span class="key">Shift</span><div class="name">Palazo</div><div class="title">empujón</div><span class="cdlabel">⟳ ${MELEE_COOLDOWN} s</span><div class="cdnum"></div></div>`;
+    ).join('');
     this.choiceEl.addEventListener('click', (e) => {
       const card = (e.target as HTMLElement).closest('.choice') as HTMLElement | null;
       if (card) this.onPick?.(Number(card.dataset.i));
@@ -130,8 +129,7 @@ export class Hud {
   private readonly shownCd = new Map<string, string>();
 
   /** Qué palos están habilitados, y cuál está volando como boomerang. */
-  setClubState(unlocked: ReadonlySet<ClubId>, meleeLeft: number, thrown: ClubId | null = null): void {
-    this.cooldownOn('melee', meleeLeft, MELEE_COOLDOWN);
+  setClubState(unlocked: ReadonlySet<ClubId>, thrown: ClubId | null = null): void {
     const key = [...unlocked].join() + `|${thrown ?? ''}`;
     if (key === this.shownState) return;
     const first = this.shownState === '';

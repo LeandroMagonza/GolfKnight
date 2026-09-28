@@ -35,14 +35,15 @@ describe('waves', () => {
     }
   });
 
-  it('cada oleada suma un cuerpo, y cada una del medio un poder que no se había visto', () => {
+  it('la primera trae los cuerpos de 1 a 4; después, cada una un poder nuevo y como mucho un cuerpo', () => {
     const bodies = new Set<string>();
     const powers = new Set<string>();
     WAVES.forEach((w, i) => {
       const fresh = [...new Set(w.groups.map((g) => g.kind))].filter((k) => !bodies.has(k));
-      expect(fresh.length, w.title).toBe(1);
+      if (i === 0) expect(fresh.sort()).toEqual(['goblin', 'goblina', 'orc', 'skeleton']);
+      else expect(fresh.length, w.title).toBeLessThanOrEqual(1);
       fresh.forEach((k) => bodies.add(k));
-      if (i === 0 || i === WAVES.length - 1) expect(w.power, w.title).toBeUndefined();
+      if (i === 0) expect(w.power, w.title).toBeUndefined();
       else {
         expect(w.power, w.title).toBeDefined();
         expect(powers.has(w.power!), w.title).toBe(false);
@@ -125,6 +126,10 @@ describe('waves', () => {
     // el chamán es un cuerpo más: puede tocarle cualquier poder
     expect(canTake('shaman', { explode: true })).toBe(true);
     expect(behaviorOf(ENEMIES.shaman, {})).toBe('melee');
+    // esquivar no cambia cómo camina: le puede tocar a cualquiera menos al jefe
+    expect(behaviorOf(ENEMIES.knight, { dodge: true })).toBe('melee');
+    expect(canTake('wraith', { dodge: true })).toBe(true);
+    expect(canTake('golem', { dodge: true })).toBe(false);
   });
 
   it('todos los enemigos de las oleadas están definidos', () => {

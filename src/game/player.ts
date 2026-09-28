@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Element } from '../core/abilities';
-import { CHARGE, CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, MELEE_COOLDOWN, qualityMarks, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
+import { CHARGE, CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, qualityMarks, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
 import type { ChargeTimes } from '../core/swing';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
@@ -116,14 +116,14 @@ export class Player {
    * Lo que las oleadas van dando son las **habilidades** (ver game/abilities).
    */
   readonly unlocked = new Set<ClubId>(CLUB_ORDER);
-  /** Segundos de recarga que le quedan al palazo. */
-  meleeCooldown = 0;
   /** Se llama en el instante en que el palazo conecta. */
   onMelee: (() => void) | null = null;
   private meleeHit = false;
   private meleeTime = 0;
-  /** El alma en pena que lo tiene agarrado: no puede caminar ni tirar hasta sacársela a palazos. */
+  /** El alma en pena que lo tiene agarrado: no puede caminar ni tirar hasta que se zafa. */
   grabbedBy: Enemy | null = null;
+  /** Toques de A o D desde que lo agarraron: con GRAB_STRUGGLE se zafa. */
+  struggles = 0;
   private yaw = 0;
   /** Invulnerable un instante después de recibir un golpe. */
   private blinkTimer = 0;
@@ -441,17 +441,16 @@ export class Player {
   }
 
   /**
-   * Palazo: golpe corto a lo que tenga encima, con recarga propia. Corta la carga de un tiro, pero no
-   * un swing que ya está bajando. Es también la única forma de sacarse de encima a un alma en pena.
+   * Palazo (una habilidad, con la recarga de su lugar): golpe corto a lo que tenga encima. Corta la
+   * carga de un tiro, pero no un swing que ya está bajando. También saca de encima al alma en pena.
    */
   startMelee(): boolean {
-    if (this.meleeCooldown > 0 || this.stunned || !this.alive) return false;
+    if (this.stunned || !this.alive) return false;
     if (this.mode === 'charging' || this.preCharging) this.cancelSwing();
     if (this.mode !== 'free') return false;
     this.mode = 'melee';
     this.meleeHit = false;
     this.meleeTime = 0;
-    this.meleeCooldown = MELEE_COOLDOWN;
     const clip = this.swingClip;
     if (clip) {
       this.animator.poseOneShot(clip.name, clip.top);
@@ -532,6 +531,11 @@ export class Player {
    */
   step(delta: number): void {
     if (!this.alive) return;
+    // agarrado, A y D son para sacudirse: cada toque cuenta (ver GRAB_STRUGGLE)
+    if (this.grabbedBy) {
+      this.struggles++;
+      return;
+    }
     // cargando, A y D corren con la pelota en vez de anotar un cambio de puesto (ver `SHIFT`). En el
     // modo continuo el toque no hace nada: lo que mueve es mantener apretado
     if (this.mode === 'charging' && SHIFT.mode !== 'apagado') {
@@ -566,9 +570,10 @@ export class Player {
     this.stancePosition(this.position);
   }
 
-  /** Un alma en pena lo agarra: corta lo que estuviera haciendo. Se sale a palazos. */
+  /** Un alma en pena lo agarra: corta lo que estuviera haciendo. Se zafa sacudiéndose (A y D) o con el palazo. */
   grab(by: Enemy): void {
     this.grabbedBy = by;
+    this.struggles = 0;
     this.meter.cancel();
     this.swingShot = null;
     if (this.mode !== 'free') this.animator.clearOneShot();
@@ -645,7 +650,6 @@ export class Player {
     }
     this.meter.update(dt);
     if (this.blinkTimer > 0) this.blinkTimer -= dt;
-    this.meleeCooldown = Math.max(0, this.meleeCooldown - dt);
     if (this.grabbedBy && (!this.grabbedBy.alive || !this.grabbedBy.grabbing)) this.grabbedBy = null;
     // el tiro terminó o se canceló (por el jugador o por un golpe recibido): entra el palo en cola
     if (this.mode === 'free' && this.pendingClub) this.applyClub(this.pendingClub);

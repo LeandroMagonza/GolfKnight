@@ -35,7 +35,7 @@ const SLIDES: Slide[] = [
       <kbd>1</kbd> driver · <kbd>2</kbd> hierro 7 · <kbd>3</kbd> wedge · <kbd>4</kbd> putter: cada palo cobra mejor a su distancia<br />
       <kbd>Q</kbd> golpe · <kbd>W</kbd> escarcha · <kbd>E</kbd> vendaval: qué hace la pelota cuando llega (los tres con recarga)<br />
       Solo se pega donde hay una <em>pelota</em>: movete de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd><br />
-      <kbd>Espacio</kbd> clava el golpe · palazo <kbd>Shift</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
+      <kbd>Espacio</kbd> clava el golpe · si te agarran, sacudite con <kbd>A</kbd> y <kbd>D</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
       Que no lleguen a la puerta.
     </p>`,
   },

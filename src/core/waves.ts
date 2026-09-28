@@ -49,6 +49,8 @@ export interface EnemyMods {
   banner?: boolean;
   /** Tira hechizos al golfista desde lejos (ver RANGED). */
   ranged?: boolean;
+  /** Esquiva: si le apuntás cuando la carga llega a 2, salta al costado (ver DODGE). */
+  dodge?: boolean;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
 }
@@ -187,9 +189,20 @@ export const GEOMANCER = { holdZ: 38, ahead: 5, height: 1.8, rx: 3.4, rz: 2.8, c
  */
 export const RANGED = { holdZ: 34, every: 4.5, flight: 1.6, radius: 1.4, damage: 1 };
 
+/**
+ * Esquiva: mientras cargás, en el momento en que la barra pasa del golpe débil al medio (la carga 2), el
+ * que tenés «más o menos» apuntado (a menos de `aimWidth` metros de la línea del tiro, más su radio)
+ * salta `distance` metros al costado, y no vuelve a saltar hasta `cooldown` segundos después. Se le
+ * gana esperando que se le pase, o cargando mirando para otro lado y apuntándole recién al final.
+ * Silenciado no esquiva.
+ */
+export const DODGE = { cooldown: 5, distance: 3.2, aimWidth: 2.2, hop: 0.6, hopTime: 0.35 };
+
 /** Alma en pena: cada cuánto lastima mientras tiene agarrado al golfista, y cuánto aguanta agarrada. */
 export const GRAB_TICK = 1.6;
 export const GRAB_MAX = 5;
+/** Toques de A o D para zafarse del alma en pena sin palazo. */
+export const GRAB_STRUGGLE = 6;
 
 export interface WaveGroup {
   kind: EnemyKind;
@@ -204,7 +217,7 @@ export interface WaveGroup {
 }
 
 /** Los poderes que se reparten al azar. */
-export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'divine' | 'banner';
+export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner';
 
 /**
  * Un poder, según cuántas oleadas pasaron desde que se presentó (`age`, 0 en la suya): el escudo y el
@@ -224,6 +237,7 @@ export const POWERS: Record<PowerKey, (age: number, rand: () => number) => Enemy
   heal: () => ({ aura: 'heal' }),
   ethereal: () => ({ ethereal: true }),
   ward: () => ({ aura: 'ward' }),
+  dodge: () => ({ dodge: true }),
   divine: () => ({ divine: 5 }),
   banner: () => ({ banner: true }),
 };
@@ -248,22 +262,23 @@ export interface Wave {
 }
 
 /**
- * Las oleadas: cada una suma un cuerpo (subiendo la escalera de vida) y un poder. La dificultad sube
- * pareja: ver «Balance de las oleadas» en docs/diseno-combate.md, y `tools/oleadas.mts` para medirla.
+ * Las oleadas. La primera trae los cuerpos de 1 a 4 de vida, sin poderes; desde ahí, cada una presenta
+ * un poder y, a partir de la quinta, un cuerpo más de la escalera. La dificultad sube pareja: ver
+ * «Balance de las oleadas» en docs/diseno-combate.md, y `tools/oleadas.mts` para medirla.
  */
 export const WAVES: Wave[] = [
-  { title: 'Los goblins', interval: 1.6, groups: [{ kind: 'goblin', count: 20 }] },
-  { title: 'Escudos al frente', interval: 2.0, power: 'shield', groups: [{ kind: 'goblin', count: 9 }, { kind: 'goblina', count: 7 }] },
-  { title: 'Acorazados', interval: 1.9, power: 'armor', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 4 }] },
-  { title: 'La estampida', interval: 1.8, power: 'explode', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
-  { title: 'Hechiceros', interval: 1.9, power: 'ranged', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }] },
-  { title: 'La tierra se levanta', interval: 1.9, power: 'dig', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 2 }] },
+  { title: 'Los cuatro palos', interval: 2.1, groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 2 }, { kind: 'skeleton', count: 2 }] },
+  { title: 'Escudos al frente', interval: 2.0, power: 'shield', groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }] },
+  { title: 'Acorazados', interval: 2.0, power: 'armor', groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
+  { title: 'La estampida', interval: 1.7, power: 'explode', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
+  { title: 'Hechiceros', interval: 2.05, power: 'ranged', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }] },
+  { title: 'La tierra se levanta', interval: 2.05, power: 'dig', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 2 }] },
   { title: 'Los que curan', interval: 1.85, power: 'heal', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1, at: 1 }] },
   { title: 'Fantasmas', interval: 1.8, power: 'ethereal', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1 }, { kind: 'stoneling', count: 1, at: 1 }] },
   { title: 'Los invencibles', interval: 1.75, power: 'ward', groups: [{ kind: 'wraith', count: 2 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1 }] },
   // el jefe solo ya tiene 80 de vida: la escolta es más chica que la de la oleada anterior, para que el
-  // salto no sea de golpe. No presenta poder: sortea entre todos los que ya se vieron
-  { title: 'El Gólem de roca', interval: 1.75, groups: [{ kind: 'golem', count: 1 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }, { kind: 'warchief', count: 1 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 1 }] },
+  // salto no sea de golpe. Presenta el último poder, el de esquivar, que no le pesa al jefe (no lo recibe)
+  { title: 'El Gólem de roca', interval: 1.75, power: 'dodge', groups: [{ kind: 'golem', count: 1 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }, { kind: 'warchief', count: 1 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 1 }] },
 ];
 
 /** Segundos de descanso entre oleadas. */

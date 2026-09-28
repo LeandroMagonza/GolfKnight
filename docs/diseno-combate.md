@@ -1791,3 +1791,40 @@ invencible).
 **Quedaron afuera** divino y bandera: siguen en el código (`POWERS`) pero hoy ninguna oleada los
 presenta.
 
+## Hecho: la primera oleada con los cuatro cuerpos, el palazo como habilidad y la esquiva (28/9/2026)
+
+- **La primera oleada trae los cuerpos de 1 a 4** (goblin, goblina, orco, esqueleto), sin poderes, como
+  la vieja «Los cuatro palos»: hay algo para cada palo desde el arranque. Las oleadas 2 a 4 solo suman
+  un poder cada una; desde la 5 vuelve a sumarse un cuerpo por oleada.
+- **El palazo es una habilidad más** (`shove`, en `ABILITIES`): sale en las cartas, va en Q, W, E o R,
+  sube de nivel (más radio y más tiempo trastabillando, `PALAZO`) y recarga como las demás. Ya no hay
+  Shift. Como era la única forma de soltarse del alma en pena, ahora **se zafa sacudiéndose**: seis
+  toques de A o D (`GRAB_STRUGGLE`). El palazo, si se tiene, la suelta de una, y es lo único que sale
+  estando agarrado.
+- **Esquiva** (poder nuevo, idea de Leandro). De las variantes que pensó (moverse solo cada tanto, un
+  salto brusco al recibir el golpe, o saltar cuando lo apuntás y la carga llega a 2) quedó la última:
+  castiga apuntar desde el principio y se lee. En el instante en que la barra pasa del débil al medio, el
+  que está a menos de `DODGE.aimWidth` (2.2 m, más su radio) de la línea del tiro salta 3.2 m al
+  costado, para el lado en que ya estaba y nunca afuera del campo, con un saltito. Recarga 5 s, y el
+  ícono (una flecha doble) se apaga mientras tanto. Se le gana esperando la recarga, o cargando mirando
+  a otro lado y apuntándole recién después de la carga 2. Silenciado, aturdido o congelado no salta.
+  Solo lo dispara la carga de un tiro: las habilidades salen al instante y no le avisan.
+- La esquiva la presenta la oleada del Gólem, que antes no traía poder. Con nueve poderes y nueve
+  oleadas después de la primera, cada una presenta uno. El jefe no la recibe (no recibe poderes).
+
+| Ola | Título | Cuerpo nuevo | Poder nuevo | Enemigos | Por segundo | Salto |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Los cuatro palos | goblin, goblina, orco, esqueleto | (ninguno) | 17 | 0.54 | |
+| 2 | Escudos al frente | | escudo | 17 | 0.64 | +19 % |
+| 3 | Acorazados | | blindaje | 18 | 0.69 | +9 % |
+| 4 | La estampida | | explota | 19 | 0.79 | +14 % |
+| 5 | Hechiceros | jefe goblin | hechicero | 19 | 0.94 | +19 % |
+| 6 | La tierra se levanta | chamán | cava | 20 | 1.14 | +22 % |
+| 7 | Los que curan | caballero | cura | 20 | 1.33 | +17 % |
+| 8 | Fantasmas | gólem chico | etéreo | 21 | 1.46 | +10 % |
+| 9 | Los invencibles | alma en pena | invencible | 23 | 1.55 | +6 % |
+| 10 | El Gólem de roca | Gólem de roca | esquiva | 19 | 2.43 | +57 % |
+
+Probado en el navegador: el esqueleto con esquiva en la línea del tiro saltó 2.9 m al llegar la carga
+a 2, y en la carga siguiente, recargando, no se movió. El palazo en la Q mandó a un orco 12 m atrás.
+Agarrado por el alma en pena, seis toques de A y D lo soltaron sin perder vida.

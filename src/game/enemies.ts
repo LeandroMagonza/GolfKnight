@@ -9,7 +9,7 @@ import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/a
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, ENEMIES, GEOMANCER, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, ENEMIES, GEOMANCER, GRAB_STRUGGLE, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -65,7 +65,9 @@ export type HordeEvent =
   /** Un geomante empezó a levantar una loma, o terminó y la loma quedó para siempre. */
   | { type: 'mound'; enemy: Enemy; settled: boolean }
   /** La bandera se levantó (todos +1 de vida) o cayó. */
-  | { type: 'banner'; up: boolean };
+  | { type: 'banner'; up: boolean }
+  /** Uno que esquiva saltó al costado. */
+  | { type: 'dodged'; enemy: Enemy };
 
 interface Template {
   scene: THREE.Object3D;
@@ -130,7 +132,7 @@ const BADGE_PX = 52;
 
 /** Un poder del enemigo, dibujado como ícono antes de su vida. */
 interface Badge {
-  icon: 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell';
+  icon: 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge';
   /** El número que va encima (cuánto resta el escudo o el blindaje). */
   value?: number;
   /** La granada lo apaga: mientras dura el silencio va tachado. */
@@ -227,6 +229,21 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.lineTo(cx + 10, 13);
       ctx.fillStyle = '#d24dff';
       break;
+    case 'dodge':
+      // esquiva: una flecha doble, de costado a costado
+      ctx.moveTo(cx - 14, 16);
+      ctx.lineTo(cx - 5, 7);
+      ctx.lineTo(cx - 5, 12);
+      ctx.lineTo(cx + 5, 12);
+      ctx.lineTo(cx + 5, 7);
+      ctx.lineTo(cx + 14, 16);
+      ctx.lineTo(cx + 5, 25);
+      ctx.lineTo(cx + 5, 20);
+      ctx.lineTo(cx - 5, 20);
+      ctx.lineTo(cx - 5, 25);
+      ctx.closePath();
+      ctx.fillStyle = '#5fd3c7';
+      break;
     case 'banner':
       ctx.rect(cx - 10, 3, 3, 26);
       ctx.moveTo(cx - 7, 4);
@@ -305,6 +322,9 @@ export class Enemy {
   /** Escudo divino: el próximo golpe no le entra. Se recarga solo (ver `stats.divine`). */
   divineReady: boolean;
   divineTimer = 0;
+  /** Esquiva: segundos hasta que puede volver a saltar, y cuánto le queda al salto en el aire. */
+  dodgeLeft = 0;
+  private hopLeft = 0;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
   warded = false;
   /**
@@ -646,6 +666,7 @@ export class Enemy {
     if (this.behavior === 'ranged') out.push({ icon: 'spell', mutes: true });
     if (this.ethereal) out.push({ icon: 'ethereal', value: 1 });
     if (this.divineEvery) out.push({ icon: 'divine', off: !this.divineReady });
+    if (this.mods.dodge) out.push({ icon: 'dodge', off: this.dodgeLeft > 0, mutes: true });
     return out;
   }
 
@@ -696,7 +717,7 @@ export class Enemy {
 
   /** Redibuja la vida si cambió algo de lo que muestra (la vida, la bandera, el silencio sobre la armadura). */
   refreshPipsIfChanged(): void {
-    const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.silenced}/${this.bannered}/${this.divineReady}/${this.alive && !this.passed}`;
+    const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.silenced}/${this.bannered}/${this.divineReady}/${this.dodgeLeft > 0}/${this.alive && !this.passed}`;
     if (key === this.pipKey) return;
     this.pipKey = key;
     this.refreshBar();
@@ -824,6 +845,19 @@ export class Enemy {
     this.stunTimer = Math.max(this.stunTimer, seconds);
   }
 
+  /** ¿Puede esquivar ahora? Tiene el poder, no está silenciado, ni aturdido, ni congelado, ni recargando. */
+  get canDodge(): boolean {
+    return !!this.mods.dodge && this.alive && !this.passed && !this.silenced && this.dodgeLeft <= 0
+      && this.stunTimer <= 0 && this.frozenTimer <= 0 && !this.grabbing;
+  }
+
+  /** Salta DODGE.distance metros hacia `side` (unitario en el piso), con un saltito. */
+  dodge(side: THREE.Vector3): void {
+    this.knock.addScaledVector(side, DODGE.distance * KNOCK_DECAY);
+    this.dodgeLeft = DODGE.cooldown;
+    this.hopLeft = DODGE.hopTime;
+  }
+
   /** Suelta al golfista (si lo tenía) y queda aturdida un rato. */
   letGo(stun: number): void {
     if (!this.grabbing) return;
@@ -871,6 +905,11 @@ export class Enemy {
     if (!this.divineReady && this.divineEvery) {
       this.divineTimer -= dt;
       if (this.divineTimer <= 0) this.divineReady = true;
+    }
+    if (this.dodgeLeft > 0) this.dodgeLeft = Math.max(0, this.dodgeLeft - dt);
+    if (this.hopLeft > 0) {
+      this.hopLeft = Math.max(0, this.hopLeft - dt);
+      this.model.position.y = Math.sin(Math.PI * (1 - this.hopLeft / DODGE.hopTime)) * DODGE.hop;
     }
     // la lupa agranda de a poco, y achica de a poco: que se vea que crece
     const size = this.growTimer > 0 ? LENS.scale : 1;
@@ -1082,7 +1121,8 @@ export class Enemy {
       player.drain(this.stats.damage);
       horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
     }
-    if (this.grabTime >= GRAB_MAX) {
+    // se cansa, o el golfista se sacude lo suficiente
+    if (this.grabTime >= GRAB_MAX || player.struggles >= GRAB_STRUGGLE) {
       this.letGo(2.5);
       player.release(this);
       horde.emit({ type: 'release', enemy: this });
@@ -1714,6 +1754,31 @@ export class Horde {
   }
 
   readonly spells: Spell[] = [];
+
+  /**
+   * La carga llegó a 2 apuntando desde `from` hacia `dir` (unitario en el piso): los que esquivan y están
+   * «más o menos» en la línea del tiro saltan al costado. Para el lado en que ya estaban (así el salto
+   * los saca de la línea), o al azar si estaban justo en el medio; y nunca para afuera del campo.
+   */
+  dodgeAim(from: THREE.Vector3, dir: THREE.Vector3): number {
+    const side = new THREE.Vector3(dir.z, 0, -dir.x);
+    let n = 0;
+    for (const e of this.enemies) {
+      if (!e.canDodge) continue;
+      const rx = e.position.x - from.x;
+      const rz = e.position.z - from.z;
+      const along = rx * dir.x + rz * dir.z;
+      const lateral = rx * side.x + rz * side.z;
+      if (along < 1 || Math.abs(lateral) > DODGE.aimWidth + e.radius) continue;
+      let sign = Math.abs(lateral) > 0.3 ? Math.sign(lateral) : Math.random() < 0.5 ? -1 : 1;
+      const landX = e.position.x + side.x * sign * DODGE.distance;
+      if (Math.abs(landX) > FIELD_HALF_WIDTH - 1) sign = -sign;
+      e.dodge(side.clone().multiplyScalar(sign));
+      this.emit({ type: 'dodged', enemy: e });
+      n++;
+    }
+    return n;
+  }
 
   /**
    * El hechicero le tira un hechizo al golfista: apunta al puesto donde está parado **ahora**, y el piso

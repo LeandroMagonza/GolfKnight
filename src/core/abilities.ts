@@ -10,13 +10,13 @@
 //   con pelota gratis y cargado al nivel de la habilidad: el driver de hielo a nivel 1 es un driver nivel
 //   1 que además enfría a cada uno que atraviesa.
 // - **Las demás**, cada una con su mecánica propia: granada, hielo, vendaval, carrito, hoyo, bandera,
-//   pólvora, boomerang, lluvia de pelotas, caddie dorado, lupa y clon.
+//   pólvora, boomerang, lluvia de pelotas, caddie dorado, lupa, clon y palazo.
 import type { ClubId } from './clubs';
 
 export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning';
 export type AbilityKind =
-  | 'grenade' | 'iceZone' | 'wind' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'boomerang' | 'rain' | 'caddie' | 'lens' | 'clone';
+  | 'grenade' | 'iceZone' | 'wind' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'boomerang' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee';
 
 export interface Ability {
   id: AbilityId;
@@ -106,11 +106,17 @@ export const CADDIE = { seconds: [4, 6, 8] };
 export const LENS = { radius: [3.5, 4, 4.5], seconds: [5, 6, 7], scale: 1.6 };
 /** Clon: deja una copia tuya donde estás; tus próximos `shots` tiros salen también desde ahí, hacia el mismo lado. */
 export const CLONE = { shots: [1, 2, 3], life: 20 };
+/**
+ * Palazo: no hace daño. Empuja hacia atrás a todo lo que haya a `radius` metros de un paso adelante tuyo
+ * (hasta `targets`), y les corta el ataque por `stagger` segundos. El empujón es `knockback` m/s, que
+ * se frena solo: con 84 los manda unos 14 m. También te saca de encima al alma en pena.
+ */
+export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1, 1.3], targets: 12 };
 
 /** Todas las tablas de números de las habilidades, por nombre: el panel de balance las recorre. */
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
   hielo: ICE, vendaval: WIND, granada: GRENADE, elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
-  bandera: FLAG, 'pólvora': POWDER, boomerang: BOOMERANG, caddie: CADDIE, lupa: LENS, clon: CLONE,
+  bandera: FLAG, 'pólvora': POWDER, boomerang: BOOMERANG, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
 };
 
 const BASE: Ability[] = [
@@ -162,6 +168,10 @@ const BASE: Ability[] = [
     id: 'clone', kind: 'clone', name: 'Clon', title: 'dos tiros', cooldown: 15, range: 0, color: 0xc9b8ff,
     hint: 'Deja una copia tuya donde estás. Tu próximo tiro sale también desde ahí, hacia el mismo lado',
   },
+  {
+    id: 'shove', kind: 'melee', name: 'Palazo', title: 'empujón', cooldown: 2.5, range: 0, color: 0xfff1b8,
+    hint: 'Un palazo a lo que tengas encima: no hace daño, pero los manda lejos hacia atrás y les corta el ataque. Te saca de encima al alma en pena',
+  },
 ];
 
 const CLUB_LABEL: Record<ClubId, string> = { driver: 'Driver', iron: 'Hierro', wedge: 'Wedge', putter: 'Putter' };
@@ -193,7 +203,7 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
   grenade: 'granada', iceZone: 'hielo', wind: 'vendaval', cart: 'carrito', hole: 'hoyo', flag: 'bandera',
-  powder: 'pólvora', boomerang: 'boomerang', caddie: 'caddie', lens: 'lupa', clone: 'clon',
+  powder: 'pólvora', boomerang: 'boomerang', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
 };
 
 /**

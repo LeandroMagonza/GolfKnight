@@ -121,7 +121,7 @@ pelota gratis y **cargado al nivel de la habilidad**, que además:
 - *Rayo*: salta al enemigo más cercano, una vez por nivel. **Nunca salta a uno que ya tocó**, así que
   no puede dar vueltas matando a todo.
 
-**Las demás** (12):
+**Las demás** (13):
 
 | Habilidad | Qué hace |
 | --- | --- |
@@ -137,6 +137,7 @@ pelota gratis y **cargado al nivel de la habilidad**, que además:
 | Caddie dorado | unos segundos con pelota infinita en tu puesto |
 | Lupa | los agranda: más fáciles de pegar, y vulnerables |
 | Clon | una copia tuya repite tus próximos tiros desde donde la dejaste |
+| Palazo | no hace daño: manda lejos hacia atrás a lo que tengas encima (a 4 m; 4.75 y 5.5 m en los niveles 2 y 3) y les corta el ataque. Te saca de encima al alma en pena |
 
 **Mejoras**: Muñeca rápida (el débil y el medio un 15 % más rápidos: llegás antes al golpe 3, y la
 ventana del perfecto dura lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y el rebote
@@ -185,9 +186,9 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
 
 ### Lo demás
 
-- **Palazo** en `Shift` (o `V`): no hace daño. Empuja unos 14 m hacia atrás a todo lo que tengas a
-  4 m, a todos por igual, y les corta el ataque. 2.5 s de recarga. Es la única salida cuando un alma
-  en pena te tiene agarrado.
+- **El palazo ya no es un botón aparte**: es una habilidad más, que sale en las cartas y va en Q, W, E o
+  R. Si un alma en pena te agarra, **sacudite con A y D**: seis toques y te soltás (o el palazo, si lo
+  tenés).
 - Vos tenés 3 de vida y la puerta 10. **Nadie te persigue**: todos van derecho a la puerta. Pero el que
   te pasa por encima te atropella: te saca 1 y muere en el choque. A la puerta cada enemigo le saca 1
   (el caballero y el kamikaze, 2). Después de recibir un golpe hay un segundo de respiro, titilando.
@@ -225,17 +226,19 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |
 | **Cura** | se planta cerca de la puerta y cada 3 s le devuelve 1 de vida a los que tiene a 6 m. Aura y cuerpo verdes |
 | **Invencible** | se planta cerca de la puerta y vuelve inmunes a los que tiene a 8 m. Aura violeta |
+| **Esquiva** | si le apuntás más o menos (a unos 2 m de la línea) cuando la carga pasa a 2, salta 3 m al costado; recarga 5 s. Esperá a que se le pase, o cargá mirando a otro lado y apuntale al final |
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.
 - **Se ven en íconos** antes de la vida: escudo (con cuánto resta), blindaje (con su número), calavera
-  (violeta, ∞), las auras, la bandera, la bomba, la loma, el hechizo, el etéreo (con su 1) y el divino
-  (apagado mientras recarga). Lo que la granada silencia (escudo, blindaje, auras, bandera, loma,
-  hechizo) se tacha con un prohibido rojo mientras dura.
+  (violeta, ∞), las auras, la bandera, la bomba, la loma, el hechizo, el etéreo (con su 1), el divino
+  y la esquiva (una flecha doble; estos dos, apagados mientras recargan). Lo que la granada silencia
+  (escudo, blindaje, auras, bandera, loma, hechizo, esquiva) se tacha con un prohibido rojo mientras dura.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
-- **Diez oleadas, y cada una suma un cuerpo y un poder**: goblins sin poderes; goblina y escudo; orco y
-  blindaje; esqueleto y explota; jefe goblin y hechicero; chamán y cava; caballero y cura; gólem chico y
-  etéreo; alma en pena e invencible; y el Gólem de roca, que no trae poder nuevo.
+- **Diez oleadas**. La primera trae los cuerpos de 1 a 4 (goblin, goblina, orco, esqueleto) sin poderes.
+  Desde ahí cada una presenta un poder, y desde la quinta también un cuerpo: escudo; blindaje; explota;
+  jefe goblin y hechicero; chamán y cava; caballero y cura; gólem chico y etéreo; alma en pena e
+  invencible; y el Gólem de roca con la esquiva.
 - **El reparto**: un tercio de los enemigos de cada oleada sale con poder. La mitad de esos con el nuevo
   (el primero que aparece lo presenta) y el resto con alguno de los que ya se vieron, sobre cualquier
   cuerpo que pueda tenerlo: con mala suerte, un caballero etéreo. El escudo y el blindaje salen en 1
@@ -283,7 +286,7 @@ recargar. Va en pestañas:
   mejoras que tenés, y dónde se dibuja cada tramo.
 - **Tiro**: qué hacen A y D mientras cargás (nada, correrse de a pasos, correrse seguido o darle
   efecto). Cada modo muestra solo sus números.
-- **Habilidades**: la lista de las 24 con el **nivel que tiene** cada una. Subirlo se la da (va al primer
+- **Habilidades**: la lista de las 25 con el **nivel que tiene** cada una. Subirlo se la da (va al primer
   lugar libre) y bajarlo a 0 se la saca; si ya tiene cuatro, avisa. El botón *números* abre una
   ventanita con la recarga, el alcance y lo que hace en cada nivel. Arriba, *Sacar tres cartas ahora*.
 - **Mejoras**: lo mismo con las mejoras (cuántas veces tomada cada una, con sus números al lado), y las
