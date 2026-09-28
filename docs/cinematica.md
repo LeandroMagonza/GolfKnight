@@ -42,6 +42,31 @@ Unos 40 segundos. Al terminar pasa al juego.
   del juego.
 - Imagen con franjas de cine (2.2:1), sombras, corrección ACES y brillo.
 
+## Ajustes del 28/9, después de verla
+
+Leandro todavía no decidió entre la feria medieval y un torneo de golf como comienzo. Lo que marcó de
+esta versión, ya corregido:
+
+- **Música**, distinta para cada mundo (`src/cine/music.ts`, sintetizada con Tone.js). *Feria*: laúd,
+  flauta dulce, tambor y pandereta, alegre; en el estacionamiento queda sonando de lejos (más baja y sin
+  agudos) y el atropello la corta en seco, sin eco. *Magia*: coro, campanas y un zumbido grave, en
+  menor, desde el círculo. *Horda*: tambores tipo taiko y metales encima de la magia en el último plano.
+  Todo sigue al tiempo del guion, así que al arrastrar la barra la música sigue donde corresponde. Cada
+  plano dice qué suena con `music`. Más una bocina antes del atropello.
+- **El cartel de la feria** achica la letra hasta que el texto entra, y ya no lo cruza un poste.
+- **Feria → estacionamiento**: fundido a negro y un subtítulo, *"A la salida."*, en vez del corte seco
+  de día a atardecer.
+- **El estacionamiento temblaba todo el plano**: era un error del motor, que usaba el valor inicial de
+  una rampa (el temblor del golpe) desde el comienzo del plano. Ahora un número vale recién desde que
+  empieza su rampa.
+- **Pies bajo tierra en el círculo**: la plataforma mide 30 cm y los actores estaban en 0. Cada
+  escenario dice ahora a qué altura está su piso.
+- **La bolsa de palos** se ve de más lejos, con el caballero y el mago alrededor.
+- **El caballero miraba para atrás en el final**: el `Idle` gira la cabeza hasta 70°. Ahora usa
+  `Idle 2`, que mira al frente (también el mago).
+- Cada plano se dibuja una vez durante la carga: el primer cuadro de cada escenario trababa la imagen
+  un segundo mientras la música seguía.
+
 ## Lo que falta o conviene mejorar
 
 - El mago es de otro estilo (Mixamo pintado) que los de Synty. Se nota poco con la luz de noche, pero
@@ -49,7 +74,6 @@ Unos 40 segundos. Al terminar pasa al juego.
 - No hay clip de agarrar el palo: aparece en la mano entre un plano y otro.
 - El auto que atropella entra de costado y casi no se ve antes del destello: a propósito (el chiste es
   que no lo ve venir), pero se puede mostrar más.
-- Sonido: por ahora usa los sonidos sintetizados del juego (viento, golpe, campanas, cuerno). Falta
-  música y un bocinazo.
+- Voces: se pueden generar con Kokoro (local) o con OpenAI (con actuación), como el asistente de Leandro.
 - Integrarla al juego en lugar de las placas, con "Saltar".
 - Formato de redes: una segunda cámara por plano para 9:16, y el render a mp4 cuadro por cuadro.

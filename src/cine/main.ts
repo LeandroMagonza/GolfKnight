@@ -23,7 +23,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.prepend(renderer.domElement);
 
@@ -45,6 +45,13 @@ composer.addPass(new RenderPass(player.scene, player.camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.6, 0.4, 1.0);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+
+// Un cuadro de cada plano durante la carga: el primero de cada escenario compila shaders y sube
+// texturas, y sin esto la imagen se trababa un segundo en cada cambio mientras la música seguía.
+player.shotStarts.forEach((s) => {
+  player.evaluate(s + 0.01);
+  composer.render();
+});
 
 const audio = new GameAudio();
 const music = new CineMusic(INTRO, player.shotStarts);
@@ -155,4 +162,8 @@ play.addEventListener('click', async () => {
   duration: player.duration,
   starts: player.shotStarts,
   seek(v: number) { seek(v); setPlaying(false); },
+  get time() { return t; },
+  /** Qué tan fuerte suena la música ahora, en dB (para las pruebas). */
+  musicLevel: () => music.level(),
+  play() { play.click(); },
 };

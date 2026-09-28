@@ -86,7 +86,7 @@ export const INTRO: Script = {
       sfx: [{ at: 4.45, name: 'bocina' }, { at: 4.7, name: 'whoosh' }, { at: 5.3, name: 'gateHit' }, { at: 5.32, name: 'hurt' }],
       // la música de la feria queda sonando de lejos, y el golpe la corta en seco
       music: [
-        { at: 0, track: 'feria', level: 0.45, fade: 1.5, filter: 1100 },
+        { at: 0, track: 'feria', level: 0.3, fade: 1.5, filter: 900 },
         { at: 5.3, track: 'feria', level: 0, fade: 0.04 },
       ],
     },

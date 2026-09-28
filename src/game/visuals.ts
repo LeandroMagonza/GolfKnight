@@ -219,7 +219,8 @@ export class Visuals {
     /** Las sombras de mentira (el círculo negro bajo cada enemigo): con sombras de verdad se apagan. */
     private readonly blobShadow: THREE.Material,
   ) {
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // PCFSoftShadowMap ya no existe en three (avisa y usa este)
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     sun.target.position.copy(this.focus);
     scene.add(sun.target);
     const cam = sun.shadow.camera;

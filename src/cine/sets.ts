@@ -220,7 +220,8 @@ function feria(): CineSet {
     group.add(bale);
   }
   const s = sign('FERIA MEDIEVAL', 4.2);
-  s.position.set(-9, 0, -3.6);
+  // entre dos postes de guirnaldas (están cada 8 m desde -16), para que ninguno lo cruce
+  s.position.set(-12, 0, -3.6);
   group.add(s);
   for (let i = 0; i < 30; i++) {
     const tr = tree(rand);

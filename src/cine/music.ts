@@ -45,7 +45,9 @@ export class CineMusic {
   private readonly gains = new Map<MusicTrack, Tone.Gain>();
   private readonly filters = new Map<MusicTrack, Tone.Filter>();
   private readonly shown = new Map<MusicTrack, number>();
+  private readonly shownFilter = new Map<MusicTrack, number>();
   private readonly out = new Tone.Volume(-8).toDestination();
+  private readonly meter = new Tone.Meter();
   private built = false;
   private horn: Tone.PolySynth | null = null;
 
@@ -67,17 +69,22 @@ export class CineMusic {
   build(): void {
     if (this.built) return;
     this.built = true;
-    const reverb = new Tone.Freeverb({ roomSize: 0.82, dampening: 2600, wet: 0.3 }).connect(this.out);
+    this.out.connect(this.meter);
+    // cada tema: instrumentos → reverb → filtro → volumen. El volumen va último para que un corte en
+    // seco corte también la cola de la reverb (con una reverb compartida el golpe dejaba eco).
+    const buses = new Map<MusicTrack, Tone.Gain>();
     for (const t of TRACKS) {
-      const filter = new Tone.Filter(18000, 'lowpass').connect(reverb);
-      const gain = new Tone.Gain(0).connect(filter);
+      const gain = new Tone.Gain(0).connect(this.out);
+      const filter = new Tone.Filter(18000, 'lowpass').connect(gain);
+      const reverb = new Tone.Freeverb({ roomSize: 0.82, dampening: 2600, wet: 0.3 }).connect(filter);
+      buses.set(t, new Tone.Gain(1).connect(reverb));
       this.gains.set(t, gain);
       this.filters.set(t, filter);
       this.shown.set(t, 0);
     }
-    this.buildFeria(this.gains.get('feria')!);
-    this.buildMagia(this.gains.get('magia')!);
-    this.buildHorda(this.gains.get('horda')!);
+    this.buildFeria(buses.get('feria')!);
+    this.buildMagia(buses.get('magia')!);
+    this.buildHorda(buses.get('horda')!);
     this.horn = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.05, sustain: 0.8, release: 0.08 }, volume: -16 }).connect(this.out);
   }
 
@@ -195,9 +202,16 @@ export class CineMusic {
         this.gains.get(track)!.gain.rampTo(level, 0.05);
         this.shown.set(track, level);
       }
-      const f = this.filters.get(track)!;
-      if (Math.abs(f.frequency.value - filter) > 1) f.frequency.rampTo(filter, 0.3);
+      if (this.shownFilter.get(track) !== filter) {
+        this.filters.get(track)!.frequency.rampTo(filter, 0.3);
+        this.shownFilter.set(track, filter);
+      }
     }
+  }
+
+  /** Nivel de salida en dB (-Infinity = silencio). */
+  level(): number {
+    return this.built ? (this.meter.getValue() as number) : -Infinity;
   }
 
   /** La bocina del auto: dos notas desafinadas, cortas. */
