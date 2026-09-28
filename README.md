@@ -195,36 +195,47 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
   la puerta. Entre oleadas no se cura solo: curarse es una de las cartas.
 - La puntería tiene un arco de 180 grados: de costado a costado, pero no para atrás.
 
-| Enemigo (vida) | Qué lo hace distinto |
-| --- | --- |
-| Goblin (2) | rápido y en montón |
-| Goblin kamikaze (2) | explota al tocarte, y se lleva a los vecinos |
-| Esqueleto (4) | lento y duro |
-| Goblin guerrero (4) | con escudo: rebota el tiro rasante de frente |
-| Caballero esqueleto (10) | el único, además del jefe, que aguanta el mejor golpe |
-| Chamán goblin (3) | hace inmunes a los que tiene a 8 m; a él nadie lo protege |
-| Alma en pena (2) | la única que te persigue: te agarra y te desangra |
-| Gólem de roca (80) | el jefe: tira piedras a la puerta desde lejos |
-| Goblin acorazado (1) | le resta 1 a cada golpe: el driver de cerca no le hace nada |
-| Esqueleto bendito (3) | el primer golpe no le entra; el escudo se le recarga a los 5 s |
-| Fantasma (3) | etéreo: ningún golpe le saca más de 1. Se le gana pegándole muchas veces, no fuerte |
-| Curandero goblin (3) | aura verde: cada 3 s, los que tiene a 6 m recuperan 1 |
-| Abanderada goblin (3) | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
-| Geomante (3) | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, la loma baja; si termina, queda para el resto de la partida y él sigue a la puerta |
+**Cuerpo y poder van por separado.** El cuerpo dice cuánta vida tiene (una escalera de 1 a 10 que se lee
+por el tamaño), qué tan rápido va y cómo se ve. El poder se le reparte **al azar** en cada oleada, así que
+no siempre es el mismo bicho el que viene con el mismo poder.
 
-**Modificadores.** El tipo dice cómo es el enemigo (tamaño, velocidad, comportamiento) y el modificador
-qué efecto trae, así que cualquiera puede llevarlo: un esqueleto blindado, un caballero con aura de
-chamán. En las oleadas van por grupo (`mods` en `WAVES`, `src/core/waves.ts`).
-- **Blindaje 1 a 3**: le resta eso a cada golpe. Tiñe de acero. Con blindaje 3, el putter en golpe 2 (4)
-  saca 1.
-- **Los poderes se ven en íconos** antes de la vida: escudo (madera, con cuánto resta), blindaje (placa
-  de acero, con su número), escudo muro (violeta, ∞), aura de inmunidad (violeta), de curación (verde,
-  +), bandera, etéreo (fantasmita con un 1) y escudo divino (estrella dorada, apagada mientras recarga).
-  Lo que la granada silencia se tacha con un prohibido rojo mientras dura.
-- **Escudo**, **bendito**, **aura** (inmunidad o curación) y **etéreo**: lo mismo que los tipos que los
-  traen de fábrica.
-- **La granada silencia también el blindaje** mientras dura. El etéreo y el divino no se silencian.
+| Cuerpo | Vida | Nota |
+| --- | --- | --- |
+| Goblin | 1 | rápido y en montón |
+| Goblina | 2 | rápida |
+| Orco | 3 | |
+| Esqueleto | 4 | lento |
+| Jefe goblin | 5 | |
+| Chamán goblin | 6 | aura violeta: vuelve inmunes a los que tiene a 8 m; se planta cerca de la puerta |
+| Curandero goblin | 7 | el mismo modelo que el chamán, en verde: aura que cura 1 cada 3 s a los que tiene a 6 m |
+| Caballero esqueleto | 8 | pesado; cae justo con el mejor golpe |
+| Gólem chico | 10 | pesado; el único, además del jefe, que aguanta el mejor golpe |
+| Alma en pena | 2 | la única que te persigue: te agarra y te desangra |
+| Gólem de roca | 80 | el jefe: tira piedras a la puerta desde lejos. No recibe poderes |
+
+| Poder | Qué hace |
+| --- | --- |
+| **Escudo 1 a 5** | blindaje de frente: a lo que le llega de frente le resta su número. Cada nivel es un escudo distinto: madera, tablones, hueso, escudo rojo, redondo |
+| **Escudo calavera (10)** | de frente no entra nada: por detrás, de costado o con la granada |
+| **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
+| **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
+| **Divino** | el primer golpe no le entra; se le recarga a los 5 s |
+| **Etéreo** | ningún golpe le saca más de 1: hay que pegarle muchas veces. Medio transparente |
+| **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
+| **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
+| **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |
+| **Aura** | inmunidad o curación, como el chamán o el curandero, sobre cualquier cuerpo |
+
+- Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
+  cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.
+- **Se ven en íconos** antes de la vida: escudo (con cuánto resta), blindaje (con su número), calavera
+  (violeta, ∞), las auras, la bandera, la bomba, la loma, el hechizo, el etéreo (con su 1) y el divino
+  (apagado mientras recarga). Lo que la granada silencia (escudo, blindaje, auras, bandera, loma,
+  hechizo) se tacha con un prohibido rojo mientras dura.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
+- En las oleadas: `groups` (cuerpos, con poderes fijos si hace falta) y `powers` (poderes que se reparten
+  al azar), en `WAVES` (`src/core/waves.ts`). `node --experimental-transform-types tools/oleadas.mts`
+  mide qué tan difícil es cada una.
 
 ## El campo: cuatro mapas, uno por partida
 
@@ -337,6 +348,9 @@ fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa e
     cartel, puestos y pelotas, palo en cola, medidor y niveles, fila de goblins, hielo, empujón, chamán, putter,
     alma en pena, vida, puerta, pausa y
     derrota. Capturas en `logs/`.
+  - `oleadas.mts`: la dificultad de cada oleada (vida efectiva por segundo), para que la curva suba pareja.
+    Se corre con `node --experimental-transform-types tools/oleadas.mts`.
+  - `props_to_glb.py`: junta props de PolygonDungeon (los escudos) en un GLB con el atlas del pack.
   - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las 6 oleadas, para chequear balance. No
     camina ni busca filas: es una cota inferior. Con `--ver` abre una ventana para mirarlo.
   - `swingshot.mjs`: capturas de cerca de cada fase del swing, y distancia cabeza-pelota en el impacto.

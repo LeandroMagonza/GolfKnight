@@ -8,13 +8,13 @@ import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from 
 import { ABILITIES, ABILITY_KEYS, ICE, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
-import { ENEMIES, WaveDirector, type EnemyKind, type EnemyMods } from './core/waves';
+import { ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods } from './core/waves';
 import { timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
 import { MoundView } from './game/mounds';
 import { Effects } from './game/effects';
-import { Horde, shadowMat } from './game/enemies';
+import { Horde, shadowMat, SHIELD_MODELS, SHIELD_PROPS } from './game/enemies';
 import { BALLS, TEE_Z, Tees } from './game/tees';
 import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
@@ -362,7 +362,7 @@ horde.onEvent = (e) => {
     case 'playerHit': {
       if (godMode.godPlayer) player.hp = player.maxHp;
       audio.hurt();
-      shake = Math.max(shake, e.enemy.grabbing ? 0.1 : 0.3);
+      shake = Math.max(shake, e.enemy?.grabbing ? 0.1 : 0.3);
       const s = toScreen(player.position, 2);
       hud.float(s.x, s.y, `-${e.amount}`, 'hurt');
       if (!player.alive) endGame('defeat', 'Caíste en combate', 'Valdehoyo se quedó sin golfista');
@@ -411,6 +411,13 @@ horde.onEvent = (e) => {
     case 'rockThrown':
       audio.growl();
       break;
+    case 'spellCast':
+      audio.zap();
+      break;
+    case 'spellLanded':
+      effects.explosion(e.pos, RANGED.radius, 0xd24dff);
+      if (e.hit) shake = Math.max(shake, 0.25);
+      break;
     case 'rockLanded':
       effects.explosion(e.pos, 2.2, 0x9a958a);
       shake = Math.max(shake, 0.15);
@@ -432,6 +439,30 @@ horde.onEvent = (e) => {
   }
 };
 
+/**
+ * Los escudos del pack (shields.glb, armado con tools/props_to_glb.py): cada uno centrado, del tamaño del
+ * de madera y mirando para adelante, listo para colgarlo de un enemigo según el nivel de su escudo.
+ */
+function prepareShields(gltf: GLTF): void {
+  for (const [level, name] of Object.entries(SHIELD_MODELS)) {
+    const src = gltf.scene.getObjectByName(name);
+    if (!src) continue;
+    const model = src.clone();
+    model.position.set(0, 0, 0);
+    model.rotation.set(0, 0, 0);
+    model.scale.set(1, 1, 1);
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    const holder = new THREE.Group();
+    holder.add(model);
+    // del ancho del de madera (0.84 en unidades del modelo del enemigo)
+    holder.scale.setScalar(0.95 / Math.max(size.x, size.y));
+    SHIELD_PROPS.set(Number(level), holder);
+  }
+}
+
 /** Lo que ya se presentó en esta partida: cada enemigo o modificador nuevo se anuncia una sola vez. */
 const announced = new Set<string>();
 function announce(kind: EnemyKind, mods?: EnemyMods): void {
@@ -440,12 +471,22 @@ function announce(kind: EnemyKind, mods?: EnemyMods): void {
     announced.add(key);
     hud.feedback(text, 'bad');
   };
-  if (kind === 'ghost') once('ghost', '¡Fantasmas! Ningún golpe les saca más de 1: pegales muchas veces, no fuerte');
-  else if (kind === 'healer') once('healer', '¡Curandero! Los que tiene cerca recuperan vida de a poco');
-  else if (kind === 'bannerman') once('bannerman', '¡Abanderada! Se queda al fondo, y mientras viva todos tienen 1 de vida más');
-  else if (kind === 'geomancer') once('geomancer', '¡Geomante! Se planta y levanta una loma para taparse del driver');
-  if ((mods?.armor ?? 0) >= 2) once(`armor${mods!.armor}`, `¡Blindaje ${mods!.armor}! Le resta ${mods!.armor} a cada golpe. La granada se lo saca mientras dura`);
-  if (mods?.aura === 'heal') once('healMod', 'Ese cura a los de alrededor: el aura verde');
+  // los cuerpos nuevos
+  if (kind === 'healer') once('healer', '¡Curandero! Los que tiene cerca recuperan vida de a poco');
+  else if (kind === 'stoneling') once('stoneling', '¡Gólem chico! 10 de vida: carga el golpe');
+  // los poderes: se presentan la primera vez que aparecen, estén en el bicho que estén
+  if (!mods) return;
+  if (mods.shield && mods.shield >= SHIELD_WALL) once('wall', '¡Escudo calavera! De frente no le entra nada: por detrás, de costado o con la granada');
+  else if (mods.shield) once(`shield${mods.shield}`, `Escudo ${mods.shield}: a lo que le llega de frente le resta ${mods.shield}`);
+  if (mods.armor) once(`armor${mods.armor}`, `¡Blindaje ${mods.armor}! Le resta ${mods.armor} a cada golpe. La granada se lo saca mientras dura`);
+  if (mods.explode) once('explode', '¡Ese explota! Corre a la puerta y revienta, y se lleva a los de al lado');
+  if (mods.divine) once('divine', 'Escudo divino: el primer golpe no le entra, y se le recarga');
+  if (mods.ethereal) once('ethereal', '¡Etéreo! Ningún golpe le saca más de 1: pegale muchas veces, no fuerte');
+  if (mods.dig) once('dig', '¡Ese cava! Se planta y levanta una loma: matalo antes de que termine');
+  if (mods.banner) once('banner', '¡Abanderado! Se queda al fondo, y mientras viva todos tienen 1 de vida más');
+  if (mods.ranged) once('ranged', '¡Hechicero! Te tira al puesto donde estás: cuando el piso se marca en rojo, movete');
+  if (mods.aura === 'heal') once('healMod', 'Ese cura a los de alrededor: el aura verde');
+  if (mods.aura === 'ward') once('wardMod', 'Ese vuelve inmunes a los de alrededor: el aura violeta');
 }
 
 balls.onEvent = (e) => {
@@ -1083,10 +1124,17 @@ async function makePlayer(skin: Skin): Promise<Player> {
     if (shot.quality >= QUALITY_LEVELS) hud.feedback('¡Golpe perfecto!', 'good');
     const range = shotRange(shot.club);
     balls.fire(shot, range, shotLift(shot.club, range));
-    // el clon repite el tiro desde donde quedó, hacia el mismo lado, igual de lejos
+    // el clon repite el tiro desde donde quedó, **hacia el mouse**: las dos pelotas se cruzan donde
+    // apuntaste. Con el palo de distancia fija, solo la dirección
     if (clone && clone.shots > 0) {
       const from = clone.pos.clone();
-      balls.fire({ ...shot, from }, range, shotLift(shot.club, range, from));
+      const dx = aimPoint.x - from.x;
+      const dz = aimPoint.z - from.z;
+      const len = Math.hypot(dx, dz);
+      // para atrás no se tira: si el mouse queda detrás del clon, sale para el mismo lado que el tuyo
+      const dir = len > 0.5 && dz > 0.3 ? new THREE.Vector3(dx / len, 0, dz / len) : shot.dir.clone();
+      const cloneRange = shot.club.fixedRange > 0 ? range : THREE.MathUtils.clamp(len, shot.club.minRange, shot.club.maxRange);
+      balls.fire({ ...shot, from, dir }, cloneRange, shotLift(shot.club, cloneRange, from));
       effects.blink(from, ABILITIES.clone.color);
       if (--clone.shots <= 0) removeClone();
     }
@@ -1162,7 +1210,8 @@ async function loadModels(): Promise<void> {
   const kinds = Object.keys(ENEMIES) as EnemyKind[];
   // el palo y los guardias son opcionales: si faltan, el juego sigue con el palo de primitivas y sin guardias
   const optional = (url: string) => loader.loadAsync(url).catch(() => null);
-  const [clubGltf, guardGltf, dungeon] = await Promise.all([optional(`${MODELS}club.glb`), loadGltf(`${MODELS}guard.glb`).catch(() => null), loadGltf(`${MODELS}dungeon.glb`)]);
+  const [clubGltf, guardGltf, dungeon, shieldsGltf] = await Promise.all([optional(`${MODELS}club.glb`), loadGltf(`${MODELS}guard.glb`).catch(() => null), loadGltf(`${MODELS}dungeon.glb`), optional(`${MODELS}shields.glb`)]);
+  if (shieldsGltf) prepareShields(shieldsGltf);
   clubModel = clubGltf?.scene ?? null;
   player = await makePlayer(SKINS[skinIndex]).catch(() => {
     // si el skin guardado ya no existe, vuelve al primero

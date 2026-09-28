@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMIES, spawnOrder, WaveDirector, WAVES, type DirectorEvent, type Wave } from './waves';
+import { behaviorOf, canTake, ENEMIES, spawnOrder, WaveDirector, WAVES, type DirectorEvent, type EnemyMods, type Wave } from './waves';
 
 const TEST_WAVES: Wave[] = [
   { title: 'uno', interval: 1, groups: [{ kind: 'goblin', count: 3 }] },
@@ -17,34 +17,67 @@ describe('waves', () => {
       }
     }
     const mixed = spawnOrder(WAVES[1]).map((s) => s.kind);
-    expect(mixed.slice(0, 3)).toContain('skeleton');
+    expect(mixed.slice(0, 3)).toContain('goblina');
     expect(mixed.slice(0, 3)).toContain('goblin');
   });
 
   it('el jefe y los chamanes salen hacia la mitad de la oleada', () => {
     const order = spawnOrder(WAVES[WAVES.length - 1]).map((s) => s.kind);
-    for (const kind of ['golem', 'shaman'] as const) {
+    for (const kind of ['golem', 'wraith'] as const) {
       const at = order.indexOf(kind) / order.length;
       expect(at).toBeGreaterThan(0.25);
       expect(at).toBeLessThan(0.75);
     }
   });
 
-  it('los enemigos nuevos se presentan solos en su oleada', () => {
-    const firstWave = (kind: string) => WAVES.findIndex((w) => w.groups.some((g) => g.kind === kind));
-    const before = (i: number) => new Set(WAVES.slice(0, i).flatMap((w) => w.groups.map((g) => g.kind)));
-    for (const kind of ['armored', 'blessed', 'ghost', 'geomancer', 'bannerman']) {
-      const i = firstWave(kind);
-      const fresh = WAVES[i].groups.map((g) => g.kind).filter((k) => !before(i).has(k));
-      expect(fresh, kind).toEqual([kind]);
-    }
+  it('desde la segunda, cada oleada presenta como mucho dos cosas nuevas (cuerpos o poderes)', () => {
+    const seen = new Set<string>();
+    const things = (w: Wave) => [
+      ...w.groups.map((g) => g.kind as string),
+      ...[...w.groups.map((g) => g.mods), ...(w.powers ?? []).map((p) => p.mods)].flatMap((m) => Object.keys(m ?? {})),
+    ];
+    WAVES.forEach((w, i) => {
+      const fresh = [...new Set(things(w))].filter((t) => !seen.has(t));
+      if (i > 0) expect(fresh.length, `${w.title}: ${fresh.join(', ')}`).toBeLessThanOrEqual(2);
+      for (const t of fresh) seen.add(t);
+    });
   });
 
-  it('el acorazado le resta a cada golpe, y el bendito se come el primero', () => {
-    expect(ENEMIES.armored.armor).toBe(1);
-    expect(ENEMIES.blessed.divine).toBeGreaterThan(0);
-    expect(WAVES.some((w) => w.groups.some((g) => g.kind === 'armored'))).toBe(true);
-    expect(WAVES.some((w) => w.groups.some((g) => g.kind === 'blessed'))).toBe(true);
+  it('la vida de los cuerpos es una escalera: cada uno pega un salto sobre el anterior', () => {
+    const ladder = ['goblin', 'goblina', 'orc', 'skeleton', 'warchief', 'shaman', 'healer', 'knight', 'stoneling'] as const;
+    ladder.forEach((k, i) => { if (i) expect(ENEMIES[k].hp, k).toBeGreaterThan(ENEMIES[ladder[i - 1]].hp); });
+  });
+
+  it('los poderes se reparten al azar, uno por enemigo, y solo a quien puede tenerlos', () => {
+    const wave: Wave = { title: 'p', interval: 1, groups: [{ kind: 'goblin', count: 6 }, { kind: 'shaman', count: 1 }, { kind: 'golem', count: 1 }], powers: [{ mods: { explode: true }, count: 3 }, { mods: { armor: 2 }, count: 2 }] };
+    const kinds = new Set<string>();
+    for (let seed = 1; seed < 40; seed++) {
+      let s = seed;
+      const rand = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+      const order = spawnOrder(wave, rand);
+      expect(order.filter((o) => o.mods?.explode)).toHaveLength(3);
+      expect(order.filter((o) => o.mods?.armor === 2)).toHaveLength(2);
+      // el jefe nunca; el chamán puede tener blindaje, pero no explotar
+      expect(order.find((o) => o.kind === 'golem')?.mods).toBeUndefined();
+      expect(order.find((o) => o.kind === 'shaman')?.mods?.explode).toBeUndefined();
+      order.forEach((o, i) => { if (o.mods?.explode) kinds.add(String(i)); });
+    }
+    // al azar de verdad: no siempre explotan los mismos
+    expect(kinds.size).toBeGreaterThan(3);
+  });
+
+  it('el comportamiento sale del poder, salvo en los que ya tienen uno propio', () => {
+    const m = (mods: EnemyMods) => behaviorOf(ENEMIES.skeleton, mods);
+    expect(m({})).toBe('melee');
+    expect(m({ explode: true })).toBe('kamikaze');
+    expect(m({ dig: true })).toBe('geomancer');
+    expect(m({ banner: true })).toBe('banner');
+    expect(m({ ranged: true })).toBe('ranged');
+    expect(m({ aura: 'heal' })).toBe('shaman');
+    expect(behaviorOf(ENEMIES.wraith, { explode: true })).toBe('grabber');
+    expect(canTake('golem', { armor: 1 })).toBe(false);
+    expect(canTake('wraith', { explode: true })).toBe(false);
+    expect(canTake('wraith', { shield: 2 })).toBe(true);
   });
 
   it('todos los enemigos de las oleadas están definidos', () => {

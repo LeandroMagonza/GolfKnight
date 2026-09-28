@@ -122,11 +122,12 @@ describe('palos', () => {
 
   it('la vida de los enemigos está en la escala del daño', () => {
     const mejor = Math.max(...CLUB_ORDER.map((id) => damageFor(CLUBS[id], 50, QUALITY_LEVELS)));
-    // todos caen de un golpe perfecto salvo el caballero (la armadura grande) y el jefe
-    for (const e of Object.values(ENEMIES)) if (!e.boss && e.kind !== 'knight') expect(e.hp).toBeLessThanOrEqual(mejor);
-    // un goblin cae de un golpe bueno; el caballero pide más que el mejor golpe de un tiro
-    expect(ENEMIES.goblin.hp).toBeLessThanOrEqual(damageFor(CLUBS.iron, 30, 2));
-    expect(ENEMIES.knight.hp).toBeGreaterThan(mejor);
+    // todos caen de un golpe perfecto (el caballero, justo) salvo el gólem chico y el jefe
+    for (const e of Object.values(ENEMIES)) if (!e.boss && e.kind !== 'stoneling') expect(e.hp).toBeLessThanOrEqual(mejor);
+    // un goblin cae de cualquier golpe; el gólem chico pide más que el mejor golpe de un tiro
+    expect(ENEMIES.goblin.hp).toBeLessThanOrEqual(damageFor(CLUBS.iron, 30, 1));
+    expect(ENEMIES.knight.hp).toBe(mejor);
+    expect(ENEMIES.stoneling.hp).toBeGreaterThan(mejor);
   });
 });
 

@@ -53,10 +53,9 @@ número del guerrero, y si el muro necesita un modelo propio (el pack tiene escu
 
 ## Otros
 
-- **La bandera de la abanderada** está hecha por código (un palo y un paño). El pack PolygonDungeon
-  tiene cinco estandartes de verdad (`SM_Wep_Banner_01` a `05`) y doce escudos que se podrían usar para
-  el modificador de escudo. Hay que pasarlos a GLB con el pipeline de Blender.
-- **Los modelos sin usar**: `Character_Ghost_02` (podría ser un segundo fantasma, o el aspecto del
-  modificador etéreo sobre otros tipos).
+- **La bandera** está hecha por código (un palo y un paño). El pack tiene cinco estandartes de verdad
+  (`SM_Wep_Banner_01` a `05`): se pasan con `tools/props_to_glb.py`, como los escudos.
+- **Modelos sin usar**: la guerrera goblin, el esqueleto soldado 02, el esclavo y los dos fantasmas.
+  Podrían ser cuerpos nuevos en la escalera de vida, o el aspecto de un poder.
 - **La prueba general** (`tools/playtest.mjs`) sigue usando la API vieja de los poderes y se cae al
   arrancar.

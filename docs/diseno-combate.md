@@ -1689,3 +1689,66 @@ o pegándole de costado, dejar que el golpe 3 pase no le saca la gracia al escud
   Botiquín. Cuando la partida viene mal (puerta a la mitad o una vida), la carta forzada es el Botiquín,
   si no está al tope.
 
+## Hecho: cuerpo y poder separados, escalera de vida y balance de las oleadas (28/9/2026)
+
+### Cuerpo y poder
+
+Leandro notó que siempre venía el mismo bicho con el mismo poder. Ahora el **cuerpo** (`EnemyKind`) dice
+vida, velocidad y tamaño, y el **poder** se reparte al azar en cada oleada (`Wave.powers`). Explotar,
+cavar, llevar la bandera, tirar hechizos o tener un aura pasaron a ser poderes: cualquier cuerpo que
+camina y pega puede tenerlos (`behaviorOf`, `canTake`). El alma en pena, el gólem y los chamanes
+conservan su comportamiento propio.
+
+**La escalera de vida**, la de Leandro: goblin 1, goblina 2, orco 3 (el goblin guerrero), esqueleto 4,
+jefe goblin 5 (el que era acorazado), chamán 6, curandero 7, caballero 8 y **gólem chico 10** (el
+modelo del jefe, a 2.1 m). Los chamanes comparten modelo: el pack trae uno solo, y el curandero va
+teñido de verde. Quedaron sin usar la guerrera goblin, el esqueleto soldado 02, el esclavo y los
+fantasmas. Con esta escalera el caballero cae justo con el mejor golpe (8), y el que lo aguanta es el
+gólem chico.
+
+### Poderes nuevos o mudados
+
+- **Explota**: lo que era el goblin kamikaze, sobre cualquiera. Va rojizo y late.
+- **Hechicero** (nuevo, idea de Leandro): se planta a unos 25 m y cada 4.5 s tira un hechizo al puesto
+  donde está el golfista. El piso se marca en rojo apenas sale y el hechizo tarda 1.6 s en caer: alcanza
+  para correrse un puesto. Silenciado no tira. Probado: quedándose quieto le pega; corriéndose, no.
+- **Escudos del pack**: el 1 sigue siendo el de madera; 2 tablones, 3 hueso, 4 escudo rojo, 5 redondo, y
+  **el 10 es la calavera**, que con el mejor golpe en 8 no deja pasar nada de frente (el muro pasó de 99
+  a 10). Salen de `public/models/shields.glb`, armado con Blender 4.4 y `tools/props_to_glb.py`.
+- Íconos nuevos para la bomba, la loma y el hechizo.
+
+### El clon
+
+Tiraba desde donde quedó, pero hacia el mismo lado que el golfista: las pelotas salían paralelas. Ahora
+tira **hacia el mouse**, así que las dos se cruzan donde se apunta (probado: caen a centímetros).
+
+### Balance de las oleadas
+
+`tools/oleadas.mts` mide cada oleada: la vida efectiva (la vida más lo que suman los poderes) dividida
+por el tiempo que hay para sacarla (la aparición más lo que tarda uno en cruzar el campo). Un buen
+jugador sostiene unos 2 por segundo.
+
+Las de antes subían a los saltos: la 4 bajaba, y la 9 saltaba de 1.00 a 1.67 (de 15 a 28 enemigos, con
+dos chamanes, un caballero y escudos por todos lados). La 11 llegaba a 2.9.
+
+Ahora son doce, presentan como mucho dos cosas nuevas cada una (hay un test), y suben parejo:
+
+| Ola | Título | Enemigos | Por segundo | Salto |
+| --- | --- | --- | --- | --- |
+| 1 | Los cuatro palos | 17 | 0.52 | |
+| 2 | Escudos al frente | 16 | 0.64 | +23 % |
+| 3 | La estampida | 19 | 0.70 | +9 % |
+| 4 | Acorazados | 16 | 0.74 | +6 % |
+| 5 | Almas en pena | 18 | 0.84 | +13 % |
+| 6 | Los benditos | 17 | 0.96 | +14 % |
+| 7 | Fantasmas | 17 | 1.07 | +12 % |
+| 8 | La tierra se levanta | 19 | 1.09 | +2 % |
+| 9 | Los chamanes | 18 | 1.22 | +12 % |
+| 10 | Hechiceros | 21 | 1.33 | +9 % |
+| 11 | Bajo la bandera | 23 | 1.56 | +18 % |
+| 12 | El Gólem de roca | 18 | 2.48 | +59 % |
+
+El gólem es el pico a propósito, y la cuenta lo exagera: lo trata como si corriera a la puerta, cuando
+se planta lejos. Su escolta es más chica que la de la oleada anterior. Es una cuenta a ojo, no una
+simulación: sirve para comparar oleadas, no para saber si se gana. Falta jugarla.
+

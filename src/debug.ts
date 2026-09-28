@@ -87,7 +87,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 4;
+const VERSION = 5;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -95,6 +95,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   3: ['grenade', 'wind'],
   // el wedge pasó a 0 / 1 / 2 (el golpe 1 es pifia) y su área bajó un escalón
   4: ['wedge.damage', 'wedge.spread'],
+  // los enemigos pasaron a ser cuerpos con una escalera de vida (goblin 1 ... gólem chico 10)
+  5: ['enemies'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -176,7 +178,7 @@ export function loadBalance(): SavedExtras {
     }
   }
   for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
-    const from = saved.enemies?.[kind];
+    const from = outdated(version, 'enemies') ? undefined : saved.enemies?.[kind];
     if (!from) continue;
     const s = ENEMIES[kind];
     s.hp = from.hp;

@@ -87,11 +87,11 @@ export function startBot(): BotStats {
     }
     // Nadie lo persigue, pero el que le pasa por encima lo atropella. Si uno viene derecho hacia su puesto:
     // palazo si está listo (lo manda 15 m atrás); si no, suelta lo que esté cargando y se corre dos puestos.
-    const threat = gk.horde.enemies.find((e: any) => e.alive && !e.passed && e.state === 'walk' && (e.stats.behavior === 'melee' || e.stats.behavior === 'kamikaze')
+    const threat = gk.horde.enemies.find((e: any) => e.alive && !e.passed && e.state === 'walk' && (e.behavior === 'melee' || e.behavior === 'kamikaze')
       && e.position.z > p.z - 0.5 && e.position.z - p.z < 4.5 && Math.abs(e.position.x - p.x) < 1.8);
     if (threat && pl.atSpot && performance.now() - dodgedAt > 500) {
       dodgedAt = performance.now();
-      if (pl.meleeCooldown <= 0 && pl.mode !== 'swinging' && threat.stats.behavior === 'melee' && dist(threat) < 3.2) {
+      if (pl.meleeCooldown <= 0 && pl.mode !== 'swinging' && threat.behavior === 'melee' && dist(threat) < 3.2) {
         aim(threat.position.x, threat.position.z);
         stats.melee++;
         setTimeout(() => key('ShiftLeft'), 40);
@@ -146,7 +146,7 @@ export function startBot(): BotStats {
     }
 
     // 1) un alma en pena que se le viene encima va primero: corre derecho hacia él, es un tiro fácil
-    let target: any = alive.filter((e) => e.stats.behavior === 'grabber' && dist(e) < 32).sort((a, b) => dist(a) - dist(b))[0] ?? null;
+    let target: any = alive.filter((e) => e.behavior === 'grabber' && dist(e) < 32).sort((a, b) => dist(a) - dist(b))[0] ?? null;
     // 2) si no, al que tenga encima o al más avanzado que se pueda dañar
     if (!target) {
       const hittable = alive.filter((e) => !e.warded && !(e.shieldUp && dist(e) > 6));
@@ -173,7 +173,7 @@ export function startBot(): BotStats {
     // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
     // (en diagonal, no derecho). Se apunta a donde va a estar.
     const speed = target.stats.speed * target.speedMul * (target.chilled ? gk.iceSlow : 1);
-    if (target.stats.behavior === 'grabber' && d > 3) {
+    if (target.behavior === 'grabber' && d > 3) {
       // viene hacia el golfista: se apunta un poco más acá sobre esa misma línea
       const k = Math.max(0.2, 1 - (speed * (0.6 + want)) / d);
       aim(p.x + (target.position.x - p.x) * k, p.z + (target.position.z - p.z) * k);
