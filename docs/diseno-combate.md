@@ -1906,3 +1906,19 @@ Los tres van **del lado del golfista** respecto de la pelota: la pelota y la lí
 lado, así que no las tapa. Solo se ve mientras se carga. En las capturas, «cabeza» fue el que mejor se
 leía sin tapar nada; «pelota» quedaba encima de las piernas hasta correrlo más al costado, y «adelante»
 se lee bien pero queda en medio del campo, donde vienen los enemigos.
+
+## Hecho: sin carga en carrera, íconos con forma propia y el fantasma traslúcido (28/9/2026)
+
+Pedidos de Leandro por voz (vía su asistente):
+
+- **Se sacó «Carga en carrera»**: la mejora y todo lo que la sostenía (empezar la barra corriendo a un
+  puesto, soltar antes de llegar). Se carga solo parado en un puesto con pelota, como antes.
+- **Íconos con forma propia**: casi todos eran un círculo con algo adentro y se distinguían poco. Ahora
+  invencible es una estrella violeta, cura una cruz verde, divino una aureola dorada, el hechizo una
+  llama rosa (antes era violeta como el invencible) y la loma lleva pasto arriba. Las formas ya dicen
+  qué son: sin símbolo adentro, salvo los números y el ∞ de la calavera.
+- **Escudo y fantasma, bien distintos**: el escudo es madera naranja, el blindaje acero oscuro con el
+  número en blanco, y el etéreo un fantasmita blanco. Antes el blindaje (gris claro) y el etéreo
+  (celeste claro) casi no se diferenciaban.
+- **El fantasma, más traslúcido**: el modelo pasó de 55 % a 28 % de opacidad, sin tapar lo de atrás, con
+  un brillo celeste apenas para no perderlo sobre el pasto.

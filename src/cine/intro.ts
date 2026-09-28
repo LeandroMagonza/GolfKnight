@@ -9,8 +9,14 @@ export const INTRO: Script = {
   cast: {
     knight: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Male', height: 1.8 },
     mage: { kind: 'character', model: 'mage', height: 1.68 },
-    goblinFair: { kind: 'character', model: 'dungeon', mesh: 'Character_Goblin_Male', height: 1.25 },
-    skelFair: { kind: 'character', model: 'dungeon', mesh: 'Character_Skeleton_Soldier_01', height: 1.8 },
+    // otros disfrazados de la feria, «sospechosamente buenos»: el mismo caballero del protagonista y su
+    // versión femenina (la Caballera del juego), cada uno con otros colores y otro cuerpo
+    k1: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Male', height: 1.8, look: { armor: 0xc9a54a, accent: 0x2e5fa8, scale: [1.14, 1, 1.12] } },
+    k2: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Male', height: 1.9, look: { armor: 0x55606e, accent: 0x2f7d4a, scale: [0.94, 1, 0.94] } },
+    k3: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Male', height: 1.66, look: { armor: 0xb57a4c, accent: 0x6b3fa0, scale: [1.06, 1, 1.06] } },
+    kf1: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Female', height: 1.7, look: { armor: 0xa9bbd4, accent: 0x1f8a8a, hair: 0xe3c46a, skin: 1, scale: [1, 1, 1] } },
+    kf2: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Female', height: 1.78, look: { armor: 0x3c3c46, accent: 0xb3302e, hair: 0x2a211d, skin: 0.72, scale: [1.08, 1, 1.06] } },
+    kf3: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Female', height: 1.6, look: { armor: 0xc48a78, accent: 0x283f7a, hair: 0xb4481e, skin: 0.9, scale: [0.94, 1, 0.94] } },
     g1: { kind: 'character', model: 'dungeon', mesh: 'Character_Goblin_Male', height: 1.25 },
     g2: { kind: 'character', model: 'dungeon', mesh: 'Character_Goblin_Warrior_Male', height: 1.5 },
     g3: { kind: 'character', model: 'dungeon', mesh: 'Character_Goblin_Male', height: 1.25 },
@@ -34,8 +40,13 @@ export const INTRO: Script = {
       actors: {
         // 12.5 m en 9.5 s: al paso del clip de caminar, sin patinar
         knight: { path: [{ at: 0, x: -12, z: 0.3, face: 90 }, { at: 9.5, x: 0.5, z: 0.3 }], anim: [{ at: 0, clip: 'Walking', loop: true }] },
-        goblinFair: { path: [{ at: 0, x: -4.5, z: -3.2, face: 30 }], anim: [{ at: 0, clip: 'Talking', loop: true }] },
-        skelFair: { path: [{ at: 0, x: -3, z: -3.6, face: -60 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 1.3 }] },
+        // tres grupitos junto a las carpas, charlando
+        kf1: { path: [{ at: 0, x: -9.2, z: -3.2, face: 70 }], anim: [{ at: 0, clip: 'Talking', loop: true }] },
+        k1: { path: [{ at: 0, x: -7.8, z: -3.5, face: -110 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 3 }] },
+        k2: { path: [{ at: 0, x: -4.6, z: -3.3, face: 50 }], anim: [{ at: 0, clip: 'Talking 2', loop: true, from: 0.8 }] },
+        kf2: { path: [{ at: 0, x: -3.1, z: -3.7, face: -60 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 1.3 }] },
+        k3: { path: [{ at: 0, x: -16.6, z: -3.1, face: 70 }], anim: [{ at: 0, clip: 'Talking', loop: true, from: 1.5 }] },
+        kf3: { path: [{ at: 0, x: -15.2, z: -3.6, face: -110 }], anim: [{ at: 0, clip: 'Rallying', loop: true, from: 0.6 }] },
       },
       text: [
         { at: 0.5, until: 3.2, kind: 'caption', text: 'Sábado. Feria medieval.', voice: 'narra-sabado' },

@@ -244,15 +244,14 @@ function curvedPath(club: Club, range: number, loft: number, lift: { speed: numb
 }
 
 function updatePreview(): void {
-  // cargando en carrera también es cargar: la línea toma el color del nivel desde que se aprieta
-  const charging = player.mode === 'charging' || player.preCharging;
+  const charging = player.mode === 'charging';
   const club = player.club;
   const range = shotRange(club);
   const show = started && !ended && player.alive && player.mode !== 'swinging' && !player.grabbedBy;
   previewLine.visible = show;
   landing.visible = show;
   // en carrera la pelota es la del puesto al que va: si no tuviera, la carga ya se habría cortado
-  const ballHere = hasBallHere() || player.preCharging;
+  const ballHere = hasBallHere();
   teeBall.visible = show && player.mode === 'charging' && ballHere;
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
@@ -747,7 +746,6 @@ function applyCard(card: Card): void {
 function applyPerks(): void {
   BALLS.max = 3 + (perks.extraBall ?? 0);
   abilities.secondWind.owned = !!perks.secondWind;
-  player.runCharge = !!perks.runCharge;
   horde.mastery.ice = !!perks.masteryIce;
   horde.mastery.fire = !!perks.masteryFire;
   horde.mastery.lightning = !!perks.masteryLightning;
@@ -1020,16 +1018,12 @@ const input = new Input({
   swingStart() {
     if (!started || paused || ended || cardOpen) return;
     useQuiver();
-    if (!player.atSpot) player.preCharge();
-    else player.startSwing();
+    player.startSwing();
   },
   swingRelease() {
     if (started && !paused && !ended && player.mode === 'charging') {
       audio.whoosh(player.meter.power);
       player.releaseSwing();
-    } else if (started && !paused && !ended && player.preRelease()) {
-      // soltó corriendo: el tiro queda clavado ahí y sale al llegar
-      audio.chargeTick(qualityOf(player.meter.power));
     }
   },
   swingCancel() {
@@ -1140,9 +1134,6 @@ async function makePlayer(skin: Skin): Promise<Player> {
     return i >= 0 && tees.take(i);
   };
   p.canStart = () => hasBallHere();
-  p.canPreStart = () => tees.hasBall(p.spotIndex);
-  p.runCharge = !!perks.runCharge;
-  p.onArrivalRelease = (power) => audio.whoosh(power);
   // la pifia: un golpe que con ese palo no pega nada (el golpe 1 del wedge) no sale. La pelota se queda
   // en el puesto y cuenta como errar
   p.duffs = (club, quality) => {
@@ -1442,8 +1433,6 @@ function frame(): void {
     updateAim();
     const active = started && !ended;
     if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
-    // carga en carrera: con el click apretado, la barra arranca apenas va hacia un puesto con pelota
-    else if (active && input.swingHeld && player.mode === 'free' && !player.atSpot) player.preCharge();
     player.update(dt);
     if (active) updateWaves(dt);
     if (started) {

@@ -171,7 +171,7 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.quadraticCurveTo(cx + 11, 25, cx, 30);
       ctx.quadraticCurveTo(cx - 11, 25, cx - 12, 15);
       ctx.closePath();
-      ctx.fillStyle = b.icon === 'wall' ? '#8a4fe0' : '#b07a3c';
+      ctx.fillStyle = b.icon === 'wall' ? '#8a4fe0' : '#e08a2c';
       break;
     case 'armor':
       // blindaje: una placa de acero con los hombros marcados
@@ -182,13 +182,43 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.lineTo(cx + 10, 28);
       ctx.lineTo(cx - 10, 28);
       ctx.closePath();
-      ctx.fillStyle = '#aeb8c4';
+      ctx.fillStyle = '#56626f';
       break;
-    case 'ward':
+    case 'ward': {
+      // invencible: una estrella violeta de cinco puntas
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const r = i % 2 ? 6 : 15;
+        if (i) ctx.lineTo(cx + r * Math.cos(a), 17 + r * Math.sin(a));
+        else ctx.moveTo(cx + r * Math.cos(a), 17 + r * Math.sin(a));
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#b26bff';
+      break;
+    }
     case 'heal':
+      // cura: una cruz verde, la de la enfermería
+      ctx.moveTo(cx - 4.5, 3);
+      ctx.lineTo(cx + 4.5, 3);
+      ctx.lineTo(cx + 4.5, 11.5);
+      ctx.lineTo(cx + 13, 11.5);
+      ctx.lineTo(cx + 13, 20.5);
+      ctx.lineTo(cx + 4.5, 20.5);
+      ctx.lineTo(cx + 4.5, 29);
+      ctx.lineTo(cx - 4.5, 29);
+      ctx.lineTo(cx - 4.5, 20.5);
+      ctx.lineTo(cx - 13, 20.5);
+      ctx.lineTo(cx - 13, 11.5);
+      ctx.lineTo(cx - 4.5, 11.5);
+      ctx.closePath();
+      ctx.fillStyle = '#3fd463';
+      break;
     case 'divine':
-      ctx.arc(cx, 16, 12.5, 0, Math.PI * 2);
-      ctx.fillStyle = b.icon === 'ward' ? '#b26bff' : b.icon === 'heal' ? '#4fcf73' : '#ffd34d';
+      // divino: una aureola dorada, un anillo acostado
+      ctx.ellipse(cx, 16, 14, 7.5, 0, 0, Math.PI * 2);
+      ctx.moveTo(cx + 8, 16);
+      ctx.ellipse(cx, 16, 8, 3.5, 0, 0, Math.PI * 2, true);
+      ctx.fillStyle = '#ffd34d';
       break;
     case 'ethereal':
       // fantasmita: cabeza redonda y borde de abajo ondulado
@@ -199,7 +229,7 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.lineTo(cx - 5.5, 24);
       ctx.lineTo(cx - 11, 28);
       ctx.closePath();
-      ctx.fillStyle = '#cfe9ff';
+      ctx.fillStyle = '#ffffff';
       break;
     case 'bomb':
       // bomba: bola negra con la mecha prendida
@@ -222,15 +252,25 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.moveTo(cx - 14, 27);
       ctx.quadraticCurveTo(cx, -2, cx + 14, 27);
       ctx.closePath();
-      ctx.fillStyle = '#8a6a3e';
+      ctx.fillStyle = '#6b4a2a';
+      ctx.fill();
+      ctx.stroke();
+      // pasto arriba
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, 13);
+      ctx.quadraticCurveTo(cx, 3, cx + 8, 13);
+      ctx.quadraticCurveTo(cx, 9, cx - 8, 13);
+      ctx.fillStyle = '#5bd05b';
       break;
     case 'spell':
-      // hechizo: bola de fuego violeta
-      ctx.arc(cx, 17, 10, 0, Math.PI * 2);
-      ctx.moveTo(cx + 7, 10);
-      ctx.lineTo(cx + 14, 2);
-      ctx.lineTo(cx + 10, 13);
-      ctx.fillStyle = '#d24dff';
+      // hechizo: una llama rosa, en punta para arriba
+      ctx.moveTo(cx, 2);
+      ctx.bezierCurveTo(cx + 5, 10, cx + 13, 14, cx + 11, 22);
+      ctx.bezierCurveTo(cx + 9, 29, cx - 9, 29, cx - 11, 22);
+      ctx.bezierCurveTo(cx - 12, 16, cx - 6, 14, cx - 4, 8);
+      ctx.bezierCurveTo(cx - 2, 12, cx, 13, cx, 2);
+      ctx.closePath();
+      ctx.fillStyle = '#ff4fa3';
       break;
     case 'dodge':
       // esquiva: una flecha doble, de costado a costado
@@ -259,7 +299,7 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
   ctx.fill();
   ctx.stroke();
   // el dibujo de adentro: el número, o un símbolo para los que no llevan número
-  const mark = b.value !== undefined ? String(b.value) : b.icon === 'wall' ? '∞' : b.icon === 'heal' ? '+' : b.icon === 'ward' ? '✦' : b.icon === 'divine' ? '✧' : '';
+  const mark = b.value !== undefined ? String(b.value) : b.icon === 'wall' ? '∞' : '';
   if (mark) {
     ctx.font = `bold ${mark.length > 1 ? 14 : 18}px sans-serif`;
     ctx.textAlign = 'center';
@@ -420,8 +460,10 @@ export class Enemy {
       const tint = mods.armor ? STEEL_TINT : mods.explode ? BOMB_TINT : mods.aura === 'heal' ? HEAL_TINT : stats.tint;
       if (tint) mat.color.setHex(tint);
       if (this.ethereal) {
+        // bien traslúcido y apenas celeste: se ve a través de él
         mat.transparent = true;
-        mat.opacity = 0.55;
+        mat.opacity = 0.28;
+        mat.depthWrite = false;
       }
       mesh.material = mat;
       this.materials.push({ mat, color: mat.color.clone() });
@@ -987,7 +1029,8 @@ export class Enemy {
       this.knock.set(0, 0, 0);
       for (const { mat } of this.materials) {
         mat.transparent = true;
-        mat.opacity = 0.4;
+        // el que ya pasó se desvanece; el fantasma ya era más traslúcido que eso
+        mat.opacity = Math.min(mat.opacity, 0.4);
         mat.needsUpdate = true;
       }
       this.refreshBar();
@@ -1260,6 +1303,8 @@ export class Enemy {
       else if (powder) mat.emissive.setRGB(0.4 * powder, 0.02, 0.02);
       else if (this.chilled) mat.emissive.setHex(0x0c2a3c);
       else if (ward) mat.emissive.setRGB(0.45 * ward, 0.12 * ward, 0.8 * ward);
+      // el fantasma brilla apenas celeste, así se lo ve aunque sea casi transparente
+      else if (this.ethereal && !pulse) mat.emissive.setRGB(0.12, 0.2, 0.3);
       else mat.emissive.setRGB(pulse * 0.7, pulse * 0.08, 0);
       mat.emissiveIntensity = flash ? 0.6 : 1;
       if (this.frozen) mat.color.copy(color).lerp(FROZEN_TINT, 0.7);

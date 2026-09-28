@@ -7,8 +7,22 @@ export type Vec3 = [number, number, number];
 /** Quién puede aparecer: personajes animados o utilería armada por código. */
 export type Cast = Record<string, CastEntry>;
 export type CastEntry =
-  | { kind: 'character'; model: 'dungeon' | 'mage'; mesh?: string; height: number }
+  | { kind: 'character'; model: 'dungeon' | 'mage'; mesh?: string; height: number; look?: Look }
   | { kind: 'prop'; build: PropKind };
+/**
+ * Variar a un personaje de Synty para que no parezca un clon. Los colores se aplican sobre su copia del
+ * atlas de paleta y conservan la luz y sombra de cada tono: `armor` pinta los grises (el metal), `accent`
+ * los rojos (tela y detalles), `hair` el pelo y `skin` aclara u oscurece la piel (1 = igual).
+ * `scale` es ancho, alto y profundidad, encima de `height`.
+ */
+export interface Look {
+  armor?: number;
+  accent?: number;
+  hair?: number;
+  skin?: number;
+  scale?: [number, number, number];
+}
+
 export type PropKind = 'car' | 'carBlue' | 'golfBag' | 'club';
 
 export type SetId = 'feria' | 'estacionamiento' | 'negro' | 'circulo';

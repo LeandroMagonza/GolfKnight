@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { keepOnlyMesh, skinnedHeight } from '../game/models';
+import { applyLook } from './looks';
 import { buildProp, buildSets, type CineSet, type Params, type Prop } from './sets';
 import type { ActorCue, AnimKey, CamKey, LookAt, PathKey, Ramp, Script, SetId, Shot, TextCue } from './types';
 
@@ -79,6 +80,7 @@ export class CinePlayer {
         mat.roughness = 0.85;
       });
       model.scale.multiplyScalar(entry.height / skinnedHeight(model));
+      if (entry.look) applyLook(model, entry.look);
       root.add(model);
       const mixer = new THREE.AnimationMixer(model);
       const actions = new Map<string, THREE.AnimationAction>();

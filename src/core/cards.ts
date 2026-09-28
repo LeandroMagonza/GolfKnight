@@ -11,7 +11,7 @@
 import { ABILITIES, ABILITY_LIST, elementOf, ELEMENT_INFO, MAX_LEVEL, SLOTS, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
-  | 'quickWrist' | 'sweetSpot' | 'evenSwing' | 'rhythm' | 'hotStreak' | 'runCharge' | 'masonStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
+  | 'quickWrist' | 'sweetSpot' | 'evenSwing' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
   | 'masteryIce' | 'masteryFire' | 'masteryLightning';
 
 export interface Perk {
@@ -80,7 +80,6 @@ export const PERKS: Record<PerkId, Perk> = {
   evenSwing: { id: 'evenSwing', name: 'Swing parejo', title: 'tramos iguales', max: 3, color: 0xffa3d1, hint: 'Cada nivel acerca un tercio los tiempos de la barra a partes iguales: el débil se acorta y el medio y el fuerte se alargan. Al tercero, los tres duran lo mismo. Las otras mejoras de la barra van encima' },
   rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada tiro seguido sin errar te hace llegar al golpe 3 un 10 % antes, hasta tres, y ahí se queda. Un tiro que no le pega a nadie corta la racha' },
   hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Después de 4 tiros seguidos sin errar, los golpes de palo que pegan 1 pasan a pegar 2, hasta que errás. Las habilidades no cuentan' },
-  runCharge: { id: 'runCharge', name: 'Carga en carrera', title: 'cargás corriendo', max: 1, color: 0x9fd8ff, hint: 'Podés empezar a cargar mientras corrés a un puesto con pelota: la barra arranca cuando apretás. Si soltás antes de llegar, el tiro sale apenas llegás' },
   masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada tiro que mata a dos suma 1, a tres suma 2, y así. Cada 5, la puerta +1. No se corta: se va juntando. Las habilidades no cuentan' },
   medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al terminar cada oleada, la puerta +1 y vos +1, por cada vez que lo tomaste' },
   giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'cada 8 bajas', max: 1, color: 0xff2d3c, hint: 'Cada 8 bajas, el próximo tiro arranca ya clavado en el golpe perfecto: soltás cuando quieras' },

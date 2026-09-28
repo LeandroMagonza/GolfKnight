@@ -158,9 +158,7 @@ llega más tarde), Swing parejo (hasta 3 niveles: cada uno acerca un tercio los 
 partes iguales, y al tercero débil, medio y fuerte duran lo mismo; las otras mejoras de la barra van
 encima, así que el fuerte puede terminar durando más que el débil), Ritmo (cada tiro seguido **sin errar** te hace llegar antes
 al golpe 3, hasta tres, y ahí se queda hasta que errás), En racha (después de 4 tiros seguidos sin errar,
-los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), Carga en
-carrera (la barra arranca cuando apretás, aunque estés corriendo a un puesto con pelota; si soltás antes
-de llegar, sale al llegar), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 5, la puerta +1; no se corta),
+los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 5, la puerta +1; no se corta),
 Botiquín (hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
 Carcaj (si vas a pegar sin pelota, te aparece una; una cada 12 s), Pelota extra (los guardias mantienen
 una más), Segundo aire (apretar una habilidad que recarga la tira igual, y recarga él 30 s).
@@ -234,7 +232,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
 | **Divino** | el primer golpe no le entra; se le recarga a los 5 s |
-| **Etéreo** | ningún golpe le saca más de 1: hay que pegarle muchas veces. Medio transparente |
+| **Etéreo** | ningún golpe le saca más de 1: hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
 | **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |
@@ -244,9 +242,11 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.
-- **Se ven en íconos** antes de la vida: escudo (con cuánto resta), blindaje (con su número), calavera
-  (violeta, ∞), las auras, la bandera, la bomba, la loma, el hechizo, el etéreo (con su 1), el divino
-  y la esquiva (una flecha doble; estos dos, apagados mientras recargan). Lo que la granada silencia
+- **Se ven en íconos** antes de la vida, cada uno con su forma y su color: escudo de madera naranja (con
+  cuánto resta), blindaje de acero oscuro (con su número), calavera (escudo violeta, ∞), invencible
+  (estrella violeta), cura (cruz verde), divino (aureola dorada), bandera, bomba, loma (con pasto),
+  hechizo (llama rosa), etéreo (fantasmita blanco, con su 1) y esquiva (flecha doble). El divino y la
+  esquiva se apagan mientras recargan. Lo que la granada silencia
   (escudo, blindaje, auras, bandera, loma, hechizo, esquiva) se tacha con un prohibido rojo mientras dura.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
 - **Diez oleadas**. La primera trae los cuerpos de 1 a 4 (goblin, goblina, orco, esqueleto) sin poderes.
