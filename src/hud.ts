@@ -280,6 +280,13 @@ export class Hud {
     this.hint.textContent = queued ? `Próximo: ${queued.name} · ${queued.hint}` : hint || club.hint;
   }
 
+  /** Pone el arco en un punto de la pantalla (el centro del arco). */
+  placeMeter(x: number, y: number): void {
+    const w = 60;
+    this.meter.style.left = `${Math.min(innerWidth - w, Math.max(w, x)).toFixed(0)}px`;
+    this.meter.style.top = `${Math.min(innerHeight - 40, Math.max(40, y)).toFixed(0)}px`;
+  }
+
   /** La aguja del arco: `side` dice por qué lado va (-1 izquierda, 1 derecha; ver SwingMeter.side). */
   setMeter(charging: boolean, power: number, locked: boolean, label: string, side = -1): void {
     this.meter.classList.toggle('on', charging);

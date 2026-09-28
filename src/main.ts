@@ -21,7 +21,7 @@ import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
 import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
-import { loadVisual, Visuals } from './game/visuals';
+import { loadVisual, VISUAL, Visuals } from './game/visuals';
 import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
 import { DebugPanel, loadBalance } from './debug';
 import { Hud, type PerkChip } from './hud';
@@ -262,6 +262,7 @@ function updatePreview(): void {
   const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
   hud.setMarks(...qualityMarks());
   hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`, player.meter.side);
+  if (charging) placeMeter();
   if (!show) return;
   player.teePosition(tee);
   // con relieve la línea se corta donde el tiro toca el terreno: así se ve cuándo una loma tapa
@@ -301,6 +302,27 @@ function updatePreview(): void {
 }
 
 // ---------- eventos del juego ----------
+/**
+ * El arco de carga va donde se mira mientras se carga, no abajo en el HUD: al costado de la cabeza, de la
+ * pelota o del camino del tiro, según VISUAL.meterAt (panel B, Visual). Siempre del lado del golfista:
+ * así no tapa la pelota ni la línea de tiro, que salen del otro lado.
+ */
+function placeMeter(): void {
+  const ballAt = player.teePosition(new THREE.Vector3());
+  const ball = toScreen(ballAt, 0.1);
+  const head = toScreen(player.position, 2.1);
+  // de qué lado de la pelota está el golfista, en pantalla
+  const away = Math.sign(head.x - ball.x) || -1;
+  if (VISUAL.meterAt === 'cabeza') {
+    hud.placeMeter(head.x + away * 62, head.y);
+  } else if (VISUAL.meterAt === 'pelota') {
+    hud.placeMeter(ball.x + away * 170, ball.y - 40);
+  } else {
+    const ahead = toScreen(ballAt.clone().addScaledVector(player.aimDir, 9), 0.4);
+    hud.placeMeter(ahead.x + away * 90, ahead.y);
+  }
+}
+
 function toScreen(pos: THREE.Vector3, height: number): { x: number; y: number } {
   const v = new THREE.Vector3(pos.x, pos.y + height, pos.z).project(camera);
   return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
@@ -1481,6 +1503,8 @@ addEventListener('resize', () => {
   get aim() { return [aimPoint.x, aimPoint.z].map((v) => +v.toFixed(2)); },
   get fps() { const t = performance.now(); return frameTimes.filter((x) => t - x < 1000).length; },
   /** Píxel de pantalla que corresponde a un punto del piso, para apuntar con el mouse en los tests. */
+  /** Lo visual del panel B (sombras, luz, dónde va el arco de carga). */
+  get visual() { return VISUAL; },
   screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, heightAt(x, z), z), 0); },
   heightAt,
   spawn(kind: EnemyKind, x: number, z: number, mods?: EnemyMods) { return horde.spawn(kind, new THREE.Vector3(x, 0, z), mods); },

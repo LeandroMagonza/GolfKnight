@@ -1891,3 +1891,18 @@ Pedido: que en la de los escudos ya haya distintos niveles, y que el último ten
   con la granada.
 - La oleada quedó más liviana (15 enemigos, cada 2.4 s) para que el salto desde la primera no pase del
   30 %. La cuenta de `tools/oleadas.mts` exagera la calavera, que es uno solo.
+
+### El arco va donde se mira (28/9/2026, más tarde)
+
+Pedido de Leandro: el arco no va abajo en el HUD sino cerca de donde pega el golfista, donde está
+mirando mientras carga. Quedó con tres lugares elegibles en el panel B, pestaña Visual (`VISUAL.meterAt`,
+se guarda con lo visual):
+
+- **cabeza** (el de fábrica): al costado de la cabeza del golfista;
+- **pelota**: al costado de la pelota, un poco más arriba;
+- **adelante**: unos 9 m adelante sobre el camino del tiro.
+
+Los tres van **del lado del golfista** respecto de la pelota: la pelota y la línea de tiro salen del otro
+lado, así que no las tapa. Solo se ve mientras se carga. En las capturas, «cabeza» fue el que mejor se
+leía sin tapar nada; «pelota» quedaba encima de las piernas hasta correrlo más al costado, y «adelante»
+se lee bien pero queda en medio del campo, donde vienen los enemigos.

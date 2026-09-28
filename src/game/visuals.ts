@@ -59,7 +59,16 @@ export const SHADOW_SIZES = ['1024', '2048', '4096'] as const;
 const DAY_TRANSITION = 5;
 
 /** Todo lo que la pestaña Visual toca y guarda. */
+/**
+ * Dónde va el arco de carga, en pantalla: al costado de la **cabeza** del golfista, al costado de la
+ * **pelota**, o **adelante**, sobre el camino del tiro. Siempre del lado del golfista, para no tapar la
+ * pelota ni la línea.
+ */
+export const METER_SPOTS = ['cabeza', 'pelota', 'adelante'] as const;
+export type MeterSpot = (typeof METER_SPOTS)[number];
+
 export const VISUAL = {
+  meterAt: 'cabeza' as MeterSpot,
   shadows: true,
   shadowSize: '2048' as (typeof SHADOW_SIZES)[number],
   tone: 'ACES' as Tone,

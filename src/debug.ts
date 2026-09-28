@@ -16,7 +16,7 @@ import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, hasArea, IRON_MODES
 import type { ChargeTimes } from './core/swing';
 import { COURSES } from './core/terrain';
 import { ENEMIES, GEOMANCER, HEAL_AURA, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
-import { LIGHTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type Tone } from './game/visuals';
+import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
 export interface DebugFlags {
   /** El golfista no recibe daño. */
@@ -982,6 +982,12 @@ export class DebugPanel {
       this.button('Todo apagado (como antes)', () => { Object.assign(VISUAL, VISUAL_OFF); applied(); paintAll(); }, 'Sin sombras, sin corrección de color, sol de mediodía, sin contorno ni brillo'),
     );
     el.append(heading('Visual'), fps, all, note('Nada de esto cambia cómo se juega. Se guarda aparte del balance: «Restaurar» de abajo no lo toca.'));
+
+    el.append(heading('Arco de carga'), choice('dónde va', METER_SPOTS, () => VISUAL.meterAt, (v: MeterSpot) => { VISUAL.meterAt = v; }, {
+      cabeza: 'Al costado de la cabeza del golfista',
+      pelota: 'Al costado de la pelota, del lado del golfista',
+      adelante: 'Unos metros adelante, al costado del camino del tiro',
+    }), note('Solo se ve mientras cargás. Va siempre del lado del golfista, para no tapar la pelota ni la línea de tiro.'));
 
     el.append(heading('Sombras'), this.row(toggle('Sombras del sol', 'shadows')), choice('resolución', SHADOW_SIZES, () => VISUAL.shadowSize, (v) => { VISUAL.shadowSize = v; }), note(
       'El sol proyecta sombra de verdad: los personajes quedan parados en el piso y las lomas se leen solas. Con sombras se apaga el círculo oscuro de abajo de cada enemigo. '

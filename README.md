@@ -46,8 +46,11 @@ decir una sola cosa:
   de apretar, y dura 0.06 s en cada pasada. Después del tope rebota por todo el rango y vuelve a pasar
   por el fuerte, que dura otra vez lo mismo. Las mejoras mueven esos tiempos (ver más abajo). La barra
   **no tiene nada que ver con la distancia**: eso lo decide el mouse.
-- **La barra se ve como un arco**, entre los palos y las habilidades, como en los juegos de golf: verde
-  (débil) en los dos bordes, amarillo (medio) y rojo (fuerte) arriba en el medio. La aguja sube por la
+- **La barra se ve como un arco**, como en los juegos de golf, y **va donde se mira mientras se carga**:
+  al costado de la cabeza del golfista (o, a elegir en el panel B > Visual, al costado de la pelota o
+  unos metros adelante sobre el tiro), siempre del lado del golfista para no tapar la pelota ni la línea.
+  Solo aparece cargando. Verde (débil) en los dos bordes, amarillo (medio) y rojo (fuerte) arriba en el
+  medio. La aguja sube por la
   izquierda, pasa por arriba en el tope y el rebote la baja por la derecha; al volver a subir cruza de
   nuevo, y así.
 - La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad. El anillo marca
