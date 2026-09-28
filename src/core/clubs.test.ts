@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  areaDamageFor, bandOf, BAND_LIMITS, CHARGE_TIME, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
+  areaDamageFor, bandOf, BAND_LIMITS, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
   isLob, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM } from './swing';
@@ -149,12 +149,6 @@ describe('calidad del golpe', () => {
 });
 
 describe('reglas de los palos', () => {
-  it('los cuatro palos cargan en el mismo tiempo', () => {
-    // la barra mide **timing**: si cada palo tuviera su ritmo, elegir palo sería también elegir qué tan
-    // difícil es clavar el golpe, que es otra decisión. El putter era el que se salía de la regla
-    for (const id of CLUB_ORDER) expect(CLUBS[id].chargeTime, id).toBe(CHARGE_TIME);
-  });
-
   it('el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie', () => {
     // el hierro es el único que hace las dos cosas, así que es el único con dos tablas
     expect(CLUBS.iron.areaDamage).toBeDefined();

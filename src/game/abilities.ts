@@ -13,7 +13,7 @@ import {
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
 import { PERK_NUMBERS } from '../core/cards';
 import type { ClubId } from '../core/clubs';
-import { heightAt, relief } from '../core/terrain';
+import { heightAt, relief, terrainOn } from '../core/terrain';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import { FIELD_HALF_WIDTH, GATE_Z } from './world';
@@ -235,7 +235,7 @@ export class Abilities {
     const startH = heightAt(from.x, from.z);
     // lo que cae se calcula para caer en el punto apuntado aunque esté más alto o más bajo; lo rasante
     // sale siempre igual, y si hay una loma en el medio, choca
-    const rise = flight === FLAT || !relief.on ? 0 : heightAt(from.x + dir.x * range, from.z + dir.z * range) - startH;
+    const rise = flight === FLAT || !terrainOn() ? 0 : heightAt(from.x + dir.x * range, from.z + dir.z * range) - startH;
     const speed = launchSpeed(range, angle, flight.gravity, rise);
     const state = launchWith({ x: from.x, y: startH + BALL_RADIUS, z: from.z }, dir.x, dir.z, speed, angle);
     const color = ABILITIES[id].color;
@@ -435,7 +435,7 @@ export class Abilities {
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
       const wind = ABILITIES[ball.id].kind === 'wind';
       for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
-        const landed = stepBall(s, dt / steps, ball.flight.bounce, relief.on ? heightAt : undefined);
+        const landed = stepBall(s, dt / steps, ball.flight.bounce, terrainOn() ? heightAt : undefined);
         if (s.pos.z < GATE_Z - 0.4 && s.vel.z < 0) {
           s.pos.z = GATE_Z - 0.4;
           s.vel.z *= -0.5;

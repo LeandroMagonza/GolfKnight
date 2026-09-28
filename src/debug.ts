@@ -12,10 +12,10 @@
 // e incorporarlo al juego.
 import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, ELEMENTS, LEVELS, MAX_LEVEL, SLOTS, VULNERABLE, type AbilityId } from './core/abilities';
 import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from './core/cards';
-import { BAND_LIMITS, BAND_NAMES, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
-import { RISE_CURVE } from './core/swing';
+import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
+import type { ChargeTimes } from './core/swing';
 import { COURSES } from './core/terrain';
-import { ENEMIES, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
+import { ENEMIES, GEOMANCER, HEAL_AURA, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
 import { LIGHTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type Tone } from './game/visuals';
 
 export interface DebugFlags {
@@ -31,6 +31,8 @@ export interface DebugFlags {
  */
 const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
+  carga: CHARGE as unknown as Record<string, number>,
+  curandero: HEAL_AURA, geomante: GEOMANCER,
 };
 
 export interface DebugHooks {
@@ -66,6 +68,8 @@ export interface DebugHooks {
   applyVisual(): void;
   /** Cuadros por segundo del último segundo. */
   fps(): number;
+  /** Los tiempos de la barra con las mejoras que tiene ahora. */
+  timing(): ChargeTimes;
 }
 
 /**
@@ -83,12 +87,14 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 3;
+const VERSION = 4;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
   // la granada creció y se quedó con el silencio; el vendaval lo perdió
   3: ['grenade', 'wind'],
+  // el wedge pasó a 0 / 1 / 2 (el golpe 1 es pifia) y su área bajó un escalón
+  4: ['wedge.damage', 'wedge.spread'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -133,13 +139,13 @@ export function loadBalance(): SavedExtras {
     const from = saved.clubs?.[id];
     if (!from) continue;
     const club = CLUBS[id];
-    for (const k of ['minRange', 'maxRange', 'chargeTime', 'fixedRange'] as const) {
+    for (const k of ['minRange', 'maxRange', 'fixedRange'] as const) {
       if (outdated(version, k)) continue;
       if (typeof from[k] === 'number') club[k] = from[k];
     }
-    if (from.spread?.length === club.spread.length) club.spread = from.spread;
+    if (from.spread?.length === club.spread.length && !outdated(version, `${id}.spread`)) club.spread = from.spread;
     if (from.rollFriction?.length && club.rollFriction) club.rollFriction = from.rollFriction;
-    if (from.damage) club.damage = from.damage;
+    if (from.damage && !outdated(version, `${id}.damage`)) club.damage = from.damage;
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
   }
   if (saved.iron && IRON_MODES[saved.iron]) setIronMode(saved.iron);
@@ -187,7 +193,7 @@ export function saveBalance(extras: SavedExtras): void {
   for (const id of CLUB_ORDER) {
     const c = CLUBS[id];
     out.clubs![id] = {
-      minRange: c.minRange, maxRange: c.maxRange, spread: c.spread, chargeTime: c.chargeTime,
+      minRange: c.minRange, maxRange: c.maxRange, spread: c.spread,
       fixedRange: c.fixedRange, damage: c.damage,
       ...(c.rollFriction ? { rollFriction: c.rollFriction } : {}),
       ...(c.areaDamage ? { areaDamage: c.areaDamage } : {}),
@@ -251,21 +257,11 @@ function heading(text: string): HTMLElement {
   return h;
 }
 
-/**
- * En qué segundo de la carga empieza un nivel de golpe. La barra sube como `(t / lleno) ^ RISE_CURVE`,
- * así que el umbral, que está en potencia, se pasa a tiempo con la raíz: de ahí sale que los niveles de
- * arriba duren mucho menos, aunque los porcentajes estén repartidos parejo.
- */
-function levelStart(chargeTime: number, level: number): number {
-  return chargeTime * Math.pow(QUALITY_FROM[level], 1 / RISE_CURVE);
-}
-
-/** Cuánto dura cada nivel de golpe con este palo, en segundos. */
-function levelDurations(club: Club): number[] {
-  return Array.from({ length: QUALITY_LEVELS }, (_, q) => {
-    const to = q + 1 < QUALITY_LEVELS ? levelStart(club.chargeTime, q + 1) : club.chargeTime;
-    return to - levelStart(club.chargeTime, q);
-  });
+/** Los tiempos de la barra en una línea, con el reparto en porcentaje. */
+function timingText(t: ChargeTimes): string {
+  const total = t.weak + t.mid + t.strong;
+  const pct = (v: number) => `${Math.round((v / total) * 100)} %`;
+  return `débil ${t.weak.toFixed(2)} s (${pct(t.weak)}) · medio ${t.mid.toFixed(2)} s (${pct(t.mid)}) · fuerte ${t.strong.toFixed(3)} s (${pct(t.strong)}) · el fuerte abre a ${(t.weak + t.mid).toFixed(2)} s`;
 }
 
 function note(text: string): HTMLElement {
@@ -291,10 +287,13 @@ const LABELS: Record<string, string> = {
 
 /** Los números de cada mejora: de qué tabla y con qué nombre. */
 const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, string, string][]>> = {
-  quickWrist: [[PERK_NUMBERS, 'quickWrist', 'el tramo de abajo tarda ×']],
-  sweetSpot: [[PERK_NUMBERS, 'sweetSpot', 'perfecto más ancho ×']],
+  quickWrist: [[PERK_NUMBERS, 'quickWrist', 'débil y medio tardan ×']],
+  sweetSpot: [[PERK_NUMBERS, 'sweetSpot', 'el fuerte dura ×']],
+  evenSwing: [[PERK_NUMBERS, 'evenSwingStep', 'se acerca a tercios, por nivel']],
+  medkit: [[PERK_NUMBERS, 'medkitGate', 'puerta + por nivel'], [PERK_NUMBERS, 'medkitPlayer', 'vida + por nivel']],
   rhythm: [[PERK_NUMBERS, 'rhythmStep', 'más rápido por tiro'], [PERK_NUMBERS, 'rhythmMax', 'hasta tiros']],
-  masonStreak: [[PERK_NUMBERS, 'masonStreak', 'tiros seguidos']],
+  hotStreak: [[PERK_NUMBERS, 'hotStreakShots', 'tiros sin errar'], [PERK_NUMBERS, 'hotStreakAdd', 'daño de más'], [PERK_NUMBERS, 'hotStreakCap', 'sin pasar de']],
+  masonStreak: [[PERK_NUMBERS, 'masonStreak', 'bajas de más para curar']],
   giftPerfect: [[PERK_NUMBERS, 'giftPerfect', 'cada bajas']],
   quiver: [[PERK_NUMBERS, 'quiverCooldown', 'una cada s']],
   secondWind: [[PERK_NUMBERS, 'secondWindCooldown', 'recarga s']],
@@ -315,7 +314,8 @@ export class DebugPanel {
   private camLine: HTMLElement | null = null;
   private fpsLine: HTMLElement | null = null;
   /** Las casillas que muestran cuánto dura cada nivel del golpe: no se escriben, se calculan. */
-  private readonly chargeCells: { td: HTMLTableCellElement; club: Club; level: number }[] = [];
+  /** La línea que muestra los tiempos con las mejoras de ahora. */
+  private timingLine: HTMLElement | null = null;
   private readonly pages = new Map<Tab, HTMLElement>();
   private readonly tabButtons = new Map<Tab, HTMLButtonElement>();
   private modal: HTMLElement | null = null;
@@ -331,12 +331,7 @@ export class DebugPanel {
       const c = this.hooks.camera();
       this.camLine.textContent = `inclinación ${c.pitch.toFixed(0)}° · altura ${c.rise >= 0 ? '+' : ''}${c.rise.toFixed(1)} m · distancia ${c.dist.toFixed(1)} m`;
     }
-    for (const { td, club, level } of this.chargeCells) {
-      const from = levelStart(club.chargeTime, level);
-      const to = level + 1 < QUALITY_LEVELS ? levelStart(club.chargeTime, level + 1) : club.chargeTime;
-      td.textContent = `${(to - from).toFixed(2)} s`;
-      td.title = `de ${from.toFixed(2)} s a ${to.toFixed(2)} s desde que apretás`;
-    }
+    if (this.timingLine) this.timingLine.textContent = `Con tus mejoras: ${timingText(this.hooks.timing())}`;
   }
 
   constructor(private readonly hooks: DebugHooks) {
@@ -592,41 +587,34 @@ export class DebugPanel {
 
   // ---- carga: cuánto dura cada nivel del golpe ----
   private buildCharge(el: HTMLElement): void {
-    el.append(heading('Cuánto dura cada nivel del golpe'));
-    const charge = document.createElement('table');
-    const chargeHead = charge.insertRow();
-    for (const h of ['', 'barra llena', 'golpe 1', 'golpe 2', 'golpe 3']) {
-      const th = document.createElement('th');
-      th.textContent = h;
-      if (!h) th.className = 'l';
-      chargeHead.appendChild(th);
-    }
-    for (const id of CLUB_ORDER) {
-      const club = CLUBS[id];
-      const row = charge.insertRow();
-      cell(row, club.name, 'l');
-      cell(row, this.field(() => club.chargeTime, (v) => { club.chargeTime = Math.max(0.1, v); }, 0.05)).title = 'segundos que tarda la barra en llegar arriba del todo';
-      // cuánto dura cada nivel, en segundos: sale de la barra llena y de los umbrales de abajo
-      for (let q = 0; q < QUALITY_LEVELS; q++) this.chargeCells.push({ td: cell(row, '', 'l'), club, level: q });
-    }
-    el.append(charge);
+    el.append(heading('Cuánto dura cada tramo de la barra'));
+    const refresh = () => this.hooks.refreshPerks();
+    const times = this.numbers([
+      ['débil', () => CHARGE.weak, (v) => { CHARGE.weak = Math.max(0.01, v); refresh(); }, 0.01, 's desde que apretás'],
+      ['medio', () => CHARGE.mid, (v) => { CHARGE.mid = Math.max(0.01, v); refresh(); }, 0.01, 's: el fuerte abre a débil + medio'],
+      ['fuerte', () => CHARGE.strong, (v) => { CHARGE.strong = Math.max(0.005, v); refresh(); }, 0.005, 's que dura en cada pasada'],
+      ['rebote', () => CHARGE.rebound, (v) => { CHARGE.rebound = Math.max(0.02, v); refresh(); }, 0.01, 's en bajar hasta 0, y otro tanto en volver'],
+    ]);
+    this.timingLine = note('');
+    el.append(times.table, this.timingLine);
     const thresholds = document.createElement('table');
     for (let q = 1; q < QUALITY_LEVELS; q++) {
       const row = thresholds.insertRow();
       cell(row, `el golpe ${q + 1} empieza a`, 'l');
       cell(row, this.field(() => Math.round(QUALITY_FROM[q] * 100), (v) => {
         QUALITY_FROM[q] = Math.min(1, Math.max(0.01, v / 100));
+        refresh();
       }, 1));
       cell(row, '% de la barra', 'l');
     }
-    el.append(thresholds, note(
-      'La barra no sube pareja: arranca lenta y termina rápida, así que el golpe 1 dura mucho más que el 3 aunque los umbrales estén parejos. '
-      + 'Los segundos de la tabla ya tienen eso adentro: son lo que dura cada nivel de verdad, sin mejoras. '
-      + 'Y al llegar arriba la barra rebota y baja hasta abajo, así que el golpe 3 vuelve a pasar en cada rebote, igual de corto. '
-      + 'Subir el «barra llena» de un palo estira los tres niveles a la vez; los porcentajes reparten la barra entre ellos y valen para los cuatro palos. '
-      + 'La muñeca rápida y el ritmo apuran solo lo de abajo, hasta el golpe 3: la ventana del perfecto dura lo mismo.',
+    el.append(heading('Dónde se dibuja cada tramo'), thresholds, note(
+      'La barra se define por tiempos, iguales para los cuatro palos: cuánto tarda en cruzar el tramo débil, cuánto el medio, y cuánto dura el fuerte '
+      + 'cada vez que pasa por arriba (en la subida y en cada rebote). Los porcentajes de abajo son solo dónde se dibuja cada tramo: no cambian cuánto dura. '
+      + 'Las mejoras van encima: swing parejo reparte el total entre los tres; la muñeca rápida y el ritmo apuran el débil y el medio (el fuerte abre antes y dura lo mismo); '
+      + 'el punto dulce alarga el fuerte (abre en el mismo momento y el rebote llega más tarde).',
     ));
   }
+
 
   // ---- el tiro: correrse cargando o darle efecto ----
   private buildShot(el: HTMLElement): void {
@@ -1083,9 +1071,9 @@ export class DebugPanel {
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
       `visual: ${JSON.stringify(VISUAL)}`,
       `hierro: modo ${ironMode()}`,
-      `carga: barra llena ${CLUB_ORDER.map((id) => `${id} ${CLUBS[id].chargeTime}`).join(', ')} s`,
-      `  niveles desde ${QUALITY_FROM.map((p) => `${Math.round(p * 100)}%`).join(' / ')} de la barra`,
-      `  con el driver eso es: ${levelDurations(CLUBS.driver).map((s, q) => `golpe ${q + 1} dura ${s.toFixed(2)} s`).join(', ')}`,
+      `carga (los cuatro palos): ${timingText(CHARGE)}, rebote ${CHARGE.rebound} s`,
+      `  con las mejoras de ahora: ${timingText(this.hooks.timing())}`,
+      `  tramos dibujados desde ${QUALITY_FROM.map((p) => `${Math.round(p * 100)}%`).join(' / ')} de la barra`,
       '',
       'palos (daño [corta, media, larga] x [golpe 1, 2, 3]):',
     ];

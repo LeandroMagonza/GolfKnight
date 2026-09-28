@@ -139,9 +139,39 @@ export function reliefAt(x: number, z: number): number {
   return h * smoothstep(FLAT_UNTIL_Z, RELIEF_FULL_Z, z);
 }
 
-/** Altura del piso en (x, z): 0 si el relieve está apagado. */
+/**
+ * **Lomas que aparecen durante la partida** (las levanta el geomante). Se suman al campo, esté el relieve
+ * prendido o no, y todo lo que lee `heightAt` (la pelota, los enemigos, la puntería, la línea de tiro) se
+ * entera solo. La altura de cada una la anima quien la levantó: crece, y baja hasta desaparecer.
+ */
+export interface Mound extends Hill {
+  /** Id del enemigo que la levantó. */
+  owner: number;
+  /** Altura a la que va (la de verdad es `height`, que la persigue). 0 = bajando para irse. */
+  target: number;
+}
+export const mounds: Mound[] = [];
+
+/** Lo que suman las lomas de la partida en (x, z). */
+export function moundAt(x: number, z: number): number {
+  let h = 0;
+  for (const m of mounds) {
+    const dx = (x - m.x) / m.rx;
+    const dz = (z - m.z) / m.rz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < 12) h += m.height * Math.exp(-0.5 * d2);
+  }
+  return h;
+}
+
+/** ¿Hay algo de relieve? El del campo, o alguna loma levantada en la partida sobre el campo liso. */
+export function terrainOn(): boolean {
+  return relief.on || mounds.length > 0;
+}
+
+/** Altura del piso en (x, z): la del campo (0 si el relieve está apagado) más las lomas de la partida. */
 export function heightAt(x: number, z: number): number {
-  return relief.on ? reliefAt(x, z) : 0;
+  return (relief.on ? reliefAt(x, z) : 0) + (mounds.length ? moundAt(x, z) : 0);
 }
 
 /** Normal del terreno (unitaria, hacia arriba), por diferencias finitas. */

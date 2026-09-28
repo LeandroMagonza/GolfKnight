@@ -4,6 +4,15 @@ import * as Tone from 'tone';
 
 const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
+const MUTE_KEY = 'gk-music-muted';
+function loadMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export class GameAudio {
   private master!: Tone.Limiter;
   private musicBus!: Tone.Gain;
@@ -21,7 +30,8 @@ export class GameAudio {
   private pad!: Tone.PolySynth;
   private chargeSynth!: Tone.Synth;
   ready = false;
-  muted = false;
+  /** La música silenciada con M. Se guarda en el navegador: reiniciar recarga la página y no la tiene que volver a prender. */
+  muted = loadMuted();
   private readonly lastPlayed = new Map<string, number>();
 
   private readonly lastTime = new Map<object, number>();
@@ -29,7 +39,7 @@ export class GameAudio {
   constructor() {
     // Un error de audio nunca tiene que cortar el cuadro del juego: los efectos se llaman desde el
     // medio del update de pelotas y enemigos.
-    const sfx = ['chargeTick', 'whoosh', 'tock', 'thud', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'] as const;
+    const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'] as const;
     for (const name of sfx) {
       const fn = (this[name] as (...args: unknown[]) => void).bind(this);
       (this as Record<string, unknown>)[name] = (...args: unknown[]) => {
@@ -65,7 +75,7 @@ export class GameAudio {
     await Tone.start();
     this.master = new Tone.Limiter(-1).toDestination();
     const verb = new Tone.Freeverb({ roomSize: 0.7, dampening: 2500, wet: 0.25 }).connect(this.master);
-    this.musicBus = new Tone.Gain(0.8).connect(verb);
+    this.musicBus = new Tone.Gain(this.muted ? 0 : 0.8).connect(verb);
 
     this.click = new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 2, envelope: { attack: 0.001, decay: 0.07, sustain: 0, release: 0.02 }, volume: -4 }).connect(this.master);
     this.thudSynth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }, volume: -8 }).connect(this.master);
@@ -121,6 +131,9 @@ export class GameAudio {
   toggleMute(): boolean {
     this.muted = !this.muted;
     this.musicBus.gain.rampTo(this.muted ? 0 : 0.8, 0.2);
+    try {
+      localStorage.setItem(MUTE_KEY, this.muted ? '1' : '0');
+    } catch { /* sin localStorage: vale hasta recargar */ }
     return this.muted;
   }
 
@@ -137,6 +150,14 @@ export class GameAudio {
     if (!this.ok('whoosh')) return;
     this.whooshFilter.frequency.value = 600 + 1600 * power;
     this.whooshNoise.triggerAttackRelease(0.2, this.at(this.whooshNoise));
+  }
+
+  /** La pifia: el palo pasa y la pelota no sale. Dos notas que caen, tipo «bwomp». */
+  duff(): void {
+    if (!this.ok('duff', 150)) return;
+    const t = this.at(this.growlSynth);
+    this.growlSynth.triggerAttackRelease(220, 0.32, t);
+    this.growlSynth.frequency.exponentialRampToValueAtTime(90, t + 0.32);
   }
 
   /** Impacto del palo con la pelota. */

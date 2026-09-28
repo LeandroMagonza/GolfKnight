@@ -1,72 +1,88 @@
 import { describe, expect, it } from 'vitest';
-import { CLUBS, QUALITY_FROM, qualityOf } from './clubs';
-import { MIN_POWER, PERFECT_FROM, REBOUND_SPEED, RISE_CURVE, SwingMeter } from './swing';
+import { CHARGE, qualityMarks, qualityOf, QUALITY_FROM } from './clubs';
+import { MIN_POWER, NO_MODS, SwingMeter, timingWith, type ChargeTimes } from './swing';
 
-describe('SwingMeter', () => {
-  it('sube lento al principio y rápido al final', () => {
+const T: ChargeTimes = { weak: 0.6, mid: 0.2, strong: 0.1, rebound: 0.3 };
+const MARKS: [number, number] = [0.55, 0.92];
+const DT = 1 / 4000;
+
+/** Cuándo abre el golpe fuerte por primera vez y cuánto dura esa pasada, simulando la barra. */
+function strongWindow(times: ChargeTimes, marks = MARKS): { opens: number; lasts: number } {
+  const m = new SwingMeter();
+  m.start(times, marks);
+  let opens = -1;
+  let t = 0;
+  for (; t < 5; t += DT) {
+    m.update(DT);
+    const on = m.power >= marks[1];
+    if (opens < 0 && on) opens = t;
+    if (opens >= 0 && !on) break;
+  }
+  return { opens, lasts: t - opens };
+}
+
+describe('SwingMeter por tiempos', () => {
+  it('cada tramo dura sus segundos: débil, medio, y el fuerte sube al tope y vuelve', () => {
     const m = new SwingMeter();
-    m.start(1);
-    m.update(0.5);
-    // a mitad del tiempo va por un cuarto de la barra
-    expect(m.power).toBeCloseTo(0.25);
-    const early = m.power;
-    m.update(0.25);
-    const mid = m.power;
-    m.update(0.25);
+    m.start(T, MARKS);
+    m.update(T.weak);
+    expect(m.power).toBeCloseTo(0.55);
+    m.update(T.mid);
+    expect(m.power).toBeCloseTo(0.92);
+    m.update(T.strong / 2);
     expect(m.power).toBeCloseTo(1);
-    // el último cuarto del tiempo sube más que la primera mitad entera
-    expect(1 - mid).toBeGreaterThan(early);
+    m.update(T.strong / 2);
+    expect(m.power).toBeCloseTo(0.92);
   });
 
-  it('después del tope rebota rápido por todo el rango: baja hasta 0 y vuelve a subir', () => {
+  it('después del fuerte rebota por todo el rango, y el fuerte vuelve a durar lo mismo en cada pasada', () => {
     const m = new SwingMeter();
-    m.start(1);
-    m.update(1);
-    m.update(1 / REBOUND_SPEED);
+    m.start(T, MARKS);
+    m.update(T.weak + T.mid + T.strong + T.rebound);
     expect(m.power).toBeCloseTo(0);
-    m.update(0.5 / REBOUND_SPEED);
-    expect(m.power).toBeCloseTo(0.5);
-    m.update(0.5 / REBOUND_SPEED);
-    expect(m.power).toBeCloseTo(1);
-    let low = 1;
+    m.update(T.rebound);
+    expect(m.power).toBeCloseTo(0.92);
+    // segunda pasada por el fuerte: medida a mano
+    let inside = 0;
+    for (let t = 0; t < T.strong * 1.5; t += DT) {
+      m.update(DT);
+      if (m.power >= 0.92) inside += DT;
+    }
+    expect(inside).toBeCloseTo(T.strong, 2);
     for (let i = 0; i < 300; i++) {
       m.update(0.013);
-      low = Math.min(low, m.power);
       expect(m.power).toBeGreaterThanOrEqual(-1e-9);
       expect(m.power).toBeLessThanOrEqual(1 + 1e-9);
     }
-    expect(low).toBeLessThan(0.05);
   });
 
-  it('en el rebote, la ventana del swing perfecto dura menos de una décima de segundo', () => {
-    const chargeTime = 1;
-    const window = (2 * (1 - PERFECT_FROM) * chargeTime) / REBOUND_SPEED;
-    expect(window).toBeLessThan(0.1);
+  it('los tiempos de arranque son los de la barra vieja: el fuerte abre a los 0.815 s y dura unas 6 centésimas', () => {
+    const w = strongWindow(CHARGE, qualityMarks());
+    expect(w.opens).toBeCloseTo(0.815, 2);
+    expect(w.lasts).toBeGreaterThan(0.04);
+    expect(w.lasts).toBeLessThan(0.1);
   });
 
-  it('la barra es puro timing: cada nivel de calidad pide llegar más arriba, y el mejor es una ventana angosta', () => {
-    // Antes la barra decidía el daño Y el alcance, y para pegar fuerte había que tirar lejos. Ahora la
-    // distancia la da el mouse: lo único que decide la barra es qué tan bien le pegaste.
+  it('la barra es puro timing: pasa por los tres niveles, y el mejor está al final', () => {
     const m = new SwingMeter();
-    m.start(CLUBS.driver.chargeTime);
+    m.start(CHARGE, qualityMarks());
     const seen = new Set<number>();
-    for (let t = 0; t < CLUBS.driver.chargeTime; t += 1 / 240) {
-      m.update(1 / 240);
+    for (let t = 0; t < CHARGE.weak + CHARGE.mid + CHARGE.strong / 2; t += DT) {
+      m.update(DT);
       seen.add(qualityOf(m.power));
     }
     expect([...seen].sort()).toEqual([1, 2, 3]);
-    // el nivel 3 está al final de la subida: no se llega de casualidad
-    const timeTo = (p: number) => Math.pow(p, 1 / RISE_CURVE) * CLUBS.driver.chargeTime;
-    expect(timeTo(QUALITY_FROM[2])).toBeGreaterThan(0.9 * CLUBS.driver.chargeTime);
-    expect(timeTo(QUALITY_FROM[2]) - timeTo(QUALITY_FROM[1])).toBeGreaterThan(0.15);
+    expect(CHARGE.weak + CHARGE.mid).toBeGreaterThan(0.7);
+    expect(QUALITY_FROM[2]).toBeGreaterThan(QUALITY_FROM[1]);
   });
 
-  it('el alcance llega al máximo y se queda, aunque la potencia siga rebotando', () => {
+  it('el alcance llega al máximo con el tope y se queda, aunque la potencia siga rebotando', () => {
     const m = new SwingMeter();
-    m.start(1);
-    m.update(0.5);
-    expect(m.reach).toBeCloseTo(0.25);
-    m.update(0.5 + 0.1);
+    m.start(T, MARKS);
+    m.update(T.weak);
+    expect(m.reach).toBeGreaterThan(0.5);
+    expect(m.reach).toBeLessThan(1);
+    m.update(T.mid + T.strong + 0.1);
     expect(m.power).toBeLessThan(0.9);
     expect(m.reach).toBe(1);
     const r = m.release();
@@ -74,18 +90,13 @@ describe('SwingMeter', () => {
     expect(r.perfect).toBe(false);
   });
 
-  it('setPower deja el medidor en esa potencia', () => {
+  it('setPower deja el medidor en esa potencia, y soltar arriba es perfecto', () => {
     const m = new SwingMeter();
-    m.start(0.8);
-    for (const p of [0.1, 0.42, 0.95]) {
+    m.start(T, MARKS);
+    for (const p of [0.1, 0.42, 0.7, 0.95, 1]) {
       m.setPower(p);
       expect(m.power).toBeCloseTo(p);
     }
-  });
-
-  it('soltar cerca del tope es perfecto', () => {
-    const m = new SwingMeter();
-    m.start(0.8);
     m.setPower(0.96);
     const r = m.release();
     expect(r.perfect).toBe(true);
@@ -94,40 +105,49 @@ describe('SwingMeter', () => {
 
   it('un click corto sale con la potencia mínima', () => {
     const m = new SwingMeter();
-    m.start(1);
+    m.start(T, MARKS);
     m.update(0.01);
     const r = m.release();
     expect(r.power).toBe(MIN_POWER);
     expect(r.perfect).toBe(false);
   });
+});
 
-  it('apurar la carga adelanta el golpe 3 pero no achica su ventana', () => {
-    // la muñeca rápida achicaba toda la barra: el perfecto llegaba antes, pero duraba un 15 % menos
-    const from = 0.81;
-    const window = (rush: number) => {
-      const m = new SwingMeter();
-      m.start(1, rush, from);
-      let start = -1;
-      let end = -1;
-      for (let t = 0; t < 1.2; t += 1 / 2000) {
-        m.update(1 / 2000);
-        if (start < 0 && m.power >= from) start = t;
-        if (start >= 0 && end < 0 && m.power >= 1 - 1e-9) end = t;
-      }
-      return { start, length: end - start };
-    };
-    const plain = window(1);
-    const quick = window(0.7);
-    expect(quick.start).toBeCloseTo(plain.start * 0.7, 2);
-    expect(quick.length).toBeCloseTo(plain.length, 2);
+describe('las mejoras sobre los tiempos', () => {
+  it('sin mejoras, los tiempos son los base', () => {
+    expect(timingWith(T, NO_MODS)).toEqual(T);
   });
 
-  it('con apuro, setPower igual deja la barra en esa potencia', () => {
-    const m = new SwingMeter();
-    m.start(1, 0.6, 0.8);
-    for (const p of [0.2, 0.79, 0.9, 1]) {
-      m.setPower(p);
-      expect(m.power).toBeCloseTo(p);
-    }
+  it('apurar el débil y el medio (muñeca, ritmo) adelanta el fuerte pero no achica su ventana', () => {
+    // la muñeca rápida achicaba toda la barra: el perfecto llegaba antes, pero duraba un 15 % menos
+    const plain = strongWindow(T);
+    const quick = strongWindow(timingWith(T, { ...NO_MODS, lowMul: 0.7 }));
+    expect(quick.opens).toBeCloseTo(plain.opens * 0.7, 2);
+    expect(quick.lasts).toBeCloseTo(plain.lasts, 2);
+  });
+
+  it('alargar el fuerte (punto dulce) abre en el mismo momento y dura más', () => {
+    const plain = strongWindow(T);
+    const sweet = strongWindow(timingWith(T, { ...NO_MODS, strongMul: 1.5 }));
+    expect(sweet.opens).toBeCloseTo(plain.opens, 2);
+    expect(sweet.lasts).toBeCloseTo(plain.lasts * 1.5, 2);
+  });
+
+  it('swing parejo reparte el total: del todo, los tres tramos duran lo mismo', () => {
+    const total = T.weak + T.mid + T.strong;
+    const third = timingWith(T, { ...NO_MODS, even: 1 / 3 });
+    expect(third.weak + third.mid + third.strong).toBeCloseTo(total);
+    expect(third.weak).toBeLessThan(T.weak);
+    expect(third.strong).toBeGreaterThan(T.strong);
+    const full = timingWith(T, { ...NO_MODS, even: 1 });
+    expect(full.weak).toBeCloseTo(total / 3);
+    expect(full.mid).toBeCloseTo(total / 3);
+    expect(full.strong).toBeCloseTo(total / 3);
+    expect(full.rebound).toBe(T.rebound);
+  });
+
+  it('el reparto va primero y las otras encima: con todo, el fuerte puede durar más que el débil', () => {
+    const all = timingWith(T, { even: 1, lowMul: 0.72, strongMul: 1.8 });
+    expect(all.strong).toBeGreaterThan(all.weak);
   });
 });

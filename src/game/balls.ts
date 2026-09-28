@@ -11,7 +11,7 @@ import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
 import type { Traps } from './traps';
-import { heightAt, relief } from '../core/terrain';
+import { heightAt, terrainOn } from '../core/terrain';
 import { GATE_Z } from './world';
 
 const TRAIL_POINTS = 18;
@@ -43,6 +43,13 @@ export interface Ball {
   burst: boolean;
   /** Enemigos que mató esta pelota. */
   kills: number;
+  /** Ya le pegó a alguien (evento 'connected'): para las rachas de tiros sin errar. */
+  connected: boolean;
+  /**
+   * Sale con el bonus de la mejora «En racha». Se decide la primera vez que pega, no al tirarla: así
+   * cuentan los tiros anteriores que conectaron mientras esta volaba. Undefined = todavía no pegó.
+   */
+  hot?: boolean;
   /** Ya se avisó cómo le fue (evento 'settled'). */
   settled: boolean;
   age: number;
@@ -60,6 +67,8 @@ export type BallEvent =
   | { type: 'land'; pos: THREE.Vector3; hits: number; quality: number }
   | { type: 'bounce'; pos: THREE.Vector3 }
   | { type: 'blocked'; enemy: Enemy; warded: boolean }
+  /** Un tiro le pegó a alguien por primera vez. Sale apenas pega, sin esperar a que la pelota pare. */
+  | { type: 'connected'; ability: boolean }
   /** Un tiro ya se jugó: a cuántos alcanzó y cuántas bajas hizo. */
   | { type: 'settled'; club: Club; hits: number; kills: number; ability: boolean };
 
@@ -68,6 +77,11 @@ const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
 export class Balls {
   readonly list: Ball[] = [];
   onEvent: ((e: BallEvent) => void) | null = null;
+  /**
+   * El daño de un tiro de palo con la mejora «En racha»: recibe el daño de la tabla y devuelve el que
+   * pega. Null si no está en racha. Las habilidades nunca pasan por acá.
+   */
+  hotDamage: ((base: number) => number) | null = null;
   /** Tótems: en pausa (ver core/clubs). El módulo sigue vivo para poder volver a prenderlo. */
   traps: Traps | null = null;
 
@@ -103,10 +117,24 @@ export class Balls {
       state, club: shot.club, bounce, quality: shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
       element: shot.element ?? null, ability: !!shot.ability, zapped: new Set(),
-      hitIds: new Set(), hits: 0, burst: false, kills: 0, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), hits: 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
     return ball;
+  }
+
+  /** El daño con el que pega esta pelota: el de la tabla, o el de «En racha» si le toca. */
+  private damageOf(ball: Ball, base: number): number {
+    if (ball.ability) return base;
+    if (ball.hot === undefined) ball.hot = this.hotDamage !== null;
+    return ball.hot && this.hotDamage ? this.hotDamage(base) : base;
+  }
+
+  /** Avisa una sola vez por pelota que conectó con alguien. */
+  private checkConnected(ball: Ball): void {
+    if (ball.connected || ball.hits <= 0) return;
+    ball.connected = true;
+    this.onEvent?.({ type: 'connected', ability: ball.ability });
   }
 
   /** A qué distancia del golfista pegó: es lo que decide cuánto hace el palo. */
@@ -125,10 +153,11 @@ export class Balls {
     this.effects.explosion(pos, radius, ball.club.color);
     // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie. Al que esta
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
-    const damage = areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality);
+    const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
     const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     ball.hits += hits;
+    this.checkConnected(ball);
     if (finish) ball.done = true;
   }
 
@@ -136,19 +165,23 @@ export class Balls {
    * El pelotazo a un enemigo puntual, con el número de **impacto** (no el del área). `finish` dice si con
    * eso se termina el tiro: el que atraviesa sigue, y pierde un poco de velocidad.
    */
-  private directHit(ball: Ball, enemy: Enemy, finish: boolean): void {
+  private directHit(ball: Ball, enemy: Enemy, finish: boolean, guard = 0): boolean {
     const s = ball.state;
     ball.hitIds.add(enemy.id);
-    ball.hits++;
     const pos = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
     this.effects.spark(pos, ball.club.color);
     const dir = new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
-    const damage = damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality);
-    const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback);
+    const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
+    const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
+    // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
+    const landed = guard === 0 || this.horde.lastDealt > 0;
+    if (landed) ball.hits++;
     if (killed) ball.kills++;
-    this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
-    this.applyElement(ball, enemy);
+    this.checkConnected(ball);
+    if (landed) this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
+    if (landed) this.applyElement(ball, enemy);
     if (finish) ball.done = true;
+    return landed;
   }
 
   /**
@@ -202,13 +235,16 @@ export class Balls {
       // solo la que atraviesa: si no, el hierro reventaba contra el escudo y lo mataba igual. Lo único
       // que lo pasa es lo que cae casi a plomo, que es el globo del wedge (ver Enemy.blocks).
       if (e.warded || e.blocks(s.vel.x, s.vel.y, s.vel.z)) {
+        // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
+        // número entra. El muro y el aura del chamán no dejan pasar nada
+        const leaked = !e.warded && !e.shieldWall && this.directHit(ball, e, false, e.shieldLevel);
         ball.hitIds.add(e.id);
         const n = Math.hypot(dx, dz) || 1;
         const dot = (s.vel.x * dx + s.vel.z * dz) / n;
         s.vel.x = (s.vel.x - (2 * dot * dx) / n) * 0.4;
         s.vel.z = (s.vel.z - (2 * dot * dz) / n) * 0.4;
         this.effects.spark(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), e.warded ? 0xb26bff : 0xcccccc);
-        this.onEvent?.({ type: 'blocked', enemy: e, warded: e.warded });
+        if (!leaked) this.onEvent?.({ type: 'blocked', enemy: e, warded: e.warded || e.shieldWall });
         continue;
       }
       this.hitEnemy(ball, e);
@@ -231,7 +267,7 @@ export class Balls {
       for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
         applySpin(s, ball.spin, ball.spinTime, dt / steps);
         ball.spinTime += dt / steps;
-        const landed = stepBall(s, dt / steps, ball.bounce, relief.on ? heightAt : undefined);
+        const landed = stepBall(s, dt / steps, ball.bounce, terrainOn() ? heightAt : undefined);
         // la muralla devuelve la pelota
         if (s.pos.z < GATE_Z - 0.4 && s.vel.z < 0) {
           s.pos.z = GATE_Z - 0.4;

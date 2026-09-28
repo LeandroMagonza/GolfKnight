@@ -1497,3 +1497,172 @@ En una GTX 1050 Ti va a 60 cuadros con todo prendido. *Todo apagado* deja el jue
 Lo que sigue, si convence: pasto con variación, respuesta a los golpes (destello, polvo, estela), y
 probar sombreado cel.
 
+## Hecho: rachas sin errar y carga en carrera (26/9/2026)
+
+Pedido de Leandro, a partir de que Ritmo tenía el mismo problema que había tenido la muñeca rápida.
+
+- **Ritmo cuenta tiros sin errar**, no tiros que matan. Sube hasta tres y se queda ahí hasta que errás.
+  Errar es un tiro de palo que no le pega a nadie. La racha suma **apenas el tiro conecta**, sin
+  esperar a que la pelota pare: antes contaba al final, y con el driver, que rueda hasta 1.8 s, el tiro
+  siguiente salía con el tempo viejo o con el nuevo según si la pelota anterior ya había parado.
+- **En racha** (mejora nueva): después de 4 tiros seguidos sin errar, cada tiro de palo pega
+  `max(daño + suma, piso)` hasta que errás. Arranca con piso 2 y suma 0, que sube el piso sin tocar el
+  techo; con piso 0 y suma 1 es el +1 parejo. Los dos números están en el panel, para probar las dos. Si
+  cuenta o no se decide la primera vez que la pelota pega, así valen los tiros anteriores que
+  conectaron mientras esa volaba. Las habilidades no suman a la racha ni cobran el bonus.
+- **La racha del albañil** sigue contando tiros que matan: es otra cuenta.
+- **Carga en carrera** (mejora nueva, para probar): la barra arranca cuando apretás, aunque estés
+  corriendo a un puesto con pelota. El tempo del golpe es el de siempre (el perfecto llega a los
+  0.815 s de apretar); lo que se ahorra es el rato de correr. Si soltás antes de llegar, la barra se
+  clava ahí y el tiro sale apenas llegás. Si cambiás de destino a un puesto sin pelota, se corta.
+  Mientras corrés se ve la animación de correr: la postura entra al llegar.
+- **La música silenciada con M se guarda**: reiniciar recarga la página y antes la volvía a prender.
+
+## Hecho: la barra por tiempos, swing parejo, albañil y botiquín (26/9/2026)
+
+### La barra se define por tiempos
+
+Planteado por Leandro: con un tiempo total y porcentajes de barra, bajar el total a la mitad debería
+ser un buff (llegás antes al golpe fuerte), pero también achica la ventana del fuerte y termina siendo
+más difícil. Pasa porque se mueven juntas dos cosas que al jugador le importan por separado: **cuándo
+abre el fuerte** (el momento que uno se aprende) y **cuánto dura** (qué tan difícil es clavarlo).
+
+Ahora la barra son cuatro tiempos, iguales para los cuatro palos (`CHARGE` en `core/clubs.ts`, pestaña
+Carga del panel): débil 0.63 s, medio 0.185 s, fuerte 0.06 s por pasada, y rebote 0.3 s para bajar
+hasta 0 (y otro tanto para volver). Son los de la barra vieja: el fuerte abre a los 0.815 s, igual que
+antes, así que sin mejoras no cambia cuándo se suelta. Reparto: 74 / 22 / 4 %. Los porcentajes de la
+barra quedaron solo como dónde se dibuja cada tramo. Una diferencia chica: el fuerte ahora dura lo mismo
+en todas las pasadas, también en el rebote, donde antes duraba unas 5 centésimas en vez de 6.
+
+Las mejoras tocan un tiempo sin arrastrar al otro (`timingWith` en `core/swing.ts`, con tests):
+
+| Mejora | Qué toca | Cuándo abre el fuerte | Cuánto dura |
+| --- | --- | --- | --- |
+| Muñeca rápida | débil y medio ×0.85 | antes | igual |
+| Ritmo | débil y medio, según la racha | antes | igual |
+| Punto dulce | fuerte ×1.35 (antes agrandaba la zona en la barra) | igual | más: el rebote llega más tarde |
+| Swing parejo (nueva) | reparte el total hacia tercios | antes | mucho más |
+
+**Swing parejo**: tres niveles, cada uno acerca un tercio los tiempos a partes iguales, y al tercero
+débil, medio y fuerte duran 0.29 s cada uno. El reparto va **primero, sobre los tiempos base**, y las
+otras mejoras van encima. Si fuera al revés, la muñeca achicaría el total y con él el fuerte, que es el
+problema que se estaba arreglando. Con este orden, con todo junto el fuerte puede durar más que el débil
+(con swing parejo ×3, muñeca y punto dulce: débil 0.25 s, fuerte 0.39 s). Ojo de balance: un fuerte de
+0.29 s es casi cinco veces la ventana de hoy, y el perfecto pega 8 contra 3. Es para probar.
+
+### El albañil pide bajas múltiples
+
+Idea de Leandro: contar tiros que matan no le pedía nada al jugador, porque matar es obligatorio para
+avanzar. Ahora cuenta **las bajas de más de cada tiro**: un doblete suma 1, un triplete 2, y así. Cada 5,
+la puerta +1. No es una racha, así que no se corta: se va juntando. Pasó a llamarse «El albañil».
+
+### Botiquín
+
+Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación
+automática del principio, ahora como carta. Si algún día hay personajes distintos, es candidata a poder
+inicial del personaje base, como la sangre del Ironclad en Slay the Spire, que lo cura después de cada
+combate y hace más fácil el arranque.
+
+## Hecho: el wedge con pifia, y En racha que sube el piso (28/9/2026)
+
+- **El wedge pega pifia / 1 / 2** (antes 1 / 2 / 5) y su área bajó un escalón: 4.2 m en el golpe 2 y
+  5 m en el 3 (antes 4.2 / 5 / 6.3). El golpe 3 hacía 5 de daño en 6.3 m de radio, a cualquier distancia
+  y sin tener que pegarle a nadie: mataba a todo menos al caballero y al gólem, y rompía la regla de que
+  el área pega menos que el impacto (el área del hierro es 1 / 2 / 4 en 2.7 m). Con swing parejo clavar
+  el 3 se vuelve fácil, así que el techo tenía que bajar de verdad, no solo hacerse más difícil.
+- **La pifia**: un golpe que con ese palo pega 0 no sale. El palo pasa, suena un «bwomp», la pelota se
+  queda en el puesto y cuenta como errar (corta las rachas). Hoy solo el golpe 1 del wedge pega 0. En la
+  línea de tiro se lee «pifia: no sale» mientras la barra está en el golpe 1.
+- Ojo: **las habilidades de wedge con elemento** usan la misma tabla con el nivel de la habilidad como
+  golpe. En nivel 1 ya no hacen daño: dejan el hielo, el fuego o el rayo y nada más. No pifian, porque no
+  pasan por el swing.
+- **En racha** pasó a «+1, sin pasar de 2»: sube solo los golpes que pegan 1 y nunca baja nada. Driver
+  de cerca 2 / 2 / 3, wedge pifia / 2 / 2, y al putter no le hace nada. La pifia sigue siendo pifia.
+- El guardado del panel pasó a la versión 4: el daño y el área del wedge vuelven a los del código.
+  El resto de lo ajustado se conserva.
+
+### Para pensar: terreno que cambia durante la partida
+
+Viene de que algunos campos son mucho más difíciles que otros (la meseta del medio le saca el driver a
+casi todo el campo) y de la idea de un enemigo que levante una loma adelante suyo para cubrirse.
+
+- **Los enemigos no se frenan en las subidas**: avanzan a la misma velocidad horizontal. Lo que tardan
+  en acercarse es igual con loma o sin loma.
+- **Es bastante viable.** Toda la altura sale de una sola función (`heightAt`), que suma las lomas y los
+  valles del campo. La física de la pelota, los enemigos, la puntería y la línea de tiro la leen a cada
+  cuadro, así que una loma que crece se sumaría como una forma más a esa lista y todo lo demás se entera
+  solo. Lo que hay que rehacer es la malla del piso: hoy se arma una vez al cargar (240 × 180, un
+  vértice por metro). Habría que actualizar las alturas y los colores de la zona que cambia mientras
+  crece. Con eso vienen las rayas de distancia apoyadas en esa zona, y cuidar que la pendiente siga
+  siendo suave (hay un test que lo exige, para que la pelota siempre pare).
+
+## Hecho: modificadores, cuatro enemigos nuevos y la loma del geomante (28/9/2026)
+
+Pedido de Leandro: que el tipo de enemigo defina la velocidad y el cuerpo, y el modificador el efecto,
+para poder tener un goblin blindado o un esqueleto con escudo sin inventar un enemigo por combinación.
+
+### Modificadores
+
+`EnemyMods` en `core/waves.ts`: blindaje (1 a 3), escudo, bendito, aura (`ward` o `heal`), etéreo, y
+vida de más o de menos. Van por grupo en las oleadas y viajan con cada aparición. El enemigo guarda el
+tipo (el objeto compartido que toca el panel) y los modificadores aparte, así el panel sigue emparejando
+a los que ya están en el campo.
+
+- **Blindaje 2 y 3.** Con 3, el putter en golpe 2 (4) saca 1, el driver largo perfecto (8) saca 5, y el
+  wedge (2 como mucho) no le hace nada. Se ve: tinte de acero y un cuadradito gris por punto, al lado de
+  la vida.
+- **La granada saca el blindaje** mientras dura, además del escudo, el aura y la inmunidad. Los
+  cuadraditos grises se apagan. Queda anotado en `pendientes.md` que, si se suman más formas de silenciar,
+  tienen que tener recargas que obliguen a elegir.
+- **El etéreo** es el revés: ningún golpe le saca más de 1 (el +1 del vulnerable tampoco lo pasa). No se
+  silencia. Se le gana con muchos golpes: el driver que atraviesa una fila, el fuego que muerde.
+- **Cualquiera puede ser chamán**: el aura es un modificador. Ningún enemigo con aura queda protegido ni
+  curado por otra aura (si no, dos chamanes, o dos curanderos, se sostendrían entre ellos).
+
+### Enemigos nuevos, con los modelos que sobraban
+
+| Tipo | Modelo | Qué hace |
+| --- | --- | --- |
+| Fantasma | Ghost_01, medio transparente | etéreo, 3 de vida |
+| Curandero goblin | el del chamán, teñido de verde | aura de curación: cada 3 s, +1 a los que tiene a 6 m |
+| Abanderada goblin | Goblin_Warrior_Female, con una bandera hecha por código | se planta a unos 42 m; mientras vive (y no está silenciada) todos tienen +1 de vida y de máximo, en dorado. Al caer, cada uno pierde ese punto sin bajar de 1. No se apilan |
+| Geomante | Skeleton_Slave_01 | se planta a unos 29 m de los puestos, levanta una loma de 1.7 m a 3.2 m adelante suyo (1.5 s, con los brazos arriba), se queda 10 s detrás y sigue a la puerta. La loma baja cuando él muere o se va |
+
+**El número del curandero.** Un tiro sale más o menos cada 1.5 s. Con +1 cada 3 s, la curación no llega
+a tocar a los que se matan en uno o dos tiros seguidos, pero sí al caballero y al grupo que se deja a
+medias. Cada 2 s ya empata casi con el daño a un solo blanco. Está en el panel («curandero»), igual que
+los números del geomante.
+
+**Oleadas.** Pasaron a ser once: «Fantasmas» (con dos esqueletos de blindaje 2), «La tierra se levanta»
+(geomantes), el curandero entra en la del chamán, «Bajo la bandera» (abanderada, un caballero de
+blindaje 3, esqueletos de blindaje 2 y uno con aura de curación), y el gólem suma una abanderada, un
+geomante y dos fantasmas. Cada enemigo o modificador nuevo se anuncia una sola vez por partida.
+
+### La loma del geomante
+
+Las lomas de la partida viven en `core/terrain.ts` (`mounds`) y se suman a `heightAt`, así que la pelota,
+los enemigos, la puntería y la línea de tiro se enteran solos, también en el campo liso. Se dibujan con
+una malla propia cada una (`game/mounds.ts`), apoyada sobre el piso que haya abajo, que solo se reescribe
+mientras sube o baja. Rehacer la malla entera del campo no hizo falta. Mientras sube se ve tierra
+removida.
+
+Probado: con la loma arriba, el driver perfecto no le llega al geomante; el hierro por arriba sí; y al
+morir la loma baja y desaparece.
+
+### El escudo pasa a ser blindaje de frente
+
+Leandro lo dio vuelta: si clavar un golpe 3 es más difícil que matar al del escudo con un área por detrás
+o pegándole de costado, dejar que el golpe 3 pase no le saca la gracia al escudo, y suma una opción más.
+
+- **El escudo es un número**: a lo que le llega de frente le resta eso. La pelota rebota igual (el
+  driver no sigue atravesando la fila), pero lo que sobra entra. Lo que estalla adelante suyo pasa con
+  el mismo descuento. Si el escudo se come todo, para las rachas es como errar.
+- **El goblin guerrero tiene 4**: el golpe 3 de lejos del driver (8) o de cerca del putter (8) lo mata
+  igual de frente; el hierro en golpe 3 (7) lo deja en 1. Leandro había tirado 5 como ejemplo; con 5,
+  ni el mejor golpe lo mata, y la opción nueva casi no se usaría.
+- **El escudo muro** (`SHIELD_WALL`) no deja pasar nada de frente. Se ve más grande y late en violeta,
+  el mismo brillo que los inmunes del chamán: es el mismo concepto puesto en el escudo. Hay dos en
+  «Bajo la bandera».
+- Se ve en los cuadraditos: después de la vida y del blindaje, uno de madera por punto de escudo
+  (apagados si lo tiene bajo). El muro no lleva cuadraditos: lo dice el brillo.
+

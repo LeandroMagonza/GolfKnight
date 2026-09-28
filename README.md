@@ -41,9 +41,11 @@ decir una sola cosa:
 - Mantener click carga el swing y soltar pega. Click derecho (o `X`) cancela. Si llegás a un puesto
   con el botón ya apretado, la carga arranca sola. `Espacio` *clava* la calidad donde esté la barra, y
   el tiro sale cuando soltás el click.
-- **La calidad va por niveles: 1, 2 y 3.** La barra sube lenta al principio y rápida al final; el
-  nivel 3 es el último 8 %, y después del tope rebota por todo el rango. La barra **no tiene nada que
-  ver con la distancia**: eso lo decide el mouse.
+- **La calidad va por niveles: 1, 2 y 3.** La barra se define por **tiempos**, iguales para los cuatro
+  palos: tarda 0.63 s en cruzar el tramo débil y 0.185 s el medio, así que el fuerte abre a los 0.815 s
+  de apretar, y dura 0.06 s en cada pasada. Después del tope rebota por todo el rango y vuelve a pasar
+  por el fuerte, que dura otra vez lo mismo. Las mejoras mueven esos tiempos (ver más abajo). La barra
+  **no tiene nada que ver con la distancia**: eso lo decide el mouse.
 - La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad. El anillo marca
   dónde cae, y con el wedge, el tamaño del área.
 - **El campo tiene marcas de distancia cada 10 m, contadas desde la línea de los puestos**: la raya
@@ -58,11 +60,15 @@ Ninguno es el mejor siempre.
 | --- | --- | --- | --- | --- | --- |
 | **1 · Driver** | rasante, atraviesa la fila entera | 4-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
 | **2 · Hierro 7** | arco bajo que revienta en el que toca | 4-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
-| **3 · Wedge** | globo alto, cae en picada y se queda ahí | 3-55 m | 1 / 2 / 5 | 1 / 2 / 5 | 1 / 2 / 5 |
+| **3 · Wedge** | globo alto, cae en picada y se queda ahí | 3-55 m | pifia / 1 / 2 | pifia / 1 / 2 | pifia / 1 / 2 |
 | **4 · Putter** | rueda y le pega al primero que toca | 2-20 m | **2 / 4 / 8** | — | — |
 
 Los tres números de cada casilla son el daño según la calidad del golpe. El putter llega justo hasta la
 línea de 20 m, así que nunca sale de la banda corta.
+
+**La pifia:** con el wedge, el golpe 1 no sale. El palo pasa, suena el fallo, la pelota se queda en el
+puesto y cuenta como errar. Es para que el globo, que abre el área más grande sin apuntarle a nadie, pida
+también timing.
 
 **El área pega menos que el impacto**, porque agarra a varios y no hay que apuntarle a nadie. El hierro
 es el único que hace las dos cosas: **el que se come el pelotazo cobra el impacto** (1 / 3 / 7) y los de
@@ -75,13 +81,19 @@ alrededor cobran el área (**1 / 2 / 4**). Nadie cobra las dos por un mismo tiro
 | --- | --- | --- | --- |
 | Driver | sí, a todos los de la fila | no | pica y sigue |
 | Hierro 7 | no | sí, al contacto (1.8 / 2.2 / 2.7 m) | **no pasa nada: hay que conectar** |
-| Wedge | no | sí, donde cae (4.2 / 5 / 6.3 m) | igual explota: cae adonde apuntaste |
+| Wedge | no | sí, donde cae (4.2 / 5 m en los golpes 2 y 3) | igual explota: cae adonde apuntaste |
 | Putter | no | no: le pega al que toca, a él solo | se queda ahí |
 
-El **escudo** frena cualquier pelota que le llegue de frente, venga rasante o en arco. Lo único que lo
-pasa es lo que cae a más de 45°, o sea el globo del wedge. Y el escudo también tapa del **daño en
-área** que estalla adelante suyo, a él y a los que tiene detrás. Al del escudo se lo resuelve
-silenciándolo con el vendaval, cayéndole detrás con el wedge, o pegándole de costado.
+El **escudo es blindaje de frente**: la pelota que le llega de frente, venga rasante o en arco, rebota
+igual, pero a ese golpe le resta su número y el resto entra. El del goblin guerrero es 4: un golpe 3 de
+lejos con el driver (8), o de cerca con el putter (8), lo mata igual de frente. Lo único que no cuenta
+como de frente es lo que cae a más de 45°, el globo del wedge. El escudo también cubre del **daño en
+área** que estalla adelante suyo, a él y a los que tiene detrás, con el mismo descuento. Los cuadraditos
+de madera, después de la vida, dicen cuánto resta. Al del escudo se lo resuelve pegándole fuerte, con la
+granada, cayéndole detrás con el wedge, o pegándole de costado.
+
+El **escudo muro** (violeta, más grande, con el brillo de los inmunes del chamán) no deja pasar nada de
+frente, por fuerte que sea.
 
 El hierro tiene **dos modos** en el panel de balance, para probarle la identidad: *revienta* (el de
 arriba) y *atraviesa* (pasa de largo hasta a tres y abre su área donde cae, le pegue a alguien o no).
@@ -126,16 +138,24 @@ pelota gratis y **cargado al nivel de la habilidad**, que además:
 | Lupa | los agranda: más fáciles de pegar, y vulnerables |
 | Clon | una copia tuya repite tus próximos tiros desde donde la dejaste |
 
-**Mejoras**: Muñeca rápida (llegás al golpe 3 un 15 % antes, y la ventana del perfecto dura lo mismo),
-Punto dulce (el perfecto un 35 % más ancho), Ritmo (cada tiro seguido que mata te hace llegar antes al
-golpe 3 en el próximo), Racha del albañil (5 tiros seguidos
-matando curan 1 de puerta), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
+**Mejoras**: Muñeca rápida (el débil y el medio un 15 % más rápidos: llegás antes al golpe 3, y la
+ventana del perfecto dura lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y el rebote
+llega más tarde), Swing parejo (hasta 3 niveles: cada uno acerca un tercio los tiempos de la barra a
+partes iguales, y al tercero débil, medio y fuerte duran lo mismo; las otras mejoras de la barra van
+encima, así que el fuerte puede terminar durando más que el débil), Ritmo (cada tiro seguido **sin errar** te hace llegar antes
+al golpe 3, hasta tres, y ahí se queda hasta que errás), En racha (después de 4 tiros seguidos sin errar,
+los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), Carga en
+carrera (la barra arranca cuando apretás, aunque estés corriendo a un puesto con pelota; si soltás antes
+de llegar, sale al llegar), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 5, la puerta +1; no se corta),
+Botiquín (hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
 Carcaj (si vas a pegar sin pelota, te aparece una; una cada 12 s), Pelota extra (los guardias mantienen
 una más), Segundo aire (apretar una habilidad que recarga la tira igual, y recarga él 30 s).
 
 Las mejoras tomadas se ven en **una columna a la izquierda**, con lo que cuentan: cuánto le falta al
 carcaj o al segundo aire, cuántas bajas llevás para el perfecto de regalo, cómo va cada racha. El
 perfecto de regalo no se pierde si cancelás el tiro o volvés a empezar la carga: queda para el próximo.
+**Errar** es un tiro de palo que no le pega a nadie (o solo a escudos e inmunes). Pegarle sin matar no
+corta ninguna racha.
 
 **Maestrías**, que solo salen con dos habilidades del mismo elemento:
 - *Hielo*: un segundo hielo sobre el que ya está frío lo **congela**, y el golpe que rompe el hielo pega
@@ -187,6 +207,21 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
 | Gólem de roca (80) | el jefe: tira piedras a la puerta desde lejos |
 | Goblin acorazado (1) | le resta 1 a cada golpe: el driver de cerca no le hace nada |
 | Esqueleto bendito (3) | el primer golpe no le entra; el escudo se le recarga a los 5 s |
+| Fantasma (3) | etéreo: ningún golpe le saca más de 1. Se le gana pegándole muchas veces, no fuerte |
+| Curandero goblin (3) | aura verde: cada 3 s, los que tiene a 6 m recuperan 1 |
+| Abanderada goblin (3) | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
+| Geomante (3) | se planta y levanta una loma adelante suyo que tapa al driver; al morir, la loma baja |
+
+**Modificadores.** El tipo dice cómo es el enemigo (tamaño, velocidad, comportamiento) y el modificador
+qué efecto trae, así que cualquiera puede llevarlo: un esqueleto blindado, un caballero con aura de
+chamán. En las oleadas van por grupo (`mods` en `WAVES`, `src/core/waves.ts`).
+- **Blindaje 1 a 3**: le resta eso a cada golpe. Tiñe de acero y suma cuadraditos grises al lado de la
+  vida. Con blindaje 3, el putter en golpe 2 (4) saca 1.
+- **Escudo**, **bendito**, **aura** (inmunidad o curación) y **etéreo**: lo mismo que los tipos que los
+  traen de fábrica.
+- **La granada silencia también el blindaje** mientras dura (los cuadraditos grises se apagan). El
+  etéreo no se silencia.
+- Ningún enemigo con aura queda protegido ni curado por otra aura.
 
 ## El campo: cuatro mapas, uno por partida
 
@@ -222,8 +257,8 @@ recargar. Va en pestañas:
 - **Palos**: el daño de cada palo en cada banda de distancia y para cada nivel de golpe, su alcance, el
   radio de su área, la rapidez del rodado, la distancia fija y los dos modos del hierro; y dónde
   **cortan las bandas** (20 y 40 m por defecto).
-- **Carga**: cuánto tarda la barra de cada palo y dónde empieza cada nivel del golpe, con los segundos
-  que dura cada uno.
+- **Carga**: los cuatro tiempos de la barra (débil, medio, fuerte y rebote), cómo quedan con las
+  mejoras que tenés, y dónde se dibuja cada tramo.
 - **Tiro**: qué hacen A y D mientras cargás (nada, correrse de a pasos, correrse seguido o darle
   efecto). Cada modo muestra solo sus números.
 - **Habilidades**: la lista de las 24 con el **nivel que tiene** cada una. Subirlo se la da (va al primer

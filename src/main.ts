@@ -4,13 +4,15 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
-import { heightAt, pickCourse, raycastTerrain, relief } from './core/terrain';
+import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
 import { ABILITIES, ABILITY_KEYS, ICE, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_BONUS, QUALITY_LEVELS, qualityOf, qualityStart, rollFrictionFor, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
-import { ENEMIES, WaveDirector, type EnemyKind } from './core/waves';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, MELEE_KNOCKBACK, MELEE_MAX_TARGETS, MELEE_RANGE, MELEE_STAGGER, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
+import { ENEMIES, WaveDirector, type EnemyKind, type EnemyMods } from './core/waves';
+import { timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
+import { MoundView } from './game/mounds';
 import { Effects } from './game/effects';
 import { Horde, shadowMat } from './game/enemies';
 import { BALLS, TEE_Z, Tees } from './game/tees';
@@ -20,6 +22,7 @@ import { CLUB_LENGTH } from './game/swingPose';
 import { Player } from './game/player';
 import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { loadVisual, Visuals } from './game/visuals';
+import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
 import { DebugPanel, loadBalance } from './debug';
 import { Hud, type PerkChip } from './hud';
 import { Input } from './input';
@@ -46,6 +49,8 @@ const visuals = new Visuals(renderer, scene, camera, world.sun, world.hemi, shad
 const effects = new Effects(scene);
 const horde = new Horde(scene);
 const balls = new Balls(scene, horde, effects);
+/** Las lomas del geomante, a la vista (la altura ya la leen todos de core/terrain). */
+const moundView = new MoundView(scene);
 const abilities = new Abilities(scene, horde, effects);
 const tees = new Tees(scene);
 const traps = new Traps(scene, horde, effects);
@@ -151,7 +156,7 @@ function updateAim(): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
   raycaster.setFromCamera(new THREE.Vector2(input.pointer.x, input.pointer.y), camera);
-  const hit = relief.on
+  const hit = terrainOn()
     ? (aimOnGround(scratchAim) ? scratchAim : null)
     : raycaster.ray.intersectPlane(groundPlane, scratchAim);
   if (hit) {
@@ -196,7 +201,7 @@ function shotRange(club: Club): number {
  * Sobre piso plano devuelve null y la pelota vuela como siempre.
  */
 function shotLift(club: Club, range: number, from?: THREE.Vector3): { speed: number; angle: number } | null {
-  if (!relief.on || club.loftDeg <= 0.001) return null;
+  if (!terrainOn() || club.loftDeg <= 0.001) return null;
   const angle = THREE.MathUtils.degToRad(club.loftDeg);
   // desde otro lugar (el clon) se calcula contra el terreno de ahí
   if (from) tee.copy(from);
@@ -234,25 +239,27 @@ function curvedPath(club: Club, range: number, loft: number, lift: { speed: numb
     : launch({ x: tee.x, y: BALL_RADIUS, z: tee.z }, dx, dz, range, loft, club.gravity, friction);
   const spin = spinFor(start, range, curve, -dz, dx, friction ?? ROLL_FRICTION);
   return start.rolling
-    ? previewRoll(start, { restitution: club.restitution, bounceKeep: club.bounceKeep, gravity: club.gravity, rollFriction: friction }, spin, PREVIEW_POINTS, relief.on ? heightAt : undefined)
-    : previewOver(start, club.gravity ?? GRAVITY, relief.on ? heightAt : () => 0, PREVIEW_POINTS, 4, spin);
+    ? previewRoll(start, { restitution: club.restitution, bounceKeep: club.bounceKeep, gravity: club.gravity, rollFriction: friction }, spin, PREVIEW_POINTS, terrainOn() ? heightAt : undefined)
+    : previewOver(start, club.gravity ?? GRAVITY, terrainOn() ? heightAt : () => 0, PREVIEW_POINTS, 4, spin);
 }
 
 function updatePreview(): void {
-  const charging = player.mode === 'charging';
+  // cargando en carrera también es cargar: la línea toma el color del nivel desde que se aprieta
+  const charging = player.mode === 'charging' || player.preCharging;
   const club = player.club;
   const range = shotRange(club);
   const show = started && !ended && player.alive && player.mode !== 'swinging' && !player.grabbedBy;
   previewLine.visible = show;
   landing.visible = show;
-  const ballHere = hasBallHere();
-  teeBall.visible = show && charging && ballHere;
+  // en carrera la pelota es la del puesto al que va: si no tuviera, la carga ya se habría cortado
+  const ballHere = hasBallHere() || player.preCharging;
+  teeBall.visible = show && player.mode === 'charging' && ballHere;
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
   // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
   const damage = damageFor(club, range, quality);
   const areaHit = areaDamageFor(club, range, quality);
-  const dmgLabel = club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
+  const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
   hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`);
   if (!show) return;
   player.teePosition(tee);
@@ -265,7 +272,7 @@ function updatePreview(): void {
     : lift
       ? previewOver(launchWith({ x: tee.x, y: heightAt(tee.x, tee.z) + BALL_RADIUS, z: tee.z }, player.aimDir.x, player.aimDir.z, lift.speed, lift.angle), club.gravity ?? GRAVITY, heightAt, PREVIEW_POINTS)
       // el rodado no tiene vuelo que calcular, pero sí tiene que ir pegado al piso: se le pasa el terreno
-      : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity, relief.on ? heightAt : undefined);
+      : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity, terrainOn() ? heightAt : undefined);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
   // el arco se ve siempre, no solo mientras se carga
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
@@ -408,8 +415,36 @@ horde.onEvent = (e) => {
       effects.explosion(e.pos, 2.2, 0x9a958a);
       shake = Math.max(shake, 0.15);
       break;
+    case 'healed': {
+      const s = toScreen(e.enemy.position, e.enemy.height);
+      hud.float(s.x, s.y, `+${e.amount}`, 'heal');
+      break;
+    }
+    case 'mound':
+      shake = Math.max(shake, 0.12);
+      hud.feedback('¡El geomante levanta la tierra! El driver no pasa: por arriba, con el hierro o el globo', 'bad');
+      break;
+    case 'banner':
+      hud.feedback(e.up ? '¡La bandera en alto! Todos tienen 1 de vida más' : 'Cayó la bandera', e.up ? 'bad' : 'good');
+      break;
   }
 };
+
+/** Lo que ya se presentó en esta partida: cada enemigo o modificador nuevo se anuncia una sola vez. */
+const announced = new Set<string>();
+function announce(kind: EnemyKind, mods?: EnemyMods): void {
+  const once = (key: string, text: string) => {
+    if (announced.has(key)) return;
+    announced.add(key);
+    hud.feedback(text, 'bad');
+  };
+  if (kind === 'ghost') once('ghost', '¡Fantasmas! Ningún golpe les saca más de 1: pegales muchas veces, no fuerte');
+  else if (kind === 'healer') once('healer', '¡Curandero! Los que tiene cerca recuperan vida de a poco');
+  else if (kind === 'bannerman') once('bannerman', '¡Abanderada! Se queda al fondo, y mientras viva todos tienen 1 de vida más');
+  else if (kind === 'geomancer') once('geomancer', '¡Geomante! Se planta y levanta una loma para taparse del driver');
+  if ((mods?.armor ?? 0) >= 2) once(`armor${mods!.armor}`, `¡Blindaje ${mods!.armor}! Le resta ${mods!.armor} a cada golpe. La granada se lo saca mientras dura`);
+  if (mods?.aura === 'heal') once('healMod', 'Ese cura a los de alrededor: el aura verde');
+}
 
 balls.onEvent = (e) => {
   switch (e.type) {
@@ -434,15 +469,26 @@ balls.onEvent = (e) => {
       hud.float(s.x, s.y, e.warded ? 'inmune' : '¡Bloqueado!', 'hurt');
       break;
     }
+    case 'connected':
+      // sin errar: suma apenas pega, sin esperar a que la pelota pare. Así el tiro siguiente ya lo ve
+      if (e.ability) break;
+      setCleanStreak(cleanStreak + 1);
+      break;
     case 'settled':
       // las rachas cuentan los tiros del puesto, no las habilidades
       if (e.ability) break;
-      streak = e.kills > 0 ? streak + 1 : 0;
-      if (perks.masonStreak && streak > 0 && streak % PERK_NUMBERS.masonStreak === 0 && gateHp < GATE_MAX) {
-        gateHp++;
-        hud.feedback('¡Racha! La puerta +1', 'good');
+      if (e.hits === 0) setCleanStreak(0);
+      // el albañil: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio; matar a
+      // varios de un tiro es lo que se le pide
+      if (perks.masonStreak && e.kills > 1) {
+        const before = Math.floor(masonPoints / PERK_NUMBERS.masonStreak);
+        masonPoints += e.kills - 1;
+        const heals = Math.floor(masonPoints / PERK_NUMBERS.masonStreak) - before;
+        if (heals > 0 && gateHp < GATE_MAX) {
+          gateHp = Math.min(GATE_MAX, gateHp + heals);
+          hud.feedback(`¡Los albañiles! La puerta +${heals}`, 'good');
+        }
       }
-      updateChargeMul();
       break;
   }
 };
@@ -527,8 +573,33 @@ function castAbility(index: number): void {
 const perks: Partial<Record<PerkId, number>> = {};
 /** Las tres cartas en pantalla, o null. */
 let choice: Card[] | null = null;
-/** Tiros seguidos del puesto que mataron a alguien: el ritmo y la racha del albañil. */
-let streak = 0;
+/** El albañil: las bajas de más de cada tiro, juntadas (un doblete suma 1, un triplete 2). */
+let masonPoints = 0;
+/**
+ * Tiros seguidos del puesto **sin errar** (le pegaron a alguien, maten o no): el ritmo y «En racha».
+ * Suma cuando el tiro conecta y vuelve a 0 cuando uno termina sin pegarle a nadie.
+ */
+let cleanStreak = 0;
+
+/** Cambia la racha sin errar y lo que depende de ella: el apuro del ritmo y el bonus de «En racha». */
+function setCleanStreak(n: number): void {
+  const wasHot = hotStreakOn();
+  cleanStreak = n;
+  const hot = hotStreakOn();
+  if (hot && !wasHot) hud.feedback('¡En racha!', 'good');
+  else if (!hot && wasHot) hud.feedback('Se cortó la racha', 'bad');
+  updateStreakEffects();
+}
+
+function hotStreakOn(): boolean {
+  return !!perks.hotStreak && cleanStreak >= PERK_NUMBERS.hotStreakShots;
+}
+
+function updateStreakEffects(): void {
+  updateTiming();
+  // suma, pero sin pasar del tope y sin bajar nunca; la pifia (0) no se toca
+  balls.hotDamage = hotStreakOn() ? (base) => (base <= 0 ? base : Math.max(base, Math.min(base + PERK_NUMBERS.hotStreakAdd, PERK_NUMBERS.hotStreakCap))) : null;
+}
 /** Bajas desde el último perfecto de regalo. */
 let giftKills = 0;
 /** Carcaj: si hay pelota a mano, y cuánto falta para la próxima. */
@@ -589,21 +660,47 @@ function applyCard(card: Card): void {
 
 /** Pasa las mejoras tomadas a los números del juego. Se llama cada vez que se toma una. */
 function applyPerks(): void {
-  QUALITY_BONUS.perfectWiden = Math.pow(PERK_NUMBERS.sweetSpot, perks.sweetSpot ?? 0);
-  hud.setPerfectWidth(1 - qualityStart(QUALITY_LEVELS - 1));
+  hud.setPerfectWidth(1 - qualityMarks()[1]);
   BALLS.max = 3 + (perks.extraBall ?? 0);
   abilities.secondWind.owned = !!perks.secondWind;
+  player.runCharge = !!perks.runCharge;
   horde.mastery.ice = !!perks.masteryIce;
   horde.mastery.fire = !!perks.masteryFire;
   horde.mastery.lightning = !!perks.masteryLightning;
-  updateChargeMul();
+  updateStreakEffects();
 }
 
-/** La muñeca rápida siempre, y el ritmo según la racha. */
-function updateChargeMul(): void {
+/**
+ * Los tiempos de la barra con las mejoras: swing parejo reparte, la muñeca y el ritmo (según la racha)
+ * apuran el débil y el medio, y el punto dulce alarga el fuerte.
+ */
+function currentTiming() {
   const wrist = Math.pow(PERK_NUMBERS.quickWrist, perks.quickWrist ?? 0);
-  const rhythm = perks.rhythm ? 1 - PERK_NUMBERS.rhythmStep * Math.min(streak, PERK_NUMBERS.rhythmMax) : 1;
-  player.chargeMul = wrist * rhythm;
+  const rhythm = perks.rhythm ? 1 - PERK_NUMBERS.rhythmStep * Math.min(cleanStreak, PERK_NUMBERS.rhythmMax) : 1;
+  return timingWith(CHARGE, {
+    even: PERK_NUMBERS.evenSwingStep * (perks.evenSwing ?? 0),
+    lowMul: wrist * rhythm,
+    strongMul: Math.pow(PERK_NUMBERS.sweetSpot, perks.sweetSpot ?? 0),
+  });
+}
+
+function updateTiming(): void {
+  player.timing = currentTiming();
+}
+
+/**
+ * Botiquín: al terminar una oleada, la puerta y vos se curan un poco por cada vez que lo tomaste. Es la
+ * curación automática de antes, ahora como carta; si algún día hay personajes, es candidato a poder
+ * inicial del más fácil (como la sangre del Ironclad en Slay the Spire).
+ */
+function medkitHeal(): void {
+  const n = perks.medkit ?? 0;
+  if (!n) return;
+  const gate = Math.min(GATE_MAX - gateHp, n * PERK_NUMBERS.medkitGate);
+  const hp = Math.min(player.maxHp - player.hp, n * PERK_NUMBERS.medkitPlayer);
+  gateHp += gate;
+  player.heal(hp);
+  if (gate > 0 || hp > 0) hud.feedback(`Botiquín: ${[gate ? `la puerta +${gate}` : '', hp ? `vos +${hp}` : ''].filter(Boolean).join(' · ')}`, 'good');
 }
 
 /** Carcaj: vas a pegar donde no hay pelota y te aparece una a los pies, si está lista. */
@@ -645,14 +742,23 @@ function perkStatus(): PerkChip[] {
         break;
       }
       case 'rhythm': {
-        const k = Math.min(streak, PERK_NUMBERS.rhythmMax);
+        const k = Math.min(cleanStreak, PERK_NUMBERS.rhythmMax);
         chip.status = `racha ${k}/${PERK_NUMBERS.rhythmMax}`;
         chip.ready = k >= PERK_NUMBERS.rhythmMax;
         break;
       }
       case 'masonStreak':
-        chip.status = `racha ${streak % PERK_NUMBERS.masonStreak}/${PERK_NUMBERS.masonStreak}`;
+        chip.status = `dobletes ${masonPoints % PERK_NUMBERS.masonStreak}/${PERK_NUMBERS.masonStreak}`;
         break;
+      case 'medkit':
+        chip.status = `+${n * PERK_NUMBERS.medkitGate} puerta · +${n * PERK_NUMBERS.medkitPlayer} vida`;
+        break;
+      case 'hotStreak': {
+        chip.ready = hotStreakOn();
+        const bonus = `+${PERK_NUMBERS.hotStreakAdd} hasta ${PERK_NUMBERS.hotStreakCap}`;
+        chip.status = chip.ready ? `¡en racha! ${bonus}` : `sin errar ${cleanStreak}/${PERK_NUMBERS.hotStreakShots}`;
+        break;
+      }
       case 'extraBall':
         chip.status = `+${n}`;
         break;
@@ -773,7 +879,8 @@ function makeDebugPanel(): DebugPanel {
       // solos: lo único que se copió al aparecer, y hay que emparejar, es la vida.
       for (const e of horde.enemies) {
         if (!e.alive) continue;
-        e.maxHp = e.stats.hp;
+        // la del tipo, más lo que sumen sus modificadores y la bandera
+        e.maxHp = Math.max(1, e.stats.hp + (e.mods.hp ?? 0)) + (e.bannered ? 1 : 0);
         e.hp = Math.max(1, Math.min(e.hp, e.maxHp));
       }
     },
@@ -808,6 +915,7 @@ function makeDebugPanel(): DebugPanel {
     camera: () => cam,
     applyVisual: () => visuals.apply(),
     fps: () => frameTimes.filter((t) => performance.now() - t < 1000).length,
+    timing: currentTiming,
   });
 }
 
@@ -824,12 +932,16 @@ const input = new Input({
   swingStart() {
     if (!started || paused || ended || cardOpen) return;
     useQuiver();
-    player.startSwing();
+    if (!player.atSpot) player.preCharge();
+    else player.startSwing();
   },
   swingRelease() {
     if (started && !paused && !ended && player.mode === 'charging') {
       audio.whoosh(player.meter.power);
       player.releaseSwing();
+    } else if (started && !paused && !ended && player.preRelease()) {
+      // soltó corriendo: el tiro queda clavado ahí y sale al llegar
+      audio.chargeTick(qualityOf(player.meter.power));
     }
   },
   swingCancel() {
@@ -874,32 +986,6 @@ const input = new Input({
 // ---------- carga ----------
 const loader = new GLTFLoader();
 
-/**
- * Los clips de Mixamo desplazan la cadera; el movimiento lo maneja el juego. Se fija la posición
- * horizontal de la cadera (en espacio mundo, porque el nodo Armature viene rotado) en su valor inicial.
- */
-function stripRootMotion(clip: THREE.AnimationClip, root: THREE.Object3D): void {
-  root.updateMatrixWorld(true);
-  for (const t of clip.tracks) {
-    if (!t.name.endsWith('Hips.position')) continue;
-    const node = root.getObjectByName(t.name.slice(0, -'.position'.length));
-    const q = new THREE.Quaternion();
-    (node?.parent ?? root).getWorldQuaternion(q);
-    const inv = q.clone().invert();
-    const v = t.values;
-    const first = new THREE.Vector3(v[0], v[1], v[2]).applyQuaternion(q);
-    const p = new THREE.Vector3();
-    for (let i = 0; i < v.length; i += 3) {
-      p.set(v[i], v[i + 1], v[i + 2]).applyQuaternion(q);
-      p.x = first.x;
-      p.z = first.z;
-      p.applyQuaternion(inv);
-      v[i] = p.x;
-      v[i + 1] = p.y;
-      v[i + 2] = p.z;
-    }
-  }
-}
 
 const measured: Record<string, number> = {};
 let playerClips: THREE.AnimationClip[] = [];
@@ -946,25 +1032,6 @@ function loadGltf(url: string): Promise<GLTF> {
   return p;
 }
 
-/** Deja en `root` solo la malla pedida (los GLB de PolygonDungeon traen los 16 personajes juntos). */
-function keepOnlyMesh(root: THREE.Object3D, mesh: string): void {
-  const drop: THREE.Object3D[] = [];
-  root.traverse((o) => {
-    if ((o as THREE.SkinnedMesh).isSkinnedMesh && o.name !== mesh) drop.push(o);
-  });
-  for (const o of drop) o.parent?.remove(o);
-}
-
-function skinnedHeight(root: THREE.Object3D): number {
-  root.updateMatrixWorld(true);
-  root.traverse((o) => {
-    const sm = o as THREE.SkinnedMesh;
-    if (sm.isSkinnedMesh) sm.skeleton.update();
-  });
-  const box = new THREE.Box3().setFromObject(root, true);
-  return box.max.y - Math.min(0, box.min.y);
-}
-
 async function makePlayer(skin: Skin): Promise<Player> {
   const gltf = await loadGltf(skin.url);
   const model = cloneSkinned(gltf.scene);
@@ -990,6 +1057,20 @@ async function makePlayer(skin: Skin): Promise<Player> {
     return i >= 0 && tees.take(i);
   };
   p.canStart = () => hasBallHere();
+  p.canPreStart = () => tees.hasBall(p.spotIndex);
+  p.runCharge = !!perks.runCharge;
+  p.onArrivalRelease = (power) => audio.whoosh(power);
+  // la pifia: un golpe que con ese palo no pega nada (el golpe 1 del wedge) no sale. La pelota se queda
+  // en el puesto y cuenta como errar
+  p.duffs = (club, quality) => {
+    const range = shotRange(club);
+    return damageFor(club, range, quality) <= 0 && areaDamageFor(club, range, quality) <= 0;
+  };
+  p.onDuff = () => {
+    audio.duff();
+    hud.feedback('¡Pifia!', 'bad');
+    setCleanStreak(0);
+  };
   p.onWhiff = () => {
     audio.whoosh(0.3);
     hud.feedback('¡Sin pelota! Movete con A / D', 'bad');
@@ -1056,7 +1137,7 @@ async function cycleSkin(delta = 1): Promise<void> {
     fresh.hp = player.hp;
     for (const id of player.unlocked) fresh.unlocked.add(id);
     fresh.meleeCooldown = player.meleeCooldown;
-    fresh.chargeMul = player.chargeMul;
+    fresh.timing = player.timing;
     fresh.giftPerfect = player.giftPerfect;
     fresh.thrownClub = player.thrownClub;
     fresh.onGift = player.onGift;
@@ -1217,13 +1298,16 @@ function updateWaves(dt: number): void {
       case 'spawn':
         // apagado desde el panel de balance: la oleada sigue igual, pero este tipo no sale
         if (disabledKinds.has(e.kind)) break;
-        horde.spawn(e.kind);
+        horde.spawn(e.kind, undefined, e.mods);
+        announce(e.kind, e.mods);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
         else if (e.kind === 'shaman') hud.feedback('¡Chamán! Los que tiene cerca son inmunes: silencialo con la granada (Q)', 'bad');
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacátela con el palazo (Shift)', 'bad');
         break;
       case 'cleared':
-        // ya no se cura solo entre oleadas: curarse es una de las cartas, y elegirla es no mejorar
+        // ya no se cura solo entre oleadas: curarse es una de las cartas, y elegirla es no mejorar. Salvo
+        // con el botiquín, que es justamente eso
+        if (e.index + 1 < director.waveCount) medkitHeal();
         if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner('¡Oleada despejada!', '', 2.5);
         break;
       case 'victory':
@@ -1267,10 +1351,13 @@ function frame(): void {
     updateAim();
     const active = started && !ended;
     if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
+    // carga en carrera: con el click apretado, la barra arranca apenas va hacia un puesto con pelota
+    else if (active && input.swingHeld && player.mode === 'free' && !player.atSpot) player.preCharge();
     player.update(dt);
     if (active) updateWaves(dt);
     if (started) {
       horde.update(dt, player);
+      moundView.update();
       balls.update(dt);
       abilities.update(dt);
       const stance = player.mode === 'charging' || player.mode === 'swinging';
@@ -1326,7 +1413,8 @@ addEventListener('resize', () => {
   /** Píxel de pantalla que corresponde a un punto del piso, para apuntar con el mouse en los tests. */
   screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, heightAt(x, z), z), 0); },
   heightAt,
-  spawn(kind: EnemyKind, x: number, z: number) { return horde.spawn(kind, new THREE.Vector3(x, 0, z)); },
+  spawn(kind: EnemyKind, x: number, z: number, mods?: EnemyMods) { return horde.spawn(kind, new THREE.Vector3(x, 0, z), mods); },
+  mounds,
   /** Tiro con una calidad de golpe exacta, sin depender del timing. Cae donde esté el mouse. */
   shootPower(power: number) {
     player.startSwing();

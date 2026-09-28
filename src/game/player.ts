@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Element } from '../core/abilities';
-import { CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, MELEE_COOLDOWN, QUALITY_LEVELS, qualityOf, qualityStart, SHIFT, type Club, type ClubId } from '../core/clubs';
+import { CHARGE, CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, MELEE_COOLDOWN, qualityMarks, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
+import type { ChargeTimes } from '../core/swing';
 import { SwingMeter } from '../core/swing';
 import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
@@ -93,8 +94,13 @@ export class Player {
   canFire: (() => boolean) | null = null;
   /** ¿Se puede empezar a cargar? Sin pelota en el puesto, no: cargar para pegarle al aire solo frustraba. */
   canStart: (() => boolean) | null = null;
+  /** ¿El puesto al que va corriendo tiene pelota? Para cargar en carrera. */
+  canPreStart: (() => boolean) | null = null;
   /** El swing no encontró pelota. */
   onWhiff: (() => void) | null = null;
+  /** ¿Con este palo y este nivel de golpe se pifia? El tiro no sale y la pelota se queda. */
+  duffs: ((club: Club, quality: number) => boolean) | null = null;
+  onDuff: (() => void) | null = null;
   club: Club = CLUBS.driver;
   mode: PlayerMode = 'free';
   /** Hacia dónde apunta (unitario en el plano). Lo fija el juego en cada cuadro desde el mouse. */
@@ -244,6 +250,15 @@ export class Player {
       this.pendingClub = club.id === this.club.id ? null : club;
       return;
     }
+    // cargando en carrera: como cargando parado, cambia en el acto y la barra arranca de nuevo
+    if (this.preCharging) {
+      if (club.id === this.club.id) return;
+      this.keepGift();
+      this.meter.cancel();
+      this.applyClub(club);
+      this.beginMeter();
+      return;
+    }
     this.applyClub(club);
   }
 
@@ -255,6 +270,8 @@ export class Player {
   }
 
   startSwing(): void {
+    // cargando en carrera: la postura entra sola al llegar, con la barra que ya venía corriendo
+    if (this.preCharging) return;
     const recovered = this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER;
     if ((this.mode !== 'free' && !recovered) || this.grabbedBy || this.stunned || !this.alive || !this.atSpot) return;
     if (this.canStart && !this.canStart()) return;
@@ -264,6 +281,11 @@ export class Player {
     this.shift = 0;
     this.curve = 0;
     this.backswing = 0;
+    this.beginMeter();
+  }
+
+  /** Arranca la barra, y si hay perfecto de regalo, la deja clavada arriba. */
+  private beginMeter(): void {
     this.startMeter();
     // perfecto de regalo: la barra arranca ya clavada arriba, y soltás cuando quieras
     if (this.giftPerfect) {
@@ -275,16 +297,62 @@ export class Player {
     }
   }
 
-  /**
-   * Arranca la barra con el apuro de las mejoras. El apuro vale solo hasta donde empieza el golpe
-   * perfecto: la ventana de arriba dura lo mismo que sin mejoras (ver SwingMeter).
-   */
+  /** Arranca la barra con los tiempos de ahora, que ya traen las mejoras (ver `timing`). */
   private startMeter(): void {
-    this.meter.start(this.club.chargeTime, this.chargeMul, qualityStart(QUALITY_LEVELS - 1));
+    this.meter.start(this.timing, qualityMarks());
   }
 
-  /** Cuánto tarda el tramo de abajo de la barra: lo bajan la muñeca rápida y el ritmo. */
-  chargeMul = 1;
+  /**
+   * Los segundos de cada tramo de la barra, con las mejoras encima (muñeca rápida, ritmo, punto dulce,
+   * swing parejo). Los calcula el juego; el tiro que ya se está cargando sigue con los que arrancó.
+   */
+  timing: ChargeTimes = { ...CHARGE };
+  /**
+   * Carga en carrera (mejora): se puede empezar a cargar mientras corre a un puesto con pelota. La
+   * barra corre desde que se aprieta, así que el tempo del golpe es el mismo de siempre: lo que se
+   * ahorra es el rato de correr.
+   */
+  runCharge = false;
+  /** Soltó antes de llegar: el tiro sale apenas llega, con la barra clavada donde soltó. */
+  private releaseOnArrival = false;
+  /** El tiro soltado en carrera salió al llegar al puesto. */
+  onArrivalRelease: ((power: number) => void) | null = null;
+
+  /** La barra ya corre pero todavía está llegando al puesto (Carga en carrera). */
+  get preCharging(): boolean {
+    return this.mode === 'free' && this.meter.charging;
+  }
+
+  /** Empieza a cargar mientras corre a un puesto con pelota. Devuelve false si no se puede. */
+  preCharge(): boolean {
+    if (!this.runCharge || this.mode !== 'free' || this.meter.charging || this.atSpot) return false;
+    if (this.grabbedBy || this.stunned || !this.alive || this.downed) return false;
+    if (this.canPreStart && !this.canPreStart()) return false;
+    this.releaseOnArrival = false;
+    this.beginMeter();
+    return true;
+  }
+
+  /** Soltó el click corriendo: la barra se clava ahí y el tiro sale apenas llega. */
+  preRelease(): boolean {
+    if (!this.preCharging) return false;
+    this.meter.lock();
+    this.releaseOnArrival = true;
+    return true;
+  }
+
+  /** Llegó al puesto con la barra corriendo: entra en la postura sin reiniciarla. */
+  private arriveCharging(): void {
+    this.mode = 'charging';
+    this.shift = 0;
+    this.curve = 0;
+    this.backswing = this.meter.power;
+    if (!this.releaseOnArrival) return;
+    this.releaseOnArrival = false;
+    const power = this.meter.power;
+    this.releaseSwing();
+    this.onArrivalRelease?.(power);
+  }
   /** El próximo tiro arranca clavado en el perfecto (la mejora «Perfecto de regalo»). */
   giftPerfect = false;
   /**
@@ -335,7 +403,7 @@ export class Player {
 
   /** Clava el daño donde está la barra: el tiro sale con ese nivel cuando se suelte. */
   lockSwing(): boolean {
-    return this.mode === 'charging' && this.meter.lock();
+    return (this.mode === 'charging' || this.preCharging) && this.meter.lock();
   }
 
   /**
@@ -343,10 +411,11 @@ export class Player {
    * barra espaciadora: clavaste un nivel que no era y querés otro, sin soltar el tiro ni cancelarlo.
    */
   restartCharge(): boolean {
-    if (this.mode !== 'charging') return false;
+    if (this.mode !== 'charging' && !this.preCharging) return false;
     this.backswing = 0;
     this.keepGift();
-    this.startMeter();
+    this.releaseOnArrival = false;
+    this.beginMeter();
     return true;
   }
 
@@ -358,6 +427,12 @@ export class Player {
   }
 
   cancelSwing(): void {
+    if (this.preCharging) {
+      this.keepGift();
+      this.meter.cancel();
+      this.releaseOnArrival = false;
+      return;
+    }
     if (this.mode !== 'charging') return;
     this.keepGift();
     this.meter.cancel();
@@ -371,7 +446,7 @@ export class Player {
    */
   startMelee(): boolean {
     if (this.meleeCooldown > 0 || this.stunned || !this.alive) return false;
-    if (this.mode === 'charging') this.cancelSwing();
+    if (this.mode === 'charging' || this.preCharging) this.cancelSwing();
     if (this.mode !== 'free') return false;
     this.mode = 'melee';
     this.meleeHit = false;
@@ -640,6 +715,10 @@ export class Player {
         this.yaw = lerpAngle(this.yaw, Math.atan2(this.aimDir.x, this.aimDir.z), 1 - Math.exp(-8 * dt));
         this.animator.setLocomotion('Idle', 1);
       }
+      // cargando en carrera: si el puesto al que va se quedó sin pelota (cambió de destino) se corta,
+      // y al llegar entra en la postura con la barra donde esté
+      if (this.preCharging && this.canPreStart && !this.atSpot && !this.canPreStart()) this.cancelSwing();
+      else if (this.preCharging && this.atSpot) this.arriveCharging();
     }
 
     // la postura entra rápido y sale suave
@@ -673,6 +752,11 @@ export class Player {
     const shot = this.swingShot;
     if (!shot) return;
     this.swingShot = null;
+    // pifia: el palo pasa y la pelota se queda en el puesto (se chequea antes de gastarla)
+    if (this.duffs?.(this.club, qualityOf(shot.power))) {
+      this.onDuff?.();
+      return;
+    }
     // sin pelota en el puesto, el palo pasa de largo: no hay tiro ni recarga
     if (this.canFire && !this.canFire()) {
       this.onWhiff?.();

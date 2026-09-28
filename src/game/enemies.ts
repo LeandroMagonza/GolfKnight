@@ -8,8 +8,8 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
-import { heightAt } from '../core/terrain';
-import { ENEMIES, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type EnemyKind, type EnemyStats } from '../core/waves';
+import { heightAt, mounds } from '../core/terrain';
+import { BANNER_HOLD_Z, ENEMIES, GEOMANCER, SHIELD_WALL, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -55,7 +55,13 @@ export type HordeEvent =
   | { type: 'grab'; enemy: Enemy }
   | { type: 'release'; enemy: Enemy }
   | { type: 'rockThrown'; enemy: Enemy }
-  | { type: 'rockLanded'; pos: THREE.Vector3 };
+  | { type: 'rockLanded'; pos: THREE.Vector3 }
+  /** El aura de un curandero le devolvió vida. */
+  | { type: 'healed'; enemy: Enemy; amount: number }
+  /** Un geomante levantó una loma. */
+  | { type: 'mound'; enemy: Enemy }
+  /** La bandera se levantó (todos +1 de vida) o cayó. */
+  | { type: 'banner'; up: boolean };
 
 interface Template {
   scene: THREE.Object3D;
@@ -84,6 +90,14 @@ const rockGeo = new THREE.DodecahedronGeometry(0.7, 0);
 const rockMat = new THREE.MeshStandardMaterial({ color: 0x77736b, roughness: 1, flatShading: true });
 
 const bubbleGeo = new THREE.SphereGeometry(1, 18, 12);
+/** La bandera de la abanderada, en unidades del modelo sin escalar. */
+const poleGeo = new THREE.CylinderGeometry(0.03, 0.03, 2.6, 6);
+const poleMat = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 0.9 });
+const flagGeo = new THREE.PlaneGeometry(0.9, 0.6);
+const flagMat = new THREE.MeshStandardMaterial({ color: 0xc8322b, roughness: 0.8, side: THREE.DoubleSide });
+/** El blindaje que viene como modificador tiñe de acero (el acorazado ya trae su color). */
+const STEEL_TINT = 0xa9b1bb;
+const AURA_COLORS: Record<Aura, number> = { ward: 0xb26bff, heal: 0x6be38a };
 
 const CHILL_TINT = new THREE.Color(0x8fd0ff);
 const FROZEN_TINT = new THREE.Color(0xdff6ff);
@@ -127,6 +141,22 @@ export class Enemy {
   divineTimer = 0;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
   warded = false;
+  /** Tiene el punto de vida de más de la abanderada. Lo pone y lo saca la horda. */
+  bannered = false;
+  /** Reloj del aura de curación: cura cuando llega a HEAL_AURA.every. */
+  healTimer = 0;
+  /**
+   * Geomante: camina, se planta y levanta la loma (`raising`), se queda detrás un rato (`staying`), y
+   * después sigue a la puerta (`done`).
+   */
+  digState: 'walk' | 'raising' | 'staying' | 'done' = 'walk';
+  private digTimer = 0;
+  /** Dónde se planta (la abanderada, el geomante): lo que diga el tipo, o donde apareció si ya estaba más cerca. */
+  private holdAt = Number.NaN;
+  /** El material del escudo muro, que late en violeta. */
+  private wallMat: THREE.MeshStandardMaterial | null = null;
+  /** Lo último que se dibujó en los cuadraditos: se redibujan solo si cambió. */
+  private pipKey = '';
   /** Ya pasó la línea del golfista: está fuera de juego (nada lo toca) y corre hasta la puerta. */
   passed = false;
   /** Alma en pena: tiene agarrado al golfista. */
@@ -171,12 +201,13 @@ export class Enemy {
   private readonly arms: THREE.Object3D[] = [];
   private readonly spine: THREE.Object3D | null;
 
-  // stats y maxHp no son de solo lectura: el panel de balance (tecla B) los toca en vivo
-  constructor(readonly stats: EnemyStats, template: Template) {
+  // stats y maxHp no son de solo lectura: el panel de balance (tecla B) los toca en vivo. Los
+  // modificadores (blindaje, escudo, aura...) van aparte, así el tipo sigue siendo el objeto compartido
+  constructor(readonly stats: EnemyStats, template: Template, readonly mods: EnemyMods = {}) {
     this.position = this.group.position;
-    this.maxHp = this.hp = stats.hp;
-    this.divineReady = !!stats.divine;
-    if (stats.divine) {
+    this.maxHp = this.hp = Math.max(1, stats.hp + (mods.hp ?? 0));
+    this.divineReady = !!this.divineEvery;
+    if (this.divineEvery) {
       this.bubble = new THREE.Mesh(bubbleGeo, new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.22, depthWrite: false }));
       this.bubble.scale.set(stats.radius * 1.6, stats.height * 0.62, stats.radius * 1.6);
       this.bubble.position.y = stats.height * 0.5;
@@ -191,7 +222,12 @@ export class Enemy {
       const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
       mat.metalness = 0;
       mat.roughness = 0.85;
-      if (stats.tint) mat.color.setHex(stats.tint);
+      const tint = mods.armor ? STEEL_TINT : stats.tint;
+      if (tint) mat.color.setHex(tint);
+      if (stats.ghostly) {
+        mat.transparent = true;
+        mat.opacity = 0.55;
+      }
       mesh.material = mat;
       this.materials.push({ mat, color: mat.color.clone() });
     });
@@ -202,15 +238,27 @@ export class Enemy {
     if (right) this.arms.push(right);
     // el chamán conjura con los dos brazos, el alma en pena agarra con los dos, y el gólem levanta la
     // piedra con los dos por encima de la cabeza
-    if (left && (stats.behavior === 'shaman' || stats.behavior === 'grabber' || stats.behavior === 'golem')) this.arms.push(left);
+    if (left && (stats.behavior === 'shaman' || stats.behavior === 'grabber' || stats.behavior === 'golem' || stats.behavior === 'geomancer')) this.arms.push(left);
     this.spine = this.model.getObjectByName('mixamorigSpine1') ?? null;
 
-    if (stats.shield) {
+    if (stats.behavior === 'banner') {
+      // la bandera va en la espalda, bien alta: tiene que verse desde lejos, que es donde se queda
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(-0.2, 1.6, -0.25);
+      const flag = new THREE.Mesh(flagGeo, flagMat);
+      flag.position.set(-0.2 + 0.45, 2.6, -0.25);
+      this.model.add(pole, flag);
+    }
+
+    if (this.hasShield) {
       const shield = new THREE.Group();
-      const disc = new THREE.Mesh(shieldGeo, shieldMat);
+      // el muro tiene material propio: late en violeta, como los inmunes del chamán
+      if (this.shieldWall) this.wallMat = new THREE.MeshStandardMaterial({ color: 0x5b3a8a, roughness: 0.5, metalness: 0.4 });
+      const disc = new THREE.Mesh(shieldGeo, this.wallMat ?? shieldMat);
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.035, 6, 18), shieldRimMat);
       disc.rotation.x = Math.PI / 2;
       shield.add(disc, rim);
+      if (this.shieldWall) shield.scale.setScalar(1.3);
       // adelante y un poco a la izquierda, en unidades del modelo sin escalar
       shield.position.set(0.22, 1.05, 0.42);
       this.model.add(shield);
@@ -236,14 +284,14 @@ export class Enemy {
     this.barBg.scale.set(barWidth, 0.16, 1);
     this.barFill.scale.set(barWidth, 0.1, 1);
     this.barFill.renderOrder = 11;
-    if (stats.hp <= 10) {
+    if (this.maxHp <= 10) {
       const canvas = document.createElement('canvas');
-      canvas.width = 32 * stats.hp;
+      canvas.width = 32 * this.maxHp;
       canvas.height = 32;
       const tex = new THREE.CanvasTexture(canvas);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-      const pip = Math.min(0.3, 2.4 / stats.hp);
-      sprite.scale.set(pip * stats.hp, pip, 1);
+      const pip = Math.min(0.3, 2.4 / this.maxHp);
+      sprite.scale.set(pip * this.maxHp, pip, 1);
       sprite.position.set(0, stats.height + 0.45, 0);
       sprite.renderOrder = 12;
       this.group.add(sprite);
@@ -277,14 +325,59 @@ export class Enemy {
     this.silenceFill.scale.set(barWidth, 0.09, 1);
     this.silenceFill.renderOrder = 11;
 
-    if (stats.behavior === 'shaman') {
-      const mat = new THREE.MeshBasicMaterial({ color: 0xb26bff, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+    const aura = this.auraKind;
+    if (aura) {
+      const mat = new THREE.MeshBasicMaterial({ color: AURA_COLORS[aura], transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
       this.aura = new THREE.Mesh(auraGeo, mat);
       this.aura.rotation.x = -Math.PI / 2;
       this.aura.position.y = 0.07;
-      this.aura.scale.setScalar(SHAMAN_WARD_RADIUS);
+      this.aura.scale.setScalar(this.auraRadius);
       this.group.add(this.aura);
     }
+  }
+
+  // ---- lo que sale del tipo y de los modificadores juntos ----
+
+  /** Armadura de verdad: la del modificador o la del tipo. */
+  get armorLevel(): number {
+    return this.mods.armor ?? this.stats.armor ?? 0;
+  }
+
+  /** Lo que la armadura le resta a cada golpe ahora: el silencio de la granada se la saca mientras dura. */
+  get armor(): number {
+    return this.silenced ? 0 : this.armorLevel;
+  }
+
+  /** Cuánto le resta el escudo a lo que llega de frente. 0 = no tiene. */
+  get shieldLevel(): number {
+    return this.mods.shield ?? this.stats.shield;
+  }
+
+  get hasShield(): boolean {
+    return this.shieldLevel > 0;
+  }
+
+  /** El escudo muro: de frente no pasa nada. */
+  get shieldWall(): boolean {
+    return this.shieldLevel >= SHIELD_WALL;
+  }
+
+  /** Cada cuánto se recarga el escudo divino, o 0 si no tiene. */
+  get divineEvery(): number {
+    return this.mods.divine ?? this.stats.divine ?? 0;
+  }
+
+  get auraKind(): Aura | undefined {
+    return this.mods.aura ?? this.stats.aura;
+  }
+
+  get auraRadius(): number {
+    return this.auraKind === 'heal' ? HEAL_AURA.radius : SHAMAN_WARD_RADIUS;
+  }
+
+  /** Etéreo: ningún golpe le saca más de 1. */
+  get ethereal(): boolean {
+    return this.mods.ethereal ?? this.stats.ethereal ?? false;
   }
 
   get alive(): boolean {
@@ -304,9 +397,9 @@ export class Enemy {
     return this.silenceTimer > 0;
   }
 
-  /** Chamán con el aura activa. */
+  /** Con el aura activa: la del chamán o la del curandero, venga del tipo o de un modificador. */
   get casting(): boolean {
-    return this.stats.behavior === 'shaman' && this.alive && !this.silenced;
+    return !!this.auraKind && this.alive && !this.silenced && !this.passed;
   }
 
   /** Congelado por la maestría del hielo: quieto del todo. */
@@ -353,23 +446,53 @@ export class Enemy {
     return (vx * f.x + vz * f.z) / h < -SHIELD_FRONT;
   }
 
-  /** Vida en cuadraditos, uno por punto: siempre a la vista, para decidir cuánto cargar el tiro. */
+  /**
+   * Vida en cuadraditos, uno por punto: siempre a la vista, para decidir cuánto cargar el tiro. El punto
+   * de más de la abanderada va en dorado, y la armadura en cuadraditos de acero al lado (apagados
+   * mientras la granada la silencia).
+   */
   private drawPips(): void {
     const p = this.pips;
     if (!p) return;
+    const armor = this.armorLevel;
+    // el escudo (si no es el muro, que se lee por el brillo) va en madera, después del blindaje
+    const shield = this.hasShield && !this.shieldWall ? this.shieldLevel : 0;
+    const n = this.maxHp + armor + shield;
+    if (p.canvas.width !== 32 * n) {
+      p.canvas.width = 32 * n;
+      p.tex.dispose();
+      p.tex = new THREE.CanvasTexture(p.canvas);
+      p.sprite.material.map = p.tex;
+      p.sprite.material.needsUpdate = true;
+      const pip = Math.min(0.3, 2.4 / n);
+      p.sprite.scale.set(pip * n, pip, 1);
+    }
     const ctx = p.canvas.getContext('2d')!;
     ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
-    for (let i = 0; i < this.maxHp; i++) {
-      ctx.fillStyle = i < this.hp ? '#5be07a' : 'rgba(10, 14, 20, 0.7)';
-      ctx.strokeStyle = '#0b0f14';
+    for (let i = 0; i < n; i++) {
+      const isShield = i >= this.maxHp + armor;
+      const isArmor = !isShield && i >= this.maxHp;
+      if (isShield) ctx.fillStyle = this.shieldUp ? '#b07a3c' : 'rgba(176, 122, 60, 0.22)';
+      else if (isArmor) ctx.fillStyle = this.silenced ? 'rgba(174, 184, 196, 0.22)' : '#aeb8c4';
+      else if (i >= this.hp) ctx.fillStyle = 'rgba(10, 14, 20, 0.7)';
+      else ctx.fillStyle = this.bannered && i === this.maxHp - 1 ? '#ffd34d' : '#5be07a';
+      ctx.strokeStyle = isShield ? '#4a3018' : isArmor ? '#3b434d' : '#0b0f14';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.roundRect(i * 32 + 4, 5, 24, 22, 5);
+      ctx.roundRect(i * 32 + 4, 5, 24, 22, isShield ? 11 : isArmor ? 2 : 5);
       ctx.fill();
       ctx.stroke();
     }
     p.tex.needsUpdate = true;
     p.sprite.visible = this.alive && !this.passed;
+  }
+
+  /** Redibuja la vida si cambió algo de lo que muestra (la vida, la bandera, el silencio sobre la armadura). */
+  refreshPipsIfChanged(): void {
+    const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.shieldUp}/${this.silenced}/${this.bannered}/${this.alive && !this.passed}`;
+    if (key === this.pipKey) return;
+    this.pipKey = key;
+    this.refreshBar();
   }
 
   private refreshBar(): void {
@@ -473,7 +596,7 @@ export class Enemy {
   spendDivine(): boolean {
     if (!this.divineReady) return false;
     this.divineReady = false;
-    this.divineTimer = this.stats.divine ?? 5;
+    this.divineTimer = this.divineEvery || 5;
     return true;
   }
 
@@ -538,7 +661,7 @@ export class Enemy {
     if (this.lureTimer > 0) this.lureTimer = Math.max(0, this.lureTimer - dt);
     if (this.growTimer > 0) this.growTimer = Math.max(0, this.growTimer - dt);
     if (this.powderTimer > 0) this.powderTimer = Math.max(0, this.powderTimer - dt);
-    if (!this.divineReady && this.stats.divine) {
+    if (!this.divineReady && this.divineEvery) {
       this.divineTimer -= dt;
       if (this.divineTimer <= 0) this.divineReady = true;
     }
@@ -549,9 +672,11 @@ export class Enemy {
     this.refreshChill();
     const slow = this.chilled ? ICE.slow : 1;
     const behavior = this.stats.behavior;
-    const castGesture = this.casting ? 1 : 0;
+    const castGesture = this.casting || this.digState === 'raising' ? 1 : 0;
+    this.refreshPipsIfChanged();
     if (this.aura) {
       this.aura.visible = this.casting;
+      this.aura.scale.setScalar(this.auraRadius);
       this.aura.rotation.z += dt * 0.4;
       (this.aura.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.2 * Math.sin(this.age * 3);
     }
@@ -584,7 +709,7 @@ export class Enemy {
         horde.explode(this, player);
         return;
       }
-      if (behavior === 'melee' && !player.invulnerable) {
+      if ((behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer') && !player.invulnerable) {
         player.hit(this.stats.damage, this.position);
         horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
         horde.emit({ type: 'trample', enemy: this });
@@ -615,8 +740,17 @@ export class Enemy {
       this.refreshChill();
     }
 
-    // dónde se para: los que pelean llegan hasta la puerta; el chamán y el gólem se plantan lejos
-    const holdZ = behavior === 'shaman' ? SHAMAN_HOLD_Z : behavior === 'golem' ? GOLEM_HOLD_Z : null;
+    // dónde se para: los que pelean llegan hasta la puerta; el chamán y el gólem se plantan lejos, la
+    // abanderada se queda al fondo, y el geomante se planta mientras cava
+    if (Number.isNaN(this.holdAt)) {
+      const want = behavior === 'banner' ? BANNER_HOLD_Z : behavior === 'geomancer' ? GEOMANCER.holdZ : Number.NaN;
+      this.holdAt = Math.min(want, this.position.z);
+    }
+    const holdZ = behavior === 'shaman' ? SHAMAN_HOLD_Z
+      : behavior === 'golem' ? GOLEM_HOLD_Z
+        : behavior === 'banner' ? this.holdAt
+          : behavior === 'geomancer' && this.digState !== 'done' ? this.holdAt
+            : null;
     const holding = holdZ !== null && this.target === 'gate';
     const gateX = holding ? this.position.x : THREE.MathUtils.clamp(this.position.x, -GATE_HALF_WIDTH + 0.3, GATE_HALF_WIDTH - 0.3);
     const gateZ = holding ? holdZ : GATE_Z + this.radius + 0.3;
@@ -657,6 +791,7 @@ export class Enemy {
           this.castTimer -= dt * slow;
           if (this.castTimer <= 0) this.startAttack(this.stats.attackEvery ?? GOLEM_THROW_EVERY);
         }
+        if (behavior === 'geomancer') this.updateDig(dt, horde);
         this.animator.setLocomotion('Idle', 1);
       } else if (behavior === 'grabber') {
         if (player.alive && !player.invulnerable && !player.grabbedBy) {
@@ -667,7 +802,7 @@ export class Enemy {
           horde.emit({ type: 'grab', enemy: this });
         }
         this.animator.setLocomotion('Idle', 1);
-      } else if (this.target === 'gate' && behavior === 'melee') {
+      } else if (this.target === 'gate' && (behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer')) {
         // Llegó a la puerta: le hace su daño de una sola vez y se pierde adentro. Pegarle a un enemigo
         // pegado a la muralla era incómodo (la cámara mira para el otro lado), y no sumaba nada.
         horde.emit({ type: 'gateHit', enemy: this, amount: this.stats.gateDamage });
@@ -697,6 +832,24 @@ export class Enemy {
     }
     this.clampToField();
     this.finishFrame(dt, this.state === 'attack' ? 1 : castGesture);
+  }
+
+  /** El geomante plantado: levanta la loma, se queda detrás un rato y sigue viaje. */
+  private updateDig(dt: number, horde: Horde): void {
+    if (this.digState === 'walk') {
+      this.digState = 'raising';
+      this.digTimer = GEOMANCER.rise;
+      horde.raiseMound(this);
+      return;
+    }
+    this.digTimer -= dt;
+    if (this.digTimer > 0) return;
+    if (this.digState === 'raising') {
+      this.digState = 'staying';
+      this.digTimer = GEOMANCER.stay;
+    } else {
+      this.digState = 'done';
+    }
   }
 
   private clampToField(): void {
@@ -749,8 +902,8 @@ export class Enemy {
     const u = this.attackHitAt > 0 ? this.attackTime / this.attackHitAt : 1;
     let angle: number;
     let lean: number;
-    if (this.stats.behavior === 'shaman') {
-      // manos en alto mientras sostiene el aura
+    if (this.stats.behavior === 'shaman' || this.stats.behavior === 'geomancer') {
+      // manos en alto mientras sostiene el aura (o mientras levanta la tierra)
       angle = -2.75 + 0.12 * Math.sin(this.age * 3);
       lean = -0.12;
     } else if (this.stats.behavior === 'grabber') {
@@ -806,13 +959,14 @@ export class Enemy {
 
   /** ¿Tiene el escudo en alto? Silenciado por la granada lo baja hasta que se le pasa. */
   get shieldUp(): boolean {
-    return this.stats.shield && this.alive && !this.silenced && !this.passed;
+    return this.hasShield && this.alive && !this.silenced && !this.passed;
   }
 
   private updateLook(dt: number): void {
     // lo que se ve coincide con lo que pasa: sin escudo a la vista, el driver entra
     // tampoco se ve mientras cae muerto
     if (this.shieldMesh) this.shieldMesh.visible = this.shieldUp;
+    if (this.wallMat) this.wallMat.emissive.setRGB(0.45, 0.12, 0.8).multiplyScalar(0.55 + 0.25 * Math.sin(this.age * 6));
     if (this.flashTimer > 0) this.flashTimer -= dt;
     const flash = this.flashTimer > 0;
     // el kamikaze late en rojo, cada vez más rápido cuando ya encendió la mecha
@@ -866,6 +1020,7 @@ export class Enemy {
     }
     if (this.aura) (this.aura.material as THREE.Material).dispose();
     if (this.bubble) (this.bubble.material as THREE.Material).dispose();
+    this.wallMat?.dispose();
   }
 }
 
@@ -915,10 +1070,10 @@ export class Horde {
     return n;
   }
 
-  private add(kind: EnemyKind, x: number, z: number): Enemy {
+  private add(kind: EnemyKind, x: number, z: number, mods?: EnemyMods): Enemy {
     const template = this.templates.get(kind);
     if (!template) throw new Error(`falta el modelo de ${kind}`);
-    const enemy = new Enemy(ENEMIES[kind], template);
+    const enemy = new Enemy(ENEMIES[kind], template, mods ?? {});
     enemy.position.set(x, 0, z);
     this.scene.add(enemy.group);
     this.enemies.push(enemy);
@@ -926,13 +1081,13 @@ export class Horde {
   }
 
   /** Aparición de una oleada: suelto, en el fondo del campo. */
-  spawn(kind: EnemyKind, at?: THREE.Vector3): Enemy {
-    if (at) return this.add(kind, at.x, at.z);
+  spawn(kind: EnemyKind, at?: THREE.Vector3, mods?: EnemyMods): Enemy {
+    if (at) return this.add(kind, at.x, at.z, mods);
     const stats = ENEMIES[kind];
     // reparte las apariciones a lo ancho con la razón áurea, para que no salgan encimados
     const u = (this.spawnCount++ * 0.618034) % 1;
     const half = stats.behavior === 'golem' ? 3 : FIELD_HALF_WIDTH - 3;
-    return this.add(kind, (u * 2 - 1) * half, SPAWN_Z + Math.random() * 3);
+    return this.add(kind, (u * 2 - 1) * half, SPAWN_Z + Math.random() * 3, mods);
   }
 
   /** Las maestrías que tiene el golfista: cambian qué hacen el hielo, el fuego y el rayo. */
@@ -942,7 +1097,14 @@ export class Horde {
    * Daña a un enemigo y avisa. Devuelve true si lo mató. `dot` es el daño que no es un pelotazo (el
    * fuego que va mordiendo): a ese no le suma la vulnerabilidad ni rompe el hielo.
    */
-  damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number, dot = false): boolean {
+  /** Lo que sacó de verdad el último golpe (después de blindaje, escudo y etéreo). */
+  lastDealt = 0;
+
+  /**
+   * @param guard lo que resta un escudo por el que pasó el golpe (lo que le llegó de frente): 0 si no
+   */
+  damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number, dot = false, guard = 0): boolean {
+    this.lastDealt = 0;
     if (!enemy.alive || enemy.passed) return false;
     if (enemy.warded) {
       this.emit({ type: 'immune', enemy });
@@ -965,11 +1127,20 @@ export class Horde {
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
-    const armor = enemy.stats.armor ?? 0;
+    // la armadura (hasta 3): el silencio de la granada se la saca mientras dura
+    const armor = enemy.armor;
     if (armor > 0 && dealt > 0) {
       dealt = Math.max(0, dealt - armor);
       if (dealt === 0) this.emit({ type: 'armored', enemy });
     }
+    // el escudo es blindaje de frente: resta lo suyo a lo que le llegó por delante
+    if (guard > 0 && dealt > 0) {
+      dealt = Math.max(0, dealt - guard);
+      if (dealt === 0) this.emit({ type: 'shielded', enemy });
+    }
+    // el etéreo es el revés: ningún golpe le saca más de 1, por fuerte que sea
+    if (enemy.ethereal && dealt > 1) dealt = 1;
+    this.lastDealt = dealt;
     const hadPowder = enemy.powderTimer > 0;
     const wasBurning = enemy.burning;
     const killed = enemy.damage(dealt, knockDir, knockback);
@@ -1071,14 +1242,18 @@ export class Horde {
       const d = dir.length() - e.radius;
       if (d > radius) continue;
       // el escudo también para lo que estalla en el piso, si estalló adelante suyo
-      if (this.shadowed(pos, e)) {
+      // lo que estalla adelante de un escudo pasa descontado; el muro no deja pasar nada
+      const guard = this.shadeOf(pos, e);
+      if (guard >= SHIELD_WALL) {
         this.emit({ type: 'shielded', enemy: e });
         skip?.add(e.id);
         continue;
       }
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
-      this.damage(e, damage, dir.normalize(), knockback);
+      this.damage(e, damage, dir.normalize(), knockback, false, guard);
       skip?.add(e.id);
+      // si el escudo se comió todo, no cuenta como alcanzado (para las rachas es como errar)
+      if (guard > 0 && this.lastDealt === 0) continue;
       onHit?.(e);
       count++;
     }
@@ -1113,14 +1288,18 @@ export class Horde {
    * Las habilidades pasan igual: la granada es justamente la forma de sacarle el escudo, y si el
    * escudo lo parara no habría con qué empezar.
    */
-  shadowed(pos: THREE.Vector3, e: Enemy): boolean {
+  /**
+   * Cuánto escudo tiene adelante `e` para algo que estalla en `pos`: el suyo, o el de alguien que lo
+   * tapa. El más fuerte, si hay varios. 0 = nada lo cubre.
+   */
+  shadeOf(pos: THREE.Vector3, e: Enemy): number {
+    let guard = 0;
     for (const s of this.enemies) {
       // el escudo tiene que estar en alto y mirando hacia donde estalló: por la espalda no cubre a nadie
       if (!s.shieldUp || !shieldFaces(pos, s.position, s.facing)) continue;
-      if (s === e) return true;
-      if (behindShield(pos, s.position, s.radius, e.position, e.radius)) return true;
+      if (s === e || behindShield(pos, s.position, s.radius, e.position, e.radius)) guard = Math.max(guard, s.shieldLevel);
     }
-    return false;
+    return guard;
   }
 
   /**
@@ -1226,16 +1405,88 @@ export class Horde {
    * cualquier inmunidad.
    */
   private updateWards(): void {
-    const casters = this.enemies.filter((e) => e.casting);
+    const casters = this.enemies.filter((e) => e.casting && e.auraKind === 'ward');
     for (const e of this.enemies) {
       e.warded = false;
-      if (!e.alive || e.silenced || e.stats.behavior === 'shaman') continue;
+      // ninguno que tenga aura queda protegido, sea cual sea la suya
+      if (!e.alive || e.silenced || e.auraKind) continue;
       for (const c of casters) {
         if (Math.hypot(e.position.x - c.position.x, e.position.z - c.position.z) <= SHAMAN_WARD_RADIUS + e.radius) {
           e.warded = true;
           break;
         }
       }
+    }
+  }
+
+  /**
+   * Aura de curación: cada HEAL_AURA.every segundos, cada curandero le devuelve vida a los que tiene
+   * cerca, sin pasarse de la de cada uno. Como con la inmunidad, ninguno que tenga aura se cura por
+   * otra: dos curanderos juntos no se sostendrían entre ellos.
+   */
+  private updateHeals(dt: number): void {
+    for (const c of this.enemies) {
+      if (!c.casting || c.auraKind !== 'heal') {
+        c.healTimer = 0;
+        continue;
+      }
+      c.healTimer += dt;
+      if (c.healTimer < HEAL_AURA.every) continue;
+      c.healTimer -= HEAL_AURA.every;
+      for (const e of this.enemies) {
+        if (!e.alive || e.passed || e.auraKind || e.hp >= e.maxHp) continue;
+        if (Math.hypot(e.position.x - c.position.x, e.position.z - c.position.z) > HEAL_AURA.radius + e.radius) continue;
+        const amount = Math.min(HEAL_AURA.amount, e.maxHp - e.hp);
+        e.hp += amount;
+        this.emit({ type: 'healed', enemy: e, amount });
+      }
+    }
+  }
+
+  /** ¿Hay una abanderada viva, en juego y sin silenciar? */
+  private bannerUp = false;
+
+  /**
+   * La abanderada: mientras haya una en pie (viva y sin silenciar), todos los demás tienen 1 de vida más,
+   * de máximo y de actual. Cuando cae, cada uno pierde ese punto, pero nadie baja de 1: matarla no
+   * liquida a nadie gratis. No se apilan: con dos, sigue siendo +1.
+   */
+  private updateBanner(): void {
+    const up = this.enemies.some((e) => e.alive && !e.passed && !e.silenced && e.stats.behavior === 'banner');
+    if (up !== this.bannerUp) this.emit({ type: 'banner', up });
+    this.bannerUp = up;
+    for (const e of this.enemies) {
+      if (!e.alive || e.stats.behavior === 'banner') continue;
+      if (up && !e.bannered && !e.passed) {
+        e.bannered = true;
+        e.maxHp += 1;
+        e.hp += 1;
+      } else if ((!up || e.passed) && e.bannered) {
+        e.bannered = false;
+        e.maxHp -= 1;
+        e.hp = Math.max(1, Math.min(e.maxHp, e.hp - 1));
+      }
+    }
+  }
+
+  /** El geomante levanta una loma adelante suyo (hacia los puestos). Crece de a poco. */
+  raiseMound(owner: Enemy): void {
+    mounds.push({
+      x: owner.position.x, z: owner.position.z - GEOMANCER.ahead,
+      height: 0, target: GEOMANCER.height, rx: GEOMANCER.rx, rz: GEOMANCER.rz, owner: owner.id,
+    });
+    this.emit({ type: 'mound', enemy: owner });
+  }
+
+  /** Las lomas suben hasta su altura y, cuando el geomante muere o se va, bajan hasta desaparecer. */
+  private updateMounds(dt: number): void {
+    const rate = GEOMANCER.height / Math.max(0.1, GEOMANCER.rise);
+    for (let i = mounds.length - 1; i >= 0; i--) {
+      const m = mounds[i];
+      const owner = this.enemies.find((e) => e.id === m.owner);
+      if (!owner || !owner.alive || owner.passed) m.target = 0;
+      m.height += THREE.MathUtils.clamp(m.target - m.height, -rate * dt, rate * dt);
+      if (m.target === 0 && m.height <= 0.001) mounds.splice(i, 1);
     }
   }
 
@@ -1294,6 +1545,9 @@ export class Horde {
 
   update(dt: number, player: Player): void {
     this.updateWards();
+    this.updateHeals(dt);
+    this.updateBanner();
+    this.updateMounds(dt);
     // el fuego va mordiendo: un poco cada tanto mientras dure
     for (const e of this.enemies) {
       if (!e.burning || !e.alive) continue;

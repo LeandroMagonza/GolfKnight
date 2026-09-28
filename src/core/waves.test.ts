@@ -9,16 +9,20 @@ const TEST_WAVES: Wave[] = [
 describe('waves', () => {
   it('spawnOrder respeta las cantidades y mezcla los grupos', () => {
     for (const wave of WAVES) {
-      const order = spawnOrder(wave);
-      for (const g of wave.groups) expect(order.filter((k) => k === g.kind).length).toBe(g.count);
+      const order = spawnOrder(wave).map((s) => s.kind);
+      // un tipo puede venir en dos grupos (con y sin modificadores): se cuenta el total
+      for (const g of wave.groups) {
+        const total = wave.groups.filter((o) => o.kind === g.kind).reduce((n, o) => n + o.count, 0);
+        expect(order.filter((k) => k === g.kind).length).toBe(total);
+      }
     }
-    const mixed = spawnOrder(WAVES[1]);
+    const mixed = spawnOrder(WAVES[1]).map((s) => s.kind);
     expect(mixed.slice(0, 3)).toContain('skeleton');
     expect(mixed.slice(0, 3)).toContain('goblin');
   });
 
   it('el jefe y los chamanes salen hacia la mitad de la oleada', () => {
-    const order = spawnOrder(WAVES[WAVES.length - 1]);
+    const order = spawnOrder(WAVES[WAVES.length - 1]).map((s) => s.kind);
     for (const kind of ['golem', 'shaman'] as const) {
       const at = order.indexOf(kind) / order.length;
       expect(at).toBeGreaterThan(0.25);
@@ -29,7 +33,7 @@ describe('waves', () => {
   it('los enemigos nuevos se presentan solos en su oleada', () => {
     const firstWave = (kind: string) => WAVES.findIndex((w) => w.groups.some((g) => g.kind === kind));
     const before = (i: number) => new Set(WAVES.slice(0, i).flatMap((w) => w.groups.map((g) => g.kind)));
-    for (const kind of ['armored', 'blessed']) {
+    for (const kind of ['armored', 'blessed', 'ghost', 'geomancer', 'bannerman']) {
       const i = firstWave(kind);
       const fresh = WAVES[i].groups.map((g) => g.kind).filter((k) => !before(i).has(k));
       expect(fresh, kind).toEqual([kind]);
@@ -72,5 +76,12 @@ describe('waves', () => {
     for (let t = 0; t < 30; t += 0.1) for (const e of d.update(0.1, 1)) if (e.type === 'spawn') spawned++;
     expect(spawned).toBe(3);
     expect(d.index).toBe(0);
+  });
+
+  it('los modificadores viajan con cada aparición', () => {
+    const wave: Wave = { title: 'm', interval: 1, groups: [{ kind: 'skeleton', count: 2, mods: { armor: 2 } }, { kind: 'goblin', count: 1 }] };
+    const order = spawnOrder(wave);
+    expect(order.filter((s) => s.kind === 'skeleton').every((s) => s.mods?.armor === 2)).toBe(true);
+    expect(order.find((s) => s.kind === 'goblin')?.mods).toBeUndefined();
   });
 });

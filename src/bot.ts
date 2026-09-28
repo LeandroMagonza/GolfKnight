@@ -166,7 +166,9 @@ export function startBot(): BotStats {
     // La barra ya no tiene nada que ver con la distancia: apunta a soltar en el nivel 2, que es lo que
     // haría alguien sin clavarla. El alcance lo da el mouse.
     const want = 0.78;
-    const chargeTime = gk.player.club.chargeTime;
+    // lo que tarda la barra en llegar arriba, más o menos: la anticipación no necesita más precisión
+    const t = gk.player.timing;
+    const chargeTime = t.weak + t.mid + t.strong / 2;
 
     // Anticipación: mientras carga, pega y la pelota vuela, el enemigo sigue caminando hacia la puerta
     // (en diagonal, no derecho). Se apunta a donde va a estar.

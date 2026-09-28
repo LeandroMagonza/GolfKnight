@@ -2,14 +2,39 @@
 // Los enemigos salen sueltos, sin formación: las filas se arman y se desarman solas porque cada uno
 // camina a su ritmo, y encontrarlas es el juego.
 
-export type EnemyKind = 'goblin' | 'skeleton' | 'kamikaze' | 'warrior' | 'knight' | 'shaman' | 'wraith' | 'golem' | 'armored' | 'blessed';
+export type EnemyKind = 'goblin' | 'skeleton' | 'kamikaze' | 'warrior' | 'knight' | 'shaman' | 'wraith' | 'golem' | 'armored' | 'blessed' | 'ghost' | 'healer' | 'bannerman' | 'geomancer';
 
 /**
- * melee: camina y pega. kamikaze: corre y explota. shaman: camina con el grupo y vuelve inmunes a los
- * que tiene cerca. grabber: persigue al golfista, lo atrapa y lo lastima hasta que se escapa.
- * golem: se planta a distancia y le tira piedras a la puerta.
+ * melee: camina y pega. kamikaze: corre y explota. shaman: camina con el grupo, se planta cerca de la
+ * puerta y sostiene su aura con las manos en alto. grabber: persigue al golfista, lo atrapa y lo
+ * lastima hasta que se escapa. golem: se planta a distancia y le tira piedras a la puerta. banner: se
+ * queda al fondo y, mientras vive, todos tienen 1 de vida más. geomancer: se planta, levanta una loma
+ * adelante suyo para cubrirse del driver, y después sigue a la puerta.
  */
-export type Behavior = 'melee' | 'kamikaze' | 'shaman' | 'grabber' | 'golem';
+export type Behavior = 'melee' | 'kamikaze' | 'shaman' | 'grabber' | 'golem' | 'banner' | 'geomancer';
+
+/** Aura: «ward» vuelve inmunes a los de alrededor (el chamán); «heal» los cura de a poco (el curandero). */
+export type Aura = 'ward' | 'heal';
+
+/**
+ * **Modificadores**: lo que se le puede sumar a cualquier tipo en una oleada. El tipo dice cómo es
+ * (tamaño, velocidad, comportamiento, vida base) y el modificador qué efecto trae: un goblin blindado,
+ * un esqueleto con escudo, un caballero chamán. Se ven: el blindaje tiñe de acero y suma cuadraditos
+ * grises al lado de la vida, el escudo se engancha al modelo, el aura se dibuja en el piso.
+ */
+export interface EnemyMods {
+  /** Armadura: se le resta a cada golpe (1 a 3). */
+  armor?: number;
+  /** Escudo de frente: le resta esto a lo que le llega de frente. SHIELD_WALL = no pasa nada. */
+  shield?: number;
+  /** Escudo divino que se recarga a los tantos segundos. */
+  divine?: number;
+  aura?: Aura;
+  /** Etéreo: ningún golpe le saca más de 1. */
+  ethereal?: boolean;
+  /** Vida de más o de menos sobre la del tipo (el blindaje suele pagarse con vida). */
+  hp?: number;
+}
 
 export interface EnemyStats {
   kind: EnemyKind;
@@ -30,8 +55,12 @@ export interface EnemyStats {
   gateDamage: number;
   /** No se aturde ni sale volando con los golpes. */
   heavy: boolean;
-  /** Lleva escudo: frena los tiros rasantes que le llegan de frente. */
-  shield: boolean;
+  /**
+   * Escudo: **blindaje de frente**. Lo que le llega de frente (la pelota que no cae a plomo, o un área que
+   * estalla adelante suyo) rebota o se frena igual, pero le resta este número al daño y el resto entra.
+   * 0 = sin escudo. SHIELD_WALL = el muro: no pasa nada, y brilla en violeta como los inmunes del chamán.
+   */
+  shield: number;
   /** Jefe: el hielo lo ralentiza pero nunca lo congela. */
   boss: boolean;
   /**
@@ -43,12 +72,24 @@ export interface EnemyStats {
   armor?: number;
   /** Escudo divino: el primer golpe no le entra, y se le recarga a los tantos segundos. */
   divine?: number;
+  /** Aura que sostiene mientras vive y no está silenciado. */
+  aura?: Aura;
+  /** Etéreo: ningún golpe le saca más de 1, sin importar la fuerza. Hay que pegarle muchas veces. */
+  ethereal?: boolean;
+  /** Se ve medio transparente (el fantasma). */
+  ghostly?: boolean;
   /** Color con el que se tiñe el modelo (0 = sin teñir). */
   tint: number;
   score: number;
 }
 
-const base = { behavior: 'melee' as Behavior, runs: false, heavy: false, shield: false, boss: false, tint: 0 };
+const base = { behavior: 'melee' as Behavior, runs: false, heavy: false, shield: 0, boss: false, tint: 0 };
+
+/**
+ * El escudo muro: nada de frente lo pasa, por fuerte que sea. Se ve con el mismo brillo violeta que los
+ * inmunes del chamán: es el mismo concepto (inmune), puesto en el escudo.
+ */
+export const SHIELD_WALL = 99;
 
 /** Segundos entre piedras del gólem (valor de partida; se ajusta en el panel de balance). */
 export const GOLEM_THROW_EVERY = 4;
@@ -57,12 +98,19 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   goblin: { ...base, kind: 'goblin', name: 'Goblin', mesh: 'Character_Goblin_Male', height: 1.25, radius: 0.45, hp: 2, speed: 3.6, runs: true, damage: 1, gateDamage: 1, score: 10 },
   skeleton: { ...base, kind: 'skeleton', name: 'Esqueleto', mesh: 'Character_Skeleton_Soldier_01', height: 1.8, radius: 0.55, hp: 4, speed: 2.1, damage: 1, gateDamage: 1, score: 20 },
   kamikaze: { ...base, kind: 'kamikaze', name: 'Goblin kamikaze', mesh: 'Character_Goblin_Female', behavior: 'kamikaze', height: 1.25, radius: 0.45, hp: 2, speed: 3.2, runs: true, damage: 1, gateDamage: 2, tint: 0xffa08a, score: 20 },
-  warrior: { ...base, kind: 'warrior', name: 'Goblin guerrero', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 4, speed: 2.4, damage: 1, gateDamage: 1, shield: true, score: 30 },
+  warrior: { ...base, kind: 'warrior', name: 'Goblin guerrero', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 4, speed: 2.4, damage: 1, gateDamage: 1, shield: 4, score: 30 },
   knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 10, speed: 1.5, damage: 1, gateDamage: 2, heavy: true, score: 50 },
-  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', height: 1.45, radius: 0.5, hp: 3, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
+  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', aura: 'ward', height: 1.45, radius: 0.5, hp: 3, speed: 2.2, damage: 0, gateDamage: 0, score: 60 },
+  healer: { ...base, kind: 'healer', name: 'Curandero goblin', mesh: 'Character_Goblin_Shaman', behavior: 'shaman', aura: 'heal', height: 1.45, radius: 0.5, hp: 3, speed: 2.2, damage: 0, gateDamage: 0, tint: 0x9be58f, score: 60 },
   wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
   armored: { ...base, kind: 'armored', name: 'Goblin acorazado', mesh: 'Character_Goblin_WarChief', height: 1.6, radius: 0.6, hp: 1, speed: 2.4, damage: 1, gateDamage: 1, armor: 1, tint: 0xa9b1bb, score: 30 },
   blessed: { ...base, kind: 'blessed', name: 'Esqueleto bendito', mesh: 'Character_Skeleton_Soldier_02', height: 1.8, radius: 0.55, hp: 3, speed: 2.2, damage: 1, gateDamage: 1, divine: 5, tint: 0xffe6a0, score: 35 },
+  // ningún golpe le saca más de 1: se lo baja pegándole muchas veces, no fuerte (el fuego, el driver en fila)
+  ghost: { ...base, kind: 'ghost', name: 'Fantasma', mesh: 'Character_Ghost_01', height: 1.8, radius: 0.5, hp: 3, speed: 2.6, damage: 1, gateDamage: 1, ethereal: true, ghostly: true, score: 35 },
+  // se queda al fondo: pide un tiro largo y certero
+  bannerman: { ...base, kind: 'bannerman', name: 'Abanderada goblin', mesh: 'Character_Goblin_Warrior_Female', behavior: 'banner', height: 1.5, radius: 0.55, hp: 3, speed: 2.4, damage: 1, gateDamage: 1, score: 50 },
+  // levanta una loma adelante suyo: el driver no pasa, el hierro y el globo sí
+  geomancer: { ...base, kind: 'geomancer', name: 'Geomante', mesh: 'Character_Skeleton_Slave_01', behavior: 'geomancer', height: 1.75, radius: 0.5, hp: 3, speed: 2.0, damage: 1, gateDamage: 1, score: 45 },
   golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, attackEvery: GOLEM_THROW_EVERY, score: 500 },
 };
 
@@ -73,6 +121,24 @@ export const SHAMAN_HOLD_Z = 10;
 export const GOLEM_HOLD_Z = 22;
 /** Radio del aura del chamán: los enemigos que están adentro son inmunes mientras él conjure. */
 export const SHAMAN_WARD_RADIUS = 8;
+
+/**
+ * Aura de curación: cada «every» segundos, los que están a «radius» metros del curandero recuperan
+ * «amount» (sin pasar de su vida). Con el ritmo de tiro de hoy (un tiro cada 1.5 s, más o menos) cada 3 s
+ * es un punto cada dos tiros: al que se mata en uno o dos tiros seguidos no llega a curarlo, pero al
+ * caballero o a un grupo que se deja a medias sí. Cada 2 s ya empata casi con el daño a un solo blanco.
+ */
+export const HEAL_AURA = { radius: 6, every: 3, amount: 1 };
+
+/** La abanderada se planta a esta z: unos 42 m de la línea de los puestos, en la banda larga. */
+export const BANNER_HOLD_Z = 51;
+
+/**
+ * Geomante: se planta al llegar a «holdZ», levanta una loma de «height» metros a «ahead» metros
+ * adelante suyo (tarda «rise» segundos), se queda «stay» segundos detrás y después sigue a la puerta. La
+ * loma baja cuando él muere o se va.
+ */
+export const GEOMANCER = { holdZ: 38, ahead: 3.2, height: 1.7, rx: 3.4, rz: 2.8, rise: 1.5, stay: 10 };
 /** Alma en pena: cada cuánto lastima mientras tiene agarrado al golfista, y cuánto aguanta agarrada. */
 export const GRAB_TICK = 1.6;
 export const GRAB_MAX = 5;
@@ -80,6 +146,14 @@ export const GRAB_MAX = 5;
 export interface WaveGroup {
   kind: EnemyKind;
   count: number;
+  /** Modificadores para todos los de este grupo. */
+  mods?: EnemyMods;
+}
+
+/** Una aparición: el tipo y sus modificadores. */
+export interface Spawn {
+  kind: EnemyKind;
+  mods?: EnemyMods;
 }
 
 export interface Wave {
@@ -102,27 +176,31 @@ export const WAVES: Wave[] = [
   { title: 'Almas en pena', interval: 1.9, groups: [{ kind: 'wraith', count: 3 }, { kind: 'skeleton', count: 5 }, { kind: 'warrior', count: 3 }, { kind: 'goblin', count: 5 }, { kind: 'knight', count: 1 }] },
   // el bendito se come el primer golpe: hay que pegarle dos veces seguidas
   { title: 'Los benditos', interval: 1.8, groups: [{ kind: 'blessed', count: 4 }, { kind: 'warrior', count: 3 }, { kind: 'skeleton', count: 4 }, { kind: 'goblin', count: 6 }, { kind: 'armored', count: 2 }] },
-  { title: 'El chamán los vuelve inmunes', interval: 1.6, groups: [{ kind: 'shaman', count: 2 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }, { kind: 'blessed', count: 2 }] },
-  { title: 'El Gólem de roca', interval: 1.5, groups: [{ kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }, { kind: 'armored', count: 3 }, { kind: 'blessed', count: 2 }] },
+  // el etéreo es el revés del blindaje: ningún golpe le saca más de 1
+  { title: 'Fantasmas', interval: 1.8, groups: [{ kind: 'ghost', count: 4 }, { kind: 'goblin', count: 6 }, { kind: 'skeleton', count: 4 }, { kind: 'skeleton', count: 2, mods: { armor: 2 } }] },
+  { title: 'La tierra se levanta', interval: 1.8, groups: [{ kind: 'geomancer', count: 2 }, { kind: 'skeleton', count: 5 }, { kind: 'goblin', count: 6 }, { kind: 'warrior', count: 2 }] },
+  { title: 'El chamán los vuelve inmunes', interval: 1.6, groups: [{ kind: 'shaman', count: 2 }, { kind: 'healer', count: 1 }, { kind: 'warrior', count: 4 }, { kind: 'skeleton', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'kamikaze', count: 4 }, { kind: 'knight', count: 1 }, { kind: 'blessed', count: 2 }] },
+  { title: 'Bajo la bandera', interval: 1.6, groups: [{ kind: 'bannerman', count: 1 }, { kind: 'knight', count: 1, mods: { armor: 3 } }, { kind: 'skeleton', count: 3, mods: { armor: 2 } }, { kind: 'goblin', count: 8 }, { kind: 'warrior', count: 3 }, { kind: 'kamikaze', count: 3 }, { kind: 'skeleton', count: 1, mods: { aura: 'heal' } }, { kind: 'warrior', count: 2, mods: { shield: SHIELD_WALL } }] },
+  { title: 'El Gólem de roca', interval: 1.5, groups: [{ kind: 'bannerman', count: 1 }, { kind: 'geomancer', count: 1 }, { kind: 'ghost', count: 2 }, { kind: 'golem', count: 1 }, { kind: 'knight', count: 3 }, { kind: 'warrior', count: 5 }, { kind: 'skeleton', count: 4 }, { kind: 'kamikaze', count: 6 }, { kind: 'goblin', count: 8 }, { kind: 'shaman', count: 1 }, { kind: 'wraith', count: 2 }, { kind: 'armored', count: 3 }, { kind: 'blessed', count: 2 }] },
 ];
 
 /** Segundos de descanso entre oleadas. */
 export const INTERMISSION = 6;
 
 /** Orden de aparición de una oleada: mezcla los grupos de forma pareja y determinista. */
-export function spawnOrder(wave: Wave): EnemyKind[] {
-  const slots: { kind: EnemyKind; at: number }[] = [];
+export function spawnOrder(wave: Wave): Spawn[] {
+  const slots: { spawn: Spawn; at: number }[] = [];
   for (const g of wave.groups) {
     // los grupos de uno o dos (jefe, chamanes) salen hacia la mitad de la oleada
-    for (let i = 0; i < g.count; i++) slots.push({ kind: g.kind, at: g.count <= 2 ? 0.4 + 0.2 * i : (i + 0.5) / g.count });
+    for (let i = 0; i < g.count; i++) slots.push({ spawn: g.mods ? { kind: g.kind, mods: g.mods } : { kind: g.kind }, at: g.count <= 2 ? 0.4 + 0.2 * i : (i + 0.5) / g.count });
   }
   slots.sort((a, b) => a.at - b.at);
-  return slots.map((s) => s.kind);
+  return slots.map((s) => s.spawn);
 }
 
 export type DirectorEvent =
   | { type: 'wave'; index: number; wave: Wave }
-  | { type: 'spawn'; kind: EnemyKind }
+  | { type: 'spawn'; kind: EnemyKind; mods?: EnemyMods }
   | { type: 'cleared'; index: number }
   | { type: 'victory' };
 
@@ -132,7 +210,7 @@ export type DirectorEvent =
  */
 export class WaveDirector {
   index = -1;
-  private queue: EnemyKind[] = [];
+  private queue: Spawn[] = [];
   private timer = 2.5;
   private phase: 'rest' | 'spawning' | 'fighting' | 'done' = 'rest';
   /**
@@ -198,7 +276,8 @@ export class WaveDirector {
     }
     if (this.phase === 'spawning') {
       while (this.timer <= 0 && this.queue.length) {
-        events.push({ type: 'spawn', kind: this.queue.shift()! });
+        const next = this.queue.shift()!;
+        events.push({ type: 'spawn', kind: next.kind, ...(next.mods ? { mods: next.mods } : {}) });
         this.timer += this.waves[this.index].interval;
       }
       if (!this.queue.length) {

@@ -116,7 +116,7 @@ export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> =
 const BASE: Ability[] = [
   {
     id: 'grenade', kind: 'grenade', name: 'Granada', title: 'los silencia', cooldown: 6, range: 45, color: 0xffc94a,
-    hint: 'Cae donde apuntás y silencia a todos los que agarra: sin escudo, sin aura del chamán, sin inmunidad, y vulnerables. A los del borde los tira a los costados; a los del centro los deja quietos. No hace daño',
+    hint: 'Cae donde apuntás y silencia a todos los que agarra: sin escudo, sin blindaje, sin aura, sin inmunidad, y vulnerables. A los del borde los tira a los costados; a los del centro los deja quietos. No hace daño',
   },
   {
     id: 'ice', kind: 'iceZone', name: 'Hielo', title: 'zona fría', cooldown: 10, range: 55, color: 0x7fd4ff,
