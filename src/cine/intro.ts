@@ -25,71 +25,74 @@ export const INTRO: Script = {
     {
       name: 'La feria',
       set: 'feria',
-      dur: 6.5,
+      // 9.5 s: las dos líneas de la narradora (OpenAI, actuadas) suman casi 9
+      dur: 9.5,
       camera: [
         { at: 0, pos: [-7.5, 1.6, 2.3], look: { actor: 'knight', y: 1.3 } },
-        { at: 6.5, pos: [0.8, 1.6, 2.3], look: { actor: 'knight', y: 1.3 } },
+        { at: 9.5, pos: [4, 1.6, 2.3], look: { actor: 'knight', y: 1.3 } },
       ],
       actors: {
-        knight: { path: [{ at: 0, x: -12, z: 0.3, face: 90 }, { at: 6.5, x: -3, z: 0.3 }], anim: [{ at: 0, clip: 'Walking', loop: true }] },
+        // 12.5 m en 9.5 s: al paso del clip de caminar, sin patinar
+        knight: { path: [{ at: 0, x: -12, z: 0.3, face: 90 }, { at: 9.5, x: 0.5, z: 0.3 }], anim: [{ at: 0, clip: 'Walking', loop: true }] },
         goblinFair: { path: [{ at: 0, x: -4.5, z: -3.2, face: 30 }], anim: [{ at: 0, clip: 'Talking', loop: true }] },
         skelFair: { path: [{ at: 0, x: -3, z: -3.6, face: -60 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 1.3 }] },
       },
       text: [
-        { at: 0.5, until: 2.1, kind: 'caption', text: 'Sábado. Feria medieval.', voice: 'narra-sabado' },
-        // la narradora tarda 3.8 s: termina justo antes del fundido
-        { at: 2.3, until: 6.4, kind: 'caption', text: 'Tu disfraz: impecable. Los de los demás, sospechosamente buenos.', voice: 'narra-disfraz' },
+        { at: 0.5, until: 3.2, kind: 'caption', text: 'Sábado. Feria medieval.', voice: 'narra-sabado' },
+        // la narradora tarda 6 s: termina justo antes del fundido
+        { at: 3.3, until: 9.4, kind: 'caption', text: 'Tu disfraz: impecable. Los de los demás, sospechosamente buenos.', voice: 'narra-disfraz' },
       ],
-      ramps: [{ at: 0, dur: 1.2, param: 'fade', from: 1, to: 0 }, { at: 6.05, dur: 0.45, param: 'fade', from: 0, to: 1 }],
+      ramps: [{ at: 0, dur: 1.2, param: 'fade', from: 1, to: 0 }, { at: 9.05, dur: 0.45, param: 'fade', from: 0, to: 1 }],
       music: [{ at: 0, track: 'feria', level: 1, fade: 1 }],
     },
     {
       name: 'El estacionamiento',
       set: 'estacionamiento',
-      dur: 6,
+      // 8 s: la línea del baúl dura 4.6 s y tiene que terminar antes de la bocina
+      dur: 8,
       camera: [
         { at: 0, pos: [-9, 1.8, 9.5], look: { actor: 'knight', y: 1.2 } },
         { at: 3, pos: [-2.5, 1.5, 8.5], look: [-0.4, 1.1, 2.6] },
-        { at: 6, pos: [-1.5, 1.4, 8], look: [0, 1.1, 3] },
+        { at: 8, pos: [-1.5, 1.4, 8], look: [0, 1.1, 3] },
       ],
       actors: {
         car: { path: [{ at: 0, x: 0, z: 0, face: 180 }] },
-        carBlue: { path: [{ at: 3, x: -40, z: 3.7, face: 90 }, { at: 8.2, x: 44, z: 3.7 }] },
+        carBlue: { path: [{ at: 4.9, x: -40, z: 3.7, face: 90 }, { at: 10.1, x: 44, z: 3.7 }] },
         bag: { path: [{ at: 0, x: 0.3, y: 0.45, z: 1.55, face: 0 }] },
         knight: {
           path: [
             { at: 0, x: -7, z: 3.3, face: 90 },
             { at: 3.0, x: -0.3, z: 3.2 },
             { at: 3.1, x: -0.3, z: 3.2, face: 180 },
-            { at: 4.4, x: -0.3, z: 3.2, face: -90 },
-            { at: 5.25, x: -0.3, z: 3.2 },
-            { at: 5.9, x: 3.2, z: 3.6, ease: 'smooth' },
+            { at: 6.3, x: -0.3, z: 3.2, face: -90 },
+            { at: 7.15, x: -0.3, z: 3.2 },
+            { at: 7.8, x: 3.2, z: 3.6, ease: 'smooth' },
           ],
           anim: [
             { at: 0, clip: 'Walking', loop: true },
             { at: 3.0, clip: 'Looking Around', fade: 0.3 },
-            { at: 4.4, clip: 'Reacting', fade: 0.2, from: 0.2 },
-            { at: 5.25, clip: 'Hit By Car', fade: 0.08, from: 0.3 },
+            { at: 6.3, clip: 'Reacting', fade: 0.2, from: 0.2 },
+            { at: 7.15, clip: 'Hit By Car', fade: 0.08, from: 0.3 },
           ],
         },
       },
       text: [
         { at: 0.4, until: 1.4, kind: 'caption', text: 'A la salida.', voice: 'narra-salida' },
-        // termina antes de la bocina (4.45)
-        { at: 1.5, until: 4.4, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.', voice: 'narra-palos' },
+        // termina antes de la bocina (6.35)
+        { at: 1.5, until: 6.2, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.', voice: 'narra-palos' },
       ],
       ramps: [
         { at: 0, dur: 0.9, param: 'fade', from: 1, to: 0 },
         { at: 0, dur: 0, param: 'car.trunk', from: 1, to: 1 },
         { at: 0, dur: 0, param: 'carBlue.headlights', from: 1, to: 1 },
-        { at: 5.3, dur: 0.7, param: 'shake', from: 1.2, to: 0 },
-        { at: 5.42, dur: 0.22, param: 'flash', from: 0, to: 1 },
+        { at: 7.2, dur: 0.7, param: 'shake', from: 1.2, to: 0 },
+        { at: 7.32, dur: 0.22, param: 'flash', from: 0, to: 1 },
       ],
-      sfx: [{ at: 4.45, name: 'bocina' }, { at: 4.7, name: 'whoosh' }, { at: 5.3, name: 'gateHit' }, { at: 5.32, name: 'hurt' }],
+      sfx: [{ at: 6.35, name: 'bocina' }, { at: 6.6, name: 'whoosh' }, { at: 7.2, name: 'gateHit' }, { at: 7.22, name: 'hurt' }],
       // la música de la feria queda sonando de lejos, y el golpe la corta en seco
       music: [
         { at: 0, track: 'feria', level: 0.3, fade: 1.5, filter: 900 },
-        { at: 5.3, track: 'feria', level: 0, fade: 0.04 },
+        { at: 7.2, track: 'feria', level: 0, fade: 0.04 },
       ],
     },
     {
@@ -128,7 +131,7 @@ export const INTRO: Script = {
         bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
-        { at: 2.4, until: 5.3, kind: 'say', who: 'mage', text: '¡Funcionó! ¡Vino el Gran Guerrero!', voice: 'mago-funciono' },
+        { at: 2.4, until: 5.5, kind: 'say', who: 'mage', text: '¡Funcionó! ¡Vino el Gran Guerrero!', voice: 'mago-funciono' },
         { at: 5.6, until: 7.8, kind: 'say', who: 'knight', text: '¿...Perdón?', voice: 'caballero-perdon' },
       ],
       ramps: [
@@ -159,7 +162,7 @@ export const INTRO: Script = {
         bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
-        { at: 0.3, until: 5.0, kind: 'say', who: 'mage', text: 'La profecía pedía armadura reluciente… y un arma de precisión letal.', voice: 'mago-profecia' },
+        { at: 0.3, until: 5.85, kind: 'say', who: 'mage', text: 'La profecía pedía armadura reluciente… y un arma de precisión letal.', voice: 'mago-profecia' },
         { at: 6.0, until: 8.3, kind: 'say', who: 'knight', text: '¿Los palos de golf?', voice: 'caballero-palos' },
       ],
       ramps: [
@@ -192,7 +195,7 @@ export const INTRO: Script = {
       },
       text: [
         { at: 1.0, until: 4.0, kind: 'say', who: 'mage', text: '¡Las hordas marchan sobre Valdehoyo!', voice: 'mago-hordas' },
-        { at: 4.3, until: 6.3, kind: 'say', who: 'knight', text: 'Yo vine a una feria.', voice: 'caballero-feria' },
+        { at: 4.3, until: 6.4, kind: 'say', who: 'knight', text: 'Yo vine a una feria.', voice: 'caballero-feria' },
         { at: 6.5, until: 8.5, kind: 'title', text: 'GOLF KNIGHT' },
       ],
       ramps: [

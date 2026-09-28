@@ -104,7 +104,8 @@ const voices: { at: number; el: HTMLAudioElement }[] = [];
 INTRO.shots.forEach((shot, i) => {
   for (const cue of shot.text ?? []) {
     if (!cue.voice) continue;
-    const el = new Audio(`${import.meta.env.BASE_URL}voices/${cue.voice}.wav`);
+    // ?voces=kokoro: las de Kokoro (neutras), para comparar con las de OpenAI (actuadas)
+    const el = new Audio(`${import.meta.env.BASE_URL}voices/${params.get('voces') === 'kokoro' ? 'kokoro/' : ''}${cue.voice}.wav`);
     el.preload = 'auto';
     voices.push({ at: player.shotStarts[i] + cue.at, el });
   }

@@ -69,24 +69,31 @@ esta versión, ya corregido:
 
 ## Voces (28/9)
 
-Leandro eligió quedarse con la feria medieval y pidió voces. Salen de **Kokoro** (local y gratis, el
-mismo TTS de su asistente) con `tools/voces.py`, que escribe un `.wav` por línea en `public/voices/`.
-Cada globo del guion dice su archivo con `voice`.
+Leandro eligió quedarse con la feria medieval y pidió voces. Primero salieron de **Kokoro** (local,
+gratis, el TTS de su asistente) y después, a pedido suyo, se rehicieron con **OpenAI**
+(`gpt-4o-mini-tts`), que actúa: cada personaje tiene voz e indicación general, y cada línea dice cómo
+se actúa. Las líneas están en `tools/voces_lineas.py`; `tools/voces_openai.py` genera las que usa la
+cinemática (`public/voices/`) y `tools/voces.py` las de Kokoro (`public/voices/kokoro/`), que se oyen
+con **`cine.html?voces=kokoro`** para comparar.
 
-| Personaje | Voz | Velocidad | Por qué |
+| Personaje | OpenAI | Indicación | Kokoro |
 | --- | --- | --- | --- |
-| Mago | `em_santa` | 0.88 | la más grave de las masculinas en español; más lenta suena a viejo solemne |
-| Caballero | `em_alex` | 1.0 | la neutra: el golfista es un tipo común |
-| Narradora | `ef_dora` | 1.0 | voz de mujer, pedida por Leandro, para que no se confunda con los otros dos |
+| Narradora | `coral` | rioplatense; narradora de cuento cómico, cálida, un poco irónica, pausada | `ef_dora` |
+| Mago | `onyx` | latino neutro (es del otro mundo); mago anciano, grave, solemne y teatral | `em_santa` a 0.88 |
+| Caballero | `verse` | rioplatense; tipo común disfrazado que no entiende nada, natural | `em_alex` |
 
+Por línea: el mago exaltado en "¡Funcionó!", misterioso en la profecía y alarmado en "¡Las hordas…!";
+el caballero aturdido en "¿Perdón?", incrédulo en "¿Los palos de golf?" y resignado en el remate;
+la narradora irónica en "sospechosamente buenos" y seca en "Y después, nada.".
+
+- OpenAI deja hasta 1.5 s de silencio al principio y al final: el script lo recorta
+  (`--recortar` lo hace con los que ya están, sin llamar a la API).
+- Las voces actuadas son más lentas: la feria pasó a 9.5 s y el estacionamiento a 8 s (el atropello y
+  la bocina se corrieron), para que nada se pise. Con Kokoro los mismos tiempos sobran.
 - Mientras alguien habla la música baja unos 7 dB.
-- La profecía del mago dura 4.5 s: el globo sigue mientras la cámara va a la bolsa.
-- Se dice un texto apenas distinto del que se lee (comas en vez de puntos suspensivos), porque Kokoro
-  lee mal los "…".
-- La narradora dice los subtítulos y la placa "Y después, nada.". Para que entre, "Tu disfraz…"
-  arranca antes y el fundido de la feria es más corto, y "Los palos…" termina antes de la bocina.
-- Kokoro no actúa emociones: suena natural pero neutro. Para que el mago grite "¡Funcionó!" con ganas
-  haría falta OpenAI (`gpt-4o-mini-tts` con instrucciones de actuación, pago).
+- Se dice un texto apenas distinto del que se lee (comas en vez de puntos suspensivos).
+- La key de OpenAI se lee de `E:sistente\.env` sin imprimirla. Una pasada completa son unos 30 s de
+  audio: menos de un centavo de dólar.
 
 ## Lo que falta o conviene mejorar
 

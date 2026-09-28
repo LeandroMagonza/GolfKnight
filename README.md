@@ -340,9 +340,10 @@ placas de la intro. La historia y el plan están en `docs/cinematica.md`.
   `src/cine/sets.ts`.
 - `node tools/cine.mjs` saca tres cuadros por plano (o los segundos que se le pasen) a
   `logs/cine-*.png`, con la GPU.
-- Voces: `tools/voces.py` las genera con Kokoro (con el Python del asistente,
-  `E:sistente\.venv\Scripts\python.exe tools/voces.py`) en `public/voices/`; cada globo dice la
-  suya con `voice`, y la música baja mientras alguien habla.
+- Voces: actuadas con OpenAI (`tools/voces_openai.py`, en `public/voices/`) y, para comparar, las de
+  Kokoro (`tools/voces.py`, en `public/voices/kokoro/`, se oyen con `?voces=kokoro`). Se corren con el
+  Python del asistente (`E:sistente\.venv\Scripts\python.exe`); las líneas están en
+  `tools/voces_lineas.py`. Cada globo dice la suya con `voice`, y la música baja mientras alguien habla.
 - Modelos propios: `cine-dungeon.glb` (los personajes de PolygonDungeon con los clips de la
   cinemática: Hit By Car, Getting Up, Looking Around, Pointing, Rallying, Reacting, Talking) y
   `mage.glb` (el mago, un personaje de Mixamo, con las texturas bajadas a 1024 con
