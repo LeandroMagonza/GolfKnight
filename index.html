@@ -24,8 +24,6 @@
       .buttons { display: flex; gap: 14px; align-items: center; }
       #overlay button { font-size: 19px; padding: 11px 30px; border-radius: 8px; border: 0; background: #5be07a; color: #102; cursor: pointer; font-weight: 600; }
       #overlay button:disabled { background: #556; color: #aab; cursor: wait; }
-      #overlay button#skip { background: transparent; color: #9aa4b2; font-size: 15px; font-weight: 400; border: 1px solid #4a5666; padding: 8px 18px; }
-      #overlay button#skip:disabled { opacity: 0.4; }
       #overlay button#replaycine { background: transparent; color: #9aa4b2; font-size: 14px; font-weight: 400; padding: 4px 10px; text-decoration: underline; }
       #overlay button#replaycine:hover { color: #ffd66b; }
       /* la cinemática de la intro, arriba de todo mientras el juego carga por debajo */
@@ -213,7 +211,6 @@
       <div id="slide"></div>
       <div id="dots"></div>
       <div class="buttons">
-        <button id="skip" type="button" disabled>Saltar intro</button>
         <button id="start" type="button" disabled>Cargando…</button>
       </div>
       <button id="replaycine" type="button">Ver la intro de nuevo</button>

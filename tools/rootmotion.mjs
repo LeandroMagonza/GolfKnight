@@ -17,8 +17,8 @@ page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 await page.goto('http://localhost:5194/');
 await page.evaluate(() => localStorage.removeItem('gk.skin'));
 await page.reload();
-await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
-await page.click('#skip');
+await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
+await page.click('#start');
 await page.waitForFunction(() => document.getElementById('overlay').hidden);
 await page.evaluate(() => { window.__gk.director.timer = 9999; });
 

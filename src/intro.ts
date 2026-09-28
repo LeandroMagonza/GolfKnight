@@ -16,10 +16,10 @@ const SLIDES: Slide[] = [
     art: '',
     html: `<p class="controls">
       Apuntá con el <kbd>mouse</kbd>: la <em>distancia</em> del cursor es dónde cae la pelota<br />
-      Mantené <kbd>click</kbd> para cargar y soltá para pegar. La barra dice solo <em>qué tan bien</em> le pegás: tres niveles<br />
+      Mantené <kbd>click</kbd> para cargar y soltá para pegar: el arco dice <em>qué tan bien</em>, del verde al rojo<br />
       <kbd>1</kbd> driver · <kbd>2</kbd> hierro 7 · <kbd>3</kbd> wedge · <kbd>4</kbd> putter: cada palo cobra mejor a su distancia<br />
-      <kbd>Q</kbd> golpe · <kbd>W</kbd> escarcha · <kbd>E</kbd> vendaval: qué hace la pelota cuando llega (los tres con recarga)<br />
-      Solo se pega donde hay una <em>pelota</em>: movete de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd><br />
+      <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd>: las habilidades que elegís entre oleadas, al instante hacia el mouse<br />
+      Se pega donde hay <em>pelota</em>: de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd> (cargando, te corren de costado)<br />
       <kbd>Espacio</kbd> clava el golpe · si te agarran, sacudite con <kbd>A</kbd> y <kbd>D</kbd> · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
       Que no lleguen a la puerta.
     </p>`,
@@ -34,14 +34,12 @@ export class Intro {
   private readonly slide = document.getElementById('slide')!;
   private readonly dots = document.getElementById('dots')!;
   private readonly next = document.getElementById('start') as HTMLButtonElement;
-  private readonly skip = document.getElementById('skip') as HTMLButtonElement;
   private ready = false;
   private cine: HTMLIFrameElement | null = null;
 
   constructor(private readonly onStart: () => void) {
     this.dots.innerHTML = SLIDES.length > 1 ? SLIDES.map(() => '<span></span>').join('') : '';
     this.next.addEventListener('click', () => this.advance());
-    this.skip.addEventListener('click', () => this.finish());
     document.getElementById('replaycine')?.addEventListener('click', (e) => {
       (e.currentTarget as HTMLElement).blur();
       this.playCine();
@@ -82,7 +80,6 @@ export class Intro {
   /** Los modelos terminaron de cargar: se puede empezar. */
   setReady(): void {
     this.ready = true;
-    this.skip.disabled = false;
     this.render();
   }
 

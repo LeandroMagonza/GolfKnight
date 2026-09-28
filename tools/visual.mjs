@@ -26,8 +26,8 @@ for (const [name, visual] of Object.entries(SHOTS)) {
     sessionStorage.setItem('gk.introSeen', '1');
   }, visual);
   await page.goto('http://localhost:5197/?campo=1&palos&visual');
-  await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
-  await page.click('#skip');
+  await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
+  await page.click('#start');
   await page.waitForFunction(() => document.getElementById('overlay').hidden, null, { timeout: 10000 });
   const gpu = await page.evaluate(() => {
     const gl = document.querySelector('canvas').getContext('webgl2');

@@ -23,8 +23,8 @@ page.on('pageerror', (e) => { errors.push(e.message); console.log('[pageerror]',
 await page.goto('http://localhost:5196/?bot');
 await page.evaluate(() => localStorage.removeItem('gk.globos'));
 await page.reload();
-await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
-await page.click('#skip');
+await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
+await page.click('#start');
 await page.waitForFunction(() => document.getElementById('overlay').hidden);
 await page.waitForFunction(() => window.__bot, null, { timeout: 10000 });
 

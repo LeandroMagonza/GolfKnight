@@ -11,7 +11,7 @@ const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 page.on('console', async (m) => { if (m.type() === 'warning') console.log('[warn]', m.text(), JSON.stringify(await Promise.all(m.args().slice(1).map((a) => a.jsonValue().catch(() => null))))); });
 await page.goto('http://localhost:5195/');
-await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
+await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
 for (const name of names) {
   const samples = await page.evaluate((n) => window.__gk.sampleClip(n, 10), name);
   const info = await page.evaluate((n) => {

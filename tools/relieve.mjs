@@ -22,8 +22,8 @@ const log = (label, ...parts) => console.log(label.padEnd(24), '->', parts.map((
 const check = (label, ok) => { if (!ok) { failures.push(label); console.log(`  FALLA: ${label}`); } };
 
 await page.goto('http://localhost:5196/?campo=1&palos');
-await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
-await page.click('#skip');
+await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
+await page.click('#start');
 await page.waitForFunction(() => document.getElementById('overlay').hidden, null, { timeout: 10000 });
 await page.evaluate(() => { window.__gk.director.timer = 9999; });
 await page.waitForTimeout(1200);
@@ -118,7 +118,7 @@ await page.screenshot({ path: 'logs/relieve-4-globo.png' });
 const shapes = [];
 for (let c = 2; c <= 4; c++) {
   await page.goto(`http://localhost:5196/?campo=${c}&palos`);
-  await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
+  await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
   shapes.push(await page.evaluate(() => {
     const h = window.__gk.heightAt;
     let alto = 0;
@@ -132,7 +132,7 @@ check('cada campo tiene lomas y hondonadas propias', shapes.every((s) => s.alto 
 
 // ?plano sigue dejando el campo liso, que es sobre el que corre la prueba general
 await page.goto('http://localhost:5196/?plano&palos');
-await page.waitForFunction(() => !document.getElementById('skip').disabled, null, { timeout: 90000 });
+await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
 const flat = await page.evaluate(() => window.__gk.heightAt(-11.5, 34));
 check('con ?plano el campo es el liso de siempre', flat === 0);
 
