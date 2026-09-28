@@ -1666,3 +1666,26 @@ o pegándole de costado, dejar que el golpe 3 pase no le saca la gracia al escud
 - Se ve en los cuadraditos: después de la vida y del blindaje, uno de madera por punto de escudo
   (apagados si lo tiene bajo). El muro no lleva cuadraditos: lo dice el brillo.
 
+## Hecho: íconos, geomante que canaliza, luz del día y sin cartas de curarse (28/9/2026)
+
+- **Íconos en vez de cuadraditos.** Los cuadraditos grises del blindaje y los de madera del escudo no se
+  entendían. Ahora, antes de la vida, va un ícono por poder: escudo (con cuánto resta), blindaje (con su
+  número), escudo muro (violeta, ∞), las dos auras, la bandera, el etéreo (con su 1) y el divino (apagado
+  mientras recarga). Son un 60 % más grandes que un cuadradito, para leerlos de lejos. Lo que la granada
+  silencia (escudo, blindaje, auras, bandera) lleva un prohibido rojo encima mientras dura.
+- **El geomante canaliza.** Se planta y durante 8 s levanta la loma de a poco, con los brazos arriba, 5 m
+  adelante suyo: queda detrás, al pie, tapado (antes quedaba arriba, a 3.2 m). Si se lo mata mientras
+  canaliza, la loma baja. Si termina, **la loma queda hasta el final de la partida** y él sigue a la
+  puerta: tardar en matarlo complica el campo para siempre. Sobre una loma que ya estaba, la agranda.
+- **La loma deforma el campo de verdad**: se rehace la malla del terreno en el rectángulo que toca, con
+  el mismo color y las mismas franjas, y las rayas de distancia pasaron a ser tiras que siguen el piso
+  vértice por vértice, así que quedan encima. Antes era una malla aparte, de otro color, y las rayas
+  quedaban enterradas. En el campo liso (el de las pruebas) sigue siendo una malla aparte.
+- **La luz sigue a la partida.** Hora nueva «mañana» (sol bajo del otro lado) y la de arranque pasa a ser
+  «según la oleada»: la primera oleada es de mañana, la última al atardecer, pasando por el mediodía y la
+  tarde. Al empezar cada oleada la luz se mueve a la hora nueva en unos 5 s. Las horas fijas siguen en la
+  pestaña Visual. Un guardado de antes no pisa la hora nueva.
+- **Sin cartas de curarse.** «Albañiles» (+3 de puerta) y «Respiro» (+1 de vida) eran mucho peores que el
+  Botiquín. Cuando la partida viene mal (puerta a la mitad o una vida), la carta forzada es el Botiquín,
+  si no está al tope.
+

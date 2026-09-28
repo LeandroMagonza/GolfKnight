@@ -18,8 +18,15 @@ const TONE_MAPPING: Record<Tone, THREE.ToneMapping> = {
   neutro: THREE.NeutralToneMapping,
 };
 
-export const LIGHTS = ['mediodía', 'tarde', 'atardecer'] as const;
+/**
+ * «según la oleada» (el de arranque) va cambiando la hora con la partida: la primera oleada es de mañana
+ * y la última al atardecer, pasando por el mediodía y la tarde. Las otras dejan una hora fija.
+ */
+export const LIGHTS = ['según la oleada', 'mañana', 'mediodía', 'tarde', 'atardecer'] as const;
 export type LightName = (typeof LIGHTS)[number];
+type FixedLight = Exclude<LightName, 'según la oleada'>;
+/** El recorrido de la partida, de la primera oleada a la última. */
+const DAY_PATH: readonly FixedLight[] = ['mañana', 'mediodía', 'tarde', 'atardecer'];
 
 /** Una hora del día: el sol, la luz del cielo y del piso, y el degradé del cielo (arriba y horizonte). */
 interface Daylight {
@@ -36,7 +43,9 @@ interface Daylight {
   horizon: number;
 }
 
-const DAYLIGHT: Record<LightName, Daylight> = {
+const DAYLIGHT: Record<FixedLight, Daylight> = {
+  // sol bajo y fresco, del otro lado que a la tarde: las sombras van para el otro costado
+  mañana: { sun: 0xfff0dc, elevation: 22, azimuth: 120, sunIntensity: 2.6, sky: 0xe4f2ff, ground: 0x4f6e3e, hemiIntensity: 1.25, skyTop: 0x86c3ee, horizon: 0xf7e6cf },
   // la luz de siempre: sol alto y cielo parejo
   mediodía: { sun: 0xfff2d6, elevation: 57, azimuth: -121, sunIntensity: 2.4, sky: 0xdff1ff, ground: 0x4a6b3a, hemiIntensity: 1.5, skyTop: 0x9fd3f0, horizon: 0x9fd3f0 },
   // sol más bajo y cálido, de atrás a la izquierda: las sombras caen hacia el campo y se leen
@@ -46,17 +55,25 @@ const DAYLIGHT: Record<LightName, Daylight> = {
 
 export const SHADOW_SIZES = ['1024', '2048', '4096'] as const;
 
+/** Segundos que tarda la luz en pasar de la hora de una oleada a la de la siguiente. */
+const DAY_TRANSITION = 5;
+
 /** Todo lo que la pestaña Visual toca y guarda. */
 export const VISUAL = {
   shadows: true,
   shadowSize: '2048' as (typeof SHADOW_SIZES)[number],
   tone: 'ACES' as Tone,
   exposure: 1.0,
-  light: 'tarde' as LightName,
-  /** Se copian de la hora del día al elegirla, y después se pueden tocar sueltos. */
+  light: 'según la oleada' as LightName,
+  /**
+   * Se copian de la hora del día al elegirla, y después se pueden tocar sueltos. Con «según la oleada»
+   * no se usan: el sol sale del recorrido del día.
+   */
   elevation: DAYLIGHT.tarde.elevation,
   azimuth: DAYLIGHT.tarde.azimuth,
   sunIntensity: DAYLIGHT.tarde.sunIntensity,
+  /** Versión de la luz guardada: un guardado de antes de «según la oleada» no pisa la hora nueva. */
+  lightVersion: 2,
   rim: true,
   rimStrength: 0.22,
   rimPower: 3,
@@ -73,11 +90,35 @@ export const VISUAL_OFF: Partial<VisualConfig> = {
   elevation: DAYLIGHT.mediodía.elevation, azimuth: DAYLIGHT.mediodía.azimuth, sunIntensity: DAYLIGHT.mediodía.sunIntensity,
 };
 const DEFAULTS: VisualConfig = { ...VISUAL };
+const DEFAULTS_LIGHT_VERSION = VISUAL.lightVersion;
+
+/** Mezcla dos horas del día: los colores, el sol y el cielo. */
+function mixDaylight(a: Daylight, b: Daylight, t: number): Daylight {
+  const col = (x: number, y: number) => new THREE.Color(x).lerp(new THREE.Color(y), t).getHex();
+  const num = (x: number, y: number) => x + (y - x) * t;
+  // la dirección del sol va por el camino corto (de la mañana, del otro lado, a la tarde)
+  let dAz = b.azimuth - a.azimuth;
+  if (dAz > 180) dAz -= 360;
+  if (dAz < -180) dAz += 360;
+  return {
+    sun: col(a.sun, b.sun), elevation: num(a.elevation, b.elevation), azimuth: a.azimuth + dAz * t,
+    sunIntensity: num(a.sunIntensity, b.sunIntensity), sky: col(a.sky, b.sky), ground: col(a.ground, b.ground),
+    hemiIntensity: num(a.hemiIntensity, b.hemiIntensity), skyTop: col(a.skyTop, b.skyTop), horizon: col(a.horizon, b.horizon),
+  };
+}
+
+/** La luz de un punto del recorrido del día: 0 es la mañana (primera oleada), 1 el atardecer (última). */
+export function daylightAt(progress: number): Daylight {
+  const u = Math.min(1, Math.max(0, progress)) * (DAY_PATH.length - 1);
+  const i = Math.min(DAY_PATH.length - 2, Math.floor(u));
+  return mixDaylight(DAYLIGHT[DAY_PATH[i]], DAYLIGHT[DAY_PATH[i + 1]], u - i);
+}
 
 /** Elige una hora del día y le copia el sol a los números sueltos. */
 export function setLight(name: LightName): void {
-  const d = DAYLIGHT[name];
   VISUAL.light = name;
+  if (name === 'según la oleada') return;
+  const d = DAYLIGHT[name];
   VISUAL.elevation = d.elevation;
   VISUAL.azimuth = d.azimuth;
   VISUAL.sunIntensity = d.sunIntensity;
@@ -96,9 +137,14 @@ export function loadVisual(params: URLSearchParams): void {
   }
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}') as Partial<VisualConfig>;
+    // lo guardado antes de que la luz cambiara con la oleada no pisa la hora: si no, nadie la vería
+    const oldLight = saved.lightVersion !== DEFAULTS_LIGHT_VERSION;
+    const lightKeys = ['light', 'elevation', 'azimuth', 'sunIntensity'];
     for (const key of Object.keys(VISUAL) as (keyof VisualConfig)[]) {
+      if (oldLight && lightKeys.includes(key)) continue;
       if (typeof saved[key] === typeof VISUAL[key]) (VISUAL as Record<string, unknown>)[key] = saved[key];
     }
+    VISUAL.lightVersion = DEFAULTS_LIGHT_VERSION;
   } catch { /* sin localStorage: quedan los de fábrica */ }
   if (!TONES.includes(VISUAL.tone)) VISUAL.tone = DEFAULTS.tone;
   if (!LIGHTS.includes(VISUAL.light)) VISUAL.light = DEFAULTS.light;
@@ -188,21 +234,50 @@ export class Visuals {
     this.apply();
   }
 
+  /** Por dónde va el día, de 0 (mañana, primera oleada) a 1 (atardecer, última), y a dónde va. */
+  private day = 0;
+  private dayTarget = 0;
+  private dayTick = 0;
+
+  /**
+   * La partida avanzó: el día va hacia `progress` de a poco (unos segundos), no de golpe. Solo se nota
+   * con la luz «según la oleada».
+   */
+  setDayProgress(progress: number, instant = false): void {
+    this.dayTarget = Math.min(1, Math.max(0, progress));
+    if (instant) {
+      this.day = this.dayTarget;
+      this.apply();
+    }
+  }
+
+  /** Mueve el día hacia donde tiene que ir. Rehace la luz de a saltitos, no en cada cuadro. */
+  updateDay(dt: number): void {
+    if (this.day === this.dayTarget) return;
+    const step = dt / DAY_TRANSITION;
+    this.day = Math.abs(this.dayTarget - this.day) <= step ? this.dayTarget : this.day + Math.sign(this.dayTarget - this.day) * step;
+    this.dayTick -= dt;
+    if (this.dayTick > 0 && this.day !== this.dayTarget) return;
+    this.dayTick = 0.2;
+    if (VISUAL.light === 'según la oleada') this.apply();
+  }
+
   /** Pasa VISUAL a la escena. Se llama después de cada cambio del panel. */
   apply(): void {
     const v = VISUAL;
-    const d = DAYLIGHT[v.light];
+    const auto = v.light === 'según la oleada';
+    const d = auto ? daylightAt(this.day) : DAYLIGHT[v.light as FixedLight];
     const r = this.renderer;
 
     r.toneMapping = TONE_MAPPING[v.tone];
     r.toneMappingExposure = v.exposure;
 
-    const el = THREE.MathUtils.degToRad(v.elevation);
-    const az = THREE.MathUtils.degToRad(v.azimuth);
+    const el = THREE.MathUtils.degToRad(auto ? d.elevation : v.elevation);
+    const az = THREE.MathUtils.degToRad(auto ? d.azimuth : v.azimuth);
     const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
     this.sun.position.copy(this.focus).addScaledVector(dir, 120);
     this.sun.color.setHex(d.sun);
-    this.sun.intensity = v.sunIntensity;
+    this.sun.intensity = auto ? d.sunIntensity : v.sunIntensity;
     this.hemi.color.setHex(d.sky);
     this.hemi.groundColor.setHex(d.ground);
     this.hemi.intensity = d.hemiIntensity;

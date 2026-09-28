@@ -145,7 +145,7 @@ export function reliefAt(x: number, z: number): number {
  * entera solo. La altura de cada una la anima quien la levantó: crece, y baja hasta desaparecer.
  */
 export interface Mound extends Hill {
-  /** Id del enemigo que la levantó. */
+  /** Id del enemigo que la está levantando. 0 = ya quedó: es parte del campo hasta el final. */
   owner: number;
   /** Altura a la que va (la de verdad es `height`, que la persigue). 0 = bajando para irse. */
   target: number;

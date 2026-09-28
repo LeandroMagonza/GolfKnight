@@ -88,8 +88,8 @@ El **escudo es blindaje de frente**: la pelota que le llega de frente, venga ras
 igual, pero a ese golpe le resta su número y el resto entra. El del goblin guerrero es 4: un golpe 3 de
 lejos con el driver (8), o de cerca con el putter (8), lo mata igual de frente. Lo único que no cuenta
 como de frente es lo que cae a más de 45°, el globo del wedge. El escudo también cubre del **daño en
-área** que estalla adelante suyo, a él y a los que tiene detrás, con el mismo descuento. Los cuadraditos
-de madera, después de la vida, dicen cuánto resta. Al del escudo se lo resuelve pegándole fuerte, con la
+área** que estalla adelante suyo, a él y a los que tiene detrás, con el mismo descuento. El ícono del escudo, antes
+de la vida, dice cuánto resta. Al del escudo se lo resuelve pegándole fuerte, con la
 granada, cayéndole detrás con el wedge, o pegándole de costado.
 
 El **escudo muro** (violeta, más grande, con el brillo de los inmunes del chamán) no deja pasar nada de
@@ -107,9 +107,9 @@ clases:
   nivel (hasta 3): pega más o agarra más, pero **recarga un 30 % más lento por nivel**.
 - **Mejora**: cosas que valen para todo el juego. A propósito no tocan la tabla de daño de ningún palo,
   para no romper la regla de «cada palo tiene su distancia».
-- **Curarse**: la puerta (+3) o vos (+1). **Ya no te curás solo entre oleadas**: curarse es elegir no
-  mejorar. Si la puerta está a la mitad o te queda una vida, una de las tres cartas es sí o sí para
-  curarse.
+- **No hay cartas de curarse**: eran mucho peores que el Botiquín, que cura un poco al terminar cada
+  oleada. Si la puerta está a la mitad o te queda una vida, una de las tres cartas es sí o sí el
+  Botiquín (mientras no esté al tope).
 
 Cada habilidad tira **su propia pelota**: no gasta la del puesto. Sale en el acto hacia el mouse, aun con
 un tiro cargando.
@@ -210,17 +210,20 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
 | Fantasma (3) | etéreo: ningún golpe le saca más de 1. Se le gana pegándole muchas veces, no fuerte |
 | Curandero goblin (3) | aura verde: cada 3 s, los que tiene a 6 m recuperan 1 |
 | Abanderada goblin (3) | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
-| Geomante (3) | se planta y levanta una loma adelante suyo que tapa al driver; al morir, la loma baja |
+| Geomante (3) | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, la loma baja; si termina, queda para el resto de la partida y él sigue a la puerta |
 
 **Modificadores.** El tipo dice cómo es el enemigo (tamaño, velocidad, comportamiento) y el modificador
 qué efecto trae, así que cualquiera puede llevarlo: un esqueleto blindado, un caballero con aura de
 chamán. En las oleadas van por grupo (`mods` en `WAVES`, `src/core/waves.ts`).
-- **Blindaje 1 a 3**: le resta eso a cada golpe. Tiñe de acero y suma cuadraditos grises al lado de la
-  vida. Con blindaje 3, el putter en golpe 2 (4) saca 1.
+- **Blindaje 1 a 3**: le resta eso a cada golpe. Tiñe de acero. Con blindaje 3, el putter en golpe 2 (4)
+  saca 1.
+- **Los poderes se ven en íconos** antes de la vida: escudo (madera, con cuánto resta), blindaje (placa
+  de acero, con su número), escudo muro (violeta, ∞), aura de inmunidad (violeta), de curación (verde,
+  +), bandera, etéreo (fantasmita con un 1) y escudo divino (estrella dorada, apagada mientras recarga).
+  Lo que la granada silencia se tacha con un prohibido rojo mientras dura.
 - **Escudo**, **bendito**, **aura** (inmunidad o curación) y **etéreo**: lo mismo que los tipos que los
   traen de fábrica.
-- **La granada silencia también el blindaje** mientras dura (los cuadraditos grises se apagan). El
-  etéreo no se silencia.
+- **La granada silencia también el blindaje** mientras dura. El etéreo y el divino no se silencian.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
 
 ## El campo: cuatro mapas, uno por partida

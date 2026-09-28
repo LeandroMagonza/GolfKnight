@@ -44,14 +44,17 @@ describe('cartas', () => {
     expect(PERKS.masteryIce.needs).toBe('ice');
   });
 
-  it('curarse sale solo si falta algo, y sí o sí si la partida viene mal', () => {
-    expect(candidates(fresh()).some((c) => c.card.kind === 'heal')).toBe(false);
+  it('ya no hay cartas de curarse: si la partida viene mal, sale sí o sí el botiquín', () => {
+    expect(candidates(fresh({ gate: 2, hp: 1 })).some((c) => c.card.kind === 'heal')).toBe(false);
     expect(needsHeal(fresh({ gate: 4 }))).toBe('gate');
     expect(needsHeal(fresh({ hp: 1 }))).toBe('player');
     for (let seed = 1; seed < 20; seed++) {
       const cards = drawCards(fresh({ gate: 3 }), 3, seeded(seed));
-      expect(cards.some((c) => c.kind === 'heal' && c.id === 'gate')).toBe(true);
+      expect(cards.some((c) => c.kind === 'perk' && c.id === 'medkit')).toBe(true);
     }
+    // con el botiquín al tope no hay nada que forzar
+    const full = drawCards(fresh({ gate: 3, perks: { medkit: PERKS.medkit.max } }), 3, seeded(3));
+    expect(full.some((c) => c.kind === 'perk' && c.id === 'medkit')).toBe(false);
   });
 
   it('una mejora no sale más veces que su tope', () => {

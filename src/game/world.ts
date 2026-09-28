@@ -15,6 +15,15 @@ export const FIELD_HALF_WIDTH = 18;
 export const GATE_Z = 0;
 export const GATE_HALF_WIDTH = 2.6;
 export const SPAWN_Z = 68;
+
+/** La malla del campo con relieve: un vértice por metro. */
+const TERRAIN = { width: 240, depth: 180, centerZ: 60 };
+const FAIRWAY_LIGHT = new THREE.Color(0x4a9d4f);
+const FAIRWAY_DARK = new THREE.Color(0x3f8f45);
+const ROUGH = new THREE.Color(0x2f6b38);
+const HIGH = new THREE.Color(0xa9d66b);
+const LOW = new THREE.Color(0x1f4f3a);
+const shade = new THREE.Color();
 /** Dónde se paran los guardias: detrás de la línea de puestos, desde donde le tiran pelotas al golfista. */
 export const GUARD_POSTS: readonly (readonly [number, number, number])[] = [[-14, 4.6, 0.12], [-5, 4.4, 0.05], [5, 4.4, -0.05], [14, 4.6, -0.12]];
 export const PLAYER_MIN_Z = 1.5;
@@ -113,36 +122,81 @@ export class World {
    * lomas y más oscuro en el valle, para que el relieve se lea desde la cámara fija.
    */
   private buildTerrain(scene: THREE.Scene): void {
-    const width = 240;
-    const depth = 180;
-    const centerZ = 60;
-    const geo = new THREE.PlaneGeometry(width, depth, width, depth);
+    const geo = new THREE.PlaneGeometry(TERRAIN.width, TERRAIN.depth, TERRAIN.width, TERRAIN.depth);
     geo.rotateX(-Math.PI / 2);
-    geo.translate(0, 0, centerZ);
+    geo.translate(0, 0, TERRAIN.centerZ);
     const pos = geo.attributes.position as THREE.BufferAttribute;
-    const colors = new Float32Array(pos.count * 3);
-    const light = new THREE.Color(0x4a9d4f);
-    const dark = new THREE.Color(0x3f8f45);
-    const rough = new THREE.Color(0x2f6b38);
-    const high = new THREE.Color(0xa9d66b);
-    const low = new THREE.Color(0x1f4f3a);
-    const c = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      const h = heightAt(x, z);
-      pos.setY(i, h);
-      const onFairway = Math.abs(x) <= FIELD_HALF_WIDTH + 2 && z >= -4 && z <= 116;
-      c.copy(onFairway ? (Math.floor(z / 5) % 2 ? dark : light) : rough);
-      if (h > 0) c.lerp(high, Math.min(1, h / 2.4) * 0.7);
-      else c.lerp(low, Math.min(1, -h / 1) * 0.7);
-      colors.set([c.r, c.g, c.b], i * 3);
-    }
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3));
+    this.terrainGeo = geo;
+    for (let i = 0; i < pos.count; i++) this.shadeVertex(i);
     geo.computeVertexNormals();
-    scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+    mesh.receiveShadow = true;
+    scene.add(mesh);
     this.buildDistanceMarks(scene);
   }
+
+  /** La malla del campo con relieve (null en el campo liso). */
+  private terrainGeo: THREE.BufferGeometry | null = null;
+
+  /** ¿El campo es una malla con relieve? En el liso las lomas de la partida llevan malla propia. */
+  get hasTerrain(): boolean {
+    return this.terrainGeo !== null;
+  }
+
+  /** Altura y color de un vértice del campo, con lo que diga `heightAt` ahora. */
+  private shadeVertex(i: number): void {
+    const geo = this.terrainGeo!;
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    const col = geo.attributes.color as THREE.BufferAttribute;
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const h = heightAt(x, z);
+    pos.setY(i, h);
+    const onFairway = Math.abs(x) <= FIELD_HALF_WIDTH + 2 && z >= -4 && z <= 116;
+    shade.copy(onFairway ? (Math.floor(z / 5) % 2 ? FAIRWAY_DARK : FAIRWAY_LIGHT) : ROUGH);
+    if (h > 0) shade.lerp(HIGH, Math.min(1, h / 2.4) * 0.7);
+    else shade.lerp(LOW, Math.min(1, -h / 1) * 0.7);
+    col.setXYZ(i, shade.r, shade.g, shade.b);
+  }
+
+  /**
+   * El piso cambió en este rectángulo (una loma del geomante que sube o baja): rehace la altura y el
+   * color del campo ahí, y apoya de nuevo las rayas de distancia y sus carteles.
+   */
+  refreshGround(x0: number, x1: number, z0: number, z1: number): void {
+    const geo = this.terrainGeo;
+    if (geo) {
+      // la malla tiene un vértice por metro: el índice sale directo de las coordenadas
+      const cols = TERRAIN.width + 1;
+      const ix0 = Math.max(0, Math.floor(x0 + TERRAIN.width / 2));
+      const ix1 = Math.min(TERRAIN.width, Math.ceil(x1 + TERRAIN.width / 2));
+      const iz0 = Math.max(0, Math.floor(z0 - TERRAIN.centerZ + TERRAIN.depth / 2));
+      const iz1 = Math.min(TERRAIN.depth, Math.ceil(z1 - TERRAIN.centerZ + TERRAIN.depth / 2));
+      for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) this.shadeVertex(iz * cols + ix);
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+      geo.computeVertexNormals();
+    }
+    for (const line of this.marks) {
+      if (line.z < z0 || line.z > z1) continue;
+      const pos = line.mesh.geometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        if (x >= x0 && x <= x1) pos.setY(i, heightAt(x, pos.getZ(i)) + 0.02);
+      }
+      pos.needsUpdate = true;
+    }
+    for (const l of this.labels) {
+      if (l.position.x >= x0 && l.position.x <= x1 && l.position.z >= z0 && l.position.z <= z1) {
+        l.position.y = heightAt(l.position.x, l.position.z) + (l.userData.lift as number);
+      }
+    }
+  }
+
+  /** Las rayas de distancia: una tira por raya, que sigue el piso vértice por vértice. */
+  private readonly marks: { mesh: THREE.Mesh; z: number }[] = [];
+  private readonly labels: THREE.Sprite[] = [];
 
   /**
    * Las marcas de distancia se miden **desde la línea de los puestos**, que es desde donde se pega: la
@@ -153,24 +207,26 @@ export class World {
   private buildDistanceMarks(scene: THREE.Scene): void {
     const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
     const bandMat = new THREE.MeshBasicMaterial({ color: 0xffd66b, transparent: true, opacity: 0.55 });
-    const onSlope = relief.on;
     for (let d = 0; d <= 60; d += 10) {
       const z = TEE_LINE_Z + d;
       const band = BAND_LIMITS.includes(d);
-      // sobre relieve la raya se dibuja en tramos, para que siga la pendiente en vez de enterrarse
-      const steps = onSlope ? 24 : 1;
-      for (let i = 0; i < steps; i++) {
-        const w = (FIELD_HALF_WIDTH * 2) / steps;
-        const x = -FIELD_HALF_WIDTH + w * (i + 0.5);
-        const line = new THREE.Mesh(new THREE.PlaneGeometry(w, band ? 0.3 : 0.12), band ? bandMat : lineMat);
-        line.rotation.x = -Math.PI / 2;
-        line.position.set(x, heightAt(x, z) + 0.02, z);
-        scene.add(line);
-      }
+      // una tira con un vértice cada medio metro, apoyada en el piso: sigue las pendientes y las lomas
+      // que se levantan en la partida, en vez de enterrarse
+      const width = FIELD_HALF_WIDTH * 2;
+      const geo = new THREE.PlaneGeometry(width, band ? 0.3 : 0.12, width * 2, 1);
+      geo.rotateX(-Math.PI / 2);
+      geo.translate(0, 0, z);
+      const pos = geo.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)) + 0.02);
+      const line = new THREE.Mesh(geo, band ? bandMat : lineMat);
+      scene.add(line);
+      this.marks.push({ mesh: line, z });
       for (const side of [-1, 1]) {
         const x = side * (FIELD_HALF_WIDTH + 1.6);
         const label = labelSprite(`${d}m`, band ? '#ffd66b' : 'rgba(255,255,255,0.9)');
         label.position.set(x, heightAt(x, z) + 1.2, z);
+        label.userData.lift = 1.2;
+        this.labels.push(label);
         scene.add(label);
       }
     }

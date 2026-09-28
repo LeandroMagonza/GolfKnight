@@ -996,7 +996,7 @@ export class DebugPanel {
       ['altura del sol', 'elevation', 2, '°'],
       ['dirección', 'azimuth', 5, '°'],
       ['fuerza del sol', 'sunIntensity', 0.1, ''],
-    ]), note('La hora cambia el sol, el cielo y la niebla del fondo. Elegirla pisa los tres números; después se pueden tocar sueltos. Dirección 0 es el sol desde el fondo del campo, −90 desde la izquierda.'));
+    ]), note('La hora cambia el sol, el cielo y la niebla del fondo. «Según la oleada» va de la mañana en la primera oleada al atardecer en la última, y ahí los tres números no se usan. Una hora fija pisa los tres números; después se pueden tocar sueltos. Dirección 0 es el sol desde el fondo del campo, −90 desde la izquierda.'));
 
     el.append(heading('Contorno'), this.row(toggle('Contorno de luz', 'rim')), num([
       ['fuerza', 'rimStrength', 0.05, ''],

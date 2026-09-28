@@ -58,8 +58,8 @@ export type HordeEvent =
   | { type: 'rockLanded'; pos: THREE.Vector3 }
   /** El aura de un curandero le devolvió vida. */
   | { type: 'healed'; enemy: Enemy; amount: number }
-  /** Un geomante levantó una loma. */
-  | { type: 'mound'; enemy: Enemy }
+  /** Un geomante empezó a levantar una loma, o terminó y la loma quedó para siempre. */
+  | { type: 'mound'; enemy: Enemy; settled: boolean }
   /** La bandera se levantó (todos +1 de vida) o cayó. */
   | { type: 'banner'; up: boolean };
 
@@ -98,6 +98,106 @@ const flagMat = new THREE.MeshStandardMaterial({ color: 0xc8322b, roughness: 0.8
 /** El blindaje que viene como modificador tiñe de acero (el acorazado ya trae su color). */
 const STEEL_TINT = 0xa9b1bb;
 const AURA_COLORS: Record<Aura, number> = { ward: 0xb26bff, heal: 0x6be38a };
+
+/** Lado de cada ícono en el lienzo de la vida: un 60 % más grande que un cuadradito (32). */
+const BADGE_PX = 52;
+
+/** Un poder del enemigo, dibujado como ícono antes de su vida. */
+interface Badge {
+  icon: 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine';
+  /** El número que va encima (cuánto resta el escudo o el blindaje). */
+  value?: number;
+  /** La granada lo apaga: mientras dura el silencio va tachado. */
+  mutes?: boolean;
+  /** Gastado por ahora (el escudo divino recargándose): se ve apagado. */
+  off?: boolean;
+}
+
+/** Dibuja un ícono de 32 × 32 en `x`. Formas simples, que se lean chiquitas y de lejos. */
+function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: boolean): void {
+  const cx = x + 16;
+  ctx.save();
+  ctx.globalAlpha = b.off ? 0.35 : 1;
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = '#0b0f14';
+  ctx.beginPath();
+  switch (b.icon) {
+    case 'shield':
+    case 'wall':
+      // escudo: arriba recto, abajo en punta
+      ctx.moveTo(cx - 12, 3);
+      ctx.lineTo(cx + 12, 3);
+      ctx.lineTo(cx + 12, 15);
+      ctx.quadraticCurveTo(cx + 11, 25, cx, 30);
+      ctx.quadraticCurveTo(cx - 11, 25, cx - 12, 15);
+      ctx.closePath();
+      ctx.fillStyle = b.icon === 'wall' ? '#8a4fe0' : '#b07a3c';
+      break;
+    case 'armor':
+      // blindaje: una placa de acero con los hombros marcados
+      ctx.moveTo(cx - 13, 6);
+      ctx.lineTo(cx - 6, 3);
+      ctx.lineTo(cx + 6, 3);
+      ctx.lineTo(cx + 13, 6);
+      ctx.lineTo(cx + 10, 28);
+      ctx.lineTo(cx - 10, 28);
+      ctx.closePath();
+      ctx.fillStyle = '#aeb8c4';
+      break;
+    case 'ward':
+    case 'heal':
+    case 'divine':
+      ctx.arc(cx, 16, 12.5, 0, Math.PI * 2);
+      ctx.fillStyle = b.icon === 'ward' ? '#b26bff' : b.icon === 'heal' ? '#4fcf73' : '#ffd34d';
+      break;
+    case 'ethereal':
+      // fantasmita: cabeza redonda y borde de abajo ondulado
+      ctx.arc(cx, 13, 11, Math.PI, 0);
+      ctx.lineTo(cx + 11, 28);
+      ctx.lineTo(cx + 5.5, 24);
+      ctx.lineTo(cx, 28);
+      ctx.lineTo(cx - 5.5, 24);
+      ctx.lineTo(cx - 11, 28);
+      ctx.closePath();
+      ctx.fillStyle = '#cfe9ff';
+      break;
+    case 'banner':
+      ctx.rect(cx - 10, 3, 3, 26);
+      ctx.moveTo(cx - 7, 4);
+      ctx.lineTo(cx + 12, 9);
+      ctx.lineTo(cx - 7, 16);
+      ctx.closePath();
+      ctx.fillStyle = '#e0473d';
+      break;
+  }
+  ctx.fill();
+  ctx.stroke();
+  // el dibujo de adentro: el número, o un símbolo para los que no llevan número
+  const mark = b.value !== undefined ? String(b.value) : b.icon === 'wall' ? '∞' : b.icon === 'heal' ? '+' : b.icon === 'ward' ? '✦' : b.icon === 'divine' ? '✧' : '';
+  if (mark) {
+    ctx.font = `bold ${mark.length > 1 ? 14 : 18}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.strokeText(mark, cx, 17);
+    ctx.fillStyle = b.icon === 'ethereal' ? '#1b2c3d' : '#ffffff';
+    if (b.icon === 'ethereal') ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fillText(mark, cx, 17);
+  }
+  // silenciado: un prohibido rojo encima mientras dura la granada
+  if (muted) {
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = '#ff3b30';
+    ctx.beginPath();
+    ctx.arc(cx, 16, 13, 0, Math.PI * 2);
+    ctx.moveTo(cx - 9, 7);
+    ctx.lineTo(cx + 9, 25);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 
 const CHILL_TINT = new THREE.Color(0x8fd0ff);
 const FROZEN_TINT = new THREE.Color(0xdff6ff);
@@ -146,10 +246,10 @@ export class Enemy {
   /** Reloj del aura de curación: cura cuando llega a HEAL_AURA.every. */
   healTimer = 0;
   /**
-   * Geomante: camina, se planta y levanta la loma (`raising`), se queda detrás un rato (`staying`), y
-   * después sigue a la puerta (`done`).
+   * Geomante: camina, se planta y canaliza la loma (`raising`); si termina, la loma queda y él sigue a
+   * la puerta (`done`).
    */
-  digState: 'walk' | 'raising' | 'staying' | 'done' = 'walk';
+  digState: 'walk' | 'raising' | 'done' = 'walk';
   private digTimer = 0;
   /** Dónde se planta (la abanderada, el geomante): lo que diga el tipo, o donde apareció si ya estaba más cerca. */
   private holdAt = Number.NaN;
@@ -447,39 +547,58 @@ export class Enemy {
   }
 
   /**
-   * Vida en cuadraditos, uno por punto: siempre a la vista, para decidir cuánto cargar el tiro. El punto
-   * de más de la abanderada va en dorado, y la armadura en cuadraditos de acero al lado (apagados
-   * mientras la granada la silencia).
+   * Los poderes que trae, en íconos, para ponerlos antes de la vida. Los que la granada silencia llevan
+   * `mutes` y, mientras dura el silencio, una cruz encima.
+   */
+  private badges(): Badge[] {
+    const out: Badge[] = [];
+    if (this.hasShield) out.push(this.shieldWall ? { icon: 'wall', mutes: true } : { icon: 'shield', value: this.shieldLevel, mutes: true });
+    if (this.armorLevel > 0) out.push({ icon: 'armor', value: this.armorLevel, mutes: true });
+    if (this.auraKind) out.push({ icon: this.auraKind, mutes: true });
+    if (this.stats.behavior === 'banner') out.push({ icon: 'banner', mutes: true });
+    if (this.ethereal) out.push({ icon: 'ethereal', value: 1 });
+    if (this.divineEvery) out.push({ icon: 'divine', off: !this.divineReady });
+    return out;
+  }
+
+  /**
+   * Arriba de cada uno: primero sus poderes en íconos (el escudo y el blindaje con su número), después la
+   * vida en cuadraditos, uno por punto, siempre a la vista para decidir cuánto cargar. El punto de más de
+   * la abanderada va en dorado. Lo que la granada silencia se tacha mientras dura.
    */
   private drawPips(): void {
     const p = this.pips;
     if (!p) return;
-    const armor = this.armorLevel;
-    // el escudo (si no es el muro, que se lee por el brillo) va en madera, después del blindaje
-    const shield = this.hasShield && !this.shieldWall ? this.shieldLevel : 0;
-    const n = this.maxHp + armor + shield;
-    if (p.canvas.width !== 32 * n) {
-      p.canvas.width = 32 * n;
+    const badges = this.badges();
+    // los íconos van más grandes que los cuadraditos: tienen un número o una forma que leer de lejos
+    const width = BADGE_PX * badges.length + 32 * this.maxHp;
+    if (p.canvas.width !== width || p.canvas.height !== BADGE_PX) {
+      p.canvas.width = width;
+      p.canvas.height = BADGE_PX;
       p.tex.dispose();
       p.tex = new THREE.CanvasTexture(p.canvas);
       p.sprite.material.map = p.tex;
       p.sprite.material.needsUpdate = true;
-      const pip = Math.min(0.3, 2.4 / n);
-      p.sprite.scale.set(pip * n, pip, 1);
+      const perPx = Math.min(0.3, 2.4 / (this.maxHp + badges.length)) / 32;
+      p.sprite.scale.set(width * perPx, BADGE_PX * perPx, 1);
     }
     const ctx = p.canvas.getContext('2d')!;
     ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
-    for (let i = 0; i < n; i++) {
-      const isShield = i >= this.maxHp + armor;
-      const isArmor = !isShield && i >= this.maxHp;
-      if (isShield) ctx.fillStyle = this.shieldUp ? '#b07a3c' : 'rgba(176, 122, 60, 0.22)';
-      else if (isArmor) ctx.fillStyle = this.silenced ? 'rgba(174, 184, 196, 0.22)' : '#aeb8c4';
-      else if (i >= this.hp) ctx.fillStyle = 'rgba(10, 14, 20, 0.7)';
+    badges.forEach((b, i) => {
+      ctx.save();
+      ctx.translate(i * BADGE_PX, 0);
+      ctx.scale(BADGE_PX / 32, BADGE_PX / 32);
+      drawBadge(ctx, 0, b, !!b.mutes && this.silenced);
+      ctx.restore();
+    });
+    const top = (BADGE_PX - 32) / 2;
+    for (let i = 0; i < this.maxHp; i++) {
+      if (i >= this.hp) ctx.fillStyle = 'rgba(10, 14, 20, 0.7)';
       else ctx.fillStyle = this.bannered && i === this.maxHp - 1 ? '#ffd34d' : '#5be07a';
-      ctx.strokeStyle = isShield ? '#4a3018' : isArmor ? '#3b434d' : '#0b0f14';
+      ctx.strokeStyle = '#0b0f14';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.roundRect(i * 32 + 4, 5, 24, 22, isShield ? 11 : isArmor ? 2 : 5);
+      ctx.roundRect(badges.length * BADGE_PX + i * 32 + 4, top + 5, 24, 22, 5);
       ctx.fill();
       ctx.stroke();
     }
@@ -489,7 +608,7 @@ export class Enemy {
 
   /** Redibuja la vida si cambió algo de lo que muestra (la vida, la bandera, el silencio sobre la armadura). */
   refreshPipsIfChanged(): void {
-    const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.shieldUp}/${this.silenced}/${this.bannered}/${this.alive && !this.passed}`;
+    const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.silenced}/${this.bannered}/${this.divineReady}/${this.alive && !this.passed}`;
     if (key === this.pipKey) return;
     this.pipKey = key;
     this.refreshBar();
@@ -834,22 +953,18 @@ export class Enemy {
     this.finishFrame(dt, this.state === 'attack' ? 1 : castGesture);
   }
 
-  /** El geomante plantado: levanta la loma, se queda detrás un rato y sigue viaje. */
+  /** El geomante plantado: canaliza la loma; si termina, la deja para siempre y sigue viaje. */
   private updateDig(dt: number, horde: Horde): void {
     if (this.digState === 'walk') {
       this.digState = 'raising';
-      this.digTimer = GEOMANCER.rise;
+      this.digTimer = GEOMANCER.channel;
       horde.raiseMound(this);
       return;
     }
     this.digTimer -= dt;
     if (this.digTimer > 0) return;
-    if (this.digState === 'raising') {
-      this.digState = 'staying';
-      this.digTimer = GEOMANCER.stay;
-    } else {
-      this.digState = 'done';
-    }
+    this.digState = 'done';
+    horde.settleMound(this);
   }
 
   private clampToField(): void {
@@ -1469,23 +1584,35 @@ export class Horde {
     }
   }
 
-  /** El geomante levanta una loma adelante suyo (hacia los puestos). Crece de a poco. */
+  /** El geomante terminó de canalizar: la loma queda, ya sin dueño, hasta el final de la partida. */
+  settleMound(owner: Enemy): void {
+    for (const m of mounds) if (m.owner === owner.id) m.owner = 0;
+    this.emit({ type: 'mound', enemy: owner, settled: true });
+  }
+
+  /** El geomante levanta una loma adelante suyo (hacia los puestos). Crece mientras canaliza. */
   raiseMound(owner: Enemy): void {
     mounds.push({
       x: owner.position.x, z: owner.position.z - GEOMANCER.ahead,
       height: 0, target: GEOMANCER.height, rx: GEOMANCER.rx, rz: GEOMANCER.rz, owner: owner.id,
     });
-    this.emit({ type: 'mound', enemy: owner });
+    this.emit({ type: 'mound', enemy: owner, settled: false });
   }
 
-  /** Las lomas suben hasta su altura y, cuando el geomante muere o se va, bajan hasta desaparecer. */
+  /**
+   * Las lomas crecen mientras su geomante canaliza. Si él muere antes de terminar, bajan (más rápido de
+   * lo que subieron) hasta desaparecer. Las que ya quedaron (sin dueño) no se tocan más.
+   */
   private updateMounds(dt: number): void {
-    const rate = GEOMANCER.height / Math.max(0.1, GEOMANCER.rise);
+    const rate = GEOMANCER.height / Math.max(0.1, GEOMANCER.channel);
     for (let i = mounds.length - 1; i >= 0; i--) {
       const m = mounds[i];
-      const owner = this.enemies.find((e) => e.id === m.owner);
-      if (!owner || !owner.alive || owner.passed) m.target = 0;
-      m.height += THREE.MathUtils.clamp(m.target - m.height, -rate * dt, rate * dt);
+      if (m.owner) {
+        const owner = this.enemies.find((e) => e.id === m.owner);
+        if (!owner || !owner.alive || owner.passed) m.target = 0;
+      }
+      const speed = m.target === 0 ? rate * 3 : rate;
+      m.height += THREE.MathUtils.clamp(m.target - m.height, -speed * dt, speed * dt);
       if (m.target === 0 && m.height <= 0.001) mounds.splice(i, 1);
     }
   }

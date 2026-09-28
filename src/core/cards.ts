@@ -4,7 +4,8 @@
 // - **Mejora**: cambios que valen para todo el juego. A propósito **no tocan la tabla de daño de ningún
 //   palo**: un +1 al driver lo haría el mejor también de cerca y el putter dejaría de tener sentido. Van
 //   por el lado del timing, las pelotas y las rachas, que no cambian qué palo conviene a cada distancia.
-// - **Curarse**: la puerta o el golfista. Ya no se curan solos entre oleadas: curarse es elegir no mejorar.
+// Las cartas de curarse (la puerta +3, vos +1) se fueron: eran mucho peores que el Botiquín, que cura un
+// poco al terminar cada oleada. Si la partida viene mal, el que sale sí o sí es el Botiquín.
 //
 // Todo acá es lógica pura, sin Three.js, para poder probar el sorteo.
 import { ABILITIES, ABILITY_LIST, elementOf, ELEMENT_INFO, MAX_LEVEL, SLOTS, type AbilityId, type Element } from './abilities';
@@ -137,8 +138,6 @@ export function candidates(build: Build): { card: Card; weight: number }[] {
     // la maestría aparece poco y cuando aparece se nota: pesa más que una mejora común
     out.push({ card: { kind: 'perk', id, level: have + 1 }, weight: p.needs ? 4 : 2 });
   }
-  if (build.gate < build.gateMax) out.push({ card: { kind: 'heal', id: 'gate' }, weight: 2 });
-  if (build.hp < build.hpMax) out.push({ card: { kind: 'heal', id: 'player' }, weight: 2 });
   return out;
 }
 
@@ -149,13 +148,15 @@ export function needsHeal(build: Build): 'gate' | 'player' | null {
   return null;
 }
 
-/** Saca `n` cartas distintas, por peso. Si la partida viene mal, una de ellas es para curarse. */
+/**
+ * Saca `n` cartas distintas, por peso. Si la partida viene mal (puerta a la mitad o una sola vida), una
+ * de ellas es el Botiquín, mientras no esté al tope.
+ */
 export function drawCards(build: Build, n = 3, rand: () => number = Math.random): Card[] {
   const pool = candidates(build);
   const out: Card[] = [];
-  const must = needsHeal(build);
-  if (must) {
-    const i = pool.findIndex((c) => c.card.kind === 'heal' && c.card.id === must);
+  if (needsHeal(build)) {
+    const i = pool.findIndex((c) => c.card.kind === 'perk' && c.card.id === 'medkit');
     if (i >= 0) out.push(pool.splice(i, 1)[0].card);
   }
   while (out.length < n && pool.length) {

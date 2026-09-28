@@ -134,11 +134,12 @@ export const HEAL_AURA = { radius: 6, every: 3, amount: 1 };
 export const BANNER_HOLD_Z = 51;
 
 /**
- * Geomante: se planta al llegar a «holdZ», levanta una loma de «height» metros a «ahead» metros
- * adelante suyo (tarda «rise» segundos), se queda «stay» segundos detrás y después sigue a la puerta. La
- * loma baja cuando él muere o se va.
+ * Geomante: se planta al llegar a «holdZ» y **canaliza** «channel» segundos, con los brazos arriba: la
+ * loma crece de a poco hasta «height» metros, a «ahead» metros adelante suyo, así él queda detrás, al
+ * pie, tapado. Si se lo mata mientras canaliza, la loma baja. Si termina, **la loma queda para el resto
+ * de la partida** y él sigue a la puerta: tardar en matarlo complica el campo hasta el final.
  */
-export const GEOMANCER = { holdZ: 38, ahead: 3.2, height: 1.7, rx: 3.4, rz: 2.8, rise: 1.5, stay: 10 };
+export const GEOMANCER = { holdZ: 38, ahead: 5, height: 1.8, rx: 3.4, rz: 2.8, channel: 8 };
 /** Alma en pena: cada cuánto lastima mientras tiene agarrado al golfista, y cuánto aguanta agarrada. */
 export const GRAB_TICK = 1.6;
 export const GRAB_MAX = 5;

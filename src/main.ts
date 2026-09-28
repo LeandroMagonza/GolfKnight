@@ -50,7 +50,7 @@ const effects = new Effects(scene);
 const horde = new Horde(scene);
 const balls = new Balls(scene, horde, effects);
 /** Las lomas del geomante, a la vista (la altura ya la leen todos de core/terrain). */
-const moundView = new MoundView(scene);
+const moundView = new MoundView(scene, world);
 const abilities = new Abilities(scene, horde, effects);
 const tees = new Tees(scene);
 const traps = new Traps(scene, horde, effects);
@@ -422,7 +422,9 @@ horde.onEvent = (e) => {
     }
     case 'mound':
       shake = Math.max(shake, 0.12);
-      hud.feedback('¡El geomante levanta la tierra! El driver no pasa: por arriba, con el hierro o el globo', 'bad');
+      hud.feedback(e.settled
+        ? 'La loma quedó para siempre. El geomante va para la puerta'
+        : '¡El geomante levanta la tierra! Matalo antes de que termine, o la loma queda', 'bad');
       break;
     case 'banner':
       hud.feedback(e.up ? '¡La bandera en alto! Todos tienen 1 de vida más' : 'Cayó la bandera', e.up ? 'bad' : 'good');
@@ -1293,6 +1295,8 @@ function updateWaves(dt: number): void {
       case 'wave': {
         audio.waveHorn();
         hud.showBanner(`Oleada ${e.index + 1}`, e.wave.title);
+        // el día avanza con la partida: la primera oleada es de mañana y la última al atardecer
+        visuals.setDayProgress(director.waveCount > 1 ? e.index / (director.waveCount - 1) : 0);
         break;
       }
       case 'spawn':
@@ -1380,6 +1384,7 @@ function frame(): void {
   }
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos
   debugPanel?.tick();
+  visuals.updateDay(dt);
   visuals.render();
 }
 renderer.setAnimationLoop(frame);
