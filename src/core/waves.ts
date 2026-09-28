@@ -201,7 +201,12 @@ export const DODGE = { cooldown: 5, distance: 3.2, aimWidth: 2.2, hop: 0.6, hopT
 /** Alma en pena: cada cuánto lastima mientras tiene agarrado al golfista, y cuánto aguanta agarrada. */
 export const GRAB_TICK = 1.6;
 export const GRAB_MAX = 5;
-/** Toques de A o D para zafarse del alma en pena sin palazo. */
+/**
+ * Los primeros GRAB_MIN segundos no hay forma de soltarse: ni sacudiéndose ni con el palazo. Después,
+ * GRAB_STRUGGLE toques de A o D (los de antes no cuentan), o el palazo. Al soltarse, de la forma que
+ * sea, el alma en pena se esfuma: agarra una vez y se va.
+ */
+export const GRAB_MIN = 2;
 export const GRAB_STRUGGLE = 6;
 
 export interface WaveGroup {
@@ -257,6 +262,11 @@ export interface Wave {
   groups: WaveGroup[];
   /** El poder que presenta esta oleada. De ahí en adelante entra en el sorteo de todas. */
   power?: PowerKey;
+  /**
+   * Un poder de más que se presenta de pasada: lo trae **uno solo** de la oleada, además del tercio con
+   * poder, y desde la siguiente entra en el sorteo como los demás.
+   */
+  extra?: PowerKey;
   /** Segundos entre apariciones. */
   interval: number;
 }
@@ -270,9 +280,9 @@ export const WAVES: Wave[] = [
   { title: 'Los cuatro palos', interval: 2.1, groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 2 }, { kind: 'skeleton', count: 2 }] },
   { title: 'Escudos al frente', interval: 2.0, power: 'shield', groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 2 }] },
   { title: 'Acorazados', interval: 2.0, power: 'armor', groups: [{ kind: 'goblin', count: 7 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
-  { title: 'La estampida', interval: 1.7, power: 'explode', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
+  { title: 'La estampida', interval: 1.7, power: 'explode', extra: 'divine', groups: [{ kind: 'goblin', count: 8 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }] },
   { title: 'Hechiceros', interval: 2.05, power: 'ranged', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }] },
-  { title: 'La tierra se levanta', interval: 2.05, power: 'dig', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 2 }] },
+  { title: 'La tierra se levanta', interval: 2.2, power: 'dig', extra: 'banner', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 2 }] },
   { title: 'Los que curan', interval: 1.85, power: 'heal', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1, at: 1 }] },
   { title: 'Fantasmas', interval: 1.8, power: 'ethereal', groups: [{ kind: 'goblin', count: 6 }, { kind: 'goblina', count: 4 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1 }, { kind: 'stoneling', count: 1, at: 1 }] },
   { title: 'Los invencibles', interval: 1.75, power: 'ward', groups: [{ kind: 'wraith', count: 2 }, { kind: 'goblin', count: 6 }, { kind: 'goblina', count: 5 }, { kind: 'orc', count: 3 }, { kind: 'skeleton', count: 3 }, { kind: 'warchief', count: 2 }, { kind: 'shaman', count: 1 }, { kind: 'knight', count: 1 }] },
@@ -288,8 +298,7 @@ export const INTERMISSION = 6;
 export function powerPool(waves: Wave[], index: number): { fresh?: PowerKey; old: { key: PowerKey; age: number }[] } {
   const old: { key: PowerKey; age: number }[] = [];
   for (let i = 0; i < index; i++) {
-    const key = waves[i].power;
-    if (key && !old.some((o) => o.key === key)) old.push({ key, age: index - i });
+    for (const key of [waves[i].power, waves[i].extra]) if (key && !old.some((o) => o.key === key)) old.push({ key, age: index - i });
   }
   const fresh = waves[index]?.power;
   return fresh && !old.some((o) => o.key === fresh) ? { fresh, old } : { old };
@@ -330,6 +339,8 @@ export function spawnOrder(waves: Wave[], index: number, rand: () => number = Ma
       give(POWERS[o.key](o.age, rand), false);
     }
   }
+  // el de pasada: uno solo, cualquiera que pueda tenerlo
+  if (wave.extra) give(POWERS[wave.extra](0, rand), false);
   return order;
 }
 

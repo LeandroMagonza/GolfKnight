@@ -187,8 +187,9 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
 ### Lo demás
 
 - **El palazo ya no es un botón aparte**: es una habilidad más, que sale en las cartas y va en Q, W, E o
-  R. Si un alma en pena te agarra, **sacudite con A y D**: seis toques y te soltás (o el palazo, si lo
-  tenés).
+  R. Si un alma en pena te agarra, los primeros 2 s no hay forma de soltarse; después, **sacudite con A
+  y D** (seis toques) o usá el palazo, si lo tenés. Al soltarte, el alma en pena se esfuma: agarra una
+  vez y se va.
 - Vos tenés 3 de vida y la puerta 10. **Nadie te persigue**: todos van derecho a la puerta. Pero el que
   te pasa por encima te atropella: te saca 1 y muere en el choque. A la puerta cada enemigo le saca 1
   (el caballero y el kamikaze, 2). Después de recibir un golpe hay un segundo de respiro, titilando.
@@ -210,7 +211,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | Chamán goblin | 6 | un cuerpo más: el aura es un poder y le puede tocar a cualquiera |
 | Caballero esqueleto | 8 | pesado; cae justo con el mejor golpe |
 | Gólem chico | 10 | pesado; el único, además del jefe, que aguanta el mejor golpe |
-| Alma en pena | 2 | la única que te persigue: te agarra y te desangra |
+| Alma en pena | 2 | la única que te persigue: te agarra (2 s sin poder soltarte) y te desangra; cuando te soltás, se esfuma |
 | Gólem de roca | 80 | el jefe: tira piedras a la puerta desde lejos. No recibe poderes |
 
 | Poder | Qué hace |
@@ -244,7 +245,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   cuerpo que pueda tenerlo: con mala suerte, un caballero etéreo. El escudo y el blindaje salen en 1
   cuando se presentan y suben de nivel con la partida (el escudo hasta 5, y a veces la calavera).
 - El caballero y el gólem chico cierran la oleada en que se presentan.
-- Divino y bandera siguen en el código, pero hoy no salen en ninguna oleada.
+- **De pasada**: el escudo divino lo presenta uno solo en la cuarta, y la bandera uno solo en la de
+  cavar. Desde la oleada siguiente entran en el sorteo como los demás.
 - En `WAVES` (`src/core/waves.ts`): `groups` (los cuerpos) y `power` (el que presenta). El reparto está en
   `spawnOrder`, y `node --experimental-transform-types tools/oleadas.mts` mide qué tan difícil es cada una.
 

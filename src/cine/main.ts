@@ -12,6 +12,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { GameAudio } from '../audio/audio';
 import { stripRootMotion } from '../game/models';
 import { INTRO } from './intro';
+import { CineMusic } from './music';
 import { CinePlayer } from './player';
 
 const MODELS = `${import.meta.env.BASE_URL}models/`;
@@ -46,6 +47,7 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 const audio = new GameAudio();
+const music = new CineMusic(INTRO, player.shotStarts);
 let t = Math.max(0, Number(params.get('t') ?? 0) || 0);
 let playing = false;
 const scrub = $<HTMLInputElement>('scrub');
@@ -77,6 +79,7 @@ function fireSfx(from: number, to: number): void {
       const at = start + s.at;
       if (at > from && at <= to) {
         if (s.name === 'whoosh') audio.whoosh(0.9);
+        else if (s.name === 'bocina') music.honk();
         else audio[s.name]();
       }
     }
@@ -122,6 +125,7 @@ renderer.setAnimationLoop(() => {
     }
   }
   player.evaluate(t);
+  music.sync(t, playing);
   const { index, shot } = player.locate(t);
   scrub.value = String(t);
   timeEl.textContent = `${t.toFixed(2)} s · plano ${index + 1}: ${shot.name}`;
@@ -142,6 +146,7 @@ if (params.has('t')) {
 play.addEventListener('click', async () => {
   start.hidden = true;
   await audio.start().catch(() => {});
+  music.build();
   setPlaying(true);
 });
 

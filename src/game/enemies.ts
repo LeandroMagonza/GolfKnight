@@ -9,7 +9,7 @@ import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/a
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, ENEMIES, GEOMANCER, GRAB_STRUGGLE, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, ENEMIES, GEOMANCER, GRAB_MIN, GRAB_STRUGGLE, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -54,6 +54,9 @@ export type HordeEvent =
   /** El escudo lo tapó de un daño en área: o lo lleva él, o está detrás del que lo lleva. */
   | { type: 'shielded'; enemy: Enemy }
   | { type: 'grab'; enemy: Enemy }
+  /** Pasó el tiempo mínimo del agarre: ya se puede sacudir. */
+  | { type: 'grabLoose'; enemy: Enemy }
+  /** El alma en pena lo soltó y se esfumó. */
   | { type: 'release'; enemy: Enemy }
   | { type: 'rockThrown'; enemy: Enemy }
   | { type: 'rockLanded'; pos: THREE.Vector3 }
@@ -858,6 +861,11 @@ export class Enemy {
     this.hopLeft = DODGE.hopTime;
   }
 
+  /** Agarrando, ¿ya pasó el tiempo en que no hay forma de soltarse? */
+  get escapable(): boolean {
+    return this.grabbing && this.grabTime >= GRAB_MIN;
+  }
+
   /** Suelta al golfista (si lo tenía) y queda aturdida un rato. */
   letGo(stun: number): void {
     if (!this.grabbing) return;
@@ -1105,16 +1113,21 @@ export class Enemy {
     this.position.z = Math.max(this.position.z, GATE_Z + this.radius * 0.5);
   }
 
-  /** El alma en pena agarrada al golfista: lo lastima de a poco hasta que él salta, o ella se cansa. */
+  /**
+   * El alma en pena agarrada al golfista: lo lastima de a poco hasta que él se suelta, o ella se cansa.
+   * Termine como termine, se esfuma.
+   */
   private updateGrab(dt: number, player: Player, horde: Horde): void {
     if (player.grabbedBy !== this || !player.alive) {
-      // se le escapó por el portal (o cayó): queda desorientada el tiempo justo para un driver cargado
-      this.letGo(3);
-      horde.emit({ type: 'release', enemy: this });
-      this.finishFrame(dt, 0);
+      // se la sacó con el palazo, o él cayó
+      this.vanish(horde);
       return;
     }
+    const wasLoose = this.grabTime >= GRAB_MIN;
     this.grabTime += dt;
+    // mientras no se puede soltar, sacudirse no suma: cuentan los toques de después
+    if (this.grabTime < GRAB_MIN) player.struggles = 0;
+    else if (!wasLoose) horde.emit({ type: 'grabLoose', enemy: this });
     this.grabTick -= dt;
     if (this.grabTick <= 0) {
       this.grabTick += GRAB_TICK;
@@ -1123,15 +1136,23 @@ export class Enemy {
     }
     // se cansa, o el golfista se sacude lo suficiente
     if (this.grabTime >= GRAB_MAX || player.struggles >= GRAB_STRUGGLE) {
-      this.letGo(2.5);
       player.release(this);
-      horde.emit({ type: 'release', enemy: this });
+      this.vanish(horde);
+      return;
     }
     const dx = player.position.x - this.position.x;
     const dz = player.position.z - this.position.z;
     this.yaw = Math.atan2(dx, dz);
     this.animator.setLocomotion('Idle', 1);
     this.finishFrame(dt, 1);
+  }
+
+  /** Suelta al golfista y desaparece del campo, sin morir: no da puntos ni cuenta como baja. */
+  private vanish(horde: Horde): void {
+    this.grabbing = false;
+    this.hp = 0;
+    this.state = 'gone';
+    horde.emit({ type: 'release', enemy: this });
   }
 
   /** Cierra el cuadro: orientación, animación y, encima, el gesto de brazos por código. */

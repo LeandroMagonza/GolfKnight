@@ -33,13 +33,14 @@ export const INTRO: Script = {
       actors: {
         knight: { path: [{ at: 0, x: -12, z: 0.3, face: 90 }, { at: 6.5, x: -3, z: 0.3 }], anim: [{ at: 0, clip: 'Walking', loop: true }] },
         goblinFair: { path: [{ at: 0, x: -4.5, z: -3.2, face: 30 }], anim: [{ at: 0, clip: 'Talking', loop: true }] },
-        skelFair: { path: [{ at: 0, x: -3, z: -3.6, face: -60 }], anim: [{ at: 0, clip: 'Idle', loop: true, from: 1.3 }] },
+        skelFair: { path: [{ at: 0, x: -3, z: -3.6, face: -60 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 1.3 }] },
       },
       text: [
         { at: 0.6, until: 3.1, kind: 'caption', text: 'Sábado. Feria medieval.' },
         { at: 3.3, until: 6.4, kind: 'caption', text: 'Tu disfraz: impecable. Los de los demás, sospechosamente buenos.' },
       ],
-      ramps: [{ at: 0, dur: 1.2, param: 'fade', from: 1, to: 0 }],
+      ramps: [{ at: 0, dur: 1.2, param: 'fade', from: 1, to: 0 }, { at: 5.7, dur: 0.8, param: 'fade', from: 0, to: 1 }],
+      music: [{ at: 0, track: 'feria', level: 1, fade: 1 }],
     },
     {
       name: 'El estacionamiento',
@@ -71,14 +72,23 @@ export const INTRO: Script = {
           ],
         },
       },
-      text: [{ at: 0.6, until: 2.9, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.' }],
+      text: [
+        { at: 0.5, until: 2.0, kind: 'caption', text: 'A la salida.' },
+        { at: 2.2, until: 4.3, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.' },
+      ],
       ramps: [
+        { at: 0, dur: 0.9, param: 'fade', from: 1, to: 0 },
         { at: 0, dur: 0, param: 'car.trunk', from: 1, to: 1 },
         { at: 0, dur: 0, param: 'carBlue.headlights', from: 1, to: 1 },
         { at: 5.3, dur: 0.7, param: 'shake', from: 1.2, to: 0 },
         { at: 5.42, dur: 0.22, param: 'flash', from: 0, to: 1 },
       ],
-      sfx: [{ at: 4.7, name: 'whoosh' }, { at: 5.3, name: 'gateHit' }, { at: 5.32, name: 'hurt' }],
+      sfx: [{ at: 4.45, name: 'bocina' }, { at: 4.7, name: 'whoosh' }, { at: 5.3, name: 'gateHit' }, { at: 5.32, name: 'hurt' }],
+      // la música de la feria queda sonando de lejos, y el golpe la corta en seco
+      music: [
+        { at: 0, track: 'feria', level: 0.45, fade: 1.5, filter: 1100 },
+        { at: 5.3, track: 'feria', level: 0, fade: 0.04 },
+      ],
     },
     {
       name: 'Nada',
@@ -113,7 +123,7 @@ export const INTRO: Script = {
             { at: 5.6, clip: 'Talking', fade: 0.4, loop: true },
           ],
         },
-        bag: { path: [{ at: 0, x: -1.4, y: 0.47, z: 1.0, face: 30, roll: 90 }] },
+        bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
         { at: 2.4, until: 5.3, kind: 'say', who: 'mage', text: '¡Funcionó! ¡Vino el Gran Guerrero!' },
@@ -124,6 +134,7 @@ export const INTRO: Script = {
         { at: 0, dur: 3, param: 'runes', from: 0.9, to: 0.35 },
       ],
       sfx: [{ at: 0.1, name: 'frost' }, { at: 0.3, name: 'zap' }],
+      music: [{ at: 0, track: 'magia', level: 1, fade: 1.5 }],
     },
     {
       name: 'El arma',
@@ -132,18 +143,18 @@ export const INTRO: Script = {
       camera: [
         { at: 0, pos: [-1.3, 1.95, -1.9], look: { actor: 'mage', y: 1.45 } },
         { at: 3.5, pos: [-1.2, 1.95, -1.7], look: { actor: 'mage', y: 1.45 } },
-        { at: 3.51, pos: [-2.6, 0.9, 2.6], look: [-1.4, 0.45, 1.0] },
-        { at: 5.8, pos: [-2.3, 0.8, 2.3], look: [-1.4, 0.45, 1.0] },
+        { at: 3.51, pos: [-4.4, 1.8, 4.3], look: [-0.9, 0.8, 0.6] },
+        { at: 5.8, pos: [-4.0, 1.7, 3.9], look: [-0.9, 0.8, 0.6] },
         { at: 5.81, pos: [-0.8, 1.6, 5.4], look: [1.0, 1.1, 1.0] },
         { at: 8.5, pos: [-0.6, 1.5, 5.0], look: [1.0, 1.1, 1.0] },
       ],
       actors: {
         knight: {
           path: [{ at: 0, x: 0, z: 0, face: 40 }, { at: 5.8, x: 0, z: 0, face: -30 }],
-          anim: [{ at: 0, clip: 'Idle', loop: true }, { at: 5.8, clip: 'Reacting', fade: 0.3 }],
+          anim: [{ at: 0, clip: 'Idle 2', loop: true }, { at: 5.8, clip: 'Reacting', fade: 0.3 }],
         },
         mage: { path: [{ at: 0, x: 2.4, z: 1.9, face: -125 }], anim: [{ at: 0, clip: 'Talking 2', loop: true }] },
-        bag: { path: [{ at: 0, x: -1.4, y: 0.47, z: 1.0, face: 30, roll: 90 }] },
+        bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
         { at: 0.3, until: 3.4, kind: 'say', who: 'mage', text: 'La profecía pedía armadura reluciente… y un arma de precisión letal.' },
@@ -164,17 +175,18 @@ export const INTRO: Script = {
         { at: 8.5, pos: [-0.3, 1.7, -2.8], look: [-3.5, 3.4, 25], fov: 31 },
       ],
       actors: {
-        knight: { path: [{ at: 0, x: 0, z: 0, face: 0 }], anim: [{ at: 0, clip: 'Idle', loop: true }] },
+        // Idle 2: el Idle de siempre gira la cabeza hasta 70° y parecía que miraba para atrás
+        knight: { path: [{ at: 0, x: 0, z: 0, face: 0 }], anim: [{ at: 0, clip: 'Idle 2', loop: true }] },
         driver: { path: [{ at: 0, x: 0, z: 0 }], hold: 'knight' },
         mage: {
           path: [{ at: 0, x: 0.95, z: 0.2, face: 5 }],
           anim: [{ at: 0, clip: 'Idle', loop: true }, { at: 0.8, clip: 'Pointing', fade: 0.3 }, { at: 3.6, clip: 'Talking', fade: 0.4, loop: true }],
         },
-        g1: { path: [{ at: 0, x: -10, y: 3.9, z: 25, face: 90 }, { at: 8.5, x: 6, y: 3.9, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true }] },
-        g2: { path: [{ at: 0, x: -13, y: 3.9, z: 25, face: 90 }, { at: 8.5, x: 3, y: 3.9, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.3 }] },
-        g3: { path: [{ at: 0, x: -16, y: 3.9, z: 25, face: 90 }, { at: 8.5, x: 0, y: 3.9, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.6 }] },
-        g4: { path: [{ at: 0, x: -19, y: 3.9, z: 25, face: 90 }, { at: 8.5, x: -3, y: 3.9, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.2 }] },
-        g5: { path: [{ at: 0, x: -22, y: 3.9, z: 25, face: 90 }, { at: 8.5, x: -6, y: 3.9, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.5 }] },
+        g1: { path: [{ at: 0, x: -10, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: 6, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true }] },
+        g2: { path: [{ at: 0, x: -13, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: 3, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.3 }] },
+        g3: { path: [{ at: 0, x: -16, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: 0, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.6 }] },
+        g4: { path: [{ at: 0, x: -19, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: -3, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.2 }] },
+        g5: { path: [{ at: 0, x: -22, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: -6, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.5 }] },
       },
       text: [
         { at: 1.0, until: 4.0, kind: 'say', who: 'mage', text: '¡Las hordas marchan sobre Valdehoyo!' },
@@ -186,6 +198,11 @@ export const INTRO: Script = {
         { at: 0, dur: 0, param: 'clubGlow', from: 1, to: 1 },
       ],
       sfx: [{ at: 0.8, name: 'waveHorn' }, { at: 2.2, name: 'growl' }, { at: 6.5, name: 'victory' }],
+      music: [
+        { at: 0.6, track: 'horda', level: 1, fade: 1.2 },
+        { at: 7.2, track: 'horda', level: 0, fade: 1.3 },
+        { at: 7.2, track: 'magia', level: 0, fade: 1.3 },
+      ],
     },
   ],
 };

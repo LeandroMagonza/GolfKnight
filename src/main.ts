@@ -408,9 +408,15 @@ horde.onEvent = (e) => {
     }
     case 'grab':
       audio.growl();
-      hud.feedback(abilities.levelOf('shove') ? '¡Te atrapó! Sacudite con A y D, o sacátela con el palazo' : '¡Te atrapó! Sacudite con A y D', 'bad');
+      hud.feedback('¡Te atrapó! Aguantá un momento...', 'bad');
+      break;
+    case 'grabLoose':
+      hud.feedback(abilities.levelOf('shove') ? '¡Ahora! Sacudite con A y D, o sacátela con el palazo' : '¡Ahora! Sacudite con A y D', 'neutral');
       break;
     case 'release':
+      // agarra una vez y se va
+      effects.blink(e.enemy.position, 0xb8c4ff);
+      audio.whoosh(0.6);
       break;
     case 'dodged':
       audio.whoosh(0.5);
@@ -610,8 +616,14 @@ function selectClub(index: number): void {
 function castAbility(index: number): void {
   if (!started || paused || ended || cardOpen || !player || index < 0 || index >= SLOTS) return;
   if (!player.alive || player.stunned) return;
-  // agarrado solo sale el palazo, que es justamente para sacársela de encima
-  if (player.grabbedBy && ABILITIES[abilities.slots[index]?.id]?.kind !== 'melee') return;
+  // agarrado solo sale el palazo, que es justamente para sacársela de encima, y no en los primeros segundos
+  if (player.grabbedBy) {
+    if (ABILITIES[abilities.slots[index]?.id]?.kind !== 'melee') return;
+    if (!player.grabbedBy.escapable) {
+      hud.feedback('Todavía no te la podés sacar', 'neutral');
+      return;
+    }
+  }
   player.teePosition(tee);
   const result = abilities.cast(index, tee, player.aimDir, aimPoint);
   const slot = abilities.slots[index];
@@ -1154,11 +1166,10 @@ async function makePlayer(skin: Skin): Promise<Player> {
   // un paso adelante del golfista, hacia donde apunta.
   p.onMelee = () => {
     const radius = lv(PALAZO.radius, meleeLevel);
-    // agarrado, el palazo es la forma de zafar: la suelta y la deja aturdida
+    // agarrado, el palazo es la forma rápida de zafar: la suelta y se esfuma
     const held = p.grabbedBy;
-    if (held) {
+    if (held?.escapable) {
       p.release(held);
-      held.letGo(3);
       hud.feedback('¡Te la sacaste de encima!', 'good');
     }
     const center = p.position.clone().addScaledVector(p.aimDir, 1);
@@ -1364,7 +1375,7 @@ function updateWaves(dt: number): void {
         horde.spawn(e.kind, undefined, e.mods);
         announce(e.kind, e.mods);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
-        else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Si te atrapa, sacudite con A y D', 'bad');
+        else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Te persigue y te agarra: pegale antes de que llegue', 'bad');
         break;
       case 'cleared':
         // ya no se cura solo entre oleadas: curarse es una de las cartas, y elegirla es no mejorar. Salvo

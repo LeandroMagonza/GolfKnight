@@ -10,6 +10,8 @@ export type Params = Record<string, number>;
 
 export interface CineSet {
   group: THREE.Group;
+  /** A qué altura está el piso donde se paran los actores (el círculo está sobre una plataforma). */
+  floor: number;
   background: THREE.Color | THREE.Texture;
   fog: THREE.Fog | null;
   update(t: number, p: Params): void;
@@ -127,7 +129,9 @@ function sign(text: string, width: number): THREE.Group {
   ctx.lineWidth = 10;
   ctx.strokeRect(5, 5, 502, 118);
   ctx.fillStyle = '#ffe2a8';
-  ctx.font = 'bold 64px Georgia, serif';
+  // la letra se achica hasta que el texto entra entero en la tabla
+  let size = 64;
+  do ctx.font = `bold ${size--}px Georgia, serif`; while (ctx.measureText(text).width > 460 && size > 20);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, 256, 68);
@@ -229,6 +233,7 @@ function feria(): CineSet {
   shadows(group);
   return {
     group,
+    floor: 0,
     background: skyGradient(0x5f9fdc, 0xdcebf5),
     fog: new THREE.Fog(0xdcebf5, 35, 110),
     update(t) {
@@ -309,6 +314,7 @@ function estacionamiento(): CineSet {
   shadows(group);
   return {
     group,
+    floor: 0,
     background: skyGradient(0x2e3f6e, 0xf0a070),
     fog: new THREE.Fog(0xe0906a, 30, 95),
     update(t) {
@@ -412,6 +418,7 @@ function circulo(): CineSet {
   shadows(group);
   return {
     group,
+    floor: 0.3,
     background: skyGradient(0x070b1c, 0x4a3d78),
     fog: new THREE.Fog(0x2a2448, 40, 140),
     update(t, p) {
@@ -429,7 +436,7 @@ function circulo(): CineSet {
 }
 
 function negro(): CineSet {
-  return { group: new THREE.Group(), background: new THREE.Color(0x000000), fog: null, update() {} };
+  return { group: new THREE.Group(), floor: 0, background: new THREE.Color(0x000000), fog: null, update() {} };
 }
 
 export function buildSets(): Record<SetId, CineSet> {

@@ -122,7 +122,7 @@ export class Player {
   private meleeTime = 0;
   /** El alma en pena que lo tiene agarrado: no puede caminar ni tirar hasta que se zafa. */
   grabbedBy: Enemy | null = null;
-  /** Toques de A o D desde que lo agarraron: con GRAB_STRUGGLE se zafa. */
+  /** Toques de A o D desde que se puede soltar (GRAB_MIN): con GRAB_STRUGGLE se zafa. */
   struggles = 0;
   private yaw = 0;
   /** Invulnerable un instante después de recibir un golpe. */

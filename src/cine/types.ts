@@ -81,7 +81,22 @@ export interface Ramp {
   to: number;
 }
 
-export type SfxName = 'whoosh' | 'thud' | 'explosion' | 'zap' | 'frost' | 'growl' | 'gateHit' | 'hurt' | 'waveHorn' | 'victory';
+export type SfxName = 'whoosh' | 'thud' | 'explosion' | 'zap' | 'frost' | 'growl' | 'gateHit' | 'hurt' | 'waveHorn' | 'victory' | 'bocina';
+
+/** Los temas de la música (src/cine/music.ts). */
+export type MusicTrack = 'feria' | 'magia' | 'horda';
+
+/**
+ * Desde `at`, un tema va a sonar a `level` (0 = callado, 1 = lleno), llegando en `fade` segundos.
+ * `filter` apaga los agudos (en Hz): suena como de lejos, del otro lado de una pared.
+ */
+export interface MusicCue {
+  at: number;
+  track: MusicTrack;
+  level: number;
+  fade?: number;
+  filter?: number;
+}
 
 export interface Shot {
   name: string;
@@ -92,6 +107,7 @@ export interface Shot {
   text?: TextCue[];
   ramps?: Ramp[];
   sfx?: { at: number; name: SfxName }[];
+  music?: MusicCue[];
 }
 
 export interface Script {

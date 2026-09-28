@@ -48,6 +48,10 @@ describe('waves', () => {
         expect(w.power, w.title).toBeDefined();
         expect(powers.has(w.power!), w.title).toBe(false);
         powers.add(w.power!);
+        if (w.extra) {
+          expect(powers.has(w.extra), w.title).toBe(false);
+          powers.add(w.extra);
+        }
       }
     });
   });
@@ -74,7 +78,8 @@ describe('waves', () => {
         const open = order.filter((o) => !ENEMIES[o.kind].boss);
         const powered = order.filter((o) => o.mods);
         // en la primera no hay poderes todavía
-        expect(powered.length, w.title).toBe(pool.fresh || pool.old.length ? Math.round(open.length / 3) : 0);
+        // más el de pasada, si la oleada trae uno
+        expect(powered.length, w.title).toBe((pool.fresh || pool.old.length ? Math.round(open.length / 3) : 0) + (w.extra ? 1 : 0));
         // el jefe nunca; nadie recibe un poder que no pueda tener
         expect(order.filter((o) => ENEMIES[o.kind].boss).every((o) => !o.mods)).toBe(true);
         for (const o of powered) expect(canTake(o.kind, o.mods!), `${w.title}: ${o.kind}`).toBe(true);
@@ -84,7 +89,8 @@ describe('waves', () => {
             const key = pool.fresh!;
             return key === 'heal' ? m.aura === 'heal' : key === 'ward' ? m.aura === 'ward' : m[key as keyof EnemyMods] !== undefined;
           };
-          const want = pool.old.length ? Math.ceil(powered.length / 2) : powered.length;
+          const shared = powered.length - (w.extra ? 1 : 0);
+          const want = pool.old.length ? Math.ceil(shared / 2) : shared;
           expect(powered.filter(isFresh).length, w.title).toBe(want);
           // el primero que puede tenerlo es el que lo presenta
           const probe = POWERS[pool.fresh](0, () => 0);

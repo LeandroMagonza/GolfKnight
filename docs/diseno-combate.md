@@ -1828,3 +1828,26 @@ presenta.
 Probado en el navegador: el esqueleto con esquiva en la línea del tiro saltó 2.9 m al llegar la carga
 a 2, y en la carga siguiente, recargando, no se movió. El palazo en la Q mandó a un orco 12 m atrás.
 Agarrado por el alma en pena, seis toques de A y D lo soltaron sin perder vida.
+
+## Hecho: el alma en pena agarra un rato mínimo y después se esfuma (28/9/2026)
+
+Pedido de Leandro: que el agarre no se pueda cortar enseguida, y que el alma en pena desaparezca una vez
+que el golfista se suelta.
+
+- Los primeros **`GRAB_MIN` = 2 s** no hay forma de soltarse: los toques de A y D no cuentan y el palazo
+  no sale (avisa «Todavía no te la podés sacar» y no gasta la recarga). A los 1.6 s llega el primer
+  tirón, así que **todo agarre cuesta 1 de vida**. Al pasar los 2 s aparece «¡Ahora! Sacudite».
+- Después, seis toques o el palazo. Se suelte como se suelte (sacudiéndose, con el palazo, o porque
+  ella se cansa a los 5 s), **se esfuma** con un destello: no da puntos ni cuenta como baja, pero no
+  vuelve a agarrar. Antes quedaba aturdida y volvía por él.
+
+## Hecho: bandera y escudo divino vuelven, de pasada (28/9/2026)
+
+Habían quedado afuera de las diez oleadas. Leandro pidió meterlos en oleadas livianas, «quizás uno en la
+de cavar». Para eso existe `Wave.extra`: un poder que **trae uno solo** de la oleada, además del tercio
+con poder, y que desde la siguiente entra en el sorteo.
+
+- **Escudo divino** en la 4 (La estampida): no trae cuerpo nuevo y solo presenta explotar.
+- **Bandera** en la 6 (La tierra se levanta), con el que cava: los dos se plantan lejos, así que se
+  aprenden juntos a buscar al que se queda atrás. La bandera no se acumula: con dos abanderados vivos,
+  sigue siendo +1.

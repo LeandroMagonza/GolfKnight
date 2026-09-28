@@ -134,7 +134,10 @@ export class CinePlayer {
       const cue = cues[actor.id];
       actor.root.visible = !!cue && (!cue.show || (local >= cue.show[0] && local < cue.show[1]));
       if (!cue || !actor.root.visible) continue;
-      if (!cue.hold) placeOnPath(actor.root, cue.path, local);
+      if (!cue.hold) {
+        placeOnPath(actor.root, cue.path, local);
+        actor.root.position.y += this.sets[shot.set].floor;
+      }
       if (actor.mixer && cue.anim?.length) {
         evalAnim(actor, cue.anim, local);
         actor.root.updateMatrixWorld(true);
@@ -219,7 +222,10 @@ export class CinePlayer {
   }
 }
 
-/** Los números del plano en `local`: cada rampa manda desde que empieza; antes de la primera vale su `from`. */
+/**
+ * Los números del plano en `local`: cada rampa manda desde que empieza. Antes de la primera el número no
+ * está (vale lo de siempre): si no, el temblor del atropello temblaba desde el principio del plano.
+ */
 function rampValues(ramps: Ramp[], local: number): Params {
   const out: Params = {};
   const byParam = new Map<string, Ramp[]>();
@@ -230,11 +236,9 @@ function rampValues(ramps: Ramp[], local: number): Params {
   }
   for (const [param, list] of byParam) {
     list.sort((x, y) => x.at - y.at);
-    let v = list[0].from;
     for (const r of list) {
-      if (local >= r.at) v = THREE.MathUtils.lerp(r.from, r.to, r.dur > 0 ? clamp01((local - r.at) / r.dur) : 1);
+      if (local >= r.at) out[param] = THREE.MathUtils.lerp(r.from, r.to, r.dur > 0 ? clamp01((local - r.at) / r.dur) : 1);
     }
-    out[param] = v;
   }
   return out;
 }
