@@ -103,8 +103,8 @@ export interface EnemyStats {
 const base = { behavior: 'melee' as Behavior, runs: false, heavy: false, shield: 0, boss: false, tint: 0 };
 
 /**
- * El escudo muro: con el mejor golpe en 8, un escudo de 10 no deja pasar nada de frente, por fuerte que
- * sea. Obliga a resolverlo de otra forma: por detrás, de costado o con la granada. Es la calavera, y
+ * El escudo muro: un escudo de 10 no deja pasar nada de frente, por fuerte que sea (el mejor golpe es 4,
+ * así que desde el escudo 4 ya casi nada entra de frente; la calavera lo deja claro a la vista). Obliga a resolverlo de otra forma: por detrás, de costado o con la granada. Es la calavera, y
  * late en violeta como los inmunes del chamán.
  */
 export const SHIELD_WALL = 10;

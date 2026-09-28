@@ -114,16 +114,16 @@ export const CLUBS: Record<ClubId, Club> = {
     id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
     loftDeg: 3.5, minRange: 0, maxRange: 66, spread: [0, 0, 0],
     pierces: true, burstsOnGround: false, stopsOnLand: false,
-    damage: [[1, 2, 3], [1, 3, 5], [2, 4, 8]],
-    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 55, color: CLUB_COLOR,
+    damage: [[1, 2, 3], [1, 2, 3], [2, 3, 4]],
+    knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 50, color: CLUB_COLOR,
   },
   iron: {
     id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
-    loftDeg: 27, minRange: 0, maxRange: 55, spread: [1.8, 2.2, 2.7],
+    loftDeg: 27, minRange: 0, maxRange: 55, spread: [2.2, 3, 3.5],
     // modo por defecto: no atraviesa, y el área sale solo si le pega a alguien (ver IRON_MODES)
     pierces: false, burstsOnGround: false, stopsOnLand: true,
-    damage: [[1, 3, 7], [1, 3, 7], [1, 3, 7]],
-    areaDamage: [[1, 2, 4], [1, 2, 4], [1, 2, 4]],
+    damage: [[1, 2, 3], [1, 2, 3], [1, 2, 3]],
+    areaDamage: [[1, 2, 3], [1, 2, 3], [1, 2, 3]],
     knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: [6, 6, 6], fixedRange: 0, color: CLUB_COLOR,
   },
   wedge: {
@@ -140,7 +140,7 @@ export const CLUBS: Record<ClubId, Club> = {
     id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno',
     loftDeg: 0, minRange: 0, maxRange: 20, spread: [0, 0, 0],
     pierces: false, burstsOnGround: false, stopsOnLand: true,
-    damage: [[2, 4, 8], [1, 3, 5], [1, 2, 3]],
+    damage: [[2, 3, 4], [1, 2, 3], [1, 2, 3]],
     // siempre rueda los 20 m: apuntando cerca del enemigo frenaba antes de llegar. Y cuanto mejor el
     // golpe, más rápido va (la fricción decide la velocidad de salida, no la distancia)
     knockback: 10, restitution: 0, bounceKeep: 1, maxHits: 1, rollFriction: [20, 50, 80], fixedRange: 20, color: CLUB_COLOR,

@@ -60,15 +60,17 @@ const DAY_TRANSITION = 5;
 
 /** Todo lo que la pestaña Visual toca y guarda. */
 /**
- * Dónde va el arco de carga, en pantalla: al costado de la **cabeza** del golfista, al costado de la
- * **pelota**, o **adelante**, sobre el camino del tiro. Siempre del lado del golfista, para no tapar la
+ * Dónde va el arco de carga, en pantalla: **adelante**, sobre el camino del tiro (el de fábrica), al
+ * costado de la **cabeza** del golfista, o al costado de la **pelota**. Siempre del lado del golfista, para no tapar la
  * pelota ni la línea.
  */
-export const METER_SPOTS = ['cabeza', 'pelota', 'adelante'] as const;
+export const METER_SPOTS = ['adelante', 'cabeza', 'pelota'] as const;
 export type MeterSpot = (typeof METER_SPOTS)[number];
 
 export const VISUAL = {
-  meterAt: 'cabeza' as MeterSpot,
+  meterAt: 'adelante' as MeterSpot,
+  /** Versión del lugar del arco: un guardado de antes de que el de fábrica fuera «adelante» no lo pisa. */
+  meterVersion: 2,
   shadows: true,
   shadowSize: '2048' as (typeof SHADOW_SIZES)[number],
   tone: 'ACES' as Tone,
@@ -149,8 +151,10 @@ export function loadVisual(params: URLSearchParams): void {
     // lo guardado antes de que la luz cambiara con la oleada no pisa la hora: si no, nadie la vería
     const oldLight = saved.lightVersion !== DEFAULTS_LIGHT_VERSION;
     const lightKeys = ['light', 'elevation', 'azimuth', 'sunIntensity'];
+    const oldMeter = saved.meterVersion !== DEFAULTS.meterVersion;
     for (const key of Object.keys(VISUAL) as (keyof VisualConfig)[]) {
       if (oldLight && lightKeys.includes(key)) continue;
+      if (oldMeter && (key === 'meterAt' || key === 'meterVersion')) continue;
       if (typeof saved[key] === typeof VISUAL[key]) (VISUAL as Record<string, unknown>)[key] = saved[key];
     }
     VISUAL.lightVersion = DEFAULTS_LIGHT_VERSION;

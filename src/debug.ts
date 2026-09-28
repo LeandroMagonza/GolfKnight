@@ -87,7 +87,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 6;
+const VERSION = 7;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -98,6 +98,9 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // los enemigos pasaron a ser cuerpos con una escalera de vida (goblin 1 ... gólem chico 10)
   5: ['enemies'],
   6: ['enemies'],
+  // el balance de los palos de Leandro (28/9): pisa todo lo guardado de los palos (daño, área, rapidez,
+  // distancias y modo del hierro)
+  7: ['clubs'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -140,7 +143,7 @@ export function loadBalance(): SavedExtras {
   const version = saved.version ?? 1;
   for (const id of CLUB_ORDER) {
     const from = saved.clubs?.[id];
-    if (!from) continue;
+    if (!from || outdated(version, 'clubs')) continue;
     const club = CLUBS[id];
     for (const k of ['minRange', 'maxRange', 'fixedRange'] as const) {
       if (outdated(version, k)) continue;
@@ -151,7 +154,7 @@ export function loadBalance(): SavedExtras {
     if (from.damage && !outdated(version, `${id}.damage`)) club.damage = from.damage;
     if (from.areaDamage && club.areaDamage) club.areaDamage = from.areaDamage;
   }
-  if (saved.iron && IRON_MODES[saved.iron]) setIronMode(saved.iron);
+  if (saved.iron && IRON_MODES[saved.iron] && !outdated(version, 'clubs')) setIronMode(saved.iron);
   if (saved.quality?.length === QUALITY_FROM.length) QUALITY_FROM.splice(0, QUALITY_FROM.length, ...saved.quality);
   if (saved.shift) {
     if (saved.shift.mode && SHIFT_MODES.includes(saved.shift.mode)) SHIFT.mode = saved.shift.mode;
@@ -984,9 +987,9 @@ export class DebugPanel {
     el.append(heading('Visual'), fps, all, note('Nada de esto cambia cómo se juega. Se guarda aparte del balance: «Restaurar» de abajo no lo toca.'));
 
     el.append(heading('Arco de carga'), choice('dónde va', METER_SPOTS, () => VISUAL.meterAt, (v: MeterSpot) => { VISUAL.meterAt = v; }, {
+      adelante: 'Unos metros adelante, al costado del camino del tiro (el de fábrica)',
       cabeza: 'Al costado de la cabeza del golfista',
       pelota: 'Al costado de la pelota, del lado del golfista',
-      adelante: 'Unos metros adelante, al costado del camino del tiro',
     }), note('Solo se ve mientras cargás. Va siempre del lado del golfista, para no tapar la pelota ni la línea de tiro.'));
 
     el.append(heading('Sombras'), this.row(toggle('Sombras del sol', 'shadows')), choice('resolución', SHADOW_SIZES, () => VISUAL.shadowSize, (v) => { VISUAL.shadowSize = v; }), note(

@@ -83,11 +83,11 @@ describe('palos', () => {
 
   it('cada palo cobra mejor a su distancia, y ninguno es el mejor siempre', () => {
     const [corta, media, larga] = [10, 30, 50];
-    // el driver crece con la distancia y el putter al revés
+    // el driver cobra de más en la larga y el putter en la corta; en el resto, lo mismo que los demás
     expect(damageFor(CLUBS.driver, larga, 3)).toBeGreaterThan(damageFor(CLUBS.driver, media, 3));
-    expect(damageFor(CLUBS.driver, media, 3)).toBeGreaterThan(damageFor(CLUBS.driver, corta, 3));
+    expect(damageFor(CLUBS.driver, media, 3)).toBeGreaterThanOrEqual(damageFor(CLUBS.driver, corta, 3));
     expect(damageFor(CLUBS.putter, corta, 3)).toBeGreaterThan(damageFor(CLUBS.putter, media, 3));
-    expect(damageFor(CLUBS.putter, media, 3)).toBeGreaterThan(damageFor(CLUBS.putter, larga, 3));
+    expect(damageFor(CLUBS.putter, media, 3)).toBeGreaterThanOrEqual(damageFor(CLUBS.putter, larga, 3));
     // el hierro y el wedge pegan lo mismo a cualquier distancia
     for (const id of ['iron', 'wedge'] as const) {
       const flat = damageFor(CLUBS[id], corta, 3);
@@ -121,13 +121,16 @@ describe('palos', () => {
   });
 
   it('la vida de los enemigos está en la escala del daño', () => {
-    const mejor = Math.max(...CLUB_ORDER.map((id) => damageFor(CLUBS[id], 50, QUALITY_LEVELS)));
-    // todos caen de un golpe perfecto (el caballero, justo) salvo el gólem chico y el jefe
-    for (const e of Object.values(ENEMIES)) if (!e.boss && e.kind !== 'stoneling') expect(e.hp).toBeLessThanOrEqual(mejor);
-    // un goblin cae de cualquier golpe; el gólem chico pide más que el mejor golpe de un tiro
+    // el mejor golpe (el driver en la larga o el putter en la corta, clavados) saca 4
+    const mejor = Math.max(...CLUB_ORDER.flatMap((id) => [5, 30, 50].map((m) => damageFor(CLUBS[id], m, QUALITY_LEVELS))));
+    expect(mejor).toBe(4);
+    // los de 1 a 4 caen de un golpe perfecto; del jefe goblin para arriba hace falta más de uno
+    expect(ENEMIES.skeleton.hp).toBeLessThanOrEqual(mejor);
+    expect(ENEMIES.warchief.hp).toBeGreaterThan(mejor);
+    // un goblin cae de cualquier golpe; el caballero pide dos de los mejores, y el gólem chico tres
     expect(ENEMIES.goblin.hp).toBeLessThanOrEqual(damageFor(CLUBS.iron, 30, 1));
-    expect(ENEMIES.knight.hp).toBe(mejor);
-    expect(ENEMIES.stoneling.hp).toBeGreaterThan(mejor);
+    expect(Math.ceil(ENEMIES.knight.hp / mejor)).toBe(2);
+    expect(Math.ceil(ENEMIES.stoneling.hp / mejor)).toBe(3);
   });
 });
 

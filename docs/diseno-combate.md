@@ -1922,3 +1922,25 @@ Pedidos de Leandro por voz (vía su asistente):
   (celeste claro) casi no se diferenciaban.
 - **El fantasma, más traslúcido**: el modelo pasó de 55 % a 28 % de opacidad, sin tapar lo de atrás, con
   un brillo celeste apenas para no perderlo sobre el pasto.
+
+## Hecho: el balance de los palos de Leandro, y pisa lo guardado (28/9/2026)
+
+Leandro pasó su tabla del panel de balance y pidió que, al subirla, pise lo que cada jugador tenga
+guardado: si no, quien ya había jugado seguía con los daños viejos. Quedó así (daño por golpe 1 / 2 / 3):
+
+| Palo | Corta | Media | Larga | Otros |
+| --- | --- | --- | --- | --- |
+| Driver | 1 / 2 / 3 | 1 / 2 / 3 | 2 / 3 / 4 | distancia fija 50 m (antes 55), hasta 66 |
+| Hierro 7 | 1 / 2 / 3 | 1 / 2 / 3 | 1 / 2 / 3 | área igual al impacto (1 / 2 / 3), radio 2.2 / 3 / 3.5 m; revienta; rapidez 6 |
+| Wedge | pifia / 1 / 2 | pifia / 1 / 2 | pifia / 1 / 2 | área 3.5 / 4.2 / 5 m (sin cambios) |
+| Putter | 2 / 3 / 4 | 1 / 2 / 3 | 1 / 2 / 3 | distancia fija 20 m; rapidez 20 / 50 / 80 (sin cambios) |
+
+- **Pisa lo guardado**: el balance guardado pasó a la versión 7, que descarta todo lo de los palos
+  (daño, área, rapidez, distancias y el modo del hierro). El resto (enemigos, habilidades, cámara) queda.
+- **El arco de carga sale «adelante» de fábrica**, y también pisa lo guardado (`meterVersion`): quien
+  había tocado la pestaña Visual tenía «cabeza» guardado.
+- **Lo que cambia con esto**: el mejor golpe bajó de 8 a 4. Los de 1 a 4 de vida caen de un perfecto;
+  el jefe goblin (5) y el chamán (6) piden dos golpes, el caballero (8) dos de los mejores y el gólem
+  chico (10) tres. Los escudos de 4 y 5 ya casi no dejan pasar nada de frente (4 − 4 = 0), así que
+  funcionan como la calavera, y el blindaje 3 deja pasar 1 del mejor golpe. `tools/oleadas.mts` no mide
+  el daño de los palos: la curva de las oleadas hay que volver a probarla jugando.

@@ -65,10 +65,10 @@ Ninguno es el mejor siempre.
 
 | Palo | Cómo llega | Alcance | Corta (≤20 m) | Media (20-40 m) | Larga (+40 m) |
 | --- | --- | --- | --- | --- | --- |
-| **1 · Driver** | rasante, atraviesa la fila entera | 4-66 m | 1 / 2 / 3 | 1 / 3 / 5 | **2 / 4 / 8** |
-| **2 · Hierro 7** | arco bajo que revienta en el que toca | 4-55 m | 1 / 3 / 7 | 1 / 3 / 7 | 1 / 3 / 7 |
+| **1 · Driver** | rasante, atraviesa la fila entera | siempre 50 m | 1 / 2 / 3 | 1 / 2 / 3 | **2 / 3 / 4** |
+| **2 · Hierro 7** | arco bajo que revienta en el que toca | 4-55 m | 1 / 2 / 3 | 1 / 2 / 3 | 1 / 2 / 3 |
 | **3 · Wedge** | globo alto, cae en picada y se queda ahí | 3-55 m | pifia / 1 / 2 | pifia / 1 / 2 | pifia / 1 / 2 |
-| **4 · Putter** | rueda y le pega al primero que toca | 2-20 m | **2 / 4 / 8** | — | — |
+| **4 · Putter** | rueda y le pega al primero que toca | siempre 20 m | **2 / 3 / 4** | — | — |
 
 Los tres números de cada casilla son el daño según la calidad del golpe. El putter llega justo hasta la
 línea de 20 m, así que nunca sale de la banda corta.
@@ -78,8 +78,8 @@ puesto y cuenta como errar. Es para que el globo, que abre el área más grande 
 también timing.
 
 **El área pega menos que el impacto**, porque agarra a varios y no hay que apuntarle a nadie. El hierro
-es el único que hace las dos cosas: **el que se come el pelotazo cobra el impacto** (1 / 3 / 7) y los de
-alrededor cobran el área (**1 / 2 / 4**). Nadie cobra las dos por un mismo tiro. El wedge solo hace
+es el único que hace las dos cosas: **el que se come el pelotazo cobra el impacto** (1 / 2 / 3) y los de
+alrededor cobran el área (**1 / 2 / 3**, en un radio de 2.2 / 3 / 3.5 m según el golpe). Nadie cobra las dos por un mismo tiro. El wedge solo hace
 área, así que su tabla ya *es* la del área; por eso, abriendo la más grande de todas, es la más baja.
 
 **Quién abre área y cuándo:**
@@ -87,7 +87,7 @@ alrededor cobran el área (**1 / 2 / 4**). Nadie cobra las dos por un mismo tiro
 | Palo | ¿Atraviesa? | ¿Abre área? | ¿Y si cae al piso sin tocar a nadie? |
 | --- | --- | --- | --- |
 | Driver | sí, a todos los de la fila | no | pica y sigue |
-| Hierro 7 | no | sí, al contacto (1.8 / 2.2 / 2.7 m) | **no pasa nada: hay que conectar** |
+| Hierro 7 | no | sí, al contacto (2.2 / 3 / 3.5 m) | **no pasa nada: hay que conectar** |
 | Wedge | no | sí, donde cae (4.2 / 5 m en los golpes 2 y 3) | igual explota: cae adonde apuntaste |
 | Putter | no | no: le pega al que toca, a él solo | se queda ahí |
 
