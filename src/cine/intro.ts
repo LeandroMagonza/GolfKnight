@@ -36,10 +36,11 @@ export const INTRO: Script = {
         skelFair: { path: [{ at: 0, x: -3, z: -3.6, face: -60 }], anim: [{ at: 0, clip: 'Idle 2', loop: true, from: 1.3 }] },
       },
       text: [
-        { at: 0.6, until: 3.1, kind: 'caption', text: 'Sábado. Feria medieval.' },
-        { at: 3.3, until: 6.4, kind: 'caption', text: 'Tu disfraz: impecable. Los de los demás, sospechosamente buenos.' },
+        { at: 0.5, until: 2.1, kind: 'caption', text: 'Sábado. Feria medieval.', voice: 'narra-sabado' },
+        // la narradora tarda 3.8 s: termina justo antes del fundido
+        { at: 2.3, until: 6.4, kind: 'caption', text: 'Tu disfraz: impecable. Los de los demás, sospechosamente buenos.', voice: 'narra-disfraz' },
       ],
-      ramps: [{ at: 0, dur: 1.2, param: 'fade', from: 1, to: 0 }, { at: 5.7, dur: 0.8, param: 'fade', from: 0, to: 1 }],
+      ramps: [{ at: 0, dur: 1.2, param: 'fade', from: 1, to: 0 }, { at: 6.05, dur: 0.45, param: 'fade', from: 0, to: 1 }],
       music: [{ at: 0, track: 'feria', level: 1, fade: 1 }],
     },
     {
@@ -73,8 +74,9 @@ export const INTRO: Script = {
         },
       },
       text: [
-        { at: 0.5, until: 2.0, kind: 'caption', text: 'A la salida.' },
-        { at: 2.2, until: 4.3, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.' },
+        { at: 0.4, until: 1.4, kind: 'caption', text: 'A la salida.', voice: 'narra-salida' },
+        // termina antes de la bocina (4.45)
+        { at: 1.5, until: 4.4, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.', voice: 'narra-palos' },
       ],
       ramps: [
         { at: 0, dur: 0.9, param: 'fade', from: 1, to: 0 },
@@ -95,7 +97,7 @@ export const INTRO: Script = {
       set: 'negro',
       dur: 2.8,
       camera: [{ at: 0, pos: [0, 1, 0], look: [0, 1, 1] }],
-      text: [{ at: 0.4, until: 2.5, kind: 'card', text: 'Y después, nada.' }],
+      text: [{ at: 0.4, until: 2.5, kind: 'card', text: 'Y después, nada.', voice: 'narra-nada' }],
     },
     {
       name: 'El círculo',

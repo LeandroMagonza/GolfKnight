@@ -14,13 +14,20 @@ MODEL = r"E:\asistente\tts\kokoro\kokoro-v1.0.onnx"
 VOICES = r"E:\asistente\tts\kokoro\voices-v1.0.bin"
 OUT = os.path.join("public", "voices")
 
-# quién habla con qué voz: el mago, grave y más lento; el golfista, la voz neutra
+# quién habla con qué voz: el mago, grave y más lento; el golfista, la voz neutra; la narradora,
+# voz de mujer para que no se confunda con ninguno de los dos
 CAST = {
+    "narrator": ("ef_dora", 1.0),
     "mage": ("em_santa", 0.88),
     "knight": ("em_alex", 1.0),
 }
 
 LINES = [
+    ("narra-sabado", "narrator", "Sábado. Feria medieval."),
+    ("narra-disfraz", "narrator", "Tu disfraz: impecable. Los de los demás, sospechosamente buenos."),
+    ("narra-salida", "narrator", "A la salida."),
+    ("narra-palos", "narrator", "Los palos de golf seguían en el baúl desde el domingo."),
+    ("narra-nada", "narrator", "Y después, nada."),
     ("mago-funciono", "mage", "¡Funcionó! ¡Vino el Gran Guerrero!"),
     ("caballero-perdon", "knight", "¿Perdón?"),
     ("mago-profecia", "mage", "La profecía pedía armadura reluciente, y un arma de precisión letal."),
