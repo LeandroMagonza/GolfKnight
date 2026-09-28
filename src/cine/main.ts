@@ -1,7 +1,9 @@
 // La intro como cinemática (prueba), en su propia página: cine.html. Carga los modelos, arma el
 // reproductor y lo maneja con la barra de abajo (pausa, arrastrar para ir a cualquier segundo).
 //
-// En la URL: ?t=12.5 arranca pausada en ese segundo (para revisar un cuadro), ?auto la pone sola.
+// En la URL: ?t=12.5 arranca pausada en ese segundo (para revisar un cuadro), ?auto la pone sola, y
+// ?embed es cuando el juego la muestra adentro (index.html, en un iframe): al terminar o al saltar le
+// avisa al juego en vez de navegar.
 // Teclas: espacio pausa, ← y → un segundo, , y . un cuadro.
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -26,6 +28,12 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.prepend(renderer.domElement);
+
+// Saltar anda desde el primer momento, también mientras cargan los modelos
+$('skipcine').addEventListener('click', () => leave());
+addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') leave();
+});
 
 const loader = new GLTFLoader();
 async function load(url: string): Promise<GLTF> {
@@ -156,7 +164,7 @@ renderer.setAnimationLoop(() => {
     if (t >= player.duration) {
       setPlaying(false);
       // al terminar, al juego (salvo que se la esté revisando con ?t)
-      if (!params.has('t')) setTimeout(() => { location.href = './index.html'; }, 600);
+      if (!params.has('t')) setTimeout(leave, 600);
     }
   }
   player.evaluate(t);
@@ -168,6 +176,23 @@ renderer.setAnimationLoop(() => {
   composer.render();
 });
 
+/** Al juego: si está adentro del juego le avisa; si no, va a index.html sin volver a pasarla. */
+function leave(): void {
+  try {
+    setPlaying(false);
+    music.sync(t, false);
+  } catch {
+    // todavía cargando: no hay nada sonando que parar
+  }
+  if (params.has('embed')) {
+    parent.postMessage({ type: 'gk-cine-end' }, location.origin);
+    return;
+  }
+  try {
+    sessionStorage.setItem('gk.introSeen', '1');
+  } catch { /* igual va */ }
+  location.href = './index.html';
+}
 const start = $('start');
 const play = $<HTMLButtonElement>('play');
 $('status').textContent = `${INTRO.shots.length} planos · ${player.duration.toFixed(0)} s`;

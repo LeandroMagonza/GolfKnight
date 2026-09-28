@@ -118,12 +118,23 @@ junto a las carpas. Para que no parezcan clones, cada uno lleva `look` en el gui
 | Caballera 2 | negra | roja | negro, piel más oscura | 1.78 m, ancha |
 | Caballera 3 | cobriza | azul marino | colorado | 1.60 m, flaca |
 
+## Adentro del juego, y el baúl (28/9)
+
+- **Reemplaza a las placas de la intro** (pedido de Leandro: "ya es mejor que los slides"). Al entrar
+  al juego se abre arriba de todo, en un iframe, mientras el juego carga por debajo; al terminar o al
+  saltarla queda la placa de controles. Sale una vez por sesión; *Ver la intro de nuevo* la repite;
+  `?sincine` la saca y `?cine` la fuerza. Botón **Saltar** siempre visible arriba a la derecha (y
+  `Esc`), también mientras carga.
+- **El baúl**: llega cerrado. El caballero lo abre (estira el brazo), se ven los palos, saca la bolsa y
+  la deja parada al lado, levanta el driver y se da vuelta para mirarlo; ahí lo atropellan, con el palo
+  en la mano y sin darse cuenta (suena la bocina y ni se da vuelta). El auto tiene ahora un baúl hueco.
+
 ## Lo que falta o conviene mejorar
 
 - El mago es de otro estilo (Mixamo pintado) que los de Synty. Se nota poco con la luz de noche, pero
   queda pendiente pasarlo a la paleta de Synty (idea de `tools/synty_style.py`) o reemplazarlo.
-- No hay clip de agarrar el palo: aparece en la mano entre un plano y otro.
+- No hay clip de agarrar: abrir el baúl y sacar la bolsa se actúan con `Pointing` (estirar el brazo), y
+  la bolsa y el palo llegan a su lugar solos.
 - El auto que atropella entra de costado y casi no se ve antes del destello: a propósito (el chiste es
   que no lo ve venir), pero se puede mostrar más.
-- Integrarla al juego en lugar de las placas, con "Saltar".
 - Formato de redes: una segunda cámara por plano para 9:16, y el render a mp4 cuadro por cuadro.

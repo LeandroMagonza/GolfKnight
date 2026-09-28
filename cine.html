@@ -31,10 +31,14 @@
       #controls input { flex: 1; }
       #controls .time { font-variant-numeric: tabular-nums; min-width: 150px; color: #cfd6e0; }
       #controls a { color: #9aa4b2; }
+      /* Saltar: siempre a la vista, arriba a la derecha, también en la pantalla de inicio */
+      #skipcine { position: fixed; top: 14px; right: 16px; z-index: 12; font-size: 15px; padding: 8px 18px; border-radius: 8px; border: 1px solid rgba(255,255,255,.35); background: rgba(8, 12, 18, .55); color: #e4e9f0; cursor: pointer; }
+      #skipcine:hover { background: rgba(8, 12, 18, .85); color: #ffd66b; }
     </style>
   </head>
   <body>
     <div id="layer"><div class="bar top"></div><div class="bar bottom"></div></div>
+    <button id="skipcine" type="button">Saltar ⏭ (Esc)</button>
     <div id="start">
       <h1>Golf Knight</h1>
       <p id="status">Cargando modelos…</p>
@@ -44,7 +48,7 @@
       <button id="toggle">Pausa</button>
       <input id="scrub" type="range" min="0" step="0.01" value="0" />
       <span class="time" id="time"></span>
-      <a href="./index.html">Saltar al juego</a>
+
     </div>
     <script type="module" src="/src/cine/main.ts"></script>
   </body>

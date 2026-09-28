@@ -1,5 +1,10 @@
-// La historia, contada en placas antes de empezar. El botón principal avanza; en la última placa
-// arranca el juego. "Saltar intro" va directo a jugar.
+// La entrada al juego. La historia la cuenta la cinemática (cine.html), que se abre arriba de todo en
+// un iframe apenas se entra, mientras el juego carga por debajo; al terminarla o saltarla queda la placa
+// de controles, y de ahí se arranca. Las placas con la historia en texto se fueron: las reemplaza la
+// cinemática.
+//
+// Sale una vez por sesión (al reiniciar con R no vuelve), se puede volver a ver con su botón, y
+// ?sincine en la URL la saca. En las pruebas automáticas no sale (taparía los botones), salvo con ?cine.
 
 interface Slide {
   art: string;
@@ -7,26 +12,6 @@ interface Slide {
 }
 
 const SLIDES: Slide[] = [
-  {
-    art: '⛳',
-    html: '<p>Domingo, hoyo 17. Ibas <em>tres bajo el par</em>: el mejor día de tu vida.</p><p>No viste venir el carrito del caddie.</p>',
-  },
-  {
-    art: '🛺💥',
-    html: '<p>Lo último que escuchaste fue un <em>«¡FOOORE!»</em> que llegó tarde.</p><p>Y después, nada.</p>',
-  },
-  {
-    art: '🔮',
-    html: '<p>Despertás en un círculo de runas. Un mago anciano llora de emoción:</p><p><em>«¡Funcionó! ¡El Gran Guerrero de la profecía! El de brazo certero y gran corazón, campeón de su mundo, el que blande su arma con precisión letal».</em></p>',
-  },
-  {
-    art: '🏌️',
-    html: '<p>El hechizo tenía un problema: en tu mundo ya casi no quedan guerreros.</p><p>Buscó lo más parecido a esa descripción… y te encontró a vos. <em>Un golfista.</em></p>',
-  },
-  {
-    art: '🏰',
-    html: '<p>Tu bolsa de palos cruzó con vos, y el hechizo <em>los encantó</em>. Las hordas ya marchan hacia la ciudad de <em>Valdehoyo</em>.</p><p>No sos lo que pidieron. Pero sos lo que hay.</p>',
-  },
   {
     art: '',
     html: `<p class="controls">
@@ -42,6 +27,7 @@ const SLIDES: Slide[] = [
 ];
 
 const SEEN_KEY = 'gk.introSeen';
+const CINE_URL = './cine.html?embed';
 
 export class Intro {
   private index = 0;
@@ -50,14 +36,47 @@ export class Intro {
   private readonly next = document.getElementById('start') as HTMLButtonElement;
   private readonly skip = document.getElementById('skip') as HTMLButtonElement;
   private ready = false;
+  private cine: HTMLIFrameElement | null = null;
 
   constructor(private readonly onStart: () => void) {
-    // al reiniciar con R no hace falta releer la historia: va directo a la placa de controles
-    if (sessionStorage.getItem(SEEN_KEY)) this.index = SLIDES.length - 1;
-    this.dots.innerHTML = SLIDES.map(() => '<span></span>').join('');
+    this.dots.innerHTML = SLIDES.length > 1 ? SLIDES.map(() => '<span></span>').join('') : '';
     this.next.addEventListener('click', () => this.advance());
     this.skip.addEventListener('click', () => this.finish());
+    document.getElementById('replaycine')?.addEventListener('click', (e) => {
+      (e.currentTarget as HTMLElement).blur();
+      this.playCine();
+    });
+    addEventListener('message', (e) => {
+      if (e.origin === location.origin && e.data?.type === 'gk-cine-end') this.closeCine();
+    });
     this.render();
+    let seen = false;
+    try {
+      seen = !!sessionStorage.getItem(SEEN_KEY);
+    } catch { /* sin sessionStorage: se ve */ }
+    const params = new URLSearchParams(location.search);
+    if (params.has('cine') || (!seen && !params.has('sincine') && !navigator.webdriver)) this.playCine();
+  }
+
+  /** La cinemática, a pantalla completa arriba del juego. Cuando termina o se salta, avisa con un mensaje. */
+  playCine(): void {
+    if (this.cine) return;
+    const frame = document.createElement('iframe');
+    frame.id = 'cine';
+    frame.src = CINE_URL;
+    frame.allow = 'autoplay; fullscreen';
+    frame.addEventListener('load', () => frame.focus());
+    document.body.appendChild(frame);
+    this.cine = frame;
+  }
+
+  private closeCine(): void {
+    this.cine?.remove();
+    this.cine = null;
+    try {
+      sessionStorage.setItem(SEEN_KEY, '1');
+    } catch { /* la próxima vez sale de nuevo */ }
+    this.next.focus();
   }
 
   /** Los modelos terminaron de cargar: se puede empezar. */
@@ -77,6 +96,8 @@ export class Intro {
   }
 
   advance(): void {
+    // con la cinemática arriba, el Espacio es de ella
+    if (this.cine) return;
     if (this.last) this.finish();
     else {
       this.index++;
@@ -85,7 +106,7 @@ export class Intro {
   }
 
   private finish(): void {
-    if (!this.ready) return;
+    if (!this.ready || this.cine) return;
     sessionStorage.setItem(SEEN_KEY, '1');
     this.onStart();
   }

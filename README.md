@@ -326,12 +326,16 @@ Los cambios valen desde el tiro siguiente y desde el enemigo siguiente, y **se g
 al recargar vuelven. Hace falta porque cambiar de campo recarga la página. El botón *Restaurar* los
 borra y devuelve los valores del código.
 
-## Cinemática de la intro (prueba)
+## La cinemática de la intro
 
-`cine.html` (https://leandromagonza.github.io/GolfKnight/cine.html, y el link *Ver la intro animada* en
-la pantalla de inicio) cuenta la historia con los modelos 3D: la feria medieval, el atropello en el
-estacionamiento, el círculo de runas, el mago y los palos de golf como arma. Todavía no reemplaza a las
-placas de la intro. La historia y el plan están en `docs/cinematica.md`.
+**Es la intro del juego**: al entrar se abre a pantalla completa arriba de todo (un iframe con
+`cine.html?embed`) mientras el juego carga por debajo, y al terminar o con **Saltar** (arriba a la
+derecha, o `Esc`) queda la placa de controles para arrancar. Cuenta la historia con los modelos 3D: la
+feria medieval, el atropello en el estacionamiento, el círculo de runas, el mago y los palos de golf
+como arma. Reemplazó a las placas de texto. Sale una vez por sesión (al reiniciar con `R` no vuelve),
+*Ver la intro de nuevo* la repite, `?sincine` la saca y `?cine` la fuerza (las pruebas automáticas no
+la ven, salvo con `?cine`). También se abre sola en https://leandromagonza.github.io/GolfKnight/cine.html.
+La historia y el plan están en `docs/cinematica.md`.
 
 - El guion es `src/cine/intro.ts`: planos con escenario, cámara, qué hace cada actor, textos, sonidos y
   números que cambian con el tiempo (fundidos, brillo de las runas y de los palos, faros). Los campos
