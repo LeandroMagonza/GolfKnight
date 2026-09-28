@@ -59,6 +59,8 @@ export interface ActorCue {
   anim?: AnimKey[];
   /** La utilería que va en la mano derecha de otro actor (el palo). */
   hold?: string;
+  /** Cómo se sostiene: colgando hacia abajo (lo de siempre) o levantado, como mirándolo. */
+  grip?: 'hang' | 'raise';
   /** Solo se ve entre estos dos segundos del plano. */
   show?: [number, number];
 }

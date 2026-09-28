@@ -59,51 +59,68 @@ export const INTRO: Script = {
     {
       name: 'El estacionamiento',
       set: 'estacionamiento',
-      // 8 s: la línea del baúl dura 4.6 s y tiene que terminar antes de la bocina
-      dur: 8,
+      // llega al baúl cerrado, lo abre, saca la bolsa, levanta el driver para mirarlo, y ahí lo atropellan
+      dur: 8.4,
       camera: [
         { at: 0, pos: [-9, 1.8, 9.5], look: { actor: 'knight', y: 1.2 } },
-        { at: 3, pos: [-2.5, 1.5, 8.5], look: [-0.4, 1.1, 2.6] },
-        { at: 8, pos: [-1.5, 1.4, 8], look: [0, 1.1, 3] },
+        { at: 3, pos: [-4.6, 1.6, 6.3], look: [-0.2, 0.9, 2.2] },
+        { at: 5.6, pos: [-3.7, 1.55, 5.7], look: [-0.3, 1.35, 2.6] },
+        { at: 8.4, pos: [-3.4, 1.5, 5.5], look: [-0.3, 1.35, 2.6] },
       ],
       actors: {
         car: { path: [{ at: 0, x: 0, z: 0, face: 180 }] },
-        carBlue: { path: [{ at: 4.9, x: -40, z: 3.7, face: 90 }, { at: 10.1, x: 44, z: 3.7 }] },
-        bag: { path: [{ at: 0, x: 0.3, y: 0.45, z: 1.55, face: 0 }] },
+        // la trompa (2.15 m adelante del centro) llega al caballero justo en el golpe (7.38)
+        carBlue: { path: [{ at: 5.3, x: -40, z: 3.7, face: 90 }, { at: 10.5, x: 54, z: 3.7 }] },
+        // acostada en el baúl; la saca y la deja parada al lado
+        bag: {
+          path: [
+            { at: 0, x: 0.1, y: 0.52, z: 1.68, face: 0, roll: 90 },
+            { at: 4.6, x: 0.1, y: 0.52, z: 1.68, roll: 90 },
+            { at: 5.3, x: -1.15, y: 0, z: 2.35, roll: 0, ease: 'smooth' },
+          ],
+        },
+        driver: { path: [{ at: 0, x: 0, z: 0 }], hold: 'knight', grip: 'raise', show: [5.4, 99] },
         knight: {
           path: [
             { at: 0, x: -7, z: 3.3, face: 90 },
-            { at: 3.0, x: -0.3, z: 3.2 },
-            { at: 3.1, x: -0.3, z: 3.2, face: 180 },
-            { at: 6.3, x: -0.3, z: 3.2, face: -90 },
-            { at: 7.15, x: -0.3, z: 3.2 },
-            { at: 7.8, x: 3.2, z: 3.6, ease: 'smooth' },
+            { at: 3.0, x: -0.35, z: 3.0 },
+            { at: 3.1, x: -0.35, z: 3.0, face: 180 },
+            // con el driver en la mano se da vuelta hacia la cámara para mirarlo
+            { at: 5.4, x: -0.35, z: 3.0, face: -60 },
+            { at: 7.35, x: -0.35, z: 3.0 },
+            { at: 8.0, x: 3.0, z: 3.5, ease: 'smooth' },
           ],
           anim: [
             { at: 0, clip: 'Walking', loop: true },
-            { at: 3.0, clip: 'Looking Around', fade: 0.3 },
-            { at: 6.3, clip: 'Reacting', fade: 0.2, from: 0.2 },
-            { at: 7.15, clip: 'Hit By Car', fade: 0.08, from: 0.3 },
+            // estira el brazo: abre la tapa
+            { at: 3.0, clip: 'Pointing', fade: 0.3 },
+            { at: 4.1, clip: 'Idle 2', fade: 0.4 },
+            // estira otra vez: saca la bolsa
+            { at: 4.4, clip: 'Pointing', fade: 0.3, from: 0.2 },
+            // y se queda con el driver levantado, mirándolo
+            { at: 5.4, clip: 'Pointing', fade: 0.3, from: 1.0, speed: 0 },
+            { at: 7.35, clip: 'Hit By Car', fade: 0.08, from: 0.3 },
           ],
         },
       },
       text: [
         { at: 0.4, until: 1.4, kind: 'caption', text: 'A la salida.', voice: 'narra-salida' },
-        // termina antes de la bocina (6.35)
         { at: 1.5, until: 6.2, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.', voice: 'narra-palos' },
       ],
       ramps: [
         { at: 0, dur: 0.9, param: 'fade', from: 1, to: 0 },
-        { at: 0, dur: 0, param: 'car.trunk', from: 1, to: 1 },
+        // el baúl, cerrado hasta que lo abre
+        { at: 3.3, dur: 0.8, param: 'car.trunk', from: 0, to: 1 },
         { at: 0, dur: 0, param: 'carBlue.headlights', from: 1, to: 1 },
-        { at: 7.2, dur: 0.7, param: 'shake', from: 1.2, to: 0 },
-        { at: 7.32, dur: 0.22, param: 'flash', from: 0, to: 1 },
+        { at: 7.4, dur: 0.7, param: 'shake', from: 1.2, to: 0 },
+        { at: 7.52, dur: 0.22, param: 'flash', from: 0, to: 1 },
       ],
-      sfx: [{ at: 6.35, name: 'bocina' }, { at: 6.6, name: 'whoosh' }, { at: 7.2, name: 'gateHit' }, { at: 7.22, name: 'hurt' }],
+      // la bocina justo antes: él ni se da vuelta
+      sfx: [{ at: 6.95, name: 'bocina' }, { at: 7.0, name: 'whoosh' }, { at: 7.4, name: 'gateHit' }, { at: 7.42, name: 'hurt' }],
       // la música de la feria queda sonando de lejos, y el golpe la corta en seco
       music: [
         { at: 0, track: 'feria', level: 0.3, fade: 1.5, filter: 900 },
-        { at: 7.2, track: 'feria', level: 0, fade: 0.04 },
+        { at: 7.4, track: 'feria', level: 0, fade: 0.04 },
       ],
     },
     {

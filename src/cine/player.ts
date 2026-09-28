@@ -151,7 +151,7 @@ export class CinePlayer {
       const cue = cues[actor.id];
       if (!cue?.hold || !actor.root.visible) continue;
       const holder = this.actors.get(cue.hold);
-      if (holder?.hand) holdInHand(actor.root, holder);
+      if (holder?.hand) holdInHand(actor.root, holder, cue.grip ?? 'hang');
     }
 
     this.placeCamera(shot.camera, local, params.shake ?? 0, t);
@@ -278,7 +278,7 @@ function placeOnPath(root: THREE.Object3D, keys: PathKey[], local: number): void
   let delta = face * DEG - from;
   delta = Math.atan2(Math.sin(delta), Math.cos(delta));
   root.rotation.set(0, from + delta * smooth(turn), 0);
-  const roll = a.roll ?? 0;
+  const roll = THREE.MathUtils.lerp(a.roll ?? 0, b.roll ?? a.roll ?? 0, u);
   if (roll) root.rotateZ(roll * DEG);
 }
 
@@ -308,12 +308,17 @@ function setClip(actor: Actor, key: AnimKey, local: number, weight: number): voi
   action.setEffectiveWeight(weight);
 }
 
-/** El palo en la mano derecha: agarrado del mango y colgando hacia abajo y un poco adelante. */
-function holdInHand(root: THREE.Object3D, holder: Actor): void {
+/**
+ * El palo en la mano derecha, agarrado del mango: colgando hacia abajo y un poco adelante, o levantado
+ * hacia arriba y adelante, como quien lo mira.
+ */
+function holdInHand(root: THREE.Object3D, holder: Actor, grip: 'hang' | 'raise'): void {
   const hand = holder.hand!;
   hand.getWorldPosition(root.position);
   const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(holder.root.quaternion);
-  const dir = new THREE.Vector3(0, -1, 0).addScaledVector(facing, 0.45).normalize();
+  const dir = grip === 'raise'
+    ? new THREE.Vector3(0, 1, 0).addScaledVector(facing, 0.55).normalize()
+    : new THREE.Vector3(0, -1, 0).addScaledVector(facing, 0.45).normalize();
   root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
 }
 

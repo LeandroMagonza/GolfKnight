@@ -451,8 +451,21 @@ function makeCar(color: number): Prop {
   const g = new THREE.Group();
   const paint = std(color, { roughness: 0.4, metalness: 0.3 });
   const glass = std(0x1d2530, { roughness: 0.2, metalness: 0.5 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.62, 4.3), paint);
-  body.position.y = 0.58;
+  // la carrocería llega hasta el baúl; el baúl es hueco (piso y paredes), para que al abrir la tapa se
+  // vea lo que hay adentro
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.62, 3.35), paint);
+  body.position.set(0, 0.58, 0.475);
+  const trunkFloor = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.95), std(0x1a1a1a));
+  trunkFloor.position.set(0, 0.31, -1.675);
+  g.add(trunkFloor);
+  for (const x of [-0.86, 0.86]) {
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.62, 0.95), paint);
+    side.position.set(x, 0.58, -1.675);
+    g.add(side);
+  }
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.62, 0.08), paint);
+  back.position.set(0, 0.58, -2.11);
+  g.add(back);
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.58, 2.1), glass);
   cabin.position.set(0, 1.18, -0.25);
   const roof = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.06, 1.9), paint);
