@@ -209,6 +209,14 @@ export class CineMusic {
     }
   }
 
+  /** Mientras alguien habla la música baja, para que se entienda la voz. */
+  duck(on: boolean): void {
+    if (on === this.ducked) return;
+    this.ducked = on;
+    this.out.volume.rampTo(on ? -15 : -8, on ? 0.15 : 0.6);
+  }
+  private ducked = false;
+
   /** Nivel de salida en dB (-Infinity = silencio). */
   level(): number {
     return this.built ? (this.meter.getValue() as number) : -Infinity;

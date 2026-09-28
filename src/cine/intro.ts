@@ -126,8 +126,8 @@ export const INTRO: Script = {
         bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
-        { at: 2.4, until: 5.3, kind: 'say', who: 'mage', text: '¡Funcionó! ¡Vino el Gran Guerrero!' },
-        { at: 5.6, until: 7.8, kind: 'say', who: 'knight', text: '¿...Perdón?' },
+        { at: 2.4, until: 5.3, kind: 'say', who: 'mage', text: '¡Funcionó! ¡Vino el Gran Guerrero!', voice: 'mago-funciono' },
+        { at: 5.6, until: 7.8, kind: 'say', who: 'knight', text: '¿...Perdón?', voice: 'caballero-perdon' },
       ],
       ramps: [
         { at: 0, dur: 1.4, param: 'flash', from: 1, to: 0 },
@@ -157,8 +157,8 @@ export const INTRO: Script = {
         bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
-        { at: 0.3, until: 3.4, kind: 'say', who: 'mage', text: 'La profecía pedía armadura reluciente… y un arma de precisión letal.' },
-        { at: 6.0, until: 8.3, kind: 'say', who: 'knight', text: '¿Los palos de golf?' },
+        { at: 0.3, until: 5.0, kind: 'say', who: 'mage', text: 'La profecía pedía armadura reluciente… y un arma de precisión letal.', voice: 'mago-profecia' },
+        { at: 6.0, until: 8.3, kind: 'say', who: 'knight', text: '¿Los palos de golf?', voice: 'caballero-palos' },
       ],
       ramps: [
         { at: 0, dur: 0, param: 'runes', from: 0.35, to: 0.35 },
@@ -189,8 +189,8 @@ export const INTRO: Script = {
         g5: { path: [{ at: 0, x: -22, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: -6, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.5 }] },
       },
       text: [
-        { at: 1.0, until: 4.0, kind: 'say', who: 'mage', text: '¡Las hordas marchan sobre Valdehoyo!' },
-        { at: 4.3, until: 6.3, kind: 'say', who: 'knight', text: 'Yo vine a una feria.' },
+        { at: 1.0, until: 4.0, kind: 'say', who: 'mage', text: '¡Las hordas marchan sobre Valdehoyo!', voice: 'mago-hordas' },
+        { at: 4.3, until: 6.3, kind: 'say', who: 'knight', text: 'Yo vine a una feria.', voice: 'caballero-feria' },
         { at: 6.5, until: 8.5, kind: 'title', text: 'GOLF KNIGHT' },
       ],
       ramps: [

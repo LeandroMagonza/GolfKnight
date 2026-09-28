@@ -73,6 +73,7 @@ resize();
 
 function setPlaying(v: boolean): void {
   playing = v && t < player.duration;
+  if (!playing) stopVoices();
   toggle.textContent = playing ? 'Pausa' : 'Seguir';
   document.body.classList.toggle('paused', !playing);
 }
@@ -95,7 +96,32 @@ function fireSfx(from: number, to: number): void {
 
 function seek(to: number): void {
   t = Math.max(0, Math.min(player.duration, to));
+  stopVoices();
 }
+
+// ---- voces: una por línea con `voice`, suenan al pasar por su momento reproduciendo ----
+const voices: { at: number; el: HTMLAudioElement }[] = [];
+INTRO.shots.forEach((shot, i) => {
+  for (const cue of shot.text ?? []) {
+    if (!cue.voice) continue;
+    const el = new Audio(`${import.meta.env.BASE_URL}voices/${cue.voice}.wav`);
+    el.preload = 'auto';
+    voices.push({ at: player.shotStarts[i] + cue.at, el });
+  }
+});
+function fireVoices(from: number, to: number): void {
+  if (!audio.ready) return;
+  for (const v of voices) {
+    if (v.at > from && v.at <= to) {
+      v.el.currentTime = 0;
+      v.el.play().catch(() => {});
+    }
+  }
+}
+function stopVoices(): void {
+  for (const v of voices) v.el.pause();
+}
+const talking = () => voices.some((v) => !v.el.paused && !v.el.ended);
 
 scrub.addEventListener('input', () => {
   seek(Number(scrub.value));
@@ -124,6 +150,7 @@ renderer.setAnimationLoop(() => {
   if (playing) {
     const next = Math.min(player.duration, t + dt);
     fireSfx(t, next);
+    fireVoices(t, next);
     t = next;
     if (t >= player.duration) {
       setPlaying(false);
@@ -133,6 +160,7 @@ renderer.setAnimationLoop(() => {
   }
   player.evaluate(t);
   music.sync(t, playing);
+  music.duck(talking());
   const { index, shot } = player.locate(t);
   scrub.value = String(t);
   timeEl.textContent = `${t.toFixed(2)} s · plano ${index + 1}: ${shot.name}`;
@@ -165,5 +193,6 @@ play.addEventListener('click', async () => {
   get time() { return t; },
   /** Qué tan fuerte suena la música ahora, en dB (para las pruebas). */
   musicLevel: () => music.level(),
+  talking,
   play() { play.click(); },
 };

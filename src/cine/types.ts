@@ -66,6 +66,8 @@ export interface TextCue {
   /** caption: subtítulo abajo · say: globo sobre `who` · card: placa sobre negro · title: el nombre del juego */
   kind: 'caption' | 'say' | 'card' | 'title';
   who?: string;
+  /** La línea dicha: public/voices/<voice>.wav (las genera tools/voces.py). */
+  voice?: string;
 }
 
 /**

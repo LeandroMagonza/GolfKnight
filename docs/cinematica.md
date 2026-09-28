@@ -67,6 +67,26 @@ esta versión, ya corregido:
 - Cada plano se dibuja una vez durante la carga: el primer cuadro de cada escenario trababa la imagen
   un segundo mientras la música seguía.
 
+## Voces (28/9)
+
+Leandro eligió quedarse con la feria medieval y pidió voces. Salen de **Kokoro** (local y gratis, el
+mismo TTS de su asistente) con `tools/voces.py`, que escribe un `.wav` por línea en `public/voices/`.
+Cada globo del guion dice su archivo con `voice`.
+
+| Personaje | Voz | Velocidad | Por qué |
+| --- | --- | --- | --- |
+| Mago | `em_santa` | 0.88 | la más grave de las masculinas en español; más lenta suena a viejo solemne |
+| Caballero | `em_alex` | 1.0 | la neutra: el golfista es un tipo común |
+
+- Mientras alguien habla la música baja unos 7 dB.
+- La profecía del mago dura 4.5 s: el globo sigue mientras la cámara va a la bolsa.
+- Se dice un texto apenas distinto del que se lee (comas en vez de puntos suspensivos), porque Kokoro
+  lee mal los "…".
+- Los subtítulos del narrador ("Sábado. Feria medieval.") no tienen voz, a propósito: quedan como
+  texto. Se puede sumar un narrador con `ef_dora` o `em_santa`.
+- Kokoro no actúa emociones: suena natural pero neutro. Para que el mago grite "¡Funcionó!" con ganas
+  haría falta OpenAI (`gpt-4o-mini-tts` con instrucciones de actuación, pago).
+
 ## Lo que falta o conviene mejorar
 
 - El mago es de otro estilo (Mixamo pintado) que los de Synty. Se nota poco con la luz de noche, pero
@@ -74,6 +94,5 @@ esta versión, ya corregido:
 - No hay clip de agarrar el palo: aparece en la mano entre un plano y otro.
 - El auto que atropella entra de costado y casi no se ve antes del destello: a propósito (el chiste es
   que no lo ve venir), pero se puede mostrar más.
-- Voces: se pueden generar con Kokoro (local) o con OpenAI (con actuación), como el asistente de Leandro.
 - Integrarla al juego en lugar de las placas, con "Saltar".
 - Formato de redes: una segunda cámara por plano para 9:16, y el render a mp4 cuadro por cuadro.
