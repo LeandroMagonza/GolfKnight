@@ -1386,6 +1386,9 @@ function updateWaves(dt: number): void {
         hud.showBanner(`Oleada ${e.index + 1}`, `${e.wave.scenario < 3 ? `Escenario ${e.wave.scenario + 1}` : 'El jefe'} · ${e.wave.title}`);
         // el día avanza con la partida: la primera oleada es de mañana y la última al atardecer
         visuals.setDayProgress(director.waveCount > 1 ? e.index / (director.waveCount - 1) : 0);
+        // no se cura solo entre oleadas, salvo con el botiquín: cura al **empezar** cada oleada, así el
+        // nivel que se acaba de tomar en las cartas ya cura en esta
+        medkitHeal();
         break;
       }
       case 'spawn':
@@ -1407,9 +1410,6 @@ function updateWaves(dt: number): void {
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Te persigue y te agarra: pegale antes de que llegue', 'bad');
         break;
       case 'cleared':
-        // ya no se cura solo entre oleadas: curarse es una de las cartas, y elegirla es no mejorar. Salvo
-        // con el botiquín, que es justamente eso
-        if (e.index + 1 < director.waveCount) medkitHeal();
         if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner('¡Oleada despejada!', '', 2.5);
         break;
       case 'victory':

@@ -2051,3 +2051,5 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
   vienen en la estampida, detrás de los chicos) y gólem chico en el tercero.
 - Para compensar, las oleadas traen algunos chicos menos y la estampida bajó a 23 chicos cada 1.3 s. La
   curva queda: 0.76, 0.90, 1.05 | 1.09, 1.31, 1.55 | 1.39, 1.58, 1.74 | 2.56.
+- **El botiquín cura al empezar cada oleada**, no al terminarla: curaba antes de las cartas, así que el
+  nivel recién tomado no hacía nada hasta la oleada siguiente.

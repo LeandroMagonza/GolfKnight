@@ -81,7 +81,7 @@ export const PERKS: Record<PerkId, Perk> = {
   rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada tiro seguido sin errar te hace llegar al golpe 3 un 10 % antes, hasta tres, y ahí se queda. Un tiro que no le pega a nadie corta la racha' },
   hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Después de 4 tiros seguidos sin errar, los golpes de palo que pegan 1 pasan a pegar 2, hasta que errás. Las habilidades no cuentan' },
   masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada tiro que mata a dos suma 1, a tres suma 2, y así. Cada 5, la puerta +1. No se corta: se va juntando. Las habilidades no cuentan' },
-  medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al terminar cada oleada, la puerta +1 y vos +1, por cada vez que lo tomaste' },
+  medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al empezar cada oleada, la puerta +1 y vos +1, por cada vez que lo tomaste' },
   giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'cada 8 bajas', max: 1, color: 0xff2d3c, hint: 'Cada 8 bajas, el próximo tiro arranca ya clavado en el golpe perfecto: soltás cuando quieras' },
   quiver: { id: 'quiver', name: 'Carcaj', title: 'pelota a mano', max: 1, color: 0xfff1b8, hint: 'Si vas a pegar donde no hay pelota, te aparece una a los pies. Una cada 12 segundos' },
   extraBall: { id: 'extraBall', name: 'Pelota extra', title: 'una más en juego', max: 2, color: 0xfff1b8, hint: 'Los guardias mantienen una pelota más esperando en los puestos' },
