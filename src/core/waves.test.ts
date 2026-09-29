@@ -71,17 +71,17 @@ describe('waves', () => {
     expect(elite(0, 'shield').mods!.size!).toBeGreaterThan(elite(1, 'shield').mods!.size! + 0.3);
   });
 
-  it('el cuerpo fuerte del escenario viene desde la primera oleada: 1, 3 sin poder, y 3 con el élite', () => {
+  it('el cuerpo fuerte del escenario viene desde la primera oleada: 1, 3 y 3, sin poder salvo el élite', () => {
     for (const run of runs(10)) {
       for (const s of [0, 1, 2]) {
         const counts = [0, 1, 2].map((i) => run.waves[s * 3 + i].groups.filter((g) => g.kind === HEAVY[s] && !g.mods).reduce((n, g) => n + g.count, 0));
         expect(counts).toEqual([1, 3, 3]);
-        for (const i of [0, 1]) {
+        for (const i of [0, 1, 2]) {
           const w = run.waves[s * 3 + i];
           for (let seed = 1; seed < 6; seed++) for (const o of spawnOrder(w, seeded(seed))) if (o.kind === HEAVY[s] && o.plain) expect(o.mods).toBeUndefined();
         }
-        // en la última del escenario ya pueden tener poder
-        expect(run.waves[s * 3 + 2].groups.find((g) => g.kind === HEAVY[s] && !g.mods)?.plain).toBe(false);
+        // en la última también salen solos: de ese cuerpo, el único con poder es el élite
+        expect(run.waves[s * 3 + 2].groups.find((g) => g.kind === HEAVY[s] && !g.mods)?.plain).toBe(true);
       }
     }
   });

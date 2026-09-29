@@ -9,7 +9,7 @@ import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/a
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB_MIN, GRAB_STRUGGLE, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -54,8 +54,6 @@ export type HordeEvent =
   /** El escudo lo tapó de un daño en área: o lo lleva él, o está detrás del que lo lleva. */
   | { type: 'shielded'; enemy: Enemy }
   | { type: 'grab'; enemy: Enemy }
-  /** Pasó el tiempo mínimo del agarre: ya se puede sacudir. */
-  | { type: 'grabLoose'; enemy: Enemy }
   /** El alma en pena lo soltó y se esfumó. */
   | { type: 'release'; enemy: Enemy }
   | { type: 'rockThrown'; enemy: Enemy }
@@ -186,18 +184,22 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.quadraticCurveTo(cx + 11, 25, cx, 30);
       ctx.quadraticCurveTo(cx - 11, 25, cx - 12, 15);
       ctx.closePath();
-      ctx.fillStyle = b.icon === 'wall' ? '#8a4fe0' : '#e08a2c';
+      // el escudo, naranja de madera; la calavera, negra con borde blanco
+      ctx.fillStyle = b.icon === 'wall' ? '#141414' : '#ff8a1f';
+      if (b.icon === 'wall') ctx.strokeStyle = '#f2f2f2';
       break;
     case 'armor':
-      // blindaje: una placa de acero con los hombros marcados
-      ctx.moveTo(cx - 13, 6);
-      ctx.lineTo(cx - 6, 3);
-      ctx.lineTo(cx + 6, 3);
-      ctx.lineTo(cx + 13, 6);
-      ctx.lineTo(cx + 10, 28);
-      ctx.lineTo(cx - 10, 28);
+      // blindaje: un yelmo azul, con las carrilleras
+      ctx.moveTo(cx - 12, 16);
+      ctx.arc(cx, 16, 12, Math.PI, 0);
+      ctx.lineTo(cx + 12, 29);
+      ctx.lineTo(cx + 5, 29);
+      ctx.lineTo(cx + 5, 23);
+      ctx.lineTo(cx - 5, 23);
+      ctx.lineTo(cx - 5, 29);
+      ctx.lineTo(cx - 12, 29);
       ctx.closePath();
-      ctx.fillStyle = '#56626f';
+      ctx.fillStyle = '#2f7dff';
       break;
     case 'ward': {
       // invencible: una estrella violeta de cinco puntas
@@ -226,14 +228,14 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.lineTo(cx - 13, 11.5);
       ctx.lineTo(cx - 4.5, 11.5);
       ctx.closePath();
-      ctx.fillStyle = '#3fd463';
+      ctx.fillStyle = '#2fd05a';
       break;
     case 'divine':
       // divino: una aureola dorada, un anillo acostado
       ctx.ellipse(cx, 16, 14, 7.5, 0, 0, Math.PI * 2);
       ctx.moveTo(cx + 8, 16);
       ctx.ellipse(cx, 16, 8, 3.5, 0, 0, Math.PI * 2, true);
-      ctx.fillStyle = '#ffd34d';
+      ctx.fillStyle = '#ffe600';
       break;
     case 'ethereal':
       // fantasmita: cabeza redonda y borde de abajo ondulado
@@ -245,6 +247,13 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.lineTo(cx - 11, 28);
       ctx.closePath();
       ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.stroke();
+      // los ojos: es lo que lo hace fantasma y no una mancha blanca
+      ctx.beginPath();
+      ctx.ellipse(cx - 4, 13, 2.2, 3.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 4, 13, 2.2, 3.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#0b0f14';
       break;
     case 'bomb':
       // bomba: bola negra con la mecha prendida
@@ -300,7 +309,7 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.lineTo(cx - 5, 20);
       ctx.lineTo(cx - 5, 25);
       ctx.closePath();
-      ctx.fillStyle = '#5fd3c7';
+      ctx.fillStyle = '#10c9b4';
       break;
     case 'skull':
       // el jefe: una calavera, cráneo y mandíbula
@@ -434,7 +443,6 @@ export class Enemy {
   /** Alma en pena: tiene agarrado al golfista. */
   grabbing = false;
   private grabTime = 0;
-  private grabTick = 0;
   /** Cada uno camina a su ritmo, en línea recta hacia la puerta: con eso las filas se arman y se desarman solas. */
   readonly speedMul = 1 + (Math.random() * 2 - 1) * SPEED_SPREAD;
   readonly knock = new THREE.Vector3();
@@ -757,7 +765,7 @@ export class Enemy {
     if (this.behavior === 'kamikaze') out.push({ icon: 'bomb' });
     if (this.behavior === 'geomancer') out.push({ icon: 'dig', mutes: true });
     if (this.behavior === 'ranged') out.push({ icon: 'spell', mutes: true });
-    if (this.ethereal) out.push({ icon: 'ethereal', value: 1 });
+    if (this.ethereal) out.push({ icon: 'ethereal' });
     if (this.divineEvery) out.push({ icon: 'divine', off: !this.divineReady });
     if (this.mods.dodge) out.push({ icon: 'dodge', off: this.dodgeLeft > 0, mutes: true });
     return out;
@@ -949,11 +957,6 @@ export class Enemy {
     this.knock.addScaledVector(side, DODGE.distance * KNOCK_DECAY);
     this.dodgeLeft = DODGE.cooldown;
     this.hopLeft = DODGE.hopTime;
-  }
-
-  /** Agarrando, ¿ya pasó el tiempo en que no hay forma de soltarse? */
-  get escapable(): boolean {
-    return this.grabbing && this.grabTime >= GRAB_MIN;
   }
 
   /** Suelta al golfista (si lo tenía) y queda aturdida un rato. */
@@ -1148,9 +1151,11 @@ export class Enemy {
         if (player.alive && !player.invulnerable && !player.grabbedBy) {
           this.grabbing = true;
           this.grabTime = 0;
-          this.grabTick = GRAB_TICK;
           player.grab(this);
+          // lo que saca, lo saca de una: después solo lo tiene congelado un momento
+          player.drain(GRAB.damage);
           horde.emit({ type: 'grab', enemy: this });
+          horde.emit({ type: 'playerHit', enemy: this, amount: GRAB.damage });
         }
         this.animator.setLocomotion('Idle', 1);
       } else if (this.target === 'gate' && (behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer')) {
@@ -1204,29 +1209,14 @@ export class Enemy {
     this.position.z = Math.max(this.position.z, GATE_Z + this.radius * 0.5);
   }
 
-  /**
-   * El alma en pena agarrada al golfista: lo lastima de a poco hasta que él se suelta, o ella se cansa.
-   * Termine como termine, se esfuma.
-   */
+  /** El alma en pena agarrada al golfista: lo tiene congelado GRAB.hold segundos y se esfuma. */
   private updateGrab(dt: number, player: Player, horde: Horde): void {
     if (player.grabbedBy !== this || !player.alive) {
-      // se la sacó con el palazo, o él cayó
       this.vanish(horde);
       return;
     }
-    const wasLoose = this.grabTime >= GRAB_MIN;
     this.grabTime += dt;
-    // mientras no se puede soltar, sacudirse no suma: cuentan los toques de después
-    if (this.grabTime < GRAB_MIN) player.struggles = 0;
-    else if (!wasLoose) horde.emit({ type: 'grabLoose', enemy: this });
-    this.grabTick -= dt;
-    if (this.grabTick <= 0) {
-      this.grabTick += GRAB_TICK;
-      player.drain(this.stats.damage);
-      horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
-    }
-    // se cansa, o el golfista se sacude lo suficiente
-    if (this.grabTime >= GRAB_MAX || player.struggles >= GRAB_STRUGGLE) {
+    if (this.grabTime >= GRAB.hold) {
       player.release(this);
       this.vanish(horde);
       return;

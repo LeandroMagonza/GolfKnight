@@ -150,7 +150,7 @@ además:
 | Caddie dorado | unos segundos con pelota infinita en tu puesto |
 | Lupa | los agranda: más fáciles de pegar, y vulnerables |
 | Clon | una copia tuya repite tus próximos tiros desde donde la dejaste |
-| Palazo | no hace daño: manda lejos hacia atrás a lo que tengas encima (a 4 m; 4.75 y 5.5 m en los niveles 2 y 3) y les corta el ataque. Te saca de encima al alma en pena |
+| Palazo | no hace daño: manda lejos hacia atrás a lo que tengas encima (a 4 m; 4.75 y 5.5 m en los niveles 2 y 3) y les corta el ataque |
 
 **Mejoras**: Muñeca rápida (el débil y el medio un 15 % más rápidos: llegás antes al golpe 3, y la
 ventana del perfecto dura lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y el rebote
@@ -198,9 +198,7 @@ Todos esos números viven en `src/core/abilities.ts` y `src/core/cards.ts`, y se
 ### Lo demás
 
 - **El palazo ya no es un botón aparte**: es una habilidad más, que sale en las cartas y va en Q, W, E o
-  R. Si un alma en pena te agarra, los primeros 2 s no hay forma de soltarse; después, **sacudite con A
-  y D** (seis toques) o usá el palazo, si lo tenés. Al soltarte, el alma en pena se esfuma: agarra una
-  vez y se va.
+  R.
 - Vos tenés 3 de vida y la puerta 10. **Nadie te persigue**: todos van derecho a la puerta. Pero el que
   te pasa por encima te atropella: te saca 1 y muere en el choque. A la puerta cada enemigo le saca 1
   (el caballero y el kamikaze, 2). Después de recibir un golpe hay un segundo de respiro, titilando.
@@ -222,7 +220,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | Chamán goblin | 6 | un cuerpo más: el aura es un poder y le puede tocar a cualquiera |
 | Caballero esqueleto | 8 | pesado; cae justo con el mejor golpe |
 | Gólem chico | 10 | pesado; el único, además del jefe, que aguanta el mejor golpe |
-| Alma en pena | 2 | la única que te persigue: te agarra (2 s sin poder soltarte) y te desangra; cuando te soltás, se esfuma |
+| Alma en pena | 2 | la única que va por vos: si te agarra te saca 1 y te deja congelado 1.5 s, y se esfuma |
 | Gólem de roca | 80 | el jefe: tira piedras a la puerta desde lejos. No recibe poderes |
 
 | Poder | Qué hace |
@@ -242,10 +240,11 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.
-- **Se ven en íconos** antes de la vida, cada uno con su forma y su color: escudo de madera naranja (con
-  cuánto resta), blindaje de acero oscuro (con su número), calavera (escudo violeta, ∞), invencible
-  (estrella violeta), cura (cruz verde), divino (aureola dorada), bandera, bomba, loma (con pasto),
-  hechizo (llama rosa), etéreo (fantasmita blanco, con su 1) y esquiva (flecha doble). El divino y la
+- **Se ven en íconos** antes de la vida, cada uno con su forma y su color: escudo naranja (con
+  cuánto resta), blindaje en un yelmo azul (con su número), calavera (escudo negro con borde blanco, ∞),
+  etéreo (fantasma blanco con ojos), divino (aureola amarilla), esquiva (flecha doble turquesa),
+  invencible (estrella violeta), cura (cruz verde), hechizo (llama rosa), bandera (roja), bomba (negra)
+  y loma (marrón, con pasto). El divino y la
   esquiva se apagan mientras recargan. Lo que la granada silencia
   (escudo, blindaje, auras, bandera, loma, hechizo, esquiva) se tacha con un prohibido rojo mientras dura.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
@@ -255,8 +254,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   escenario (jefe goblin en el primero, caballero en el segundo, gólem chico en el tercero) con el poder
   en su versión más dura (la calavera, blindaje 2, el divino que recarga en 3 s...) y agrandado hasta
   unos 3 m, así que el jefe goblin crece mucho y el caballero poco.
-- **El cuerpo fuerte viene desde el arranque del escenario**: uno en la primera oleada y tres en la
-  segunda, sin poder; en la tercera, tres que ya pueden tenerlo, más el élite. La décima es la
+- **El cuerpo fuerte viene desde el arranque del escenario**: uno en la primera oleada, tres en la
+  segunda y tres en la tercera, **siempre sin poder**: de ese cuerpo, el único con poder es el élite. La décima es la
   del Gólem de roca, con todo lo anterior mezclado.
 - **Se acumulan**: un tercio de cada oleada sale con poder; la mitad con el del escenario, la otra mitad
   con los de escenarios anteriores. Uno solo por enemigo.

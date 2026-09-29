@@ -2053,3 +2053,28 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
   curva queda: 0.76, 0.90, 1.05 | 1.09, 1.31, 1.55 | 1.39, 1.58, 1.74 | 2.56.
 - **El botiquín cura al empezar cada oleada**, no al terminarla: curaba antes de las cartas, así que el
   nivel recién tomado no hacía nada hasta la oleada siguiente.
+
+## Hecho: el alma en pena congela, el élite es el único con poder, y los íconos (29/9/2026)
+
+- **Sin sacudirse con A y D**: no lo usaba nadie. El alma en pena va solo por el golfista; cuando lo
+  agarra le saca 1 de una y lo deja **congelado 1.5 s** (`GRAB`): no se mueve, no tira, no usa
+  habilidades. Después se esfuma. El palazo ya no la saca: no hace falta. La defensa es pegarle antes.
+  Probado: de 3 a 2 de vida, congelado un segundo y medio, y se fue.
+- **El élite es el único del cuerpo fuerte con poder**: en la tercera oleada del escenario, los tres del
+  cuerpo fuerte también salen solos. Si el escenario es el del escudo, los de 1 a 4 de vida pueden traer
+  escudo, pero de los jefes goblin, el único con escudo es el élite, y con la calavera.
+- **Íconos con forma y color propios**: Leandro no distinguía de lejos el blindaje (un trapecio gris)
+  del fantasma (gris también). Ahora cada uno tiene su color:
+  - escudo naranja;
+  - calavera: escudo negro con borde blanco y ∞;
+  - blindaje: un **yelmo azul** con su número;
+  - etéreo: fantasma blanco **con ojos** (sin el 1 adentro, que de lejos lo hacía gris);
+  - divino: aureola amarilla;
+  - esquiva: flechas turquesa;
+  - invencible: estrella violeta;
+  - cura: cruz verde;
+  - hechizo: llama rosa;
+  - bandera: roja;
+  - bomba: negra, con la mecha;
+  - loma: marrón con pasto.
+  Los cinco de escenario (escudo, blindaje, etéreo, divino, esquiva) no comparten color ni forma.

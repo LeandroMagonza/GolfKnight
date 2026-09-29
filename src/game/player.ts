@@ -120,8 +120,6 @@ export class Player {
   private meleeTime = 0;
   /** El alma en pena que lo tiene agarrado: no puede caminar ni tirar hasta que se zafa. */
   grabbedBy: Enemy | null = null;
-  /** Toques de A o D desde que se puede soltar (GRAB_MIN): con GRAB_STRUGGLE se zafa. */
-  struggles = 0;
   private yaw = 0;
   /** Invulnerable un instante después de recibir un golpe. */
   private blinkTimer = 0;
@@ -465,11 +463,8 @@ export class Player {
    */
   step(delta: number): void {
     if (!this.alive) return;
-    // agarrado, A y D son para sacudirse: cada toque cuenta (ver GRAB_STRUGGLE)
-    if (this.grabbedBy) {
-      this.struggles++;
-      return;
-    }
+    // agarrado, congelado: no se mueve
+    if (this.grabbedBy) return;
     // cargando, A y D corren con la pelota en vez de anotar un cambio de puesto (ver `SHIFT`). En el
     // modo continuo el toque no hace nada: lo que mueve es mantener apretado
     if (this.mode === 'charging' && SHIFT.mode !== 'apagado') {
@@ -504,10 +499,9 @@ export class Player {
     this.stancePosition(this.position);
   }
 
-  /** Un alma en pena lo agarra: corta lo que estuviera haciendo. Se zafa sacudiéndose (A y D) o con el palazo. */
+  /** Un alma en pena lo agarra: corta lo que estuviera haciendo y lo deja congelado un momento. */
   grab(by: Enemy): void {
     this.grabbedBy = by;
-    this.struggles = 0;
     this.meter.cancel();
     this.swingShot = null;
     if (this.mode !== 'free') this.animator.clearOneShot();

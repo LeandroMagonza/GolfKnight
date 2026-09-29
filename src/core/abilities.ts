@@ -112,7 +112,7 @@ export const CLONE = { shots: [1, 2, 3], life: 20 };
 /**
  * Palazo: no hace daño. Empuja hacia atrás a todo lo que haya a `radius` metros de un paso adelante tuyo
  * (hasta `targets`), y les corta el ataque por `stagger` segundos. El empujón es `knockback` m/s, que
- * se frena solo: con 84 los manda unos 14 m. También te saca de encima al alma en pena.
+ * se frena solo: con 84 los manda unos 14 m.
  */
 export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1, 1.3], targets: 12 };
 
@@ -169,7 +169,7 @@ const BASE: Ability[] = [
   },
   {
     id: 'shove', kind: 'melee', name: 'Palazo', title: 'empujón', cooldown: 2.5, range: 0, color: 0xfff1b8,
-    hint: 'Un palazo a lo que tengas encima: no hace daño, pero los manda lejos hacia atrás y les corta el ataque. Te saca de encima al alma en pena',
+    hint: 'Un palazo a lo que tengas encima: no hace daño, pero los manda lejos hacia atrás y les corta el ataque',
   },
 ];
 

@@ -84,15 +84,13 @@ export function startBot(): BotStats {
     };
     const dist = (e: any) => Math.hypot(e.position.x - p.x, e.position.z - p.z);
 
-    // agarrado: palazo si lo tiene y está listo; si no, se sacude con A y D
+    // agarrado: congelado, no hay nada que hacer hasta que se va
     if (pl.grabbedBy) {
-      if (escaping) return;
+      if (!escaping) stats.grabs++;
       escaping = true;
-      stats.grabs++;
-      if (!shove()) key(stats.grabs % 2 ? 'KeyA' : 'KeyD');
-      setTimeout(() => { escaping = false; }, 120);
       return;
     }
+    escaping = false;
     // Nadie lo persigue, pero el que le pasa por encima lo atropella. Si uno viene derecho hacia su puesto:
     // palazo si está listo (lo manda 15 m atrás); si no, suelta lo que esté cargando y se corre dos puestos.
     const threat = gk.horde.enemies.find((e: any) => e.alive && !e.passed && e.state === 'walk' && (e.behavior === 'melee' || e.behavior === 'kamikaze')

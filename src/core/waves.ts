@@ -215,16 +215,12 @@ export const RANGED = { holdZ: 34, every: 4.5, flight: 1.6, radius: 1.4, damage:
  */
 export const DODGE = { cooldown: 5, distance: 3.2, aimWidth: 2.2, hop: 0.6, hopTime: 0.35 };
 
-/** Alma en pena: cada cuánto lastima mientras tiene agarrado al golfista, y cuánto aguanta agarrada. */
-export const GRAB_TICK = 1.6;
-export const GRAB_MAX = 5;
 /**
- * Los primeros GRAB_MIN segundos no hay forma de soltarse: ni sacudiéndose ni con el palazo. Después,
- * GRAB_STRUGGLE toques de A o D (los de antes no cuentan), o el palazo. Al soltarse, de la forma que
- * sea, el alma en pena se esfuma: agarra una vez y se va.
+ * Alma en pena: va solo por el golfista. Cuando lo agarra le saca `damage` de una y lo deja congelado
+ * `hold` segundos (no puede moverse, ni tirar, ni usar habilidades). Después se esfuma: agarra una vez y
+ * se va. No hay forma de soltarse antes: la defensa es pegarle antes de que llegue.
  */
-export const GRAB_MIN = 2;
-export const GRAB_STRUGGLE = 6;
+export const GRAB = { damage: 1, hold: 1.5 };
 
 export interface WaveGroup {
   kind: EnemyKind;
@@ -236,10 +232,7 @@ export interface WaveGroup {
    * uno o dos salen hacia la mitad. El élite de cada escenario cierra su oleada.
    */
   at?: number;
-  /**
-   * Salen sin poder: el cuerpo fuerte del escenario, en las oleadas antes de la del élite, se presenta
-   * solo. En la última del escenario ya puede traer poder.
-   */
+  /** Salen sin poder: el cuerpo fuerte del escenario, para que el élite sea el único de ese cuerpo con poder. */
   plain?: boolean;
 }
 
@@ -386,8 +379,8 @@ function bodies(goblin: number, goblina: number, orc: number, skeleton: number, 
 /**
  * Arma una partida: **tres escenarios de tres oleadas y la oleada del jefe**. Cada escenario presenta un
  * poder (sorteado entre SCENARIO_POWERS) y termina con un élite que lo lleva en su versión más dura.
- * El cuerpo fuerte del escenario (HEAVY) viene desde la primera oleada: uno, después tres, sin poder, y
- * en la última tres que ya pueden tenerlo, más el élite.
+ * El cuerpo fuerte del escenario (HEAVY) viene desde la primera oleada: uno, después tres, y tres en la
+ * última, siempre sin poder: de ese cuerpo, el único con poder es el élite, así se distingue.
  * Los escenarios se acumulan: en el segundo siguen viniendo algunos con el poder del primero. La del
  * medio del segundo escenario es la estampida: muchos, chicos, y varios que explotan. Desde el segundo
  * escenario entra además un poder de apoyo por escenario, de a pocos.
@@ -398,21 +391,21 @@ export function buildRun(rand: () => number = Math.random): Run {
   const at = (scenario: number, i: number) => ({ scenario, focus: powers[scenario], debut: i === 0, old: powers.slice(0, scenario) });
   const boss = (scenario: number) => elite(scenario, powers[scenario]);
   const bossTitle = (scenario: number) => `Élite: ${ENEMIES[boss(scenario).kind].name.toLowerCase()} ${BOSS_TITLES[powers[scenario]]}`;
-  // el cuerpo fuerte del escenario: 1 en la primera oleada y 3 en la segunda, sin poder; 3 en la última
-  const heavy = (scenario: number, count: number, plain: boolean): WaveGroup => ({ kind: HEAVY[scenario], count, plain });
+  // el cuerpo fuerte del escenario: 1, 3 y 3, siempre sin poder; de ese cuerpo, el único con poder es el élite
+  const heavy = (scenario: number, count: number): WaveGroup => ({ kind: HEAVY[scenario], count, plain: true });
   const waves: Wave[] = [
     // primer escenario: los cuerpos de 1 a 4, el jefe goblin desde el arranque, y el poder solo
-    { title: TITLES[powers[0]], interval: 2.1, groups: [...bodies(8, 5, 2, 2), heavy(0, 1, true)], ...at(0, 0) },
-    { title: 'Refuerzos', interval: 2.05, groups: [...bodies(6, 5, 3, 2), heavy(0, 3, true)], ...at(0, 1) },
-    { title: bossTitle(0), interval: 2.0, groups: [...bodies(6, 5, 3, 2), heavy(0, 3, false), boss(0)], ...at(0, 2) },
+    { title: TITLES[powers[0]], interval: 2.1, groups: [...bodies(8, 5, 2, 2), heavy(0, 1)], ...at(0, 0) },
+    { title: 'Refuerzos', interval: 2.05, groups: [...bodies(6, 5, 3, 2), heavy(0, 3)], ...at(0, 1) },
+    { title: bossTitle(0), interval: 2.0, groups: [...bodies(6, 5, 3, 2), heavy(0, 3), boss(0)], ...at(0, 2) },
     // segundo escenario: el caballero desde el arranque, el chamán, y el primer apoyo
-    { title: TITLES[powers[1]], interval: 1.85, groups: [...bodies(6, 5, 3, 2, [['warchief', 2]]), heavy(1, 1, true)], ...at(1, 0), supports: [{ key: supports[0], count: 1 }] },
-    { title: 'La estampida', interval: 1.3, groups: [...bodies(13, 8, 2, 0), heavy(1, 3, true)], ...at(1, 1), explode: 0.3 },
-    { title: bossTitle(1), interval: 2.1, groups: [...bodies(5, 4, 2, 2, [['warchief', 2], ['shaman', 2]]), heavy(1, 3, false), boss(1)], ...at(1, 2), supports: [{ key: supports[0], count: 2 }] },
+    { title: TITLES[powers[1]], interval: 1.85, groups: [...bodies(6, 5, 3, 2, [['warchief', 2]]), heavy(1, 1)], ...at(1, 0), supports: [{ key: supports[0], count: 1 }] },
+    { title: 'La estampida', interval: 1.3, groups: [...bodies(13, 8, 2, 0), heavy(1, 3)], ...at(1, 1), explode: 0.3 },
+    { title: bossTitle(1), interval: 2.1, groups: [...bodies(5, 4, 2, 2, [['warchief', 2], ['shaman', 2]]), heavy(1, 3), boss(1)], ...at(1, 2), supports: [{ key: supports[0], count: 2 }] },
     // tercer escenario: el gólem chico desde el arranque, el alma en pena, y el segundo apoyo
-    { title: TITLES[powers[2]], interval: 1.75, groups: [...bodies(6, 5, 3, 3, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 1]]), heavy(2, 1, true)], ...at(2, 0), supports: [{ key: supports[1], count: 1 }] },
-    { title: 'Refuerzos', interval: 1.9, groups: [...bodies(5, 4, 3, 2, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 2]]), heavy(2, 3, true)], ...at(2, 1), supports: [{ key: supports[1], count: 2 }] },
-    { title: bossTitle(2), interval: 1.9, groups: [...bodies(5, 4, 2, 2, [['warchief', 1], ['shaman', 1], ['knight', 1]]), heavy(2, 3, false), boss(2)], ...at(2, 2), supports: [{ key: supports[1], count: 2 }] },
+    { title: TITLES[powers[2]], interval: 1.75, groups: [...bodies(6, 5, 3, 3, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 1]]), heavy(2, 1)], ...at(2, 0), supports: [{ key: supports[1], count: 1 }] },
+    { title: 'Refuerzos', interval: 1.9, groups: [...bodies(5, 4, 3, 2, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 2]]), heavy(2, 3)], ...at(2, 1), supports: [{ key: supports[1], count: 2 }] },
+    { title: bossTitle(2), interval: 1.9, groups: [...bodies(5, 4, 2, 2, [['warchief', 1], ['shaman', 1], ['knight', 1]]), heavy(2, 3), boss(2)], ...at(2, 2), supports: [{ key: supports[1], count: 2 }] },
     // el jefe solo ya tiene 80 de vida: la escolta es más chica, con los tres poderes y los dos apoyos
     {
       title: 'El Gólem de roca', interval: 1.75, scenario: 3, old: [...powers],
