@@ -2147,3 +2147,20 @@ a la cara de la loma, y recién más arriba volvía a aparecer atrás. La marca 
 sobre el terreno y el globo se calcula para caer ahí. Probado en *La meseta*: subiendo el mouse de a
 poco, el punto del wedge y del hierro avanza parejo, sin volver atrás. El driver y el putter siguen
 apuntando contra el terreno (tienen distancia fija: el mouse solo da la dirección).
+
+## Hecho: el daño crece con la vida, y el élite pega 3 (29/9/2026)
+
+Antes casi todos le sacaban 1 a la puerta (el caballero y el gólem chico, 2), así que a un élite o a
+un caballero de 8 de vida convenía dejarlo pasar: matarlo costaba muchos tiros, y dejarlo, uno de daño.
+Ahora el daño crece con el cuerpo, **igual a la puerta que al golfista** (al atropellarlo):
+
+| Cuerpo | Vida | Daño |
+|---|---|---|
+| Goblin, goblina | 1–2 | 1 |
+| Orco, esqueleto, jefe goblin, chamán | 3–6 | 2 |
+| Caballero, gólem chico | 8–10 | 3 |
+| **Élite** (cualquier cuerpo) | | **3** (`ELITE.damage`) |
+
+Con 3 de vida, chocarse con uno de los grandes o con un élite te mata. El Gólem de roca (el jefe), el
+alma en pena, los hechizos y las bombas no cambiaron. El panel de balance subió a la versión 8: el
+daño guardado de los enemigos vuelve al del código.

@@ -448,7 +448,7 @@ horde.onEvent = (e) => {
       // entró por la puerta: una nube de polvo donde estaba, y el cartel del daño
       effects.explosion(new THREE.Vector3(e.enemy.position.x, 0.8, e.enemy.position.z), 1.6, 0xc9b38a);
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, `puerta -${e.enemy.stats.gateDamage}`, 'hurt');
+      hud.float(s.x, s.y, `puerta -${e.enemy.gateDamage}`, 'hurt');
       break;
     }
     case 'explosion':

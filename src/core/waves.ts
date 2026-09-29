@@ -72,6 +72,11 @@ export interface EnemyStats {
   speed: number;
   /** Corre en vez de caminar. */
   runs: boolean;
+  /**
+   * Daño al golfista (al atropellarlo, o al pegarle). En los cuerpos es el mismo que a la puerta, y
+   * crece con la vida: los goblins 1, del orco al chamán 2, el caballero y el gólem chico 3. Con 3 de
+   * vida, chocarse con uno de los grandes (o con un élite, ver `ELITE.damage`) te mata.
+   */
   damage: number;
   /** Daño a la puerta. Los que pelean cuerpo a cuerpo lo hacen una sola vez: llegan, golpean y se pierden adentro. */
   gateDamage: number;
@@ -122,12 +127,12 @@ export const GOLEM_THROW_EVERY = 4;
 export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   goblin: { ...base, kind: 'goblin', name: 'Goblin', mesh: 'Character_Goblin_Male', height: 1.25, radius: 0.45, hp: 1, speed: 3.6, runs: true, damage: 1, gateDamage: 1, score: 10 },
   goblina: { ...base, kind: 'goblina', name: 'Goblina', mesh: 'Character_Goblin_Female', height: 1.25, radius: 0.45, hp: 2, speed: 3.3, runs: true, damage: 1, gateDamage: 1, score: 15 },
-  orc: { ...base, kind: 'orc', name: 'Orco', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 3, speed: 2.6, damage: 1, gateDamage: 1, score: 20 },
-  skeleton: { ...base, kind: 'skeleton', name: 'Esqueleto', mesh: 'Character_Skeleton_Soldier_01', height: 1.8, radius: 0.55, hp: 4, speed: 2.1, damage: 1, gateDamage: 1, score: 25 },
-  warchief: { ...base, kind: 'warchief', name: 'Jefe goblin', mesh: 'Character_Goblin_WarChief', height: 1.65, radius: 0.62, hp: 5, speed: 2.3, damage: 1, gateDamage: 1, score: 30 },
-  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', height: 1.45, radius: 0.5, hp: 6, speed: 2.2, damage: 1, gateDamage: 1, score: 40 },
-  knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 8, speed: 1.5, damage: 1, gateDamage: 2, heavy: true, score: 50 },
-  stoneling: { ...base, kind: 'stoneling', name: 'Gólem chico', mesh: 'Character_Rock_Golem', height: 2.1, radius: 0.95, hp: 10, speed: 1.4, damage: 1, gateDamage: 2, heavy: true, score: 70 },
+  orc: { ...base, kind: 'orc', name: 'Orco', mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 3, speed: 2.6, damage: 2, gateDamage: 2, score: 20 },
+  skeleton: { ...base, kind: 'skeleton', name: 'Esqueleto', mesh: 'Character_Skeleton_Soldier_01', height: 1.8, radius: 0.55, hp: 4, speed: 2.1, damage: 2, gateDamage: 2, score: 25 },
+  warchief: { ...base, kind: 'warchief', name: 'Jefe goblin', mesh: 'Character_Goblin_WarChief', height: 1.65, radius: 0.62, hp: 5, speed: 2.3, damage: 2, gateDamage: 2, score: 30 },
+  shaman: { ...base, kind: 'shaman', name: 'Chamán goblin', mesh: 'Character_Goblin_Shaman', height: 1.45, radius: 0.5, hp: 6, speed: 2.2, damage: 2, gateDamage: 2, score: 40 },
+  knight: { ...base, kind: 'knight', name: 'Caballero esqueleto', mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 8, speed: 1.5, damage: 3, gateDamage: 3, heavy: true, score: 50 },
+  stoneling: { ...base, kind: 'stoneling', name: 'Gólem chico', mesh: 'Character_Rock_Golem', height: 2.1, radius: 0.95, hp: 10, speed: 1.4, damage: 3, gateDamage: 3, heavy: true, score: 70 },
   wraith: { ...base, kind: 'wraith', name: 'Alma en pena', mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
   golem: { ...base, kind: 'golem', name: 'Gólem de roca', mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, attackEvery: GOLEM_THROW_EVERY, score: 500 },
 };
@@ -344,9 +349,10 @@ export const HEAVY: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
 /**
  * El tamaño del élite, según el modelo: llega a `height` metros (más alto que cualquier enemigo común),
  * y crece por lo menos `minScale`. El jefe goblin, que es chico, crece mucho; el caballero, que ya es
- * grande, poco.
+ * grande, poco. Pega `damage` a la puerta y al golfista, sea del cuerpo que sea: dejarlo pasar cuesta
+ * caro, y chocarse con él te mata.
  */
-export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85 };
+export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: 3 };
 
 /** El élite del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
 export function elite(scenario: number, power: ScenarioPower): WaveGroup {

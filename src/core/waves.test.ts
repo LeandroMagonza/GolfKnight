@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalOrder, arrivals, behaviorOf, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -207,6 +207,15 @@ describe('waves', () => {
         for (let i = 1; i < t.length; i++) expect(t[i] - t[i - 1], w.title).toBeLessThanOrEqual(2 * w.interval + 1e-9);
       }
     }
+  });
+
+  it('el daño crece con la vida, igual al golfista que a la puerta; el élite pega 3', () => {
+    const want: Partial<Record<EnemyKind, number>> = { goblin: 1, goblina: 1, orc: 2, skeleton: 2, warchief: 2, shaman: 2, knight: 3, stoneling: 3 };
+    for (const [kind, d] of Object.entries(want) as [EnemyKind, number][]) {
+      expect(ENEMIES[kind].damage, kind).toBe(d);
+      expect(ENEMIES[kind].gateDamage, kind).toBe(d);
+    }
+    expect(ELITE.damage).toBe(3);
   });
 
   it('la vida de los cuerpos es una escalera: cada uno pega un salto sobre el anterior', () => {

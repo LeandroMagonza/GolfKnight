@@ -9,7 +9,7 @@ import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/a
 import { EXPLOSION_RADIUS, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -682,6 +682,16 @@ export class Enemy {
     return this.auraKind === 'heal' ? HEAL_AURA.radius : SHAMAN_WARD_RADIUS;
   }
 
+  /** Lo que le saca al golfista: el de su cuerpo, o el del élite. */
+  get hitDamage(): number {
+    return this.size > 1 ? ELITE.damage : this.stats.damage;
+  }
+
+  /** Lo que le saca a la puerta: el de su cuerpo, o el del élite. */
+  get gateDamage(): number {
+    return this.size > 1 ? ELITE.damage : this.stats.gateDamage;
+  }
+
   /** Etéreo: ningún golpe le saca más de 1. */
   get ethereal(): boolean {
     return this.mods.ethereal ?? this.stats.ethereal ?? false;
@@ -1076,8 +1086,8 @@ export class Enemy {
       }
       // el que cura o hace inmune y siguió de largo a la puerta atropella como cualquiera
       if ((behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer' || (behavior === 'shaman' && this.forsaken)) && !player.invulnerable) {
-        player.hit(this.stats.damage, this.position);
-        horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
+        player.hit(this.hitDamage, this.position);
+        horde.emit({ type: 'playerHit', enemy: this, amount: this.hitDamage });
         horde.emit({ type: 'trample', enemy: this });
         this.state = 'gone';
         return;
@@ -1180,7 +1190,7 @@ export class Enemy {
       } else if (this.target === 'gate' && (behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer' || behavior === 'shaman')) {
         // Llegó a la puerta: le hace su daño de una sola vez y se pierde adentro. Pegarle a un enemigo
         // pegado a la muralla era incómodo (la cámara mira para el otro lado), y no sumaba nada.
-        horde.emit({ type: 'gateHit', enemy: this, amount: this.stats.gateDamage });
+        horde.emit({ type: 'gateHit', enemy: this, amount: this.gateDamage });
         horde.emit({ type: 'breach', enemy: this });
         this.state = 'gone';
         return;
@@ -1344,8 +1354,8 @@ export class Enemy {
     }
     if (this.target === 'player') {
       if (toPlayer <= this.radius + 1.7 && player.alive && !player.invulnerable) {
-        player.hit(this.stats.damage, this.position);
-        horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
+        player.hit(this.hitDamage, this.position);
+        horde.emit({ type: 'playerHit', enemy: this, amount: this.hitDamage });
       }
     } else if (behavior === 'golem') {
       // el que ya tenía la piedra levantada cuando terminó la partida no la tira
@@ -1353,7 +1363,7 @@ export class Enemy {
     } else if (behavior === 'ranged') {
       if (!horde.ceaseFire) horde.castSpell(this, player);
     } else {
-      horde.emit({ type: 'gateHit', enemy: this, amount: this.stats.gateDamage });
+      horde.emit({ type: 'gateHit', enemy: this, amount: this.gateDamage });
     }
     return false;
   }
@@ -1686,11 +1696,11 @@ export class Horde {
     this.blast(pos, EXPLOSION_RADIUS, BOMB_ENEMY_DAMAGE, 8, source);
     const toPlayer = Math.hypot(player.position.x - pos.x, player.position.z - pos.z);
     if (toPlayer < EXPLOSION_RADIUS && player.alive && !player.invulnerable) {
-      player.hit(source.stats.damage, pos);
-      this.emit({ type: 'playerHit', enemy: source, amount: source.stats.damage });
+      player.hit(source.hitDamage, pos);
+      this.emit({ type: 'playerHit', enemy: source, amount: source.hitDamage });
     }
     if (pos.z < GATE_Z + EXPLOSION_RADIUS && Math.abs(pos.x) < GATE_HALF_WIDTH + EXPLOSION_RADIUS) {
-      this.emit({ type: 'gateHit', enemy: source, amount: source.stats.gateDamage });
+      this.emit({ type: 'gateHit', enemy: source, amount: source.gateDamage });
     }
   }
 
@@ -2095,7 +2105,7 @@ export class Horde {
       r.mesh.rotation.z += dt * 3;
       if (u < 1) continue;
       this.emit({ type: 'rockLanded', pos: r.to.clone() });
-      this.emit({ type: 'gateHit', enemy: r.source, amount: r.source.stats.gateDamage });
+      this.emit({ type: 'gateHit', enemy: r.source, amount: r.source.gateDamage });
       this.scene.remove(r.mesh);
       this.rocks.splice(i, 1);
     }
