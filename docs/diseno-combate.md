@@ -2078,3 +2078,15 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
   - bomba: negra, con la mecha;
   - loma: marrón con pasto.
   Los cinco de escenario (escudo, blindaje, etéreo, divino, esquiva) no comparten color ni forma.
+
+## Hecho: la lluvia no frena a los guardias, nadie tira después de perder, y la calavera es el élite (29/9/2026)
+
+- **Las pelotas de la lluvia son de regalo** (`Spot.bonus`): no cuentan para el tope de los guardias.
+  Antes las de las puntas, que nadie iba a buscar, ocupaban el tope y los guardias dejaban de reponer.
+  Probado: con cuatro de la lluvia en las puntas, los guardias volvieron a tener sus tres.
+- **Después de perder nadie sigue tirando** (`Horde.ceaseFire`): el gólem y los hechiceros bajan los
+  brazos, y el que ya tenía la piedra levantada no la tira. Probado: cero piedras en los diez segundos
+  después de caer.
+- **La calavera marca al élite**, venga con el poder que venga: va primera entre sus íconos. El escudo
+  que no deja pasar nada es el mismo escudo naranja, con ∞ en vez del número. Así el élite del escudo
+  lleva los dos: la calavera y el escudo.

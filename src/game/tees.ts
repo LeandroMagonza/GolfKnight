@@ -36,6 +36,11 @@ interface Spot {
   ball: boolean;
   /** Pelota dorada, del caddie: se ve distinta. */
   golden: boolean;
+  /**
+   * Pelota de regalo (la lluvia de pelotas): no cuenta para el tope de los guardias. Si contara, las de
+   * las puntas, que nadie va a buscar, les frenaban la reposición.
+   */
+  bonus: boolean;
   /** Hay una pelota en el aire que viene para acá. */
   incoming: boolean;
   ballMesh: THREE.Mesh;
@@ -91,7 +96,7 @@ export class Tees {
       ring.position.set(x, 0.05, TEE_Z);
       ring.visible = false;
       scene.add(stick, flag, ballMesh, ring);
-      this.spots.push({ x, spawns, ball: false, golden: false, incoming: false, ballMesh, ring });
+      this.spots.push({ x, spawns, ball: false, golden: false, bonus: false, incoming: false, ballMesh, ring });
     }
   }
 
@@ -102,6 +107,11 @@ export class Tees {
   /** Pelotas esperando en el campo (sin contar las que vienen en el aire). */
   get loaded(): number {
     return this.spots.reduce((n, s) => n + (s.ball ? 1 : 0), 0);
+  }
+
+  /** Las que cuentan para el tope de los guardias: todas menos las de regalo. */
+  private get counted(): number {
+    return this.spots.reduce((n, s) => n + (s.ball && !s.bonus ? 1 : 0), 0);
   }
 
   hasBall(index: number): boolean {
@@ -131,27 +141,29 @@ export class Tees {
     if (!s?.ball) return false;
     s.ball = false;
     s.golden = false;
+    s.bonus = false;
     return true;
   }
 
   /** Pone una pelota ya mismo (arranque de la partida, el carcaj, el caddie, y pruebas). */
-  place(index: number, golden = false): void {
+  place(index: number, golden = false, bonus = false): void {
     const s = this.spots[index];
     if (!s) return;
     s.ball = true;
     s.golden = golden;
+    s.bonus = bonus;
     s.ballMesh.material = golden ? this.goldMat : this.ballMat;
   }
 
   /**
-   * Lluvia de pelotas: una en cada puesto que no tenga. Como quedan más que `BALLS.max`, los guardias no
-   * tiran más hasta que se gasten las de sobra.
+   * Lluvia de pelotas: una en cada puesto que no tenga. Son de regalo: no cuentan para el tope, así que
+   * los guardias siguen reponiendo como siempre.
    */
   fillAll(): number {
     let n = 0;
     this.spots.forEach((s, i) => {
       if (s.ball) return;
-      this.place(i);
+      this.place(i, false, true);
       n++;
     });
     return n;
@@ -168,7 +180,7 @@ export class Tees {
   /** @param playerSpot puesto donde está (o hacia donde va) el golfista: ahí nunca cae una pelota */
   update(dt: number, playerSpot: number, hideAt: number): void {
     this.age += dt;
-    const pending = this.loaded + this.tosses.length;
+    const pending = this.counted + this.tosses.length;
     if (pending < BALLS.max) {
       this.timer += dt;
       if (this.timer >= REFILL_DELAY[Math.min(pending, REFILL_DELAY.length - 1)]) {

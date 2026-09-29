@@ -184,9 +184,8 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.quadraticCurveTo(cx + 11, 25, cx, 30);
       ctx.quadraticCurveTo(cx - 11, 25, cx - 12, 15);
       ctx.closePath();
-      // el escudo, naranja de madera; la calavera, negra con borde blanco
-      ctx.fillStyle = b.icon === 'wall' ? '#141414' : '#ff8a1f';
-      if (b.icon === 'wall') ctx.strokeStyle = '#f2f2f2';
+      // el escudo, naranja de madera; el que no deja pasar nada es el mismo escudo, con ∞
+      ctx.fillStyle = '#ff8a1f';
       break;
     case 'armor':
       // blindaje: un yelmo azul, con las carrilleras
@@ -758,6 +757,8 @@ export class Enemy {
    */
   private badges(): Badge[] {
     const out: Badge[] = [];
+    // la calavera marca al élite, venga con el poder que venga
+    if (this.size > 1) out.push({ icon: 'skull' });
     if (this.hasShield) out.push(this.shieldWall ? { icon: 'wall', mutes: true } : { icon: 'shield', value: this.shieldLevel, mutes: true });
     if (this.armorLevel > 0) out.push({ icon: 'armor', value: this.armorLevel, mutes: true });
     if (this.auraKind) out.push({ icon: this.auraKind, mutes: true });
@@ -1136,12 +1137,12 @@ export class Enemy {
         // hechicero, hechizos; el chamán solo sostiene el aura
         lookX = behavior === 'ranged' ? player.position.x - this.position.x : -this.position.x * 0.2;
         lookZ = behavior === 'ranged' ? player.position.z - this.position.z : GATE_Z - this.position.z;
-        if (behavior === 'golem') {
+        if (behavior === 'golem' && !horde.ceaseFire) {
           this.castTimer -= dt * slow;
           if (this.castTimer <= 0) this.startAttack(this.stats.attackEvery ?? GOLEM_THROW_EVERY);
         }
         // silenciado no tira
-        if (behavior === 'ranged' && !this.silenced && player.alive) {
+        if (behavior === 'ranged' && !this.silenced && player.alive && !horde.ceaseFire) {
           this.castTimer -= dt * slow;
           if (this.castTimer <= 0) this.startAttack(RANGED.every);
         }
@@ -1301,9 +1302,10 @@ export class Enemy {
         horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
       }
     } else if (behavior === 'golem') {
-      horde.throwRock(this);
+      // el que ya tenía la piedra levantada cuando terminó la partida no la tira
+      if (!horde.ceaseFire) horde.throwRock(this);
     } else if (behavior === 'ranged') {
-      horde.castSpell(this, player);
+      if (!horde.ceaseFire) horde.castSpell(this, player);
     } else {
       horde.emit({ type: 'gateHit', enemy: this, amount: this.stats.gateDamage });
     }
@@ -1381,6 +1383,8 @@ export class Enemy {
 
 export class Horde {
   readonly enemies: Enemy[] = [];
+  /** La partida terminó: el gólem y los hechiceros dejan de tirar (a la puerta caída o al golfista tirado). */
+  ceaseFire = false;
   onEvent: ((e: HordeEvent) => void) | null = null;
   private readonly templates = new Map<EnemyKind, Template>();
   private readonly rocks: Rock[] = [];

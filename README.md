@@ -146,7 +146,7 @@ además:
 | Bandera | los que están cerca van hacia ella en vez de a la puerta |
 | Pólvora | marca; el marcado que muere explota, y encadena si los de al lado están marcados |
 | Boomerang | tirás el palo de la mano: va y vuelve pegando, y mientras vuela ese palo no se puede usar |
-| Lluvia de pelotas | una pelota en cada puesto |
+| Lluvia de pelotas | una pelota en cada puesto; son de regalo, así que los guardias siguen reponiendo las suyas |
 | Caddie dorado | unos segundos con pelota infinita en tu puesto |
 | Lupa | los agranda: más fáciles de pegar, y vulnerables |
 | Clon | una copia tuya repite tus próximos tiros desde donde la dejaste |
@@ -241,7 +241,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.
 - **Se ven en íconos** antes de la vida, cada uno con su forma y su color: escudo naranja (con
-  cuánto resta), blindaje en un yelmo azul (con su número), calavera (escudo negro con borde blanco, ∞),
+  cuánto resta, o ∞ el que no deja pasar nada), blindaje en un yelmo azul (con su número), la **calavera**,
+  que marca al élite,
   etéreo (fantasma blanco con ojos), divino (aureola amarilla), esquiva (flecha doble turquesa),
   invencible (estrella violeta), cura (cruz verde), hechizo (llama rosa), bandera (roja), bomba (negra)
   y loma (marrón, con pasto). El divino y la

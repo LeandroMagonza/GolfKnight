@@ -341,6 +341,8 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string): v
   if (ended) return;
   ended = result;
   player.cancelSwing();
+  // ya no hay a quién tirarle: el gólem y los hechiceros bajan los brazos
+  horde.ceaseFire = true;
   // si se perdió por la puerta, el golfista termina igual que cuando muere: tirado en el piso
   if (result === 'defeat') player.fall();
   hud.showEnd(title, `${detail} · ${score} puntos · ${kills} bajas · ${shots} tiros`);
