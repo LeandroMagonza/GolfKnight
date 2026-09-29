@@ -255,6 +255,26 @@ export class Hud {
     this.gateAlertUntil = performance.now() + 1500;
   }
 
+  private runEl = $('run');
+  private shownScenario = -2;
+
+  /** El recorrido de la partida: un ícono por escenario (su poder) y el del jefe al final. */
+  setRun(steps: { src: string; title: string }[]): void {
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    this.runEl.innerHTML = steps.map((s) => `<img src="${s.src}" alt="" title="${esc(s.title)}" />`).join('');
+    this.shownScenario = -2;
+  }
+
+  /** Enciende el escenario en curso (0, 1, 2, o 3 el jefe); los de antes quedan hechos. -1 = antes de empezar. */
+  setScenario(scenario: number): void {
+    if (scenario === this.shownScenario) return;
+    this.shownScenario = scenario;
+    Array.from(this.runEl.children).forEach((el, i) => {
+      el.classList.toggle('done', i < scenario);
+      el.classList.toggle('now', i === scenario);
+    });
+  }
+
   setWave(index: number, total: number, alive: number, pending: number, restLeft: number): void {
     this.waveN.textContent = index < 0 ? 'Preparate…' : `Oleada ${index + 1} / ${total}`;
     this.waveSub.textContent = restLeft > 0 && index >= 0 ? `próxima oleada en ${Math.ceil(restLeft)}` : index < 0 ? '' : `quedan ${alive + pending}`;

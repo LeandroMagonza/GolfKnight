@@ -249,27 +249,38 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   esquiva se apagan mientras recargan. Lo que la granada silencia
   (escudo, blindaje, auras, bandera, loma, hechizo, esquiva) se tacha con un prohibido rojo mientras dura.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
-- **Diez oleadas**. La primera trae los cuerpos de 1 a 4 (goblin, goblina, orco, esqueleto) sin poderes.
-  Desde ahí cada una presenta un poder, y desde la quinta también un cuerpo: escudo; blindaje; explota;
-  jefe goblin y hechicero; chamán y cava; caballero y cura; gólem chico y etéreo; alma en pena e
-  invencible; y el Gólem de roca con la esquiva.
-- **El reparto**: un tercio de los enemigos de cada oleada sale con poder. La mitad de esos con el nuevo
-  (el primero que aparece lo presenta) y el resto con alguno de los que ya se vieron, sobre cualquier
-  cuerpo que pueda tenerlo: con mala suerte, un caballero etéreo. El blindaje sale en 1 cuando se presenta, y el escudo de 1 a 3; los dos suben de nivel con la partida
-  (el escudo hasta 5, y a veces la calavera). En cada oleada, los escudos sorteados salen **de menor a
-  mayor**, y la de los escudos la cierra un esqueleto con la calavera.
-- El caballero y el gólem chico cierran la oleada en que se presentan.
-- **De pasada**: el escudo divino lo presenta uno solo en la cuarta, y la bandera uno solo en la de
-  cavar. Desde la oleada siguiente entran en el sorteo como los demás.
-- En `WAVES` (`src/core/waves.ts`): `groups` (los cuerpos) y `power` (el que presenta). El reparto está en
-  `spawnOrder`, y `node --experimental-transform-types tools/oleadas.mts` mide qué tan difícil es cada una.
+- **La partida: tres escenarios y el jefe.** Cada partida sortea **tres poderes de escenario** entre
+  escudo, blindaje, fantasma, divino y esquiva. Cada escenario son tres oleadas: la primera presenta su
+  poder (lo trae el primero que aparece), y la tercera la cierra un **mini jefe**, el cuerpo más duro que
+  pueda tenerlo con el poder en su versión más dura (la calavera, blindaje 2, el divino que recarga en
+  3 s...): jefe goblin en el primero, caballero en el segundo, gólem chico en el tercero. La décima es la
+  del Gólem de roca, con todo lo anterior mezclado.
+- **Se acumulan**: un tercio de cada oleada sale con poder; la mitad con el del escenario, la otra mitad
+  con los de escenarios anteriores. Uno solo por enemigo.
+- **Apoyo**: la partida sortea también dos poderes de apoyo (hechicero, cura, invencible, bandera), uno
+  para el segundo escenario y otro para el tercero, de a uno o dos por oleada. **Explotar** va con la
+  **estampida**, la oleada del medio del segundo escenario: muchos, chicos, y casi un tercio explota.
+  **Cavar**, por ahora, no sale.
+- **Los cuerpos** suben con los escenarios: del goblin al esqueleto en el primero; entran el jefe goblin
+  y el chamán en el segundo; el caballero y el alma en pena en el tercero.
+- **Arriba, debajo del número de oleada**, van los íconos de los tres poderes de la partida y la
+  calavera del jefe, con el escenario en curso encendido.
+- **Topes** para que nada quede imposible con el mejor golpe en 4: escudo y blindaje van de 1 a 3 (más
+  en el tercer escenario), el etéreo no va en cuerpos de más de 8 de vida y el blindaje 3 solo en los
+  de hasta 4.
+- **Una bandera por vez**: si ya hay un abanderado en el campo, el siguiente sale sin bandera.
+- **Los que sostienen un aura** (cura, invencible) caminan al paso del aliado más lento que tengan
+  cerca, para no dejarlo afuera.
+- En el código: `buildRun` arma la partida y `spawnOrder` reparte los poderes (`src/core/waves.ts`).
+  `node --experimental-transform-types tools/oleadas.mts` mide qué tan difícil es cada oleada,
+  promediando muchas partidas.
 
-## El campo: cuatro mapas, uno por partida
+## El campo: tres mapas, uno por partida
 
-El campo ya no es un plano, y **cada partida sale uno de cuatro mapas diseñados**: *Valle del medio*,
-*La meseta*, *Los dos carriles* y *La loma sola*. Cambia dónde está la cobertura, por dónde vienen en
-fila y desde qué puesto conviene pegar, sin que ninguno quede injugable. `?campo=1` a `?campo=4` fuerza
-uno, y `?plano` deja el campo liso (es lo que usa la prueba general, que mide trayectorias).
+El campo ya no es un plano, y **cada partida sale uno de tres mapas diseñados**: *Valle del medio*,
+*La meseta* (más baja que al principio) y *La loma sola*. Cambia dónde está la cobertura, por dónde
+vienen en fila y desde qué puesto conviene pegar, sin que ninguno quede injugable. `?campo=1` a
+`?campo=3` fuerza uno, y `?plano` deja el campo liso (es lo que usa la prueba general, que mide trayectorias).
 
 Son formas diseñadas, no ruido: el driver sale rasante, así que una loma es cobertura y una zanja es un
 carril. Al azar, atravesar filas sería una lotería.

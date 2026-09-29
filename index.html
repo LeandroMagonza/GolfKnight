@@ -42,6 +42,11 @@
       #wave { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000; }
       #wave .n { font-size: 20px; font-weight: 700; }
       #wave .sub { font-size: 13px; color: #e4e9f0; }
+      /* el recorrido de la partida: los tres poderes de los escenarios y el jefe. El de ahora, encendido */
+      #run { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
+      #run img { width: 26px; height: 26px; opacity: 0.35; filter: grayscale(0.6); transition: opacity 0.2s, transform 0.2s; }
+      #run img.done { opacity: 0.7; filter: none; }
+      #run img.now { opacity: 1; filter: drop-shadow(0 0 5px #ffd66b); transform: scale(1.2); }
       #score { position: absolute; top: 62px; right: 14px; font-size: 15px; text-shadow: 0 1px 3px #000; text-align: right; }
       #skin { position: absolute; top: 88px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
       #skin:hover { background: rgba(0,0,0,0.75); }
@@ -220,7 +225,7 @@
         <div class="bar" id="gatebar"><span>Puerta de Valdehoyo</span><div class="track" style="--seg:10"><div id="gate" class="fill gate"></div></div></div>
         <div class="bar"><span>Vos</span><div class="track" style="--seg:3"><div id="hp" class="fill hp"></div></div></div>
       </div>
-      <div id="wave"><div class="n"></div><div class="sub"></div></div>
+      <div id="wave"><div class="n"></div><div class="sub"></div><div id="run"></div></div>
       <div id="score"></div>
       <button id="skin" type="button" tabindex="-1"></button>
       <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>

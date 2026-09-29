@@ -9,7 +9,7 @@ import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/a
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, ENEMIES, GEOMANCER, GRAB_MIN, GRAB_STRUGGLE, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB_MIN, GRAB_STRUGGLE, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, GRAB_MAX, GRAB_TICK, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -133,9 +133,24 @@ const AURA_COLORS: Record<Aura, number> = { ward: 0xb26bff, heal: 0x6be38a };
 /** Lado de cada ícono en el lienzo de la vida: un 60 % más grande que un cuadradito (32). */
 const BADGE_PX = 52;
 
+export type BadgeIcon = 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge' | 'skull';
+
+/** El ícono de cada poder de escenario, para la fila del recorrido de la partida. */
+export const SCENARIO_ICONS: Record<ScenarioPower, BadgeIcon> = { shield: 'shield', armor: 'armor', ethereal: 'ethereal', divine: 'divine', dodge: 'dodge' };
+
+/** Un ícono suelto, como imagen (el HUD los usa para el recorrido de la partida). */
+export function badgeImage(icon: BadgeIcon): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(2, 2);
+  drawBadge(ctx, 0, { icon }, false);
+  return canvas.toDataURL();
+}
+
 /** Un poder del enemigo, dibujado como ícono antes de su vida. */
 interface Badge {
-  icon: 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge';
+  icon: BadgeIcon;
   /** El número que va encima (cuánto resta el escudo o el blindaje). */
   value?: number;
   /** La granada lo apaga: mientras dura el silencio va tachado. */
@@ -287,6 +302,27 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.closePath();
       ctx.fillStyle = '#5fd3c7';
       break;
+    case 'skull':
+      // el jefe: una calavera, cráneo y mandíbula
+      ctx.arc(cx, 13, 11, Math.PI * 0.85, Math.PI * 0.15);
+      ctx.lineTo(cx + 7, 22);
+      ctx.lineTo(cx + 7, 29);
+      ctx.lineTo(cx - 7, 29);
+      ctx.lineTo(cx - 7, 22);
+      ctx.closePath();
+      ctx.fillStyle = '#f2ecdc';
+      ctx.fill();
+      ctx.stroke();
+      // las cuencas y la nariz
+      ctx.beginPath();
+      ctx.arc(cx - 4.5, 14, 3.2, 0, Math.PI * 2);
+      ctx.arc(cx + 4.5, 14, 3.2, 0, Math.PI * 2);
+      ctx.moveTo(cx, 18);
+      ctx.lineTo(cx - 1.8, 21.5);
+      ctx.lineTo(cx + 1.8, 21.5);
+      ctx.closePath();
+      ctx.fillStyle = '#1b1b1b';
+      break;
     case 'banner':
       ctx.rect(cx - 10, 3, 3, 26);
       ctx.moveTo(cx - 7, 4);
@@ -343,6 +379,8 @@ export class Enemy {
   state: EnemyState = 'walk';
   /** A quién ataca en este momento. */
   target: 'gate' | 'player' = 'gate';
+  /** Tope de velocidad de este cuadro: el que sostiene un aura camina al paso de los aliados que tiene cerca. */
+  paceCap = Infinity;
   /** Frío de la zona de hielo: segundos que le quedan y de cuántos. Solo lo hace caminar lento. */
   chillTimer = 0;
   chillMax = 1;
@@ -635,6 +673,11 @@ export class Enemy {
   }
 
   /** Con frío encima: camina lento. Nada más: el escudo y el aura ya no se los saca el hielo. */
+  /** A qué velocidad camina ahora, con el frío encima. */
+  get walkSpeed(): number {
+    return this.frozen ? 0 : this.stats.speed * this.speedMul * (this.chilled ? ICE.slow : 1);
+  }
+
   get chilled(): boolean {
     return this.chillTimer > 0;
   }
@@ -1117,7 +1160,7 @@ export class Enemy {
         horde.emit({ type: 'attack', enemy: this });
       }
     } else {
-      const speed = this.passed ? PASSED_SPEED : this.stats.speed * this.speedMul * slow;
+      const speed = this.passed ? PASSED_SPEED : Math.min(this.walkSpeed, this.paceCap);
       const step = Math.min(speed * dt, dist);
       this.position.x += (dx / dist) * step;
       this.position.z += (dz / dist) * step;
@@ -1822,6 +1865,24 @@ export class Horde {
   readonly spells: Spell[] = [];
 
   /**
+   * Los que curan o vuelven inmunes bajan la velocidad para no dejar afuera del aura a los aliados que
+   * tienen cerca: caminan al paso del más lento de los que tienen a menos de 3/4 del radio. Solo bajan:
+   * al que va más rápido no lo persiguen.
+   */
+  private updatePace(): void {
+    for (const c of this.enemies) {
+      c.paceCap = Infinity;
+      if (!c.alive || c.passed || !c.auraKind || c.behavior !== 'shaman') continue;
+      const r = c.auraRadius * 0.75;
+      for (const e of this.enemies) {
+        if (e === c || !e.alive || e.passed || e.auraKind || e.target !== 'gate') continue;
+        if (Math.hypot(e.position.x - c.position.x, e.position.z - c.position.z) > r) continue;
+        c.paceCap = Math.min(c.paceCap, e.walkSpeed);
+      }
+    }
+  }
+
+  /**
    * Ráfaga (hierro de viento): los que están a `radius` de `pos` salen `distance` metros hacia `dir`
    * (unitario en el piso), sin daño. Devuelve cuántos.
    */
@@ -1976,6 +2037,7 @@ export class Horde {
   }
 
   update(dt: number, player: Player): void {
+    this.updatePace();
     this.updateWards();
     this.updateHeals(dt);
     this.updateBanner();

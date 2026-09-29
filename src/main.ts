@@ -8,13 +8,13 @@ import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from 
 import { ABILITIES, ABILITY_KEYS, ICE, lv, PALAZO, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
-import { ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods } from './core/waves';
+import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
 import { timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
 import { MoundView } from './game/mounds';
 import { Effects } from './game/effects';
-import { Horde, shadowMat, SHIELD_MODELS, SHIELD_PROPS } from './game/enemies';
+import { badgeImage, Horde, SCENARIO_ICONS, shadowMat, SHIELD_MODELS, SHIELD_PROPS } from './game/enemies';
 import { BALLS, TEE_Z, Tees } from './game/tees';
 import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
@@ -62,7 +62,17 @@ const GATE_MAX = 10;
 const QUALITY_COLORS = [0xffffff, 0xffe066, 0xff2d3c];
 const hud = new Hud();
 const audio = new GameAudio();
-const director = new WaveDirector();
+/**
+ * La partida de esta vez: tres escenarios, cada uno con un poder sorteado, y el jefe (ver `buildRun`).
+ * Reiniciar recarga la página, así que cada partida sortea de nuevo.
+ */
+const run = buildRun();
+const director = new WaveDirector(run.waves);
+const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva' };
+hud.setRun([
+  ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),
+  { src: badgeImage('skull'), title: 'El jefe' },
+]);
 let player: Player;
 let gateHp = GATE_MAX;
 let score = 0;
@@ -1373,7 +1383,7 @@ function updateWaves(dt: number): void {
     switch (e.type) {
       case 'wave': {
         audio.waveHorn();
-        hud.showBanner(`Oleada ${e.index + 1}`, e.wave.title);
+        hud.showBanner(`Oleada ${e.index + 1}`, `${e.wave.scenario < 3 ? `Escenario ${e.wave.scenario + 1}` : 'El jefe'} · ${e.wave.title}`);
         // el día avanza con la partida: la primera oleada es de mañana y la última al atardecer
         visuals.setDayProgress(director.waveCount > 1 ? e.index / (director.waveCount - 1) : 0);
         break;
@@ -1381,7 +1391,15 @@ function updateWaves(dt: number): void {
       case 'spawn':
         // apagado desde el panel de balance: la oleada sigue igual, pero este tipo no sale
         if (disabledKinds.has(e.kind)) break;
-        horde.spawn(e.kind, undefined, e.mods);
+        {
+          // una bandera por vez: si ya hay un abanderado en el campo, este sale sin bandera
+          let mods = e.mods;
+          if (mods?.banner && horde.enemies.some((x) => x.alive && !x.passed && x.behavior === 'banner')) {
+            const { banner: _, ...rest } = mods;
+            mods = Object.keys(rest).length ? rest : undefined;
+          }
+          horde.spawn(e.kind, undefined, mods);
+        }
         announce(e.kind, e.mods);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Te persigue y te agarra: pegale antes de que llegue', 'bad');
@@ -1456,6 +1474,7 @@ function frame(): void {
     hud.setPerks(perkStatus());
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
+    hud.setScenario(director.list[director.index]?.scenario ?? -1);
     hud.setScore(score, kills);
   }
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos

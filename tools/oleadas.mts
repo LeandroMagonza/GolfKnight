@@ -8,7 +8,7 @@
 //
 // Referencia: un tiro sale cada 1.5 s más o menos y saca entre 2 y 3 de un golpe bueno, algo más con
 // filas y áreas. O sea que un buen jugador sostiene unos 2 por segundo.
-import { behaviorOf, ENEMIES, spawnOrder, WAVES, type EnemyMods, type EnemyKind } from '../src/core/waves.ts';
+import { behaviorOf, buildRun, ENEMIES, spawnOrder, type EnemyMods, type EnemyKind } from '../src/core/waves.ts';
 
 /** Segundos que tarda uno de velocidad media en llegar desde el fondo hasta los puestos. */
 const TRAVEL = 24;
@@ -45,23 +45,29 @@ function effective(kind: EnemyKind, mods: EnemyMods = {}): number {
 let seed = 7;
 const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 
-console.log('ola | título | enemigos | vida | vida efectiva | aparición (s) | por segundo | salto');
+// cada partida sortea sus poderes: se promedian muchas, oleada por oleada
+const all = Array.from({ length: RUNS }, () => buildRun(rand));
+console.log('ola | escenario | enemigos | vida | vida efectiva | aparición (s) | por segundo | salto');
 let prev = 0;
-WAVES.forEach((w, i) => {
+for (let i = 0; i < all[0].waves.length; i++) {
   let eff = 0;
   let hp = 0;
   let n = 0;
-  for (let r = 0; r < RUNS; r++) {
-    const order = spawnOrder(WAVES, i, rand);
-    n = order.length;
+  let t = 0;
+  for (const run of all) {
+    const w = run.waves[i];
+    const order = spawnOrder(w, rand);
+    n += order.length / RUNS;
+    t += (order.length * w.interval) / RUNS;
     for (const sp of order) {
       eff += effective(sp.kind, sp.mods) / RUNS;
       hp += (ENEMIES[sp.kind].hp + (sp.mods?.hp ?? 0)) / RUNS;
     }
   }
-  const t = n * w.interval;
   const rate = eff / (t + TRAVEL);
   const jump = prev ? `${rate >= prev ? '+' : ''}${Math.round((rate / prev - 1) * 100)} %` : '';
   prev = rate;
-  console.log(`${String(i + 1).padStart(2)} | ${w.title.padEnd(22)} | ${String(n).padStart(2)} | ${hp.toFixed(0).padStart(3)} | ${eff.toFixed(0).padStart(3)} | ${t.toFixed(0).padStart(3)} | ${rate.toFixed(2)} | ${jump}`);
-});
+  const w = all[0].waves[i];
+  const label = w.scenario < 3 ? `${w.scenario + 1}.${(i % 3) + 1} ${w.explode ? 'estampida' : ''}` : 'jefe';
+  console.log(`${String(i + 1).padStart(2)} | ${label.padEnd(12)} | ${n.toFixed(0).padStart(2)} | ${hp.toFixed(0).padStart(3)} | ${eff.toFixed(0).padStart(3)} | ${t.toFixed(0).padStart(3)} | ${rate.toFixed(2)} | ${jump}`);
+}

@@ -49,29 +49,17 @@ export const COURSES: readonly Course[] = [
     valleys: [{ x: 0, depth: 0.9, halfWidth: 4, fromZ: 22, toZ: 60 }],
   },
   {
-    // una meseta ancha en el medio parte el campo en dos: el driver no pasa, los globos sí
+    // una meseta ancha en el medio parte el campo en dos: el driver no pasa, los globos sí. Más baja que
+    // al principio (2.4 m): tapaba demasiado
     name: 'La meseta',
     hills: [
-      { x: 0, z: 38, height: 2.4, rx: 8, rz: 5 },
+      { x: 0, z: 38, height: 1.5, rx: 8, rz: 5 },
       { x: -15, z: 26, height: 1.4, rx: 4, rz: 4 },
       { x: 15, z: 26, height: 1.4, rx: 4, rz: 4 },
     ],
     valleys: [
       { x: -11, depth: 1.0, halfWidth: 3.2, fromZ: 30, toZ: 62 },
       { x: 11, depth: 1.0, halfWidth: 3.2, fromZ: 30, toZ: 62 },
-    ],
-  },
-  {
-    // dos carriles laterales y una loma cerca: hay que salir del puesto del medio
-    name: 'Los dos carriles',
-    hills: [
-      { x: 0, z: 24, height: 1.8, rx: 5.5, rz: 4 },
-      { x: -8, z: 50, height: 2.2, rx: 5, rz: 6 },
-      { x: 9, z: 50, height: 2.2, rx: 5, rz: 6 },
-    ],
-    valleys: [
-      { x: -13, depth: 1.1, halfWidth: 3.5, fromZ: 20, toZ: 64 },
-      { x: 13, depth: 1.1, halfWidth: 3.5, fromZ: 20, toZ: 64 },
     ],
   },
   {

@@ -1944,3 +1944,88 @@ guardado: si no, quien ya había jugado seguía con los daños viejos. Quedó as
   chico (10) tres. Los escudos de 4 y 5 ya casi no dejan pasar nada de frente (4 − 4 = 0), así que
   funcionan como la calavera, y el blindaje 3 deja pasar 1 del mejor golpe. `tools/oleadas.mts` no mide
   el daño de los palos: la curva de las oleadas hay que volver a probarla jugando.
+
+## Hecho: escenarios (29/9/2026)
+
+Leandro reformuló las oleadas: **tres escenarios de tres oleadas, cada uno con un poder, y después la
+oleada del jefe**. La partida se arma al empezar (`buildRun`), así que cada una es distinta.
+
+### Cómo es una partida
+
+| Oleada | Escenario | Qué trae |
+| --- | --- | --- |
+| 1 | 1 | presenta el primer poder; goblin, goblina, orco y esqueleto |
+| 2 | 1 | refuerzos |
+| 3 | 1 | cierra el mini jefe: jefe goblin con el poder en su versión más dura |
+| 4 | 2 | presenta el segundo poder; entran el jefe goblin y el primer apoyo |
+| 5 | 2 | **la estampida**: 28, casi todos goblins y goblinas, y un 30 % explota |
+| 6 | 2 | entra el chamán; cierra el mini jefe: caballero |
+| 7 | 3 | presenta el tercer poder; entran el caballero, el alma en pena y el segundo apoyo |
+| 8 | 3 | refuerzos |
+| 9 | 3 | cierra el mini jefe: gólem chico |
+| 10 | jefe | el Gólem de roca, con escolta y los tres poderes mezclados |
+
+- **Poderes de escenario**: se sortean tres de estos cinco: escudo, blindaje, fantasma, divino,
+  esquiva. Un tercio de cada oleada sale con poder; la mitad con el del escenario y la otra mitad con
+  los anteriores, así que se acumulan. Uno solo por enemigo.
+- **El mini jefe** lleva el poder del escenario en su versión más dura: la calavera, blindaje 2 (1 en
+  el primer escenario), el divino que recarga en 3 s en vez de 5, el etéreo o la esquiva. Es el cuerpo
+  más duro que pueda tenerlo (`miniBoss`): si el poder no le entra por los topes, baja en la escalera
+  (un gólem chico no puede ser etéreo: el mini jefe fantasma del tercero es el caballero). Leandro dudaba
+  entre esto y que el mini jefe acumulara todos los poderes; quedó el del escenario solo, porque con
+  varios juntos aparecen justo las combinaciones imposibles (blindaje más etéreo).
+- **Apoyo**: hechicero, cura, invencible y bandera no eran de escenario. La partida sortea dos, uno
+  para el segundo escenario y otro para el tercero, de a uno o dos por oleada. Así no se pierden y no
+  compiten con el poder del escenario.
+- **Explotar** salió del sorteo, como pidió Leandro: es un poder bueno para el jugador (se lleva a los
+  de al lado), así que va con **la estampida**, muchos y chicos. Solo explotan los de hasta 2 de vida.
+- **Cavar** queda afuera por ahora (ver `pendientes.md`); el poder sigue andando.
+- **El recorrido arriba**: debajo del número de oleada, los íconos de los tres poderes y una calavera
+  para el jefe. El escenario en curso va encendido; los pasados, normales; los que vienen, apagados.
+  El cartel de cada oleada dice el escenario.
+
+### Las combinaciones imposibles
+
+Leandro pidió revisar si hay combinaciones que no se pueden matar, sin prohibirlas de entrada. Con el
+mejor golpe en 4:
+
+- **Blindaje y etéreo en el mismo enemigo** sería imposible en la práctica: hay que pegarle más fuerte
+  que el blindaje y aun así saca 1 por golpe. Como **cada enemigo trae un solo poder**, nunca van
+  juntos. En la misma partida sí pueden venir los dos, en enemigos distintos, y eso está bien: piden
+  palos distintos.
+- **El etéreo en cuerpos grandes**: un gólem chico etéreo son 10 golpes. Tope: el etéreo no va en
+  cuerpos de más de 8 (`LIMITS.etherealMaxHp`).
+- **El blindaje alto**: con el mejor golpe en 4, un blindaje 3 deja pasar 1. En un cuerpo de 10 son diez
+  golpes perfectos. Tope: el blindaje 3 solo va en los de hasta 4 de vida, y el del mini jefe no pasa
+  de 2 (el gólem chico blindado pide cinco golpes perfectos).
+- **El escudo** no pasa de 3 en los enemigos comunes: con 4 ya no dejaba pasar nada de frente, y para
+  eso está la calavera, que solo la lleva el mini jefe del escudo.
+- **Divino y esquiva** no tienen techo que cuidar: cuestan tiempo, no golpes.
+
+### Otros cambios del mismo pedido
+
+- **Los que curan o vuelven inmunes caminan al paso de sus aliados**: bajan la velocidad hasta la del
+  más lento que tengan a 3/4 del radio del aura (`Horde.updatePace`). Solo bajan: no persiguen al que
+  va más rápido. Probado: un goblin que cura, al lado de un esqueleto, caminó pegado a él.
+- **Una bandera por vez**: si ya hay un abanderado en el campo, el siguiente sale sin bandera.
+- **Campos**: la meseta bajó de 2.4 a 1.5 m, y se sacó *Los dos carriles*. Quedan tres.
+
+### La curva
+
+`tools/oleadas.mts` promedia 400 partidas oleada por oleada. Sube en cada escenario, afloja un poco al
+empezar el siguiente (después del mini jefe) y el jefe es el pico:
+
+| Ola | Escenario | Enemigos | Por segundo | Salto |
+| --- | --- | --- | --- | --- |
+| 1 | 1.1 | 17 | 0.69 | |
+| 2 | 1.2 | 18 | 0.79 | +16 % |
+| 3 | 1.3 | 19 | 0.91 | +15 % |
+| 4 | 2.1 | 19 | 0.97 | +6 % |
+| 5 | 2.2, estampida | 28 | 1.17 | +21 % |
+| 6 | 2.3 | 21 | 1.37 | +17 % |
+| 7 | 3.1 | 21 | 1.26 | −8 % |
+| 8 | 3.2 | 23 | 1.37 | +9 % |
+| 9 | 3.3 | 21 | 1.50 | +9 % |
+| 10 | jefe | 19 | 2.47 | +65 % |
+
+Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4): falta jugarla.

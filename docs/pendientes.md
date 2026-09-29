@@ -39,6 +39,38 @@ con lo demás.
 - ¿Se puede saltear para quien ya jugó?
 - Cómo se presenta lo que llega con las cartas (habilidades, mejoras), que no depende de la oleada.
 
+## Los campos
+
+Revisar los mapas (29/9: la meseta se bajó y se sacó *Los dos carriles*). Qué pregunta hace cada uno,
+si alguno tapa demasiado con el mejor golpe en 4, y si hacen falta otros.
+
+## Las descripciones
+
+Revisar todas las descripciones: habilidades, mejoras, poderes y carteles. Muchas no son claras, y otras
+dan información de más que confunde. Que cada una diga qué hace en una frase, y lo demás, si hace falta,
+en el panel.
+
+## El jefe
+
+Hoy termina siendo una carrera: el Gólem tira piedras a la puerta y no hay forma de evitar que pegue,
+así que hay que matar a todos los demás y tener vida para aguantarlo hasta que muera. Mejorarlo, y
+posiblemente sumar otros jefes. Ideas de Leandro:
+
+- **Piedras que nacen en la línea de 20.** En vez de tirar piedras, se apoya en la tierra y van
+  apareciendo piedras a lo largo de la línea de 20 m, con distintas vidas. Toman velocidad unos segundos
+  y salen contra la puerta: el guerrero tiene tiempo de pegarles antes de que se lancen, mientras le
+  pega al jefe. Las piedras se cargan cada vez más rápido o salen más grandes.
+- **Bowling.** El jefe tira una piedra rodando, y se le puede pegar. Pero con el jefe tan quieto puede
+  aburrir.
+- **Tres jefes.** Tres que tiran piedras, y hay que matar a los tres mientras se les pega a las piedras
+  de cada uno: conviene concentrarse en uno sin desatender las piedras de los otros.
+
+## Cavar
+
+El poder de cavar (el que levanta una loma) quedó afuera de las partidas en el rediseño por escenarios:
+no encajaba ni como poder de escenario ni como apoyo. El código sigue andando (`POWERS.dig`); falta
+decidir dónde va.
+
 ## Más formas de silenciar, con recargas que pidan pensar
 
 La granada ahora saca también el blindaje, así que resuelve escudo, aura, inmunidad y blindaje de una.

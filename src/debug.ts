@@ -15,7 +15,7 @@ import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from '.
 import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
 import { COURSES } from './core/terrain';
-import { ENEMIES, GEOMANCER, HEAL_AURA, type EnemyKind, type WaveDirector, WAVES } from './core/waves';
+import { ENEMIES, GEOMANCER, HEAL_AURA, type EnemyKind, type WaveDirector } from './core/waves';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
 export interface DebugFlags {
@@ -1032,7 +1032,8 @@ export class DebugPanel {
       this.toggleButton('Puerta infinita', () => this.hooks.flags.godGate, (v) => { this.hooks.flags.godGate = v; }),
     );
     const waves = this.row();
-    for (let i = 0; i < WAVES.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), WAVES[i].title));
+    const list = this.hooks.director.list;
+    for (let i = 0; i < list.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), list[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
   }
 
