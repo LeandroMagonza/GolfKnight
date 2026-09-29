@@ -100,9 +100,9 @@ export class Hud {
    * (medio) y rojo (fuerte) en el centro.
    */
   /**
-   * Los tramos del arco: el golpe 1 en los bordes (blanco), el 2 entre medio (verde) y el 3 en el centro
-   * (amarillo), del mismo color que la línea de tiro. `duff`: con este palo el golpe 1 es pifia (el
-   * wedge), y ese tramo va en gris con un triángulo de peligro.
+   * Los tramos del arco: el golpe 1 en los bordes (verde), el 2 entre medio (amarillo) y el 3 en el
+   * centro (rojo). `duff`: con este palo el golpe 1 es pifia (el wedge), y el arco cambia: el golpe 1 en
+   * gris con un triángulo de peligro, el 2 en verde y el 3 en amarillo.
    */
   setMarks(midFrom: number, strongFrom: number, duff = false): void {
     // se llama en cada cuadro (los umbrales se tocan en el panel): solo se rearma si cambiaron
@@ -117,9 +117,9 @@ export class Hud {
       `<path class="zone" fill="${color}" d="M ${at(R, a1)} A ${R} ${R} 0 0 1 ${at(R, a2)} L ${at(r, a2)} A ${r} ${r} 0 0 0 ${at(r, a1)} Z" />`;
     const g = deg(midFrom);
     const y = deg(strongFrom);
-    const low = duff ? '#4d535c' : '#eef0f2';
-    const green = '#5be07a';
-    const yellow = '#ffd21f';
+    const low = duff ? '#4d535c' : '#5be07a';
+    const mid = duff ? '#5be07a' : '#ffd66b';
+    const top = duff ? '#ffd21f' : '#ff2d3c';
     // el triángulo de peligro, en el medio de cada tramo de la pifia
     const warn = (a: number) => {
       const [x, y] = at((R + r) / 2, a).split(' ').map(Number);
@@ -129,7 +129,7 @@ export class Hud {
     // un fondo oscuro un poco más grande, como tenía la barra: sobre el pasto el verde se perdía
     const back = `<path fill="rgba(0,0,0,0.6)" d="M ${at(R + 4, -92)} A ${R + 4} ${R + 4} 0 0 1 ${at(R + 4, 92)} L ${at(r - 4, 92)} A ${r - 4} ${r - 4} 0 0 0 ${at(r - 4, -92)} Z" />`;
     this.meter.innerHTML = `<svg viewBox="-72 -72 144 78">` + back
-      + sector(-90, -g, low) + sector(-g, -y, green) + sector(-y, y, yellow) + sector(y, g, green) + sector(g, 90, low)
+      + sector(-90, -g, low) + sector(-g, -y, mid) + sector(-y, y, top) + sector(y, g, mid) + sector(g, 90, low)
       + (duff ? warn(-(90 + g) / 2) + warn((90 + g) / 2) : '')
       + `<g class="needle"><line x1="0" y1="-30" x2="0" y2="-72" stroke="#0b0f14" stroke-width="6" stroke-linecap="round" />`
       + `<line x1="0" y1="-30" x2="0" y2="-72" stroke="#ffffff" stroke-width="3" stroke-linecap="round" /></g>`

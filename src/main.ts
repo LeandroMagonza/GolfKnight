@@ -59,10 +59,10 @@ balls.traps = traps;
 
 // ---------- estado ----------
 const GATE_MAX = 10;
-/** Color de la línea de tiro según la calidad del golpe: flojo, bueno y perfecto, como el arco. */
-const QUALITY_COLORS = [0xffffff, 0x5be07a, 0xffd21f];
-/** La línea de tiro de un golpe que pifia (el golpe 1 del wedge): gris, como su tramo del arco. */
-const DUFF_COLOR = 0x6b7480;
+/** Color de la línea de tiro según la calidad del golpe: flojo, bueno y perfecto. */
+const QUALITY_COLORS = [0xffffff, 0xffe066, 0xff2d3c];
+/** La del palo que pifia con el golpe 1 (el wedge), como su arco: gris, verde y amarillo. */
+const DUFF_COLORS = [0x6b7480, 0x5be07a, 0xffd21f];
 const hud = new Hud();
 const audio = new GameAudio();
 /**
@@ -308,7 +308,7 @@ function updatePreview(): void {
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
   pos.needsUpdate = true;
   // la línea toma el color del palo; mientras se carga, el de la calidad del golpe
-  const lineColor = charging ? (duff && quality === 1 ? DUFF_COLOR : QUALITY_COLORS[quality - 1]) : club.color;
+  const lineColor = charging ? (duff ? DUFF_COLORS : QUALITY_COLORS)[quality - 1] : club.color;
   previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
   previewMat.size = charging ? (quality >= QUALITY_LEVELS ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;

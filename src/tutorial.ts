@@ -8,8 +8,8 @@
 //
 // Los pasos:
 // 1. apuntar y pegar (driver);
-// 2. cargar hasta el verde (uno blindado, al que el golpe flojo no le hace nada);
-// 3. clavar la carga con Espacio: con el golpe clavado en el verde, los dos enemigos se ponen en fila
+// 2. cargar hasta el amarillo (uno blindado, al que el golpe flojo no le hace nada);
+// 3. clavar la carga con Espacio: con el golpe clavado en el amarillo, los dos enemigos se ponen en fila
 //    frente al golfista, y ahí se suelta (para eso sirve cargar antes);
 // 4. el hierro: un grupo detrás de una loma, pegándole a uno salpica a los demás;
 // 5. el wedge: un globo que abre un área grande, y que con el golpe 1 pifia;
@@ -56,7 +56,7 @@ const KEY = (k: string) => `<kbd>${k}</kbd>`;
 
 /** Lo mínimo para que el golpe no sea el flojo. */
 const needGreen = (_: Tutorial, shot: NonNullable<Shot>) =>
-  shot.quality >= 2 ? null : 'Golpe flojo (blanco): mantené el click hasta que la aguja llegue al verde';
+  shot.quality >= 2 ? null : 'Golpe flojo (verde): mantené el click hasta que la aguja llegue al amarillo';
 
 const STEPS: Step[] = [
   {
@@ -70,22 +70,22 @@ const STEPS: Step[] = [
     title: 'Cargar el golpe',
     club: 'driver',
     text: `Este tiene <b>blindaje</b>: el golpe flojo no le hace nada. Mantené el ${KEY('click')}: la aguja sube del `
-      + `<b class="t1">blanco</b> al <b class="t2">verde</b>. Soltá en el verde.`,
+      + `<b class="green">verde</b> al <b class="yellow">amarillo</b>. Soltá en el amarillo.`,
     setup: (t) => t.put('goblin', -4, 26, { armor: 1 }),
     allow: needGreen,
-    praise: '¡Eso! Y si soltás justo en el <b class="t3">amarillo del centro</b>, es el golpe perfecto: pega todavía más.',
+    praise: '¡Eso! Y si soltás justo en el <b class="red">rojo del centro</b>, es el golpe perfecto: pega todavía más.',
   },
   {
     title: 'Clavar la carga',
     club: 'driver',
-    text: `Cargá hasta el <b class="t2">verde</b> y apretá ${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. `
+    text: `Cargá hasta el <b class="yellow">amarillo</b> y apretá ${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. `
       + `No sueltes el ${KEY('click')}.`,
     setup: (t) => {
       t.put('goblina', -7, 22);
       t.put('goblina', 8, 29);
       t.lineUp = true;
     },
-    allow: (t, shot) => (!t.lockLearned ? `Primero clavá la carga en el verde con ${'Espacio'}, y después soltá` : needGreen(t, shot)),
+    allow: (t, shot) => (!t.lockLearned ? 'Primero clavá la carga en el amarillo con Espacio, y después soltá' : needGreen(t, shot)),
     update: (t) => t.watchLock(),
     praise: '¡Los dos de un tiro! Clavar la carga te deja esperar a que se pongan en fila.',
   },
@@ -107,7 +107,7 @@ const STEPS: Step[] = [
     title: 'El wedge',
     club: 'wedge',
     text: `${KEY('3')} Wedge: un globo alto que cae donde apuntás y abre un área grande. Ojo: con el golpe `
-      + `flojo se <b>pifia</b> y la pelota no sale (el arco lo marca en gris ⚠). Cargá al <b class="t2">verde</b>.`,
+      + `flojo se <b>pifia</b> y la pelota no sale (el arco lo marca en gris ⚠). Cargá al <b class="green">verde</b>.`,
     setup: (t) => {
       for (const [x, z] of [[1, 24], [3, 24.5], [2, 26.2], [0.2, 26], [3.6, 26.4]]) t.put('goblin', x, z);
     },
@@ -143,7 +143,7 @@ export class Tutorial {
   private toldAt = -Infinity;
   private clock = 0;
   private ownMounds: Mound[] = [];
-  /** Ya clavó la carga en el verde (paso 3). */
+  /** Ya clavó la carga en el amarillo (paso 3). */
   lockLearned = false;
   finished = false;
 
@@ -259,7 +259,7 @@ export class Tutorial {
     if (locked && !this.wasLocked) {
       const q = qualityOf(meter.power);
       if (q < 2) {
-        this.host.hud.feedback('Clavaste en el blanco: apretá Espacio otra vez para volver a cargar, y clavalo en el verde', 'bad');
+        this.host.hud.feedback('Clavaste en el verde: apretá Espacio otra vez para volver a cargar, y clavalo en el amarillo', 'bad');
       } else if (!this.lockLearned) {
         this.lockLearned = true;
         // con el golpe guardado, los dos se ponen en fila frente al golfista: sobre la recta que sale
@@ -285,7 +285,7 @@ export class Tutorial {
 
   onEvent(e: HordeEvent): void {
     // al blindado el golpe flojo no le hace nada: ni llega a perdonarlo
-    if (e.type === 'armored' && this.enemies.includes(e.enemy)) this.reason = 'El golpe flojo no le entra al blindaje: cargá hasta el verde';
+    if (e.type === 'armored' && this.enemies.includes(e.enemy)) this.reason = 'El golpe flojo no le entra al blindaje: cargá hasta el amarillo';
     else if (e.type !== 'spared' || !this.reason) return;
     // un tiro de área puede perdonar a varios a la vez: se dice una sola vez
     if (this.clock - this.toldAt < 0.5) return;

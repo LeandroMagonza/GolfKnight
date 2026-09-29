@@ -2132,6 +2132,6 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
 - Los enemigos de cada paso se corren a lo ancho hasta la franja más plana del campo: en un valle el
   enemigo queda un metro más abajo y el driver le pasa por encima. Van entre 15 y 20 m, más cerca que
   el recuadro de las instrucciones, que va arriba.
-- **El arco de carga**: los bordes (golpe 1) en blanco, el golpe 2 en verde y el centro (golpe 3) en
-  amarillo. La línea de tiro usa los mismos colores. Con el wedge, el golpe 1 es pifia: ese tramo va en
-  **gris con un triángulo de peligro**, y la línea de tiro también se ve gris.
+- **El arco del wedge**: como con el golpe 1 pifia, su arco es otro: el golpe 1 en **gris con un
+  triángulo de peligro**, el 2 en verde y el 3 en amarillo, y la línea de tiro con los mismos colores.
+  Los otros palos siguen como siempre: verde, amarillo y rojo en el centro.
