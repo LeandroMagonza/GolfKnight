@@ -54,6 +54,8 @@ export interface EnemyMods {
   dodge?: boolean;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
+  /** Tamaño, sobre el del cuerpo (el mini jefe viene más grande). Agranda también su radio para las pelotas. */
+  size?: number;
 }
 
 export interface EnemyStats {
@@ -151,9 +153,10 @@ export function behaviorOf(stats: EnemyStats, mods: EnemyMods = {}): Behavior {
  * Topes para que ninguna combinación quede imposible con el mejor golpe en 4. Cada enemigo trae un solo
  * poder, así que el blindaje y el etéreo nunca van juntos en el mismo; lo que queda es cuidar los
  * cuerpos grandes: el etéreo (que se lleva de a 1 por golpe) no va en los de más de 8 de vida, y el
- * blindaje 3 (que al mejor golpe le deja pasar 1) solo en los de hasta 4.
+ * blindaje 3 (que al mejor golpe le deja pasar 1) solo en los de hasta 4. Y el etéreo tampoco va en los
+ * de 1 de vida: al goblin no le cambia nada, así que el fantasma pasa al próximo que pueda tenerlo.
  */
-export const LIMITS = { etherealMaxHp: 8, armor3MaxHp: 4 };
+export const LIMITS = { etherealMinHp: 2, etherealMaxHp: 8, armor3MaxHp: 4 };
 
 /**
  * ¿Este cuerpo puede recibir este poder? Los jefes, ninguno; los que ya se comportan distinto, solo los
@@ -162,7 +165,7 @@ export const LIMITS = { etherealMaxHp: 8, armor3MaxHp: 4 };
 export function canTake(kind: EnemyKind, mods: EnemyMods): boolean {
   const s = ENEMIES[kind];
   if (s.boss) return false;
-  if (mods.ethereal && s.hp > LIMITS.etherealMaxHp) return false;
+  if (mods.ethereal && (s.hp > LIMITS.etherealMaxHp || s.hp < LIMITS.etherealMinHp)) return false;
   if ((mods.armor ?? 0) >= 3 && s.hp > LIMITS.armor3MaxHp) return false;
   const changesBehavior = BEHAVIOR_POWERS.some((k) => mods[k]);
   return !changesBehavior || s.behavior === 'melee';
@@ -332,9 +335,12 @@ export const LADDER: EnemyKind[] = ['goblin', 'goblina', 'orc', 'skeleton', 'war
 /** El mini jefe de cada escenario: este cuerpo, o el de más abajo en la escalera que pueda tener el poder. */
 const MINI_BOSS: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
 
+/** Cuánto más grande es el mini jefe que su cuerpo de siempre. */
+export const MINI_BOSS_SIZE = 1.35;
+
 /** El mini jefe del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
 export function miniBoss(scenario: number, power: ScenarioPower): WaveGroup {
-  const mods = BOSS_POWERS[power](scenario);
+  const mods: EnemyMods = { ...BOSS_POWERS[power](scenario), size: MINI_BOSS_SIZE };
   for (let i = LADDER.indexOf(MINI_BOSS[scenario]); i >= 0; i--) {
     if (canTake(LADDER[i], mods)) return { kind: LADDER[i], count: 1, at: 1, mods };
   }

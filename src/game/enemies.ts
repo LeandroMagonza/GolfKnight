@@ -709,13 +709,18 @@ export class Enemy {
     return this.burnTimer > 0;
   }
 
-  // agrandado por la lupa, también es más grande para las pelotas: esa es la gracia
+  /** Tamaño propio (el mini jefe viene más grande), aparte de lo que lo agranda la lupa. */
+  get size(): number {
+    return this.mods.size ?? 1;
+  }
+
+  // agrandado por la lupa (o por ser mini jefe), también es más grande para las pelotas: esa es la gracia
   get radius(): number {
-    return this.stats.radius * this.growScale;
+    return this.stats.radius * this.growScale * this.size;
   }
 
   get height(): number {
-    return this.stats.height * this.growScale;
+    return this.stats.height * this.growScale * this.size;
   }
 
   /** Hacia dónde mira (unitario en el plano). */
@@ -1007,7 +1012,7 @@ export class Enemy {
     // la lupa agranda de a poco, y achica de a poco: que se vea que crece
     const size = this.growTimer > 0 ? LENS.scale : 1;
     this.growScale += (size - this.growScale) * (1 - Math.exp(-8 * dt));
-    this.group.scale.setScalar(this.growScale);
+    this.group.scale.setScalar(this.growScale * this.size);
     this.refreshChill();
     const slow = this.chilled ? ICE.slow : 1;
     const behavior = this.behavior;

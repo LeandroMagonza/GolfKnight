@@ -2029,3 +2029,11 @@ empezar el siguiente (después del mini jefe) y el jefe es el pico:
 | 10 | jefe | 19 | 2.47 | +65 % |
 
 Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4): falta jugarla.
+
+### Después (29/9)
+
+- **El mini jefe es un 35 % más grande** (`EnemyMods.size`, `MINI_BOSS_SIZE`): el modelo, y también su
+  radio para las pelotas y su altura. Se distingue de lejos.
+- **El etéreo no va en los de 1 de vida** (`LIMITS.etherealMinHp`): a un goblin no le cambia nada. Si le
+  iba a tocar, sale normal y el fantasma pasa al próximo que pueda tenerlo; en la primera oleada del
+  escenario, el que lo presenta es el primero que no es goblin.

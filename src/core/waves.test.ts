@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { behaviorOf, buildRun, canTake, ENEMIES, LADDER, LIMITS, miniBoss, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { behaviorOf, buildRun, canTake, ENEMIES, LADDER, LIMITS, miniBoss, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -57,6 +57,8 @@ describe('waves', () => {
         expect(has(last.mods, run.powers[s]), w.title).toBe(true);
         expect(canTake(last.kind, last.mods!)).toBe(true);
         if (run.powers[s] === 'shield') expect(last.mods!.shield).toBe(SHIELD_WALL);
+        // y es más grande que su cuerpo de siempre
+        expect(last.mods!.size).toBeGreaterThan(1);
       }
     }
     // el más duro que pueda: el gólem chico en el tercero, salvo que el poder no le entre
@@ -86,8 +88,10 @@ describe('waves', () => {
             const focus = drawn.filter((o) => has(o.mods, w.focus!)).length;
             expect(focus, w.title).toBe(w.old?.length ? Math.ceil(shared / 2) : shared);
           }
+          // lo presenta el primero que puede tenerlo (con el fantasma, el primero que no es un goblin)
           if (w.debut) {
-            const first = order.find((o) => o.mods && !o.mods.explode);
+            const probe = POWERS[w.focus!](w.scenario, () => 0);
+            const first = order.find((o) => !ENEMIES[o.kind].boss && canTake(o.kind, probe));
             expect(has(first?.mods, w.focus!), w.title).toBe(true);
           }
         }
@@ -132,6 +136,9 @@ describe('waves', () => {
 
   it('los topes: nada imposible con el mejor golpe en 4', () => {
     expect(canTake('knight', { ethereal: true })).toBe(true);
+    // al goblin, de 1 de vida, el etéreo no le cambia nada: no lo lleva
+    expect(canTake('goblin', { ethereal: true })).toBe(false);
+    expect(canTake('goblina', { ethereal: true })).toBe(true);
     expect(canTake('stoneling', { ethereal: true })).toBe(false);
     expect(ENEMIES.stoneling.hp).toBeGreaterThan(LIMITS.etherealMaxHp);
     expect(canTake('skeleton', { armor: 3 })).toBe(true);

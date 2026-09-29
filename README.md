@@ -253,7 +253,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   escudo, blindaje, fantasma, divino y esquiva. Cada escenario son tres oleadas: la primera presenta su
   poder (lo trae el primero que aparece), y la tercera la cierra un **mini jefe**, el cuerpo más duro que
   pueda tenerlo con el poder en su versión más dura (la calavera, blindaje 2, el divino que recarga en
-  3 s...): jefe goblin en el primero, caballero en el segundo, gólem chico en el tercero. La décima es la
+  3 s...), y un 35 % más grande: jefe goblin en el primero, caballero en el segundo, gólem chico en el
+  tercero. La décima es la
   del Gólem de roca, con todo lo anterior mezclado.
 - **Se acumulan**: un tercio de cada oleada sale con poder; la mitad con el del escenario, la otra mitad
   con los de escenarios anteriores. Uno solo por enemigo.
@@ -266,8 +267,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 - **Arriba, debajo del número de oleada**, van los íconos de los tres poderes de la partida y la
   calavera del jefe, con el escenario en curso encendido.
 - **Topes** para que nada quede imposible con el mejor golpe en 4: escudo y blindaje van de 1 a 3 (más
-  en el tercer escenario), el etéreo no va en cuerpos de más de 8 de vida y el blindaje 3 solo en los
-  de hasta 4.
+  en el tercer escenario), el etéreo no va en cuerpos de más de 8 de vida ni en los de 1 (al goblin no
+  le cambia nada: el fantasma pasa al próximo que pueda tenerlo) y el blindaje 3 solo en los de hasta 4.
 - **Una bandera por vez**: si ya hay un abanderado en el campo, el siguiente sale sin bandera.
 - **Los que sostienen un aura** (cura, invencible) caminan al paso del aliado más lento que tengan
   cerca, para no dejarlo afuera.
