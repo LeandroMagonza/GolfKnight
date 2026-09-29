@@ -2037,3 +2037,17 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
 - **El etéreo no va en los de 1 de vida** (`LIMITS.etherealMinHp`): a un goblin no le cambia nada. Si le
   iba a tocar, sale normal y el fantasma pasa al próximo que pueda tenerlo; en la primera oleada del
   escenario, el que lo presenta es el primero que no es goblin.
+
+### Élites (29/9)
+
+- **Los mini jefes pasan a llamarse élites** (`elite`, `ELITE`), y su tamaño depende del modelo: llegan
+  a 3 m de alto, y crecen por lo menos un 25 %. El jefe goblin (1.65 m) crece un 82 % y queda más alto
+  que un caballero; el caballero (2.2 m) crece un 36 %; el gólem chico (2.1 m), un 43 %. Antes crecían
+  todos un 35 %, y el jefe goblin élite seguía siendo más chico que un esqueleto. Cuando entra, sale el
+  cartel «¡Llega el élite!».
+- **El cuerpo fuerte del escenario viene desde la primera oleada** (`HEAVY`, `WaveGroup.plain`): uno en
+  la primera, tres en la segunda, sin poder (se presentan solos), y tres en la tercera que ya pueden
+  tenerlo, más el élite. Jefe goblin en el primer escenario, caballero en el segundo (tres de ellos
+  vienen en la estampida, detrás de los chicos) y gólem chico en el tercero.
+- Para compensar, las oleadas traen algunos chicos menos y la estampida bajó a 23 chicos cada 1.3 s. La
+  curva queda: 0.76, 0.90, 1.05 | 1.09, 1.31, 1.55 | 1.39, 1.58, 1.74 | 2.56.

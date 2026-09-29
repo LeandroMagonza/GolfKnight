@@ -8,7 +8,7 @@
 // que no siempre es el mismo bicho el que viene con el mismo poder.
 //
 // **La partida se arma al azar** (`buildRun`): tres escenarios de tres oleadas, cada uno con su poder y un
-// mini jefe al final, y después la oleada del jefe. Un tercio de los enemigos sale con poder: la mitad con
+// élite al final, y después la oleada del jefe. Un tercio de los enemigos sale con poder: la mitad con
 // el del escenario y el resto con los de escenarios anteriores, más algunos de apoyo.
 
 export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'knight' | 'stoneling' | 'wraith' | 'golem';
@@ -54,7 +54,7 @@ export interface EnemyMods {
   dodge?: boolean;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
-  /** Tamaño, sobre el del cuerpo (el mini jefe viene más grande). Agranda también su radio para las pelotas. */
+  /** Tamaño, sobre el del cuerpo (el élite viene más grande). Agranda también su radio para las pelotas. */
   size?: number;
 }
 
@@ -229,13 +229,18 @@ export const GRAB_STRUGGLE = 6;
 export interface WaveGroup {
   kind: EnemyKind;
   count: number;
-  /** Poderes fijos para todos los de este grupo (el mini jefe). */
+  /** Poderes fijos para todos los de este grupo (el élite). */
   mods?: EnemyMods;
   /**
    * En qué punto de la oleada salen, de 0 a 1. Sin esto, los grupos grandes se reparten parejo y los de
-   * uno o dos salen hacia la mitad. El mini jefe de cada escenario cierra su oleada.
+   * uno o dos salen hacia la mitad. El élite de cada escenario cierra su oleada.
    */
   at?: number;
+  /**
+   * Salen sin poder: el cuerpo fuerte del escenario, en las oleadas antes de la del élite, se presenta
+   * solo. En la última del escenario ya puede traer poder.
+   */
+  plain?: boolean;
 }
 
 /** Los poderes que se reparten al azar. */
@@ -275,7 +280,7 @@ export type ScenarioPower = (typeof SCENARIO_POWERS)[number];
  */
 export const SUPPORT_POWERS = ['ranged', 'heal', 'ward', 'banner'] as const;
 
-/** El mini jefe de cada escenario lleva el poder del escenario en su versión más dura. */
+/** El élite de cada escenario lleva el poder del escenario en su versión más dura. */
 export const BOSS_POWERS: Record<ScenarioPower, (tier: number) => EnemyMods> = {
   // la calavera: de frente no le entra nada
   shield: () => ({ shield: SHIELD_WALL }),
@@ -295,6 +300,8 @@ export const FOCUS_SHARE = 0.5;
 export interface Spawn {
   kind: EnemyKind;
   mods?: EnemyMods;
+  /** No recibe poder en el reparto (ver WaveGroup.plain). */
+  plain?: boolean;
 }
 
 export interface Wave {
@@ -332,19 +339,31 @@ const BOSS_TITLES: Record<ScenarioPower, string> = {
 
 /** La escalera de vida, de menor a mayor. */
 export const LADDER: EnemyKind[] = ['goblin', 'goblina', 'orc', 'skeleton', 'warchief', 'shaman', 'knight', 'stoneling'];
-/** El mini jefe de cada escenario: este cuerpo, o el de más abajo en la escalera que pueda tener el poder. */
-const MINI_BOSS: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
+/**
+ * El cuerpo fuerte de cada escenario: aparece desde la primera oleada (sin poder hasta la última) y es
+ * el élite. Si el poder no le entra, el élite es el de más abajo en la escalera que pueda tenerlo.
+ */
+export const HEAVY: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
 
-/** Cuánto más grande es el mini jefe que su cuerpo de siempre. */
-export const MINI_BOSS_SIZE = 1.35;
+/**
+ * El tamaño del élite, según el modelo: llega a `height` metros (más alto que cualquier enemigo común),
+ * y crece por lo menos `minScale`. El jefe goblin, que es chico, crece mucho; el caballero, que ya es
+ * grande, poco.
+ */
+export const ELITE = { height: 3.0, minScale: 1.25 };
 
-/** El mini jefe del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
-export function miniBoss(scenario: number, power: ScenarioPower): WaveGroup {
-  const mods: EnemyMods = { ...BOSS_POWERS[power](scenario), size: MINI_BOSS_SIZE };
-  for (let i = LADDER.indexOf(MINI_BOSS[scenario]); i >= 0; i--) {
-    if (canTake(LADDER[i], mods)) return { kind: LADDER[i], count: 1, at: 1, mods };
+/** El élite del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
+export function elite(scenario: number, power: ScenarioPower): WaveGroup {
+  const mods: EnemyMods = BOSS_POWERS[power](scenario);
+  let kind: EnemyKind = 'skeleton';
+  for (let i = LADDER.indexOf(HEAVY[scenario]); i >= 0; i--) {
+    if (canTake(LADDER[i], mods)) {
+      kind = LADDER[i];
+      break;
+    }
   }
-  return { kind: 'skeleton', count: 1, at: 1, mods };
+  const size = Math.max(ELITE.minScale, ELITE.height / ENEMIES[kind].height);
+  return { kind, count: 1, at: 1, mods: { ...mods, size } };
 }
 
 /** `n` distintos de `list`, al azar. */
@@ -366,7 +385,9 @@ function bodies(goblin: number, goblina: number, orc: number, skeleton: number, 
 
 /**
  * Arma una partida: **tres escenarios de tres oleadas y la oleada del jefe**. Cada escenario presenta un
- * poder (sorteado entre SCENARIO_POWERS) y termina con un mini jefe que lo lleva en su versión más dura.
+ * poder (sorteado entre SCENARIO_POWERS) y termina con un élite que lo lleva en su versión más dura.
+ * El cuerpo fuerte del escenario (HEAVY) viene desde la primera oleada: uno, después tres, sin poder, y
+ * en la última tres que ya pueden tenerlo, más el élite.
  * Los escenarios se acumulan: en el segundo siguen viniendo algunos con el poder del primero. La del
  * medio del segundo escenario es la estampida: muchos, chicos, y varios que explotan. Desde el segundo
  * escenario entra además un poder de apoyo por escenario, de a pocos.
@@ -375,25 +396,27 @@ export function buildRun(rand: () => number = Math.random): Run {
   const powers = draw(SCENARIO_POWERS, 3, rand);
   const supports = draw(SUPPORT_POWERS, 2, rand);
   const at = (scenario: number, i: number) => ({ scenario, focus: powers[scenario], debut: i === 0, old: powers.slice(0, scenario) });
-  const boss = (scenario: number) => miniBoss(scenario, powers[scenario]);
-  const bossTitle = (scenario: number) => `¡${ENEMIES[boss(scenario).kind].name} ${BOSS_TITLES[powers[scenario]]}!`;
+  const boss = (scenario: number) => elite(scenario, powers[scenario]);
+  const bossTitle = (scenario: number) => `Élite: ${ENEMIES[boss(scenario).kind].name.toLowerCase()} ${BOSS_TITLES[powers[scenario]]}`;
+  // el cuerpo fuerte del escenario: 1 en la primera oleada y 3 en la segunda, sin poder; 3 en la última
+  const heavy = (scenario: number, count: number, plain: boolean): WaveGroup => ({ kind: HEAVY[scenario], count, plain });
   const waves: Wave[] = [
-    // primer escenario: los cuerpos de 1 a 4, y el poder solo
-    { title: TITLES[powers[0]], interval: 2.1, groups: bodies(8, 5, 2, 2), ...at(0, 0) },
-    { title: 'Refuerzos', interval: 2.0, groups: bodies(7, 5, 3, 3), ...at(0, 1) },
-    { title: bossTitle(0), interval: 1.95, groups: [...bodies(7, 5, 3, 3), boss(0)], ...at(0, 2) },
-    // segundo escenario: entran el jefe goblin y el chamán, y el primer apoyo
-    { title: TITLES[powers[1]], interval: 2.0, groups: bodies(6, 5, 3, 3, [['warchief', 2]]), ...at(1, 0), supports: [{ key: supports[0], count: 1 }] },
-    { title: 'La estampida', interval: 1.0, groups: bodies(16, 10, 2, 0), ...at(1, 1), explode: 0.3 },
-    { title: bossTitle(1), interval: 1.9, groups: [...bodies(6, 4, 3, 3, [['warchief', 2], ['shaman', 2]]), boss(1)], ...at(1, 2), supports: [{ key: supports[0], count: 2 }] },
-    // tercer escenario: el caballero y el alma en pena, y el segundo apoyo
-    { title: TITLES[powers[2]], interval: 1.85, groups: bodies(6, 4, 3, 3, [['warchief', 2], ['shaman', 1], ['knight', 1], ['wraith', 1]]), ...at(2, 0), supports: [{ key: supports[1], count: 1 }] },
-    { title: 'Refuerzos', interval: 1.8, groups: bodies(6, 5, 3, 3, [['warchief', 2], ['shaman', 1], ['knight', 1], ['wraith', 2]]), ...at(2, 1), supports: [{ key: supports[1], count: 2 }] },
-    { title: bossTitle(2), interval: 1.8, groups: [...bodies(6, 4, 3, 3, [['warchief', 2], ['shaman', 1], ['knight', 1]]), boss(2)], ...at(2, 2), supports: [{ key: supports[1], count: 2 }] },
+    // primer escenario: los cuerpos de 1 a 4, el jefe goblin desde el arranque, y el poder solo
+    { title: TITLES[powers[0]], interval: 2.1, groups: [...bodies(8, 5, 2, 2), heavy(0, 1, true)], ...at(0, 0) },
+    { title: 'Refuerzos', interval: 2.05, groups: [...bodies(6, 5, 3, 2), heavy(0, 3, true)], ...at(0, 1) },
+    { title: bossTitle(0), interval: 2.0, groups: [...bodies(6, 5, 3, 2), heavy(0, 3, false), boss(0)], ...at(0, 2) },
+    // segundo escenario: el caballero desde el arranque, el chamán, y el primer apoyo
+    { title: TITLES[powers[1]], interval: 1.85, groups: [...bodies(6, 5, 3, 2, [['warchief', 2]]), heavy(1, 1, true)], ...at(1, 0), supports: [{ key: supports[0], count: 1 }] },
+    { title: 'La estampida', interval: 1.3, groups: [...bodies(13, 8, 2, 0), heavy(1, 3, true)], ...at(1, 1), explode: 0.3 },
+    { title: bossTitle(1), interval: 2.1, groups: [...bodies(5, 4, 2, 2, [['warchief', 2], ['shaman', 2]]), heavy(1, 3, false), boss(1)], ...at(1, 2), supports: [{ key: supports[0], count: 2 }] },
+    // tercer escenario: el gólem chico desde el arranque, el alma en pena, y el segundo apoyo
+    { title: TITLES[powers[2]], interval: 1.75, groups: [...bodies(6, 5, 3, 3, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 1]]), heavy(2, 1, true)], ...at(2, 0), supports: [{ key: supports[1], count: 1 }] },
+    { title: 'Refuerzos', interval: 1.9, groups: [...bodies(5, 4, 3, 2, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 2]]), heavy(2, 3, true)], ...at(2, 1), supports: [{ key: supports[1], count: 2 }] },
+    { title: bossTitle(2), interval: 1.9, groups: [...bodies(5, 4, 2, 2, [['warchief', 1], ['shaman', 1], ['knight', 1]]), heavy(2, 3, false), boss(2)], ...at(2, 2), supports: [{ key: supports[1], count: 2 }] },
     // el jefe solo ya tiene 80 de vida: la escolta es más chica, con los tres poderes y los dos apoyos
     {
       title: 'El Gólem de roca', interval: 1.75, scenario: 3, old: [...powers],
-      groups: bodies(6, 4, 3, 2, [['golem', 1], ['warchief', 1], ['shaman', 1], ['wraith', 1]]),
+      groups: bodies(6, 4, 3, 2, [['golem', 1], ['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 1]]),
       supports: supports.map((key) => ({ key, count: 1 })),
     },
   ];
@@ -417,13 +440,13 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   for (const g of wave.groups) {
     for (let i = 0; i < g.count; i++) {
       const at = g.at ?? (g.count <= 2 ? 0.4 + 0.2 * i : (i + 0.5) / g.count);
-      slots.push({ spawn: g.mods ? { kind: g.kind, mods: g.mods } : { kind: g.kind }, at });
+      slots.push({ spawn: g.mods ? { kind: g.kind, mods: g.mods } : g.plain ? { kind: g.kind, plain: true } : { kind: g.kind }, at });
     }
   }
   slots.sort((a, b) => a.at - b.at);
   const order = slots.map((s) => s.spawn);
 
-  const open = () => order.filter((s) => !s.mods && !ENEMIES[s.kind].boss);
+  const open = () => order.filter((s) => !s.mods && !s.plain && !ENEMIES[s.kind].boss);
   const give = (mods: EnemyMods, first: boolean): boolean => {
     const free = open().filter((s) => canTake(s.kind, mods));
     if (!free.length) return false;

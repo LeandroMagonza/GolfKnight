@@ -1401,6 +1401,8 @@ function updateWaves(dt: number): void {
           horde.spawn(e.kind, undefined, mods);
         }
         announce(e.kind, e.mods);
+        // el élite cierra su escenario: que se note cuando entra
+        if ((e.mods?.size ?? 1) > 1) hud.showBanner('¡Llega el élite!', ENEMIES[e.kind].name, 2.5);
         if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Te persigue y te agarra: pegale antes de que llegue', 'bad');
         break;

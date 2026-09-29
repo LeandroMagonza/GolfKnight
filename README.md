@@ -251,10 +251,12 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
 - **La partida: tres escenarios y el jefe.** Cada partida sortea **tres poderes de escenario** entre
   escudo, blindaje, fantasma, divino y esquiva. Cada escenario son tres oleadas: la primera presenta su
-  poder (lo trae el primero que aparece), y la tercera la cierra un **mini jefe**, el cuerpo más duro que
-  pueda tenerlo con el poder en su versión más dura (la calavera, blindaje 2, el divino que recarga en
-  3 s...), y un 35 % más grande: jefe goblin en el primero, caballero en el segundo, gólem chico en el
-  tercero. La décima es la
+  poder (lo trae el primero que aparece), y la tercera la cierra un **élite**: el cuerpo fuerte del
+  escenario (jefe goblin en el primero, caballero en el segundo, gólem chico en el tercero) con el poder
+  en su versión más dura (la calavera, blindaje 2, el divino que recarga en 3 s...) y agrandado hasta
+  unos 3 m, así que el jefe goblin crece mucho y el caballero poco.
+- **El cuerpo fuerte viene desde el arranque del escenario**: uno en la primera oleada y tres en la
+  segunda, sin poder; en la tercera, tres que ya pueden tenerlo, más el élite. La décima es la
   del Gólem de roca, con todo lo anterior mezclado.
 - **Se acumulan**: un tercio de cada oleada sale con poder; la mitad con el del escenario, la otra mitad
   con los de escenarios anteriores. Uno solo por enemigo.
@@ -262,8 +264,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   para el segundo escenario y otro para el tercero, de a uno o dos por oleada. **Explotar** va con la
   **estampida**, la oleada del medio del segundo escenario: muchos, chicos, y casi un tercio explota.
   **Cavar**, por ahora, no sale.
-- **Los cuerpos** suben con los escenarios: del goblin al esqueleto en el primero; entran el jefe goblin
-  y el chamán en el segundo; el caballero y el alma en pena en el tercero.
+- **Los cuerpos** suben con los escenarios: del goblin al esqueleto y el jefe goblin en el primero;
+  entran el caballero y el chamán en el segundo; el gólem chico y el alma en pena en el tercero.
 - **Arriba, debajo del número de oleada**, van los íconos de los tres poderes de la partida y la
   calavera del jefe, con el escenario en curso encendido.
 - **Topes** para que nada quede imposible con el mejor golpe en 4: escudo y blindaje van de 1 a 3 (más

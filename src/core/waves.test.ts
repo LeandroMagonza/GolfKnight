@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { behaviorOf, buildRun, canTake, ENEMIES, LADDER, LIMITS, miniBoss, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { behaviorOf, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -48,7 +48,7 @@ describe('waves', () => {
     expect(new Set(runs().map((r) => r.powers.join())).size).toBeGreaterThan(5);
   });
 
-  it('cada escenario termina con su mini jefe, que lleva el poder en su versión más dura', () => {
+  it('cada escenario termina con su élite, que lleva el poder en su versión más dura', () => {
     for (const run of runs()) {
       for (const s of [0, 1, 2]) {
         const w = run.waves[s * 3 + 2];
@@ -57,14 +57,33 @@ describe('waves', () => {
         expect(has(last.mods, run.powers[s]), w.title).toBe(true);
         expect(canTake(last.kind, last.mods!)).toBe(true);
         if (run.powers[s] === 'shield') expect(last.mods!.shield).toBe(SHIELD_WALL);
-        // y es más grande que su cuerpo de siempre
-        expect(last.mods!.size).toBeGreaterThan(1);
+        // y es más grande que su cuerpo de siempre: llega a la altura del élite, o crece lo mínimo
+        const size = last.mods!.size!;
+        expect(size).toBeGreaterThanOrEqual(ELITE.minScale);
+        expect(ENEMIES[last.kind].height * size).toBeGreaterThanOrEqual(ELITE.height - 1e-9);
       }
     }
     // el más duro que pueda: el gólem chico en el tercero, salvo que el poder no le entre
-    expect(miniBoss(2, 'dodge').kind).toBe('stoneling');
-    expect(miniBoss(2, 'ethereal').kind).toBe('knight');
-    expect(miniBoss(0, 'shield').kind).toBe('warchief');
+    expect(elite(2, 'dodge').kind).toBe('stoneling');
+    expect(elite(2, 'ethereal').kind).toBe('knight');
+    expect(elite(0, 'shield').kind).toBe('warchief');
+    // el tamaño depende del modelo: el jefe goblin, chico, crece mucho más que el caballero
+    expect(elite(0, 'shield').mods!.size!).toBeGreaterThan(elite(1, 'shield').mods!.size! + 0.3);
+  });
+
+  it('el cuerpo fuerte del escenario viene desde la primera oleada: 1, 3 sin poder, y 3 con el élite', () => {
+    for (const run of runs(10)) {
+      for (const s of [0, 1, 2]) {
+        const counts = [0, 1, 2].map((i) => run.waves[s * 3 + i].groups.filter((g) => g.kind === HEAVY[s] && !g.mods).reduce((n, g) => n + g.count, 0));
+        expect(counts).toEqual([1, 3, 3]);
+        for (const i of [0, 1]) {
+          const w = run.waves[s * 3 + i];
+          for (let seed = 1; seed < 6; seed++) for (const o of spawnOrder(w, seeded(seed))) if (o.kind === HEAVY[s] && o.plain) expect(o.mods).toBeUndefined();
+        }
+        // en la última del escenario ya pueden tener poder
+        expect(run.waves[s * 3 + 2].groups.find((g) => g.kind === HEAVY[s] && !g.mods)?.plain).toBe(false);
+      }
+    }
   });
 
   it('un tercio sale con poder: la mitad con el del escenario y el primero que aparece lo presenta', () => {
@@ -72,7 +91,7 @@ describe('waves', () => {
       run.waves.forEach((w, i) => {
         for (let seed = 1; seed < 8; seed++) {
           const order = spawnOrder(w, seeded(seed));
-          const fixed = w.groups.filter((g) => g.mods).reduce((n, g) => n + g.count, 0);
+          const fixed = w.groups.filter((g) => g.mods || g.plain).reduce((n, g) => n + g.count, 0);
           const exploders = order.filter((o) => o.mods?.explode).length;
           const open = order.filter((o) => !ENEMIES[o.kind].boss).length - fixed - exploders;
           const drawn = order.filter((o) => o.mods && !o.mods.explode && !w.groups.some((g) => g.mods === o.mods));
