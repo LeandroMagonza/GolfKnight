@@ -9,8 +9,12 @@ const out = (cmd, cwd = process.cwd()) => execSync(cmd, { cwd }).toString().trim
 
 const remote = out('git remote get-url origin');
 const source = out('git rev-parse --short HEAD');
+// la versión que se ve en la pantalla de entrada: día y hora de esta publicación
+const now = new Date();
+const two = (n) => String(n).padStart(2, '0');
+const build = `${now.getDate()}/${now.getMonth() + 1} ${two(now.getHours())}:${two(now.getMinutes())}`;
 run('npx tsc --noEmit');
-run('npx vite build');
+execSync('npx vite build', { stdio: 'inherit', env: { ...process.env, GK_BUILD: build } });
 // sin esto GitHub pasa el sitio por Jekyll, que ignora lo que empieza con guion bajo
 writeFileSync('dist/.nojekyll', '');
 if (existsSync('dist/.git')) rmSync('dist/.git', { recursive: true, force: true });
@@ -19,4 +23,4 @@ run('git add -A', 'dist');
 run(`git -c user.name="${out('git config user.name')}" -c user.email="${out('git config user.email')}" commit -q -m "Publica ${source}"`, 'dist');
 run(`git push -f "${remote}" gh-pages`, 'dist');
 rmSync('dist/.git', { recursive: true, force: true });
-console.log('Publicado. GitHub Pages tarda un minuto o dos en actualizar.');
+console.log(`Publicado: versión ${build} (${source}). GitHub Pages tarda un minuto o dos en actualizar.`);

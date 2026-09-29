@@ -39,6 +39,8 @@
       .fill.hp { background: linear-gradient(90deg, #5be07a, #2fb95a); }
       .bar.alert .track { box-shadow: 0 0 0 2px #ff5b5b; animation: alert 0.5s infinite alternate; }
       @keyframes alert { from { box-shadow: 0 0 0 2px rgba(255,91,91,0.2); } to { box-shadow: 0 0 0 3px rgba(255,91,91,1); } }
+      /* la versión (día y hora de la publicación), chiquita en la esquina de la pantalla de entrada */
+      #version { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: rgba(228, 233, 240, 0.45); pointer-events: none; }
       #wave { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000; }
       #wave .n { font-size: 20px; font-weight: 700; }
       #wave .sub { font-size: 13px; color: #e4e9f0; }
@@ -219,6 +221,7 @@
         <button id="start" type="button" disabled>Cargando…</button>
       </div>
       <button id="replaycine" type="button">Ver la intro de nuevo</button>
+      <div id="version"></div>
     </div>
     <div id="hud">
       <div class="bars">

@@ -38,6 +38,8 @@ export class Intro {
   private cine: HTMLIFrameElement | null = null;
 
   constructor(private readonly onStart: () => void) {
+    const version = document.getElementById('version');
+    if (version) version.textContent = `versión ${__BUILD__}`;
     this.dots.innerHTML = SLIDES.length > 1 ? SLIDES.map(() => '<span></span>').join('') : '';
     this.next.addEventListener('click', () => this.advance());
     document.getElementById('replaycine')?.addEventListener('click', (e) => {
