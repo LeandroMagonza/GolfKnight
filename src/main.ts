@@ -310,10 +310,39 @@ function curvedPath(club: Club, range: number, loft: number, lift: { speed: numb
     : previewOver(start, club.gravity ?? GRAVITY, terrainOn() ? heightAt : () => 0, PREVIEW_POINTS, 4, spin);
 }
 
+/**
+ * A qué distancia va a pegar el tiro: con eso se calcula el daño que muestran el arco y el cartel. Los
+ * globos revientan donde apuntás, así que es la distancia del mouse. El driver y el putter tienen
+ * distancia fija y le pegan al que se les cruce: es la del **primer enemigo sobre la línea**, y si no hay
+ * nadie, la del mouse. Antes se mostraba siempre el daño a 50 m (el del driver de lejos), aunque el
+ * enemigo estuviera a 15.
+ */
+function impactRange(club: Club, range: number): number {
+  if (isLob(club) || club.fixedRange <= 0) return range;
+  player.teePosition(tee);
+  const dx = player.aimDir.x;
+  const dz = player.aimDir.z;
+  let best = Infinity;
+  for (const e of horde.enemies) {
+    if (!e.alive || e.passed) continue;
+    const ex = e.position.x - tee.x;
+    const ez = e.position.z - tee.z;
+    const along = ex * dx + ez * dz;
+    const side = Math.abs(ex * dz - ez * dx);
+    const reach = e.radius + BALL_RADIUS;
+    if (along <= 0 || along > range + reach || side > reach) continue;
+    // donde la pelota le toca el costado, no su centro
+    best = Math.min(best, Math.max(0, along - Math.sqrt(reach * reach - side * side)));
+  }
+  if (best < Infinity) return best;
+  return THREE.MathUtils.clamp(Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z), club.minRange, club.maxRange);
+}
+
 function updatePreview(): void {
   const charging = player.mode === 'charging';
   const club = player.club;
   const range = shotRange(club);
+  const hitAt = impactRange(club, range);
   const show = started && !ended && player.alive && player.mode !== 'swinging' && !player.grabbedBy;
   previewLine.visible = show;
   landing.visible = show;
@@ -323,13 +352,13 @@ function updatePreview(): void {
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
   // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
-  const damage = damageFor(club, range, quality);
-  const areaHit = areaDamageFor(club, range, quality);
+  const damage = damageFor(club, hitAt, quality);
+  const areaHit = areaDamageFor(club, hitAt, quality);
   const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
-  const duff = damageFor(club, range, 1) <= 0 && areaDamageFor(club, range, 1) <= 0;
-  hud.setMarks(...qualityMarks(), duff, [1, 2, 3].map((q) => damageFor(club, range, q)));
-  hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`, player.meter.side);
+  const duff = damageFor(club, hitAt, 1) <= 0 && areaDamageFor(club, hitAt, 1) <= 0;
+  hud.setMarks(...qualityMarks(), duff, [1, 2, 3].map((q) => damageFor(club, hitAt, q)));
+  hud.setMeter(charging, player.meter.power, player.meter.locked, `${hitAt.toFixed(0)} m · ${BAND_NAMES[bandOf(hitAt)]} · ${dmgLabel}`, player.meter.side);
   if (charging) placeMeter();
   if (!show) return;
   player.teePosition(tee);
@@ -1629,7 +1658,8 @@ addEventListener('resize', () => {
   get shotInfo() {
     const club = player.club;
     const range = shotRange(club);
-    return { club: club.id, range: +range.toFixed(1), band: bandOf(range), damage: damageFor(club, range, qualityOf(player.meter.power)) };
+    const hitAt = impactRange(club, range);
+    return { club: club.id, range: +range.toFixed(1), hitAt: +hitAt.toFixed(1), band: bandOf(hitAt), damage: damageFor(club, hitAt, qualityOf(player.meter.power)) };
   },
   /** Color actual de la línea de tiro, para las pruebas. */
   get aimLine() { return { color: previewMat.color.getHex() }; },

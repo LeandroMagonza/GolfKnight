@@ -2183,3 +2183,13 @@ daño guardado de los enemigos vuelve al del código.
   enemigos. Probado en los tres campos y con la loma del tutorial: la marca avanza pareja.
 - **El arco de carga dice cuánto pega cada nivel**, con el palo y la distancia de ahora, escrito en su
   tramo. En el wedge, el gris lleva el triángulo en vez del número.
+
+## Hecho: el daño del arco es el del primero que va a tocar (29/9/2026)
+
+El daño depende de a qué distancia pega la pelota, y el driver y el putter tienen distancia fija (50 y
+20 m): el arco mostraba siempre el daño a esa distancia (el driver, 2 / 3 / 4), aunque el enemigo
+estuviera a 15 m y fuera a recibir 1 / 2 / 3. Ahora (`impactRange`) el daño del arco y del cartel es el
+del **primer enemigo sobre la línea de tiro**, a su distancia; si no hay nadie en la línea, el de la
+distancia del mouse. Los globos (hierro y wedge) revientan donde apuntás: para ellos es la del mouse,
+como antes. Cuando el driver atraviesa a varios, cada uno cobra según su distancia; el arco muestra el
+del primero.
