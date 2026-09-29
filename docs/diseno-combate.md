@@ -2164,3 +2164,22 @@ Ahora el daño crece con el cuerpo, **igual a la puerta que al golfista** (al at
 Con 3 de vida, chocarse con uno de los grandes o con un élite te mata. El Gólem de roca (el jefe), el
 alma en pena, los hechizos y las bombas no cambiaron. El panel de balance subió a la versión 8: el
 daño guardado de los enemigos vuelve al del código.
+
+## Hecho: tutorial en ocho pasos, globos que pasan las lomas, y el daño en el arco (29/9/2026)
+
+- **El tutorial pasó a ocho pasos**: apuntar y pegar; **ir a buscar la pelota** (el puesto queda vacío,
+  los caddies tiran a los otros, nunca al tuyo, y hay que moverse con A y D); **dos en fila** para el
+  driver, que tienen que caer del mismo tiro; cargar; clavar la carga; el hierro; el wedge (detrás de la
+  misma loma del hierro, que no baja) y el putter.
+- En el tutorial **el golfista no se mueve** de su puesto (salvo en el paso de la pelota) y **apunta solo
+  hacia los enemigos del paso**, con 10° de margen.
+- Menos texto: se sacaron los carteles largos que duraban un segundo (el del blindaje, el de «clavaste en
+  el verde», el de la pifia). Lo que queda es una **nota corta dentro del recuadro**, que se queda hasta
+  el próximo tiro: «Cargá hasta el amarillo», «Clavá la carga con Espacio», «Los dos del mismo tiro».
+- **Los globos pasan por arriba de las lomas** (`shotLift`, `clearsTerrain`). Si con su ángulo de siempre
+  el arco choca contra una loma, o pasa por arriba del punto apuntado porque detrás de la cima la bajada
+  es más empinada que su caída, sale más empinado, de a 3°, hasta 72°. Antes el hierro chocaba con la
+  cara de la loma: la marca de caída avanzaba, retrocedía hasta la loma, y después saltaba detrás de los
+  enemigos. Probado en los tres campos y con la loma del tutorial: la marca avanza pareja.
+- **El arco de carga dice cuánto pega cada nivel**, con el palo y la distancia de ahora, escrito en su
+  tramo. En el wedge, el gris lleva el triángulo en vez del número.

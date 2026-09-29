@@ -1,20 +1,23 @@
 // El tutorial: paso por paso, un palo por vez, con enemigos quietos puestos donde ese palo luce.
 //
 // Cada paso deja un solo palo en la mano, pone sus enemigos (que no caminan: esperan donde los pusieron,
-// entre 15 y 20 m, más cerca que el recuadro de las instrucciones)
-// y dice qué hacer. Si el tiro no es el que se está enseñando, el enemigo no muere: queda con 1 de vida
-// y se explica por qué (ver `Horde.mayKill`). Si la pelota se va sin pegar, aparece otra a los pies. El
-// paso termina cuando caen todos sus enemigos.
+// entre 15 y 20 m, más cerca que el recuadro de las instrucciones) y dice qué hacer. El golfista no se
+// mueve de su puesto (salvo en el paso de ir a buscar la pelota) y apunta solo hacia los enemigos del
+// paso. Si el tiro no es el que se está enseñando, el enemigo no muere: queda con 1 de vida (ver
+// `Horde.mayKill`), y abajo de la instrucción queda una nota corta. Si la pelota se va sin pegar, aparece
+// otra a los pies. El paso termina cuando caen todos sus enemigos.
 //
 // Los pasos:
 // 1. apuntar y pegar (driver);
-// 2. cargar hasta el amarillo (uno blindado, al que el golpe flojo no le hace nada);
-// 3. clavar la carga con Espacio: con el golpe clavado en el amarillo, los dos enemigos se ponen en fila
-//    frente al golfista, y ahí se suelta (para eso sirve cargar antes). Son blindados y tienen que caer
-//    los dos del mismo tiro: si no, vuelven a su lugar y hay que clavar de nuevo;
-// 4. el hierro: un grupo detrás de una loma, pegándole a uno salpica a los demás;
-// 5. el wedge: un globo que abre un área grande, y que con el golpe 1 pifia;
-// 6. el putter: uno cerca.
+// 2. ir a buscar la pelota: el puesto queda vacío y los caddies tiran a los otros, nunca al tuyo;
+// 3. dos en fila: el driver atraviesa a los dos (tienen que caer del mismo tiro);
+// 4. cargar hasta el amarillo (uno blindado, al que el golpe flojo no le hace nada);
+// 5. clavar la carga con Espacio: con el golpe clavado en el amarillo, los dos enemigos (blindados) se
+//    ponen en fila frente al golfista, y ahí se suelta. Tienen que caer los dos del mismo tiro: si no,
+//    vuelven a su lugar y hay que clavar de nuevo;
+// 6. el hierro: un grupo detrás de una loma, pegándole a uno salpica a los demás;
+// 7. el wedge: otro grupo detrás de la misma loma; con el golpe 1 pifia;
+// 8. el putter: uno cerca.
 // Al terminar arranca la partida de verdad, con los cuatro palos.
 import * as THREE from 'three';
 import { qualityOf, type ClubId } from './core/clubs';
@@ -46,11 +49,17 @@ interface Step {
   text: string;
   /** Pone los enemigos (y lo que haga falta), con `x` relativo al puesto del golfista. */
   setup(t: Tutorial): void;
-  /** ¿Este tiro puede matar? null = sí; si no, por qué (se le muestra al jugador). */
+  /** ¿Este tiro puede matar? null = sí; si no, una nota corta de por qué. */
   allow?(t: Tutorial, shot: NonNullable<Shot>): string | null;
   update?(t: Tutorial, dt: number): void;
   /** Terminó un tiro del golfista (la pelota ya se jugó). */
   shotDone?(t: Tutorial): void;
+  /** Se puede mover de puesto (el paso de ir a buscar la pelota). */
+  move?: boolean;
+  /** Sin pelota de regalo a los pies: la tiene que ir a buscar. */
+  noSupply?: boolean;
+  /** Se queda con la loma y el lugar del paso anterior (el wedge, detrás de la loma del hierro). */
+  sameSpot?: boolean;
   /** Lo que se dice al terminarlo. */
   praise: string;
 }
@@ -58,8 +67,15 @@ interface Step {
 const KEY = (k: string) => `<kbd>${k}</kbd>`;
 
 /** Lo mínimo para que el golpe no sea el flojo. */
-const needGreen = (_: Tutorial, shot: NonNullable<Shot>) =>
-  shot.quality >= 2 ? null : 'Golpe flojo (verde): mantené el click hasta que la aguja llegue al amarillo';
+const needCharge = (_: Tutorial, shot: NonNullable<Shot>) => (shot.quality >= 2 ? null : 'Cargá hasta el amarillo');
+
+/** Tienen que caer todos del mismo tiro: si no, vuelven a su lugar. En el paso 5, antes hay que clavar. */
+const allInOne = (t: Tutorial) => {
+  if (t.allDown) return;
+  const note = t.step?.update && !t.lockLearned ? 'Clavá la carga con Espacio' : 'Los dos del mismo tiro';
+  t.resetStep();
+  t.note(note);
+};
 
 const STEPS: Step[] = [
   {
@@ -67,7 +83,30 @@ const STEPS: Step[] = [
     club: 'driver',
     text: `Apuntá al goblin con el ${KEY('mouse')}. Mantené apretado el ${KEY('click')} y soltalo para pegar.`,
     setup: (t) => t.put('goblin', 3, 25),
-    praise: '¡Adentro! El driver sale casi al ras y atraviesa a todos los que encuentra en la línea.',
+    praise: '¡Adentro!',
+  },
+  {
+    title: 'Buscar la pelota',
+    club: 'driver',
+    text: `Los caddies de la muralla tiran pelotas a los puestos, nunca al tuyo. Movete con ${KEY('A')} ${KEY('D')} hasta uno con pelota.`,
+    setup: (t) => {
+      t.clearBalls();
+      t.put('goblin', 0, 25);
+    },
+    move: true,
+    noSupply: true,
+    praise: 'Cuando te quedes sin pelota, andá a buscarla.',
+  },
+  {
+    title: 'En fila',
+    club: 'driver',
+    text: 'El driver atraviesa a todos los que están en su línea. Voltealos a los dos de un tiro.',
+    setup: (t) => {
+      t.putInLine('goblin', 0);
+      t.putInLine('goblin', 1);
+    },
+    shotDone: allInOne,
+    praise: '¡Los dos!',
   },
   {
     title: 'Cargar el golpe',
@@ -75,29 +114,22 @@ const STEPS: Step[] = [
     text: `Este tiene <b>blindaje</b>: el golpe flojo no le hace nada. Mantené el ${KEY('click')}: la aguja sube del `
       + `<b class="green">verde</b> al <b class="yellow">amarillo</b>. Soltá en el amarillo.`,
     setup: (t) => t.put('goblin', -4, 26, { armor: 1 }),
-    allow: needGreen,
-    praise: '¡Eso! Y si soltás justo en el <b class="red">rojo del centro</b>, es el golpe perfecto: pega todavía más.',
+    allow: needCharge,
+    praise: 'Y si soltás justo en el <b class="red">rojo del centro</b>, es el golpe perfecto: pega todavía más.',
   },
   {
     title: 'Clavar la carga',
     club: 'driver',
-    text: `Estos dos tienen <b>blindaje</b> y tienen que caer <b>los dos del mismo tiro</b>. Cargá hasta el `
-      + `<b class="yellow">amarillo</b> y apretá ${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. `
-      + `No sueltes el ${KEY('click')}.`,
+    text: `Tienen que caer <b>los dos del mismo tiro</b>. Cargá hasta el <b class="yellow">amarillo</b> y apretá `
+      + `${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. No sueltes el ${KEY('click')}.`,
     setup: (t) => {
       t.put('goblin', -7, 22, { armor: 1 });
       t.put('goblin', 8, 29, { armor: 1 });
       t.lineUp = true;
     },
-    allow: (t, shot) => (!t.lockLearned ? 'Primero clavá la carga en el amarillo con Espacio, y después soltá' : needGreen(t, shot)),
+    allow: (t, shot) => (!t.lockLearned ? `Clavá la carga con Espacio` : needCharge(t, shot)),
     update: (t) => t.watchLock(),
-    // si no cayeron los dos (se soltó antes de la fila, o erró), vuelven a su lugar y se empieza de nuevo
-    shotDone: (t) => {
-      if (t.allDown) return;
-      const hadLined = t.lockLearned;
-      t.resetStep();
-      if (hadLined) t.tell('Tienen que caer los dos del mismo tiro: volvieron a su lugar. Clavá la carga de nuevo y esperá la fila');
-    },
+    shotDone: allInOne,
     praise: '¡Los dos de un tiro! Clavar la carga te deja esperar a que se pongan en fila.',
   },
   {
@@ -111,18 +143,17 @@ const STEPS: Step[] = [
       t.put('goblin', 1.2, 23.5);
       t.put('goblin', 0, 25.1);
     },
-    allow: (_, shot) => (shot.club === 'iron' ? null : 'Con el hierro'),
     praise: '¡Todos! Detrás de una loma, o con varios juntos, el hierro es el palo.',
   },
   {
     title: 'El wedge',
     club: 'wedge',
-    text: `${KEY('3')} Wedge: un globo alto que cae donde apuntás y abre un área grande. Ojo: con el golpe `
-      + `flojo se <b>pifia</b> y la pelota no sale (el arco lo marca en gris ⚠). Cargá al <b class="green">verde</b>.`,
+    text: `${KEY('3')} Wedge: un globo alto que cae donde apuntás y abre un área grande. Con el golpe flojo `
+      + `se <b>pifia</b> (el gris ⚠ del arco): cargá al <b class="green">verde</b>.`,
     setup: (t) => {
-      for (const [x, z] of [[1, 24], [3, 24.5], [2, 26.2], [0.2, 26], [3.6, 26.4]]) t.put('goblin', x, z);
+      for (const [x, z] of [[-1, 24], [1, 24.5], [0, 26.2], [-1.8, 26], [1.6, 26.4]]) t.put('goblin', x, z);
     },
-    allow: (_, shot) => (shot.club === 'wedge' ? null : 'Con el wedge'),
+    sameSpot: true,
     praise: '¡Limpio! El wedge no necesita pegarle a nadie: el área sale igual donde cae.',
   },
   {
@@ -130,12 +161,11 @@ const STEPS: Step[] = [
     club: 'putter',
     text: `${KEY('4')} Putter: la pelota rueda hasta 20 m y le pega al primero que toca. De cerca pega como ninguno.`,
     setup: (t) => t.put('orc', 1, 16),
-    allow: (_, shot) => (shot.club === 'putter' ? null : 'Con el putter'),
     praise: '¡Al hoyo! Para el que ya está encima, el putter.',
   },
 ];
 
-/** La fila del paso 3: a qué distancias se paran, y hacia dónde apunta la recta. */
+/** Las filas (pasos 3 y 5): a qué distancias se paran, y hacia dónde apunta la recta. */
 const LINE_Z = [21, 27];
 const LINE_FAR = 30;
 
@@ -143,6 +173,14 @@ const LINE_FAR = 30;
 const BETWEEN = 2.6;
 /** Segundos sin pelota en el puesto antes de que aparezca otra. */
 const BALL_DELAY = 0.5;
+/** Cuánto más allá de los enemigos del paso se puede apuntar, a cada lado. */
+const AIM_MARGIN = THREE.MathUtils.degToRad(10);
+
+interface Placed {
+  kind: EnemyKind;
+  mods?: EnemyMods;
+  at: THREE.Vector3;
+}
 
 export class Tutorial {
   private index = -1;
@@ -150,13 +188,22 @@ export class Tutorial {
   private wait = 0;
   private ballTimer = 0;
   private wasLocked = false;
-  private reason = '';
-  private toldAt = -Infinity;
-  private clock = 0;
+  private text = '';
+  private noteText = '';
   private ownMounds: Mound[] = [];
-  /** Ya clavó la carga en el amarillo (paso 3). */
+  /** Ya clavó la carga en el amarillo (paso 5). */
   lockLearned = false;
   finished = false;
+  /** El paso 5: la fila va sobre la recta de la pelota hacia `baseX`, que también tiene que ser plana. */
+  lineUp = false;
+
+  /** Lo que pone el paso, antes de ubicarlo en el campo (ver `place`). */
+  private pending: { kind: EnemyKind; x: number; z: number; mods?: EnemyMods; line?: number }[] = [];
+  private pendingMounds: { x: number; z: number }[] = [];
+  /** Dónde quedó cada enemigo del paso, para volver a ponerlos (ver `resetStep`). */
+  private spots: Placed[] = [];
+  /** Dónde quedó el paso: el puesto del golfista más el corrimiento que eligió `place`. */
+  private baseX = 0;
 
   constructor(private readonly host: TutorialHost) {}
 
@@ -164,23 +211,131 @@ export class Tutorial {
     return STEPS[this.index] ?? null;
   }
 
+  /** ¿Se puede mover de puesto ahora? */
+  get canMove(): boolean {
+    return !!this.step?.move && this.wait <= 0;
+  }
+
   start(): void {
     this.host.horde.mayKill = (e, shot) => this.mayKill(e, shot);
     this.next();
   }
 
-  /** Dónde quedó cada enemigo del paso, para volver a ponerlos (ver `resetStep`). */
-  private spots: { kind: EnemyKind; mods?: EnemyMods; at: THREE.Vector3 }[] = [];
+  /** Un enemigo quieto en (x relativo al puesto, z). */
+  put(kind: EnemyKind, x: number, z: number, mods?: EnemyMods): void {
+    this.pending.push({ kind, x, z, mods });
+  }
 
-  private spawnAt(s: { kind: EnemyKind; mods?: EnemyMods; at: THREE.Vector3 }): Enemy {
-    const e = this.host.horde.spawn(s.kind, s.at.clone(), s.mods);
-    e.hold = s.at.clone();
-    return e;
+  /** Un enemigo en la fila frente al golfista: el `i`-ésimo, de más cerca a más lejos. */
+  putInLine(kind: EnemyKind, i: number, mods?: EnemyMods): void {
+    this.pending.push({ kind, x: 0, z: LINE_Z[i], mods, line: i });
+  }
+
+  /** Una loma, que crece desde el piso. */
+  mound(x: number, z: number): void {
+    this.pendingMounds.push({ x, z });
+  }
+
+  /** Vacía todos los puestos: las pelotas las van a tirar los caddies. */
+  clearBalls(): void {
+    const tees = this.host.tees;
+    tees.spots.forEach((_, i) => tees.take(i));
   }
 
   /** ¿Cayeron todos los del paso? */
   get allDown(): boolean {
     return this.enemies.every((e) => !e.alive);
+  }
+
+  /** La nota corta abajo de la instrucción, hasta el próximo cambio. */
+  note(text: string): void {
+    this.noteText = text;
+    this.render();
+  }
+
+  private say(text: string): void {
+    this.text = text;
+    this.noteText = '';
+    this.render();
+  }
+
+  private render(): void {
+    const s = this.step;
+    this.host.hud.setTutorial(s ? `Tutorial · ${this.index + 1} de ${STEPS.length}` : 'Tutorial', s?.title ?? '¡Listo!', this.text, this.noteText);
+  }
+
+  /** La fila: dónde se para el `i`-ésimo, sobre la recta que sale de la pelota hacia `baseX`. */
+  private linePoint(i: number, baseX: number): THREE.Vector3 {
+    const tee = this.host.player().anchor;
+    const z = LINE_Z[i];
+    return new THREE.Vector3(tee.x + ((baseX - tee.x) * (z - tee.z)) / (LINE_FAR - tee.z), 0, z);
+  }
+
+  private spawnAt(s: Placed): Enemy {
+    const e = this.host.horde.spawn(s.kind, s.at.clone(), s.mods);
+    e.hold = s.at.clone();
+    return e;
+  }
+
+  /**
+   * Ubica lo que puso el paso: todo junto, corrido a lo ancho hasta la franja más plana cerca del
+   * golfista. En un valle el enemigo queda un metro más abajo y el driver, que sale casi al ras, le pasa
+   * por encima: en el tutorial eso confunde. El wedge se queda donde estaba el hierro, detrás de su loma.
+   */
+  private place(sameSpot: boolean): void {
+    const ax = this.host.player().anchor.x;
+    const at = (p: (typeof this.pending)[number], base: number) =>
+      p.line !== undefined ? this.linePoint(p.line, base) : new THREE.Vector3(base + p.x, 0, p.z);
+    if (!sameSpot) {
+      let best = 0;
+      let bestScore = Infinity;
+      for (let dx = -8; dx <= 8; dx += 0.5) {
+        const points = this.pending.map((p) => at(p, ax + dx));
+        if (this.lineUp) for (let i = 0; i < LINE_Z.length; i++) points.push(this.linePoint(i, ax + dx));
+        let worst = 0;
+        for (const p of points) worst = Math.abs(p.x) > 14 ? Infinity : Math.max(worst, Math.abs(heightAt(p.x, p.z)));
+        const score = worst + 0.02 * Math.abs(dx);
+        if (score < bestScore) {
+          bestScore = score;
+          best = dx;
+        }
+      }
+      this.baseX = ax + best;
+    }
+    this.spots = this.pending.map((p) => ({ kind: p.kind, mods: p.mods, at: at(p, this.baseX) }));
+    for (const s of this.spots) this.enemies.push(this.spawnAt(s));
+    for (const p of this.pendingMounds) {
+      const m: Mound = { x: this.baseX + p.x, z: p.z, height: 0, target: 2.4, rx: 4, rz: 2.2, owner: 0 };
+      mounds.push(m);
+      this.ownMounds.push(m);
+    }
+    this.pending = [];
+    this.pendingMounds = [];
+  }
+
+  private next(): void {
+    this.index++;
+    this.enemies = [];
+    this.lineUp = false;
+    this.lockLearned = false;
+    this.wasLocked = false;
+    const s = this.step;
+    // las lomas del paso anterior bajan solas (ver `Horde.updateMounds`), salvo que el paso siga ahí
+    if (!s?.sameSpot) {
+      for (const m of this.ownMounds) m.target = 0;
+      this.ownMounds = [];
+    }
+    if (!s) {
+      this.finished = true;
+      this.say('Ya sabés usar los cuatro palos. Ahora vienen de verdad: que no lleguen a la puerta.');
+      this.wait = 3.5;
+      return;
+    }
+    this.host.onlyClub(s.club);
+    s.setup(this);
+    this.place(!!s.sameSpot);
+    this.say(s.text);
+    this.host.hud.showBanner(s.title, `Paso ${this.index + 1} de ${STEPS.length}`, 2);
   }
 
   /** Vuelve a poner el paso como empezó: los vivos, sanos y en su lugar; los caídos, de nuevo. */
@@ -197,8 +352,44 @@ export class Tutorial {
     if (this.step) this.say(this.step.text);
   }
 
-  tell(text: string): void {
-    this.host.hud.feedback(text, 'bad');
+  /** El paso 5: cuando se clava la carga en el amarillo, los dos se ponen en fila frente al golfista. */
+  watchLock(): void {
+    const meter = this.host.player().meter;
+    const locked = meter.locked;
+    if (locked && !this.wasLocked && !this.lockLearned && qualityOf(meter.power) >= 2) {
+      this.lockLearned = true;
+      this.enemies.forEach((e, i) => { e.hold = this.linePoint(i, this.baseX); });
+      this.say(`Esperá a que se pongan en fila, y soltá el ${KEY('click')}.`);
+    }
+    this.wasLocked = locked;
+  }
+
+  /**
+   * Hacia dónde se puede apuntar desde `tee`: el ángulo (el de `Math.atan2(x, z)`) entre los enemigos
+   * del paso, más un margen. Null = libre.
+   */
+  aimRange(tee: THREE.Vector3): [number, number] | null {
+    if (this.wait > 0) return null;
+    const alive = this.enemies.filter((e) => e.alive);
+    if (!alive.length) return null;
+    const angles = alive.map((e) => Math.atan2(e.position.x - tee.x, e.position.z - tee.z));
+    return [Math.min(...angles) - AIM_MARGIN, Math.max(...angles) + AIM_MARGIN];
+  }
+
+  private mayKill(enemy: Enemy, shot: Shot): boolean {
+    const s = this.step;
+    if (!s || !this.enemies.includes(enemy)) return true;
+    const why = !shot || shot.ability ? 'Con el palo' : s.allow?.(this, shot) ?? null;
+    if (why) this.note(why);
+    return why === null;
+  }
+
+  onEvent(_: HordeEvent): void {
+    // las notas salen de `mayKill`; al blindado le alcanza con el «blindado» que flota encima
+  }
+
+  onDuff(): void {
+    // el «¡Pifia!» del juego y el gris del arco ya lo dicen
   }
 
   /** Terminó un tiro del golfista. */
@@ -207,144 +398,7 @@ export class Tutorial {
     this.step?.shotDone?.(this);
   }
 
-  /** Lo que pone el paso, antes de ubicarlo en el campo (ver `place`). */
-  private pending: { kind: EnemyKind; x: number; z: number; mods?: EnemyMods }[] = [];
-  private pendingMounds: { x: number; z: number }[] = [];
-  /** Dónde quedó el paso: el puesto del golfista más el corrimiento que eligió `place`. */
-  private baseX = 0;
-  /**
-   * Este paso los pone en fila (el 3): la fila va sobre la recta que sale de la pelota hacia `baseX`,
-   * así que esa recta también tiene que quedar en lo plano.
-   */
-  lineUp = false;
-
-  /** La fila del paso 3: dónde se para el `i`-ésimo. */
-  private linePoint(i: number, baseX: number): THREE.Vector3 {
-    const tee = this.host.player().anchor;
-    const z = LINE_Z[i];
-    return new THREE.Vector3(tee.x + ((baseX - tee.x) * (z - tee.z)) / (LINE_FAR - tee.z), 0, z);
-  }
-
-  /** Un enemigo quieto en (x relativo al puesto, z). */
-  put(kind: EnemyKind, x: number, z: number, mods?: EnemyMods): void {
-    this.pending.push({ kind, x, z, mods });
-  }
-
-  /** Una loma, que crece desde el piso. */
-  mound(x: number, z: number): void {
-    this.pendingMounds.push({ x, z });
-  }
-
-  /**
-   * Ubica lo que puso el paso: todo junto, corrido a lo ancho hasta la franja más plana cerca del
-   * golfista. En un valle el enemigo queda un metro más abajo y el driver, que sale casi al ras, le pasa
-   * por encima: en el tutorial eso confunde.
-   */
-  private place(): void {
-    const ax = this.host.player().anchor.x;
-    let best = 0;
-    let bestScore = Infinity;
-    for (let dx = -8; dx <= 8; dx += 0.5) {
-      let worst = 0;
-      const points = this.pending.map((p) => ({ x: ax + p.x + dx, z: p.z }));
-      if (this.lineUp) for (let i = 0; i < LINE_Z.length; i++) points.push(this.linePoint(i, ax + dx));
-      for (const p of points) {
-        if (Math.abs(p.x) > 14) worst = Infinity;
-        else worst = Math.max(worst, Math.abs(heightAt(p.x, p.z)));
-      }
-      const score = worst + 0.02 * Math.abs(dx);
-      if (score < bestScore) {
-        bestScore = score;
-        best = dx;
-      }
-    }
-    this.baseX = ax + best;
-    this.spots = this.pending.map((p) => ({ kind: p.kind, mods: p.mods, at: new THREE.Vector3(this.baseX + p.x, 0, p.z) }));
-    for (const s of this.spots) this.enemies.push(this.spawnAt(s));
-    for (const p of this.pendingMounds) {
-      const m: Mound = { x: this.baseX + p.x, z: p.z, height: 0, target: 2.4, rx: 4, rz: 2.2, owner: 0 };
-      mounds.push(m);
-      this.ownMounds.push(m);
-    }
-    this.pending = [];
-    this.pendingMounds = [];
-  }
-
-  private say(text: string): void {
-    const s = this.step;
-    this.host.hud.setTutorial(s ? `Tutorial · ${this.index + 1} de ${STEPS.length}` : 'Tutorial', s?.title ?? '', text);
-  }
-
-  private next(): void {
-    this.index++;
-    this.enemies = [];
-    this.lineUp = false;
-    this.reason = '';
-    // las lomas del paso anterior bajan solas (ver `Horde.updateMounds`)
-    for (const m of this.ownMounds) m.target = 0;
-    this.ownMounds = [];
-    const s = this.step;
-    if (!s) {
-      this.finished = true;
-      this.host.hud.setTutorial('Tutorial', '¡Listo!', 'Ya sabés usar los cuatro palos. Ahora vienen de verdad: que no lleguen a la puerta.');
-      this.wait = 3.5;
-      return;
-    }
-    this.host.onlyClub(s.club);
-    s.setup(this);
-    this.place();
-    this.say(s.text);
-    this.host.hud.showBanner(s.title, `Paso ${this.index + 1} de ${STEPS.length}`, 2);
-  }
-
-  /** El paso 3: mira cuándo se clava la carga, y en qué nivel. */
-  watchLock(): void {
-    const meter = this.host.player().meter;
-    const locked = meter.locked;
-    if (locked && !this.wasLocked) {
-      const q = qualityOf(meter.power);
-      if (q < 2) {
-        this.host.hud.feedback('Clavaste en el verde: apretá Espacio otra vez para volver a cargar, y clavalo en el amarillo', 'bad');
-      } else if (!this.lockLearned) {
-        this.lockLearned = true;
-        // con el golpe guardado, los dos se ponen en fila frente al golfista: sobre la recta que sale
-        // de su pelota hacia la franja plana del paso
-        this.enemies.forEach((e, i) => { e.hold = this.linePoint(i, this.baseX); });
-        this.say(`¡Clavado! Ahora esperá a que se pongan en fila… apuntales y soltá el ${KEY('click')}: el driver atraviesa a los dos.`);
-      }
-    }
-    this.wasLocked = locked;
-  }
-
-  private mayKill(enemy: Enemy, shot: Shot): boolean {
-    const s = this.step;
-    if (!s || !this.enemies.includes(enemy)) return true;
-    if (!shot || shot.ability) {
-      this.reason = 'Con el palo';
-      return false;
-    }
-    const why = s.allow?.(this, shot) ?? null;
-    this.reason = why ?? '';
-    return why === null;
-  }
-
-  onEvent(e: HordeEvent): void {
-    // al blindado el golpe flojo no le hace nada: ni llega a perdonarlo
-    if (e.type === 'armored' && this.enemies.includes(e.enemy)) this.reason = 'El golpe flojo no le entra al blindaje: cargá hasta el amarillo';
-    else if (e.type !== 'spared' || !this.reason) return;
-    // un tiro de área puede perdonar a varios a la vez: se dice una sola vez
-    if (this.clock - this.toldAt < 0.5) return;
-    this.toldAt = this.clock;
-    this.host.hud.feedback(`Así no muere: ${this.reason.charAt(0).toLowerCase()}${this.reason.slice(1)}`, 'bad');
-  }
-
-  /** El golpe 1 del wedge no sale. */
-  onDuff(): void {
-    if (this.step?.club === 'wedge') this.host.hud.feedback('Con el wedge, el golpe flojo no sale: cargá hasta el verde', 'bad');
-  }
-
   update(dt: number): void {
-    this.clock += dt;
     // la loma del paso sube en un par de segundos (la del geomante tarda ocho: acá no hay que esperarla)
     for (const m of this.ownMounds) if (m.target > 0) m.height = Math.min(m.target, m.height + 1.4 * dt);
     if (this.wait > 0) {
@@ -355,9 +409,9 @@ export class Tutorial {
       }
       return;
     }
-    this.supplyBall(dt);
     const s = this.step;
     if (!s) return;
+    if (!s.noSupply) this.supplyBall(dt);
     s.update?.(this, dt);
     if (this.allDown) {
       this.say(s.praise);
@@ -383,11 +437,12 @@ export class Tutorial {
 
   /** Corta el tutorial donde esté (el panel de balance saltó a una oleada). */
   stop(): void {
-    for (const m of this.ownMounds) m.target = 0;
     this.end();
   }
 
   private end(): void {
+    for (const m of this.ownMounds) m.target = 0;
+    this.ownMounds = [];
     this.host.horde.mayKill = null;
     for (const e of this.enemies) e.hold = null;
     this.host.hud.setTutorial(null, '', '');

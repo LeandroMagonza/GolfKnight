@@ -207,7 +207,14 @@ function updateAim(): void {
   const dir = new THREE.Vector3(aimPoint.x - tee.x, 0, aimPoint.z - tee.z);
   // muy encima de la pelota no hay dirección que valga: se deja la última
   if (dir.lengthSq() < 0.09) return;
-  player.aimDir.copy(dir.normalize());
+  dir.normalize();
+  // en el tutorial se apunta solo hacia los enemigos del paso
+  const range = tutorial?.aimRange(tee);
+  if (range) {
+    const a = THREE.MathUtils.clamp(Math.atan2(dir.x, dir.z), range[0], range[1]);
+    dir.set(Math.sin(a), 0, Math.cos(a));
+  }
+  player.aimDir.copy(dir);
 }
 
 /**
@@ -242,7 +249,34 @@ function shotLift(club: Club, range: number, from?: THREE.Vector3): { speed: num
   if (!isLob(club)) return { speed: launchSpeed(range, angle, club.gravity), angle };
   const teeH = heightAt(tee.x, tee.z);
   const rise = heightAt(tee.x + player.aimDir.x * range, tee.z + player.aimDir.z * range) - teeH;
+  // El globo promete pasar por arriba de las lomas: si con su ángulo de siempre el arco se estrella
+  // contra una loma antes de llegar, sale más empinado, lo justo para pasarla. Sin esto el hierro (27°)
+  // chocaba con la cara de la loma: la marca de caída retrocedía hasta la loma y, al subir el mouse,
+  // saltaba de golpe detrás de los enemigos.
+  for (let a = angle; a <= LOB_MAX_ANGLE; a += LOB_ANGLE_STEP) {
+    const speed = launchSpeed(range, a, club.gravity, rise);
+    if (a + LOB_ANGLE_STEP > LOB_MAX_ANGLE || clearsTerrain(range, a, speed, club.gravity ?? GRAVITY, teeH)) return { speed, angle: a };
+  }
   return { speed: launchSpeed(range, angle, club.gravity, rise), angle };
+}
+
+/** Hasta qué ángulo se empina un globo para pasar una loma, y de a cuánto. */
+const LOB_MAX_ANGLE = THREE.MathUtils.degToRad(72);
+const LOB_ANGLE_STEP = THREE.MathUtils.degToRad(3);
+
+/**
+ * ¿El arco (desde `tee`, hacia `player.aimDir`) pasa por arriba del terreno hasta llegar? Se mira cada
+ * cuarto de metro, con un margen chico, hasta casi el punto de caída, y tiene que clavarse ahí.
+ */
+function clearsTerrain(range: number, angle: number, speed: number, gravity: number, teeH: number): boolean {
+  const tan = Math.tan(angle);
+  const cos = Math.cos(angle);
+  const k = gravity / (2 * speed * speed * cos * cos);
+  const over = (d: number) => teeH + BALL_RADIUS + d * tan - k * d * d - heightAt(tee.x + player.aimDir.x * d, tee.z + player.aimDir.z * d);
+  for (let d = 0.25; d < range - 0.4; d += 0.25) if (over(d) < 0.15) return false;
+  // y que se clave donde apuntaste: detrás de una cima, si la bajada es más empinada que la caída de la
+  // pelota, la pelota pasa por arriba del punto y cae más atrás
+  return over(range + 0.5) < 0;
 }
 
 /** Último nivel de carga que sonó, para tocar una nota solo cuando cambia. */
@@ -294,7 +328,7 @@ function updatePreview(): void {
   const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
   const duff = damageFor(club, range, 1) <= 0 && areaDamageFor(club, range, 1) <= 0;
-  hud.setMarks(...qualityMarks(), duff);
+  hud.setMarks(...qualityMarks(), duff, [1, 2, 3].map((q) => damageFor(club, range, q)));
   hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`, player.meter.side);
   if (charging) placeMeter();
   if (!show) return;
@@ -1115,6 +1149,8 @@ const input = new Input({
     else lockSwing();
   },
   step(right) {
+    // en el tutorial el golfista se queda en su puesto, salvo en el paso de ir a buscar la pelota
+    if (tutorial && !tutorial.canMove) return;
     if (started && !paused && !ended && !cardOpen && player) player.step(-right);
   },
   restart() {
@@ -1500,7 +1536,7 @@ function frame(): void {
     // pantalla es hacia -x, como en `step`
     // Y el efecto: mantener A o D curva el tiro (continuo), y con «al soltar» vuelve a cero apenas no
     // hay ninguna de las dos apretada
-    if (started && !ended && player.mode === 'charging') {
+    if (started && !ended && player.mode === 'charging' && (!tutorial || tutorial.canMove)) {
       const right = (input.keys.has('KeyD') || input.keys.has('ArrowRight') ? 1 : 0) - (input.keys.has('KeyA') || input.keys.has('ArrowLeft') ? 1 : 0);
       if (SHIFT.mode === 'continuo' && right) player.shiftStance(-right * SHIFT.speed * dt);
       if (player.curving) {
@@ -1566,6 +1602,8 @@ addEventListener('resize', () => {
   get shots() { return shots; },
   get ended() { return ended; },
   get tutorial() { return tutorial; },
+  /** Dónde está la marca de caída del tiro, para las pruebas. */
+  get landingAt() { return [+landing.position.x.toFixed(1), +landing.position.z.toFixed(1)]; },
   get paused() { return paused; },
   get lastEvent() { return lastEvent; },
   get lastLanding() { return lastLanding; },
