@@ -183,9 +183,15 @@ function updateAim(): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
   raycaster.setFromCamera(new THREE.Vector2(input.pointer.x, input.pointer.y), camera);
-  const hit = terrainOn()
-    ? (aimOnGround(scratchAim) ? scratchAim : null)
-    : raycaster.ray.intersectPlane(groundPlane, scratchAim);
+  // Los globos (hierro y wedge) miden la distancia sobre el piso plano, no sobre el relieve: así cuánto
+  // más lejos cae depende solo de cuánto más arriba está el mouse. Contra el relieve, la cara de una loma
+  // tapa su espalda desde la cámara: al subir el mouse por la loma el punto trepaba bien, pero al pasar
+  // la cima saltaba para adelante (a la cara de la loma) en vez de seguir hacia atrás. La marca de caída
+  // igual se dibuja sobre el terreno, y el globo se calcula para caer ahí.
+  const flat = !terrainOn() || isLob(player.club);
+  const hit = flat
+    ? raycaster.ray.intersectPlane(groundPlane, scratchAim)
+    : (aimOnGround(scratchAim) ? scratchAim : null);
   if (hit) {
     aimPoint.copy(hit);
   }
@@ -556,6 +562,7 @@ function announce(kind: EnemyKind, mods?: EnemyMods): void {
 }
 
 balls.onEvent = (e) => {
+  if (e.type === 'settled' && !e.ability) tutorial?.onShotDone();
   switch (e.type) {
     case 'hit':
       // el número de daño lo saca el evento 'damage' de la horde, que vale para todas las formas de
@@ -1569,7 +1576,8 @@ addEventListener('resize', () => {
   /** Píxel de pantalla que corresponde a un punto del piso, para apuntar con el mouse en los tests. */
   /** Lo visual del panel B (sombras, luz, dónde va el arco de carga). */
   get visual() { return VISUAL; },
-  screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, heightAt(x, z), z), 0); },
+  // con los globos el mouse apunta sobre el piso plano (ver updateAim): el píxel es el del plano
+  screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, isLob(player.club) || !terrainOn() ? 0 : heightAt(x, z), z), 0); },
   heightAt,
   spawn(kind: EnemyKind, x: number, z: number, mods?: EnemyMods) { return horde.spawn(kind, new THREE.Vector3(x, 0, z), mods); },
   mounds,

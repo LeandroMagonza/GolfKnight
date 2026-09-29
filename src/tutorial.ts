@@ -10,7 +10,8 @@
 // 1. apuntar y pegar (driver);
 // 2. cargar hasta el amarillo (uno blindado, al que el golpe flojo no le hace nada);
 // 3. clavar la carga con Espacio: con el golpe clavado en el amarillo, los dos enemigos se ponen en fila
-//    frente al golfista, y ahí se suelta (para eso sirve cargar antes);
+//    frente al golfista, y ahí se suelta (para eso sirve cargar antes). Son blindados y tienen que caer
+//    los dos del mismo tiro: si no, vuelven a su lugar y hay que clavar de nuevo;
 // 4. el hierro: un grupo detrás de una loma, pegándole a uno salpica a los demás;
 // 5. el wedge: un globo que abre un área grande, y que con el golpe 1 pifia;
 // 6. el putter: uno cerca.
@@ -48,6 +49,8 @@ interface Step {
   /** ¿Este tiro puede matar? null = sí; si no, por qué (se le muestra al jugador). */
   allow?(t: Tutorial, shot: NonNullable<Shot>): string | null;
   update?(t: Tutorial, dt: number): void;
+  /** Terminó un tiro del golfista (la pelota ya se jugó). */
+  shotDone?(t: Tutorial): void;
   /** Lo que se dice al terminarlo. */
   praise: string;
 }
@@ -78,15 +81,23 @@ const STEPS: Step[] = [
   {
     title: 'Clavar la carga',
     club: 'driver',
-    text: `Cargá hasta el <b class="yellow">amarillo</b> y apretá ${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. `
+    text: `Estos dos tienen <b>blindaje</b> y tienen que caer <b>los dos del mismo tiro</b>. Cargá hasta el `
+      + `<b class="yellow">amarillo</b> y apretá ${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. `
       + `No sueltes el ${KEY('click')}.`,
     setup: (t) => {
-      t.put('goblina', -7, 22);
-      t.put('goblina', 8, 29);
+      t.put('goblin', -7, 22, { armor: 1 });
+      t.put('goblin', 8, 29, { armor: 1 });
       t.lineUp = true;
     },
     allow: (t, shot) => (!t.lockLearned ? 'Primero clavá la carga en el amarillo con Espacio, y después soltá' : needGreen(t, shot)),
     update: (t) => t.watchLock(),
+    // si no cayeron los dos (se soltó antes de la fila, o erró), vuelven a su lugar y se empieza de nuevo
+    shotDone: (t) => {
+      if (t.allDown) return;
+      const hadLined = t.lockLearned;
+      t.resetStep();
+      if (hadLined) t.tell('Tienen que caer los dos del mismo tiro: volvieron a su lugar. Clavá la carga de nuevo y esperá la fila');
+    },
     praise: '¡Los dos de un tiro! Clavar la carga te deja esperar a que se pongan en fila.',
   },
   {
@@ -158,6 +169,44 @@ export class Tutorial {
     this.next();
   }
 
+  /** Dónde quedó cada enemigo del paso, para volver a ponerlos (ver `resetStep`). */
+  private spots: { kind: EnemyKind; mods?: EnemyMods; at: THREE.Vector3 }[] = [];
+
+  private spawnAt(s: { kind: EnemyKind; mods?: EnemyMods; at: THREE.Vector3 }): Enemy {
+    const e = this.host.horde.spawn(s.kind, s.at.clone(), s.mods);
+    e.hold = s.at.clone();
+    return e;
+  }
+
+  /** ¿Cayeron todos los del paso? */
+  get allDown(): boolean {
+    return this.enemies.every((e) => !e.alive);
+  }
+
+  /** Vuelve a poner el paso como empezó: los vivos, sanos y en su lugar; los caídos, de nuevo. */
+  resetStep(): void {
+    this.enemies = this.enemies.map((e, i) => {
+      const s = this.spots[i];
+      if (!e.alive) return this.spawnAt(s);
+      e.hp = e.maxHp;
+      e.hold = s.at.clone();
+      return e;
+    });
+    this.lockLearned = false;
+    this.wasLocked = false;
+    if (this.step) this.say(this.step.text);
+  }
+
+  tell(text: string): void {
+    this.host.hud.feedback(text, 'bad');
+  }
+
+  /** Terminó un tiro del golfista. */
+  onShotDone(): void {
+    if (this.wait > 0) return;
+    this.step?.shotDone?.(this);
+  }
+
   /** Lo que pone el paso, antes de ubicarlo en el campo (ver `place`). */
   private pending: { kind: EnemyKind; x: number; z: number; mods?: EnemyMods }[] = [];
   private pendingMounds: { x: number; z: number }[] = [];
@@ -210,12 +259,8 @@ export class Tutorial {
       }
     }
     this.baseX = ax + best;
-    for (const p of this.pending) {
-      const at = new THREE.Vector3(this.baseX + p.x, 0, p.z);
-      const e = this.host.horde.spawn(p.kind, at, p.mods);
-      e.hold = at.clone();
-      this.enemies.push(e);
-    }
+    this.spots = this.pending.map((p) => ({ kind: p.kind, mods: p.mods, at: new THREE.Vector3(this.baseX + p.x, 0, p.z) }));
+    for (const s of this.spots) this.enemies.push(this.spawnAt(s));
     for (const p of this.pendingMounds) {
       const m: Mound = { x: this.baseX + p.x, z: p.z, height: 0, target: 2.4, rx: 4, rz: 2.2, owner: 0 };
       mounds.push(m);
@@ -314,7 +359,7 @@ export class Tutorial {
     const s = this.step;
     if (!s) return;
     s.update?.(this, dt);
-    if (this.enemies.every((e) => !e.alive)) {
+    if (this.allDown) {
       this.say(s.praise);
       this.host.hud.feedback('¡Bien!', 'good');
       this.wait = BETWEEN;

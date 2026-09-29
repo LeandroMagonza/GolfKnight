@@ -2124,8 +2124,10 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
   1. Apuntar y pegar, con el driver.
   2. Cargar: un goblin blindado, al que el golpe flojo no le hace nada. Al terminarlo se dice que el
      amarillo del centro pega todavía más.
-  3. Clavar la carga con Espacio: dos goblinas separadas. No mueren hasta que se clavó la carga en el
-     verde; al clavarla, se ponen en fila frente al golfista y el driver atraviesa a las dos.
+  3. Clavar la carga con Espacio: dos goblins blindados, separados. No mueren hasta que se clavó la
+     carga en el amarillo; al clavarla, se ponen en fila frente al golfista y el driver atraviesa a los
+     dos. Tienen que caer los dos del mismo tiro: si se suelta antes de la fila, o cae uno solo, vuelven
+     a su lugar y hay que clavar de nuevo. No hay otra forma de pasarlo.
   4. El hierro: tres goblins juntos detrás de una loma que sube en el momento.
   5. El wedge: un grupo apretado; se avisa que el golpe flojo pifia.
   6. El putter: un orco cerca.
@@ -2135,3 +2137,13 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
 - **El arco del wedge**: como con el golpe 1 pifia, su arco es otro: el golpe 1 en **gris con un
   triángulo de peligro**, el 2 en verde y el 3 en amarillo, y la línea de tiro con los mismos colores.
   Los otros palos siguen como siempre: verde, amarillo y rojo en el centro.
+
+## Hecho: el hierro y el wedge apuntan sobre el plano (29/9/2026)
+
+Los globos miden la distancia sobre el piso plano, no sobre el relieve: cuánto más lejos cae depende solo
+de cuánto más arriba está el mouse. Contra el relieve, la cara de una loma le tapa la espalda a la
+cámara: al subir el mouse por la loma el punto trepaba bien, pero al pasar la cima saltaba para adelante,
+a la cara de la loma, y recién más arriba volvía a aparecer atrás. La marca de caída igual se dibuja
+sobre el terreno y el globo se calcula para caer ahí. Probado en *La meseta*: subiendo el mouse de a
+poco, el punto del wedge y del hierro avanza parejo, sin volver atrás. El driver y el putter siguen
+apuntando contra el terreno (tienen distancia fija: el mouse solo da la dirección).
