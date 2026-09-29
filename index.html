@@ -24,8 +24,9 @@
       .buttons { display: flex; gap: 14px; align-items: center; }
       #overlay button { font-size: 19px; padding: 11px 30px; border-radius: 8px; border: 0; background: #5be07a; color: #102; cursor: pointer; font-weight: 600; }
       #overlay button:disabled { background: #556; color: #aab; cursor: wait; }
-      #overlay button#replaycine { background: transparent; color: #9aa4b2; font-size: 14px; font-weight: 400; padding: 4px 10px; text-decoration: underline; }
-      #overlay button#replaycine:hover { color: #ffd66b; }
+      #overlay button#replaycine, #overlay button.link { background: transparent; color: #9aa4b2; font-size: 14px; font-weight: 400; padding: 4px 10px; text-decoration: underline; }
+      #overlay button#replaycine:hover, #overlay button.link:hover { color: #ffd66b; }
+      #overlay button.link { font-size: 15px; margin-top: -10px; }
       /* la cinemática de la intro, arriba de todo mientras el juego carga por debajo */
       #cine { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 100; background: #000; }
 
@@ -46,6 +47,7 @@
       #wave .sub { font-size: 13px; color: #e4e9f0; }
       /* el recorrido de la partida: los tres poderes de los escenarios y el jefe. El de ahora, encendido */
       #run { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
+      #run[hidden] { display: none; }
       #run img { width: 26px; height: 26px; opacity: 0.35; filter: grayscale(0.6); transition: opacity 0.2s, transform 0.2s; }
       #run img.done { opacity: 0.7; filter: none; }
       #run img.now { opacity: 1; filter: drop-shadow(0 0 5px #ffd66b); transform: scale(1.2); }
@@ -55,6 +57,14 @@
       #clubrow { position: relative; }
 
       .club.extra { opacity: 0.9; border-color: rgba(255,255,255,0.18); }
+      /* el tutorial: qué hacer en este paso, fijo arriba */
+      #tutorial { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); box-sizing: border-box; padding: 7px 14px 9px; background: rgba(8, 12, 18, 0.78); border-left: 4px solid #ffd66b; border-radius: 10px; text-align: left; pointer-events: none; }
+      #tutorial[hidden] { display: none; }
+      #tutorial .title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #ffd66b; font-weight: 700; margin-bottom: 2px; }
+      #tutorial .text { font-size: 15px; line-height: 1.4; color: #f1f4f8; }
+      #tutorial .t1 { color: #ffffff; }
+      #tutorial .t2 { color: #5be07a; }
+      #tutorial .t3 { color: #ffd21f; }
       #banner { position: absolute; top: 24%; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 2px 10px #000; opacity: 0; transition: opacity 0.4s; }
       #banner.show { opacity: 1; }
       #banner .big { font-size: 40px; font-weight: 800; color: #ffd66b; }
@@ -220,6 +230,7 @@
       <div class="buttons">
         <button id="start" type="button" disabled>Cargando…</button>
       </div>
+      <button id="alt" type="button" class="link" hidden></button>
       <button id="replaycine" type="button">Ver la intro de nuevo</button>
       <div id="version"></div>
     </div>
@@ -233,6 +244,7 @@
       <button id="skin" type="button" tabindex="-1"></button>
       <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>
       <div id="balance" hidden></div>
+      <div id="tutorial" hidden><div class="title"></div><div class="text"></div></div>
       <div id="banner"><div class="big"></div><div class="small"></div></div>
       <div id="feedback"></div>
       <div id="floats"></div>

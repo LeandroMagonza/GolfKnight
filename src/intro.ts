@@ -5,6 +5,9 @@
 //
 // Sale una vez por sesión (al reiniciar con R no vuelve), se puede volver a ver con su botón, y
 // ?sincine en la URL la saca. En las pruebas automáticas no sale (taparía los botones), salvo con ?cine.
+//
+// El tutorial: la primera vez, el botón grande lo empieza y abajo se lo puede saltear. Cuando ya se hizo
+// (o se salteó), el botón grande va directo a la partida y abajo se lo puede repetir.
 
 interface Slide {
   art: string;
@@ -16,7 +19,7 @@ const SLIDES: Slide[] = [
     art: '',
     html: `<p class="controls">
       Apuntá con el <kbd>mouse</kbd>: la <em>distancia</em> del cursor es dónde cae la pelota<br />
-      Mantené <kbd>click</kbd> para cargar y soltá para pegar: el arco dice <em>qué tan bien</em>, del verde al rojo<br />
+      Mantené <kbd>click</kbd> para cargar y soltá para pegar: el arco dice <em>qué tan bien</em>, del blanco al verde y al amarillo del centro<br />
       <kbd>1</kbd> driver · <kbd>2</kbd> hierro 7 · <kbd>3</kbd> wedge · <kbd>4</kbd> putter: cada palo cobra mejor a su distancia<br />
       <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd>: las habilidades que elegís entre oleadas, al instante hacia el mouse<br />
       Se pega donde hay <em>pelota</em>: de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd> (cargando, te corren de costado)<br />
@@ -36,12 +39,15 @@ export class Intro {
   private readonly next = document.getElementById('start') as HTMLButtonElement;
   private ready = false;
   private cine: HTMLIFrameElement | null = null;
+  private readonly alt = document.getElementById('alt') as HTMLButtonElement;
 
-  constructor(private readonly onStart: () => void) {
+  /** @param tutorialFirst el botón grande empieza el tutorial (la primera vez) */
+  constructor(private readonly onStart: (tutorial: boolean) => void, private readonly tutorialFirst: boolean) {
     const version = document.getElementById('version');
     if (version) version.textContent = `versión ${__BUILD__}`;
     this.dots.innerHTML = SLIDES.length > 1 ? SLIDES.map(() => '<span></span>').join('') : '';
     this.next.addEventListener('click', () => this.advance());
+    this.alt.addEventListener('click', () => this.finish(!this.tutorialFirst));
     document.getElementById('replaycine')?.addEventListener('click', (e) => {
       (e.currentTarget as HTMLElement).blur();
       this.playCine();
@@ -97,17 +103,17 @@ export class Intro {
   advance(): void {
     // con la cinemática arriba, el Espacio es de ella
     if (this.cine) return;
-    if (this.last) this.finish();
+    if (this.last) this.finish(this.tutorialFirst);
     else {
       this.index++;
       this.render();
     }
   }
 
-  private finish(): void {
+  private finish(tutorial: boolean): void {
     if (!this.ready || this.cine) return;
     sessionStorage.setItem(SEEN_KEY, '1');
-    this.onStart();
+    this.onStart(tutorial);
   }
 
   private render(): void {
@@ -116,6 +122,9 @@ export class Intro {
     Array.from(this.dots.children).forEach((d, i) => d.classList.toggle('on', i === this.index));
     // la historia se puede leer mientras carga; solo el arranque espera a los modelos
     this.next.disabled = this.last && !this.ready;
-    this.next.textContent = this.last ? (this.ready ? '¡A defender Valdehoyo! (Espacio)' : 'Cargando…') : 'Siguiente (Espacio)';
+    const go = this.tutorialFirst ? 'Aprender a jugar (Espacio)' : '¡A defender Valdehoyo! (Espacio)';
+    this.next.textContent = this.last ? (this.ready ? go : 'Cargando…') : 'Siguiente (Espacio)';
+    this.alt.hidden = !this.last || !this.ready;
+    this.alt.textContent = this.tutorialFirst ? 'Saltar el tutorial' : 'Hacer el tutorial';
   }
 }

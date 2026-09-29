@@ -27,6 +27,7 @@ import { DebugPanel, loadBalance } from './debug';
 import { Hud, type PerkChip } from './hud';
 import { Input } from './input';
 import { Intro } from './intro';
+import { Tutorial } from './tutorial';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -58,8 +59,10 @@ balls.traps = traps;
 
 // ---------- estado ----------
 const GATE_MAX = 10;
-/** Color de la línea de tiro según la calidad del golpe: flojo, bueno y perfecto. */
-const QUALITY_COLORS = [0xffffff, 0xffe066, 0xff2d3c];
+/** Color de la línea de tiro según la calidad del golpe: flojo, bueno y perfecto, como el arco. */
+const QUALITY_COLORS = [0xffffff, 0x5be07a, 0xffd21f];
+/** La línea de tiro de un golpe que pifia (el golpe 1 del wedge): gris, como su tramo del arco. */
+const DUFF_COLOR = 0x6b7480;
 const hud = new Hud();
 const audio = new GameAudio();
 /**
@@ -95,6 +98,20 @@ let gameClock = 0;
 const ALL_CLUBS = params.has('palos');
 /** Con ?bot en la URL juega solo (src/bot.ts), para mirarlo o para chequear el balance. */
 const BOT = params.has('bot');
+/**
+ * El tutorial, mientras dura (ver src/tutorial.ts). La primera vez es lo que empieza el botón grande de la
+ * intro; ?tutorial lo fuerza. En las pruebas automáticas no, salvo con ?tutorial.
+ */
+let tutorial: Tutorial | null = null;
+const TUTORIAL_KEY = 'gk.tutorialDone';
+function tutorialDone(): boolean {
+  try {
+    return !!localStorage.getItem(TUTORIAL_KEY);
+  } catch {
+    return false;
+  }
+}
+const tutorialFirst = params.has('tutorial') || (!tutorialDone() && !navigator.webdriver);
 /** Trucos del panel de balance: el golfista o la puerta no reciben daño. */
 const godMode = { godPlayer: false, godGate: false };
 /** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
@@ -269,7 +286,9 @@ function updatePreview(): void {
   const damage = damageFor(club, range, quality);
   const areaHit = areaDamageFor(club, range, quality);
   const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
-  hud.setMarks(...qualityMarks());
+  // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
+  const duff = damageFor(club, range, 1) <= 0 && areaDamageFor(club, range, 1) <= 0;
+  hud.setMarks(...qualityMarks(), duff);
   hud.setMeter(charging, player.meter.power, player.meter.locked, `${range.toFixed(0)} m · ${BAND_NAMES[bandOf(range)]} · ${dmgLabel}`, player.meter.side);
   if (charging) placeMeter();
   if (!show) return;
@@ -289,7 +308,7 @@ function updatePreview(): void {
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
   pos.needsUpdate = true;
   // la línea toma el color del palo; mientras se carga, el de la calidad del golpe
-  const lineColor = charging ? QUALITY_COLORS[quality - 1] : club.color;
+  const lineColor = charging ? (duff && quality === 1 ? DUFF_COLOR : QUALITY_COLORS[quality - 1]) : club.color;
   previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
   previewMat.size = charging ? (quality >= QUALITY_LEVELS ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
@@ -352,6 +371,7 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string): v
 
 horde.onEvent = (e) => {
   lastEvent = e.type;
+  tutorial?.onEvent(e);
   switch (e.type) {
     case 'damage': {
       const s = toScreen(e.enemy.position, e.enemy.height);
@@ -934,18 +954,51 @@ function lockSwing(): void {
   if (player.lockSwing()) audio.chargeTick(qualityOf(player.meter.power));
 }
 
+function saveTutorialDone(): void {
+  try {
+    localStorage.setItem(TUTORIAL_KEY, '1');
+  } catch { /* la próxima vez sale de nuevo */ }
+}
+
+/** Terminó el tutorial (o se cortó desde el panel): vuelven los cuatro palos y arranca la partida. */
+function finishTutorial(): void {
+  tutorial = null;
+  saveTutorialDone();
+  for (const id of CLUB_ORDER) player.unlocked.add(id);
+  player.setClub(CLUBS.driver);
+  hud.showBanner('¡A defender Valdehoyo!', 'Que no lleguen a la puerta', 2.5);
+}
+
 function dismissCard(): void {
   if (!cardOpen) return;
   cardOpen = false;
   hud.hideCard();
 }
 
-async function startGame(): Promise<void> {
+async function startGame(withTutorial = false): Promise<void> {
   if (started) return;
   started = true;
   await audio.start();
   audio.startMusic();
   overlay.hidden = true;
+  if (withTutorial) {
+    tutorial = new Tutorial({
+      horde,
+      player: () => player,
+      tees,
+      hud,
+      onlyClub(id) {
+        player.unlocked.clear();
+        player.unlocked.add(id);
+        player.setClub(CLUBS[id]);
+      },
+      finish: finishTutorial,
+    });
+    tutorial.start();
+    return;
+  }
+  // el que lo salteó ya no lo ve primero
+  saveTutorialDone();
   // con ?palos, para probar: arranca eligiendo una carta
   if (ALL_CLUBS) offerChoice();
   if (BOT) {
@@ -975,6 +1028,7 @@ function makeDebugPanel(): DebugPanel {
       }
     },
     goToWave(index) {
+      tutorial?.stop();
       for (const e of horde.enemies) e.state = 'gone';
       // si ya habías perdido (o ganado), la partida vuelve: el golfista se levanta y la puerta se arregla
       if (ended) {
@@ -1156,6 +1210,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
     audio.duff();
     hud.feedback('¡Pifia!', 'bad');
     setCleanStreak(0);
+    tutorial?.onDuff();
   };
   p.onWhiff = () => {
     audio.whoosh(0.3);
@@ -1273,7 +1328,7 @@ async function loadModels(): Promise<void> {
 
 // ---------- inicio ----------
 const overlay = document.getElementById('overlay')!;
-const intro = new Intro(() => void startGame());
+const intro = new Intro((withTutorial) => void startGame(withTutorial), tutorialFirst);
 loadModels().then(() => intro.setReady()).catch((e) => {
   console.error(e);
   intro.setError('Error cargando modelos');
@@ -1450,7 +1505,9 @@ function frame(): void {
     const active = started && !ended;
     if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
     player.update(dt);
-    if (active) updateWaves(dt);
+    // en el tutorial no hay oleadas: los enemigos los pone él
+    if (active && tutorial) tutorial.update(dt);
+    else if (active) updateWaves(dt);
     if (started) {
       horde.update(dt, player);
       moundView.update();
@@ -1471,7 +1528,7 @@ function frame(): void {
     hud.setClubState(player.unlocked, player.thrownClub);
     hud.setPerks(perkStatus());
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
-    hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
+    if (!tutorial) hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScenario(director.list[director.index]?.scenario ?? -1);
     hud.setScore(score, kills);
   }
@@ -1501,6 +1558,7 @@ addEventListener('resize', () => {
   get kills() { return kills; },
   get shots() { return shots; },
   get ended() { return ended; },
+  get tutorial() { return tutorial; },
   get paused() { return paused; },
   get lastEvent() { return lastEvent; },
   get lastLanding() { return lastLanding; },

@@ -159,7 +159,9 @@ export class Balls {
     // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie. Al que esta
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
+    this.horde.shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability };
     const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
+    this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     if (ball.element === 'wind') this.windBurst(ball, pos);
     ball.hits += hits;
@@ -178,7 +180,9 @@ export class Balls {
     this.effects.spark(pos, ball.club.color);
     const dir = new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
     const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
+    this.horde.shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability };
     const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
+    this.horde.shot = null;
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
     const landed = guard === 0 || this.horde.lastDealt > 0;
     if (landed) ball.hits++;

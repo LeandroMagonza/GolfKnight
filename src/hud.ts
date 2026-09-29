@@ -99,9 +99,14 @@ export class Hud {
    * 1 arriba en el medio, así que las zonas quedan en espejo: verde (débil) en las puntas, amarillo
    * (medio) y rojo (fuerte) en el centro.
    */
-  setMarks(midFrom: number, strongFrom: number): void {
+  /**
+   * Los tramos del arco: el golpe 1 en los bordes (blanco), el 2 entre medio (verde) y el 3 en el centro
+   * (amarillo), del mismo color que la línea de tiro. `duff`: con este palo el golpe 1 es pifia (el
+   * wedge), y ese tramo va en gris con un triángulo de peligro.
+   */
+  setMarks(midFrom: number, strongFrom: number, duff = false): void {
     // se llama en cada cuadro (los umbrales se tocan en el panel): solo se rearma si cambiaron
-    const key = `${midFrom}/${strongFrom}`;
+    const key = `${midFrom}/${strongFrom}/${duff}`;
     if (key === this.marksKey) return;
     this.marksKey = key;
     const R = 66;
@@ -112,13 +117,20 @@ export class Hud {
       `<path class="zone" fill="${color}" d="M ${at(R, a1)} A ${R} ${R} 0 0 1 ${at(R, a2)} L ${at(r, a2)} A ${r} ${r} 0 0 0 ${at(r, a1)} Z" />`;
     const g = deg(midFrom);
     const y = deg(strongFrom);
+    const low = duff ? '#4d535c' : '#eef0f2';
     const green = '#5be07a';
-    const yellow = '#ffd66b';
-    const red = '#ff2d3c';
+    const yellow = '#ffd21f';
+    // el triángulo de peligro, en el medio de cada tramo de la pifia
+    const warn = (a: number) => {
+      const [x, y] = at((R + r) / 2, a).split(' ').map(Number);
+      return `<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><path d="M 0 -8 L 8.5 6.5 L -8.5 6.5 Z" fill="#ffb020" stroke="#1a1204" stroke-width="1.6" stroke-linejoin="round" />`
+        + `<rect x="-1.1" y="-3.6" width="2.2" height="5.6" rx="1" fill="#1a1204" /><circle cy="4.1" r="1.2" fill="#1a1204" /></g>`;
+    };
     // un fondo oscuro un poco más grande, como tenía la barra: sobre el pasto el verde se perdía
     const back = `<path fill="rgba(0,0,0,0.6)" d="M ${at(R + 4, -92)} A ${R + 4} ${R + 4} 0 0 1 ${at(R + 4, 92)} L ${at(r - 4, 92)} A ${r - 4} ${r - 4} 0 0 0 ${at(r - 4, -92)} Z" />`;
     this.meter.innerHTML = `<svg viewBox="-72 -72 144 78">` + back
-      + sector(-90, -g, green) + sector(-g, -y, yellow) + sector(-y, y, red) + sector(y, g, yellow) + sector(g, 90, green)
+      + sector(-90, -g, low) + sector(-g, -y, green) + sector(-y, y, yellow) + sector(y, g, green) + sector(g, 90, low)
+      + (duff ? warn(-(90 + g) / 2) + warn((90 + g) / 2) : '')
       + `<g class="needle"><line x1="0" y1="-30" x2="0" y2="-72" stroke="#0b0f14" stroke-width="6" stroke-linecap="round" />`
       + `<line x1="0" y1="-30" x2="0" y2="-72" stroke="#ffffff" stroke-width="3" stroke-linecap="round" /></g>`
       + `<circle r="5" fill="#ffffff" stroke="#0b0f14" stroke-width="2" /></svg>`;
@@ -256,6 +268,22 @@ export class Hud {
   }
 
   private runEl = $('run');
+  private tutorialEl = $('tutorial');
+
+  /**
+   * El recuadro del tutorial: qué hacer en este paso. `header` va arriba, donde va la oleada. Con null se
+   * esconde y vuelve la tira de la partida.
+   */
+  setTutorial(header: string | null, title: string, html: string): void {
+    this.tutorialEl.hidden = header === null;
+    this.runEl.hidden = header !== null;
+    if (header === null) return;
+    this.waveN.textContent = header;
+    this.waveSub.textContent = '';
+    (this.tutorialEl.querySelector('.title') as HTMLElement).textContent = title;
+    // el texto es del juego (tutorial.ts), no del jugador: lleva negritas y teclas
+    (this.tutorialEl.querySelector('.text') as HTMLElement).innerHTML = html;
+  }
   private shownScenario = -2;
 
   /** El recorrido de la partida: un ícono por escenario (su poder) y el del jefe al final. */

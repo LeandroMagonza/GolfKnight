@@ -2110,3 +2110,28 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
   un caballero al lado, no se le separó más de 2.8 m (el círculo es de 8).
 - **Panel de balance → Pruebas → Oleada N revive**: si habías perdido (o ganado), el golfista se levanta
   con la vida llena, la puerta se arregla y la partida sigue desde esa oleada.
+
+## Hecho: el tutorial, y el arco con los colores nuevos (29/9/2026)
+
+- **Tutorial paso por paso** (`src/tutorial.ts`). La primera vez, el botón grande de la intro lo empieza
+  («Aprender a jugar»), y abajo se lo puede saltear. Cuando ya se hizo o se salteó, el botón grande va
+  a la partida y abajo se lo puede repetir. `?tutorial` lo fuerza. Al terminar arranca la oleada 1 con
+  los cuatro palos.
+- Un palo por paso, con enemigos **quietos** (`Enemy.hold`: se quedan donde los pusieron, o caminan
+  hasta un punto y ahí se quedan; no es el hielo, que duplica el daño). Si la pelota se va sin pegar,
+  aparece otra a los pies. **Si el tiro no es el que se enseña, el enemigo no muere**: queda con 1 de
+  vida y se dice por qué (`Horde.mayKill`, con el palo y el nivel del tiro en `Horde.shot`).
+  1. Apuntar y pegar, con el driver.
+  2. Cargar: un goblin blindado, al que el golpe flojo no le hace nada. Al terminarlo se dice que el
+     amarillo del centro pega todavía más.
+  3. Clavar la carga con Espacio: dos goblinas separadas. No mueren hasta que se clavó la carga en el
+     verde; al clavarla, se ponen en fila frente al golfista y el driver atraviesa a las dos.
+  4. El hierro: tres goblins juntos detrás de una loma que sube en el momento.
+  5. El wedge: un grupo apretado; se avisa que el golpe flojo pifia.
+  6. El putter: un orco cerca.
+- Los enemigos de cada paso se corren a lo ancho hasta la franja más plana del campo: en un valle el
+  enemigo queda un metro más abajo y el driver le pasa por encima. Van entre 15 y 20 m, más cerca que
+  el recuadro de las instrucciones, que va arriba.
+- **El arco de carga**: los bordes (golpe 1) en blanco, el golpe 2 en verde y el centro (golpe 3) en
+  amarillo. La línea de tiro usa los mismos colores. Con el wedge, el golpe 1 es pifia: ese tramo va en
+  **gris con un triángulo de peligro**, y la línea de tiro también se ve gris.

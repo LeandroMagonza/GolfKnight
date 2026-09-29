@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
-import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
+import { EXPLOSION_RADIUS, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
 import { BANNER_HOLD_Z, behaviorOf, DODGE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
@@ -68,7 +68,9 @@ export type HordeEvent =
   /** La bandera se levantó (todos +1 de vida) o cayó. */
   | { type: 'banner'; up: boolean }
   /** Uno que esquiva saltó al costado. */
-  | { type: 'dodged'; enemy: Enemy };
+  | { type: 'dodged'; enemy: Enemy }
+  /** El tutorial no lo dejó morir: no era el tiro que se estaba enseñando. */
+  | { type: 'spared'; enemy: Enemy };
 
 interface Template {
   scene: THREE.Object3D;
@@ -394,6 +396,11 @@ export class Enemy {
    * espera, sigue a la puerta. No vuelve atrás aunque lleguen otros.
    */
   forsaken = false;
+  /**
+   * El tutorial: el enemigo se queda en este punto (o camina hasta él y ahí se queda), sin ir a la
+   * puerta ni atropellar a nadie. Null = se mueve como siempre.
+   */
+  hold: THREE.Vector3 | null = null;
   /** Frío de la zona de hielo: segundos que le quedan y de cuántos. Solo lo hace caminar lento. */
   chillTimer = 0;
   chillMax = 1;
@@ -1048,6 +1055,11 @@ export class Enemy {
       return;
     }
 
+    if (this.hold) {
+      this.updateHold(dt);
+      return;
+    }
+
     const toPlayer = Math.hypot(player.position.x - this.position.x, player.position.z - this.position.z);
     // Nadie persigue al golfista: todos van derecho a la puerta. La única excepción es el alma en pena,
     // que existe justamente para ir por él.
@@ -1195,6 +1207,34 @@ export class Enemy {
     }
     this.clampToField();
     this.finishFrame(dt, this.state === 'attack' ? 1 : castGesture);
+  }
+
+  /** El tutorial: camina hasta `hold` y ahí se queda, mirando hacia los puestos. */
+  private updateHold(dt: number): void {
+    const dx = this.hold!.x - this.position.x;
+    const dz = this.hold!.z - this.position.z;
+    const dist = Math.hypot(dx, dz);
+    let lookX = 0;
+    let lookZ = -1;
+    if (dist > 0.05) {
+      const speed = this.walkSpeed;
+      const step = Math.min(speed * dt, dist);
+      this.position.x += (dx / dist) * step;
+      this.position.z += (dz / dist) * step;
+      lookX = dx;
+      lookZ = dz;
+      const stride = this.stats.height / 1.8;
+      if (this.stats.runs) this.animator.setLocomotion('Running', speed / (4 * stride));
+      else this.animator.setLocomotion('Walking', speed / (1.5 * stride));
+    } else {
+      this.animator.setLocomotion('Idle', 1);
+    }
+    let d = (Math.atan2(lookX, lookZ) - this.yaw) % (Math.PI * 2);
+    if (d > Math.PI) d -= Math.PI * 2;
+    if (d < -Math.PI) d += Math.PI * 2;
+    this.yaw += d * (1 - Math.exp(-8 * dt));
+    this.clampToField();
+    this.finishFrame(dt, 0);
   }
 
   /** El geomante plantado: canaliza la loma; si termina, la deja para siempre y sigue viaje. */
@@ -1465,6 +1505,15 @@ export class Horde {
   /** Lo que sacó de verdad el último golpe (después de blindaje, escudo y etéreo). */
   lastDealt = 0;
 
+  /** El tiro de palo que está pegando ahora: lo marca `Balls` mientras reparte su daño. */
+  shot: { club: ClubId; quality: number; ability: boolean } | null = null;
+
+  /**
+   * El tutorial: decide si este golpe puede matar a este enemigo. Si no, el golpe lo deja con 1 de vida
+   * y sale el evento 'spared'. Null = todo golpe mata, como siempre.
+   */
+  mayKill: ((enemy: Enemy, shot: Horde['shot']) => boolean) | null = null;
+
   /**
    * @param guard lo que resta un escudo por el que pasó el golpe (lo que le llegó de frente): 0 si no
    */
@@ -1505,6 +1554,11 @@ export class Horde {
     }
     // el etéreo es el revés: ningún golpe le saca más de 1, por fuerte que sea
     if (enemy.ethereal && dealt > 1) dealt = 1;
+    // el tutorial: con un tiro que no es el que se está enseñando, no lo mata
+    if (this.mayKill && dealt >= enemy.hp && !this.mayKill(enemy, this.shot)) {
+      dealt = Math.max(0, enemy.hp - 1);
+      this.emit({ type: 'spared', enemy });
+    }
     this.lastDealt = dealt;
     const hadPowder = enemy.powderTimer > 0;
     const wasBurning = enemy.burning;
