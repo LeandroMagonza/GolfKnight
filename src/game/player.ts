@@ -570,6 +570,20 @@ export class Player {
     if (this.alive) this.hp = Math.min(this.maxHp, this.hp + amount);
   }
 
+  /** Se levanta con la vida llena (el panel de balance, para seguir probando después de perder). */
+  revive(): void {
+    this.hp = this.maxHp;
+    this.downed = false;
+    this.grabbedBy = null;
+    this.knockTimer = 0;
+    this.mode = 'free';
+    this.meter.cancel();
+    this.swingShot = null;
+    this.animator.clearOneShot();
+    // un respiro al levantarse, como después de un golpe
+    this.blinkTimer = HIT_GRACE;
+  }
+
   update(dt: number): void {
     if (this.flashTimer > 0) {
       this.flashTimer -= dt;

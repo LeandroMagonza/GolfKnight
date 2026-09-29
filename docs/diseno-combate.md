@@ -2090,3 +2090,21 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
 - **La calavera marca al élite**, venga con el poder que venga: va primera entre sus íconos. El escudo
   que no deja pasar nada es el mismo escudo naranja, con ∞ en vez del número. Así el élite del escudo
   lleva los dos: la calavera y el escudo.
+
+## Hecho: el grande ya no llega solo, el que cura no espera solo, y el panel revive (29/9/2026)
+
+- **Salen en el orden en que tienen que llegar** (`spawnOrder`, `travelTime`, `Spawn.delay`). La mezcla
+  de la oleada se arma pensando en cuándo llega cada uno a los puestos, y cada enemigo sale justo a
+  tiempo para llegar en su turno: el lento sale antes, el rápido después. Antes salían uno por
+  intervalo en ese orden, y el élite (1.4 m/s contra 3.6 del goblin) llegaba medio minuto después que
+  los chicos que salieron con él: si liquidabas el montón, lo veías venir caminando solo. Ahora las
+  llegadas van una por intervalo, sin huecos. La dificultad de cada oleada no cambia: el ritmo de
+  llegada es el mismo. El jefe queda en su lugar.
+- **El élite llega al 85 % de la oleada** (`ELITE.at`), con unos pocos chicos detrás, no último.
+- "Primero" y "al final" se miden por la llegada: el que presenta el poder nuevo es el primero en
+  llegar, y la escalera de escudos (de menor a mayor) sigue el orden de llegada.
+- **El que cura o hace inmune no espera si está solo** (`SHAMAN_ALONE`): con 1.5 s sin aliados vivos,
+  deja de plantarse y va a la puerta, donde pega como cualquiera. Ya no vuelve atrás aunque lleguen
+  otros.
+- **Panel de balance → Pruebas → Oleada N revive**: si habías perdido (o ganado), el golfista se levanta
+  con la vida llena, la puerta se arregla y la partida sigue desde esa oleada.

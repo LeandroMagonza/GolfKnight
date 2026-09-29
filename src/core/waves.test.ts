@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { behaviorOf, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -52,8 +52,11 @@ describe('waves', () => {
     for (const run of runs()) {
       for (const s of [0, 1, 2]) {
         const w = run.waves[s * 3 + 2];
-        const order = spawnOrder(w, seeded(3));
-        const last = order[order.length - 1];
+        const order = arrivalOrder(spawnOrder(w, seeded(3)), w.interval);
+        // llega al final de la oleada, con algunos detrás para que no camine solo
+        const last = order.find((o) => o.mods?.size)!;
+        expect(order.indexOf(last) / order.length).toBeGreaterThan(0.7);
+        expect(order.indexOf(last)).toBeLessThan(order.length - 1);
         expect(has(last.mods, run.powers[s]), w.title).toBe(true);
         expect(canTake(last.kind, last.mods!)).toBe(true);
         if (run.powers[s] === 'shield') expect(last.mods!.shield).toBe(SHIELD_WALL);
@@ -107,10 +110,12 @@ describe('waves', () => {
             const focus = drawn.filter((o) => has(o.mods, w.focus!)).length;
             expect(focus, w.title).toBe(w.old?.length ? Math.ceil(shared / 2) : shared);
           }
-          // lo presenta el primero que puede tenerlo (con el fantasma, el primero que no es un goblin)
+          // lo presenta el primero en llegar que puede tenerlo (con el fantasma, el primero que no es un
+          // goblin); los que salen sin poder no cuentan
           if (w.debut) {
             const probe = POWERS[w.focus!](w.scenario, () => 0);
-            const first = order.find((o) => !ENEMIES[o.kind].boss && canTake(o.kind, probe));
+            const plain = new Set(w.groups.filter((g) => g.plain).map((g) => g.kind));
+            const first = arrivalOrder(order, w.interval).find((o) => !ENEMIES[o.kind].boss && !(plain.has(o.kind) && !o.mods) && !o.mods?.explode && canTake(o.kind, probe));
             expect(has(first?.mods, w.focus!), w.title).toBe(true);
           }
         }
@@ -147,7 +152,7 @@ describe('waves', () => {
     // en cada oleada, los escudos van de menor a mayor
     for (const run of runs(10)) {
       for (const w of run.waves) {
-        const ls = spawnOrder(w, seeded(9)).map((o) => o.mods?.shield).filter((l): l is number => !!l && l < SHIELD_WALL);
+        const ls = arrivalOrder(spawnOrder(w, seeded(9)), w.interval).map((o) => o.mods?.shield).filter((l): l is number => !!l && l < SHIELD_WALL);
         expect(ls).toEqual([...ls].sort((a, b) => a - b));
       }
     }
@@ -178,18 +183,29 @@ describe('waves', () => {
         expect(order.filter((k) => k === g.kind).length).toBe(total);
       }
     }
-    const mixed = spawnOrder(run.waves[1]).map((s) => s.kind);
-    expect(mixed.slice(0, 3)).toContain('goblina');
-    expect(mixed.slice(0, 3)).toContain('goblin');
+    const mixed = arrivalOrder(spawnOrder(run.waves[1]), run.waves[1].interval).map((s) => s.kind);
+    expect(mixed.slice(0, 4)).toContain('goblina');
+    expect(mixed.slice(0, 4)).toContain('goblin');
   });
 
-  it('el jefe y el alma en pena salen hacia la mitad de la oleada', () => {
+  it('el jefe y el alma en pena llegan hacia la mitad de la oleada', () => {
     const run = buildRun(seeded(4));
-    const order = spawnOrder(run.waves[9]).map((s) => s.kind);
+    const order = arrivalOrder(spawnOrder(run.waves[9]), run.waves[9].interval).map((s) => s.kind);
     for (const kind of ['golem', 'wraith'] as const) {
       const at = order.indexOf(kind) / order.length;
       expect(at).toBeGreaterThan(0.25);
       expect(at).toBeLessThan(0.75);
+    }
+  });
+
+  it('los lentos salen antes: el grande del final llega con el montón, no solo', () => {
+    for (const run of runs(10)) {
+      for (const w of run.waves) {
+        const order = spawnOrder(w, seeded(6));
+        const t = arrivals(order, w.interval).filter((_, k) => !ENEMIES[order[k].kind].boss).sort((a, b) => a - b);
+        // llegan con el ritmo de la oleada: uno por intervalo (o menos, donde está el jefe), sin huecos
+        for (let i = 1; i < t.length; i++) expect(t[i] - t[i - 1], w.title).toBeLessThanOrEqual(2 * w.interval + 1e-9);
+      }
     }
   });
 

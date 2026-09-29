@@ -976,6 +976,14 @@ function makeDebugPanel(): DebugPanel {
     },
     goToWave(index) {
       for (const e of horde.enemies) e.state = 'gone';
+      // si ya habías perdido (o ganado), la partida vuelve: el golfista se levanta y la puerta se arregla
+      if (ended) {
+        ended = null;
+        horde.ceaseFire = false;
+        hud.hideEnd();
+        player.revive();
+        gateHp = GATE_MAX;
+      }
       director.goTo(index);
       hud.showBanner(`Oleada ${index + 1}`, 'saltada desde el panel', 2);
     },

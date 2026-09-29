@@ -359,4 +359,8 @@ export class Hud {
     (this.endEl.querySelector('.detail') as HTMLElement).textContent = detail;
     this.endEl.hidden = false;
   }
+
+  hideEnd(): void {
+    this.endEl.hidden = true;
+  }
 }

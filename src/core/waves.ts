@@ -175,6 +175,11 @@ export function canTake(kind: EnemyKind, mods: EnemyMods): boolean {
 export const SPEED_SPREAD = 0.22;
 /** A qué distancia de la puerta se plantan el chamán y el gólem, en metros. */
 export const SHAMAN_HOLD_Z = 10;
+/**
+ * El que cura o hace inmune y se queda sin nadie a quien cubrir: pasados estos segundos sin aliados
+ * vivos, deja de esperar plantado y va a la puerta como cualquiera.
+ */
+export const SHAMAN_ALONE = 1.5;
 export const GOLEM_HOLD_Z = 22;
 /** Radio del aura del chamán: los enemigos que están adentro son inmunes mientras él conjure. */
 export const SHAMAN_WARD_RADIUS = 8;
@@ -229,7 +234,8 @@ export interface WaveGroup {
   mods?: EnemyMods;
   /**
    * En qué punto de la oleada salen, de 0 a 1. Sin esto, los grupos grandes se reparten parejo y los de
-   * uno o dos salen hacia la mitad. El élite de cada escenario cierra su oleada.
+   * uno o dos salen hacia la mitad. El élite de cada escenario llega al final de su oleada, con unos
+   * pocos chicos detrás (`ELITE.at`): si llegaba último, se lo veía caminando solo.
    */
   at?: number;
   /** Salen sin poder: el cuerpo fuerte del escenario, para que el élite sea el único de ese cuerpo con poder. */
@@ -295,6 +301,8 @@ export interface Spawn {
   mods?: EnemyMods;
   /** No recibe poder en el reparto (ver WaveGroup.plain). */
   plain?: boolean;
+  /** Segundos después del anterior en que sale (ver `spawnOrder`). Sin esto, el intervalo de la oleada. */
+  delay?: number;
 }
 
 export interface Wave {
@@ -343,7 +351,7 @@ export const HEAVY: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
  * y crece por lo menos `minScale`. El jefe goblin, que es chico, crece mucho; el caballero, que ya es
  * grande, poco.
  */
-export const ELITE = { height: 3.0, minScale: 1.25 };
+export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85 };
 
 /** El élite del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
 export function elite(scenario: number, power: ScenarioPower): WaveGroup {
@@ -356,7 +364,7 @@ export function elite(scenario: number, power: ScenarioPower): WaveGroup {
     }
   }
   const size = Math.max(ELITE.minScale, ELITE.height / ENEMIES[kind].height);
-  return { kind, count: 1, at: 1, mods: { ...mods, size } };
+  return { kind, count: 1, at: ELITE.at, mods: { ...mods, size } };
 }
 
 /** `n` distintos de `list`, al azar. */
@@ -420,8 +428,42 @@ export function buildRun(rand: () => number = Math.random): Run {
 export const INTERMISSION = 6;
 
 /**
- * Orden de aparición de una oleada: mezcla los grupos de forma pareja. Después reparte los poderes al
- * azar (`rand`), uno por enemigo:
+ * Metros que camina un enemigo desde que aparece hasta la zona de los puestos. Con esto se calcula
+ * cuánto tarda cada tipo en llegar (ver `spawnOrder`).
+ */
+export const TRAVEL = 58;
+
+/** Segundos que tarda en llegar a los puestos un enemigo de este tipo. */
+export function travelTime(kind: EnemyKind): number {
+  return TRAVEL / ENEMIES[kind].speed;
+}
+
+/** Lo que tarda en llegar cada uno; el jefe cuenta como si caminara al paso promedio de los demás. */
+function lags(kinds: EnemyKind[]): number[] {
+  const walkers = kinds.filter((k) => !ENEMIES[k].boss);
+  const average = walkers.reduce((n, k) => n + travelTime(k), 0) / Math.max(1, walkers.length);
+  return kinds.map((k) => (ENEMIES[k].boss ? average : travelTime(k)));
+}
+
+/** Cuándo llega cada uno de `order` a los puestos, en segundos desde que sale el primero. */
+export function arrivals(order: Spawn[], interval: number): number[] {
+  const lag = lags(order.map((s) => s.kind));
+  let t = 0;
+  return order.map((s, i) => (t += i ? s.delay ?? interval : 0) + lag[i]);
+}
+
+/** Los de `order` en el orden en que llegan a los puestos. */
+export function arrivalOrder(order: Spawn[], interval: number): Spawn[] {
+  const t = arrivals(order, interval);
+  return order.map((s, i) => ({ s, t: t[i] })).sort((a, b) => a.t - b.t).map((x) => x.s);
+}
+
+/**
+ * Orden de aparición de una oleada: mezcla los grupos de forma pareja **en el orden en que tienen que
+ * llegar**, y hace salir antes a los lentos para que lleguen en su lugar. Si salieran en ese orden, el
+ * grande que cierra la oleada (el élite, a 1.4 m/s) llegaba medio minuto después que los goblins que
+ * salieron con él, caminando solo. El jefe queda donde está. Después reparte los poderes al azar
+ * (`rand`), uno por enemigo:
  * - en la estampida, primero explotan algunos de los chicos;
  * - un tercio del resto sale con poder: los de apoyo que traiga la oleada, y de los demás, la mitad con
  *   el del escenario (el primero que aparece lo presenta, si es la primera del escenario) y la otra mitad
@@ -437,9 +479,16 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
     }
   }
   slots.sort((a, b) => a.at - b.at);
-  const order = slots.map((s) => s.spawn);
+  // el turno `k` llega en k·intervalo + lo que tarda: sale justo cuando tiene que salir para llegar a
+  // tiempo. Cada uno lleva la espera desde el anterior, así llegan con el ritmo de la oleada
+  const arriving = slots.map((s) => s.spawn);
+  const lag = lags(arriving.map((s) => s.kind));
+  const leave = arriving.map((spawn, k) => ({ spawn, t: k * wave.interval - lag[k] })).sort((a, b) => a.t - b.t);
+  leave.forEach((l, i) => { if (i) l.spawn.delay = l.t - leave[i - 1].t; });
+  const order = leave.map((s) => s.spawn);
 
-  const open = () => order.filter((s) => !s.mods && !s.plain && !ENEMIES[s.kind].boss);
+  // lo que va "primero" o "al final" se mide por cuándo llegan (`arriving`), no por cuándo salen
+  const open = () => arriving.filter((s) => !s.mods && !s.plain && !ENEMIES[s.kind].boss);
   const give = (mods: EnemyMods, first: boolean): boolean => {
     const free = open().filter((s) => canTake(s.kind, mods));
     if (!free.length) return false;
@@ -466,7 +515,7 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   for (; focus > 0; focus--) give(POWERS[wave.focus!](wave.scenario, rand), false);
   for (; rest > 0 && old.length; rest--) give(POWERS[old[Math.floor(rand() * old.length)]](wave.scenario, rand), false);
   // los escudos sorteados van de menor a mayor a lo largo de la oleada: el más duro, al final
-  const shielded = order.filter((s) => s.mods?.shield && s.mods.shield < SHIELD_WALL && !wave.groups.some((g) => g.mods === s.mods));
+  const shielded = arriving.filter((s) => s.mods?.shield && s.mods.shield < SHIELD_WALL && !wave.groups.some((g) => g.mods === s.mods));
   const levels = shielded.map((s) => s.mods!.shield!).sort((a, b) => a - b);
   shielded.forEach((s, i) => { s.mods = { ...s.mods, shield: levels[i] }; });
   return order;
@@ -557,7 +606,7 @@ export class WaveDirector {
       while (this.timer <= 0 && this.queue.length) {
         const next = this.queue.shift()!;
         events.push({ type: 'spawn', kind: next.kind, ...(next.mods ? { mods: next.mods } : {}) });
-        this.timer += this.waves[this.index].interval;
+        this.timer += this.queue[0]?.delay ?? this.waves[this.index].interval;
       }
       if (!this.queue.length) {
         if (this.endless) this.queue = spawnOrder(this.waves[this.index]);
