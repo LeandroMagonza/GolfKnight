@@ -2193,3 +2193,11 @@ del **primer enemigo sobre la línea de tiro**, a su distancia; si no hay nadie 
 distancia del mouse. Los globos (hierro y wedge) revientan donde apuntás: para ellos es la del mouse,
 como antes. Cuando el driver atraviesa a varios, cada uno cobra según su distancia; el arco muestra el
 del primero.
+
+## Hecho: el élite trae más vida (29/9/2026)
+
+Sobre la vida de su cuerpo, **+2 en el primer escenario, +3 en el segundo y +4 en el tercero**
+(`ELITE.hp`). Con el cuerpo de siempre: jefe goblin 7, caballero 11, gólem chico 14. Vale también para
+el élite etéreo (que se lleva de a 1 por golpe): el caballero etéreo del segundo escenario pide 11
+golpes. La dificultad medida de las oleadas del élite subió poco: 1.05, 1.56 y 1.79 (antes 1.01, 1.50 y
+1.70).

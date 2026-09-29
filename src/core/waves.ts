@@ -350,9 +350,9 @@ export const HEAVY: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
  * El tamaño del élite, según el modelo: llega a `height` metros (más alto que cualquier enemigo común),
  * y crece por lo menos `minScale`. El jefe goblin, que es chico, crece mucho; el caballero, que ya es
  * grande, poco. Pega `damage` a la puerta y al golfista, sea del cuerpo que sea: dejarlo pasar cuesta
- * caro, y chocarse con él te mata.
+ * caro, y chocarse con él te mata. Y trae vida de más sobre la de su cuerpo: `hp[escenario]`.
  */
-export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: 3 };
+export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: 3, hp: [2, 3, 4] };
 
 /** El élite del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
 export function elite(scenario: number, power: ScenarioPower): WaveGroup {
@@ -365,7 +365,7 @@ export function elite(scenario: number, power: ScenarioPower): WaveGroup {
     }
   }
   const size = Math.max(ELITE.minScale, ELITE.height / ENEMIES[kind].height);
-  return { kind, count: 1, at: ELITE.at, mods: { ...mods, size } };
+  return { kind, count: 1, at: ELITE.at, mods: { ...mods, size, hp: (mods.hp ?? 0) + ELITE.hp[scenario] } };
 }
 
 /** `n` distintos de `list`, al azar. */

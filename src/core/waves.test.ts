@@ -64,6 +64,8 @@ describe('waves', () => {
         const size = last.mods!.size!;
         expect(size).toBeGreaterThanOrEqual(ELITE.minScale);
         expect(ENEMIES[last.kind].height * size).toBeGreaterThanOrEqual(ELITE.height - 1e-9);
+        // y trae vida de más: +2, +3 y +4 según el escenario
+        expect(last.mods!.hp).toBe(ELITE.hp[s]);
       }
     }
     // el más duro que pueda: el gólem chico en el tercero, salvo que el poder no le entre
