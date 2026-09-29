@@ -9,7 +9,7 @@ import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/a
 import { EXPLOSION_RADIUS, KNOCK_DECAY } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_ALONE, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -389,9 +389,10 @@ export class Enemy {
   target: 'gate' | 'player' = 'gate';
   /** Tope de velocidad de este cuadro: el que sostiene un aura camina al paso de los aliados que tiene cerca. */
   paceCap = Infinity;
-  /** Segundos que lleva sin aliados vivos (solo el que cura o hace inmune). */
-  aloneTime = 0;
-  /** Se quedó solo: ya no se planta, va a la puerta. No vuelve atrás aunque lleguen otros. */
+  /**
+   * El que cura o hace inmune llegó a donde se planta sin nadie en su círculo (o se lo vaciaron): no
+   * espera, sigue a la puerta. No vuelve atrás aunque lleguen otros.
+   */
   forsaken = false;
   /** Frío de la zona de hielo: segundos que le quedan y de cuántos. Solo lo hace caminar lento. */
   chillTimer = 0;
@@ -1061,7 +1062,8 @@ export class Enemy {
         horde.explode(this, player);
         return;
       }
-      if ((behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer') && !player.invulnerable) {
+      // el que cura o hace inmune y siguió de largo a la puerta atropella como cualquiera
+      if ((behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer' || (behavior === 'shaman' && this.forsaken)) && !player.invulnerable) {
         player.hit(this.stats.damage, this.position);
         horde.emit({ type: 'playerHit', enemy: this, amount: this.stats.damage });
         horde.emit({ type: 'trample', enemy: this });
@@ -1870,17 +1872,17 @@ export class Horde {
   /**
    * Los que curan o vuelven inmunes bajan la velocidad para no dejar afuera del aura a los aliados que
    * tienen cerca: caminan al paso del más lento de los que tienen a menos de 3/4 del radio. Solo bajan:
-   * al que va más rápido no lo persiguen. Y si se quedan sin nadie a quien cubrir, no esperan: van a la
-   * puerta (`forsaken`).
+   * al que va más rápido no lo persiguen. Y al llegar a donde se plantan, si no tienen a nadie en el
+   * círculo, no esperan: siguen a la puerta (`forsaken`). Lo mismo si, ya plantados, se les vacía.
    */
-  private updatePace(dt: number): void {
+  private updatePace(): void {
     for (const c of this.enemies) {
       c.paceCap = Infinity;
       if (!c.alive || c.passed || !c.auraKind || c.behavior !== 'shaman') continue;
-      if (!c.forsaken) {
-        const allies = this.enemies.some((e) => e !== c && e.alive && !e.passed && !e.auraKind);
-        c.aloneTime = allies ? 0 : c.aloneTime + dt;
-        if (c.aloneTime >= SHAMAN_ALONE) c.forsaken = true;
+      if (!c.forsaken && c.position.z <= SHAMAN_HOLD_Z + 0.6) {
+        const covered = this.enemies.some((e) => e !== c && e.alive && !e.passed && !e.auraKind
+          && Math.hypot(e.position.x - c.position.x, e.position.z - c.position.z) <= c.auraRadius);
+        if (!covered) c.forsaken = true;
       }
       const r = c.auraRadius * 0.75;
       for (const e of this.enemies) {
@@ -2046,7 +2048,7 @@ export class Horde {
   }
 
   update(dt: number, player: Player): void {
-    this.updatePace(dt);
+    this.updatePace();
     this.updateWards();
     this.updateHeals(dt);
     this.updateBanner();

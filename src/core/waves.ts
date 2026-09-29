@@ -175,11 +175,6 @@ export function canTake(kind: EnemyKind, mods: EnemyMods): boolean {
 export const SPEED_SPREAD = 0.22;
 /** A qué distancia de la puerta se plantan el chamán y el gólem, en metros. */
 export const SHAMAN_HOLD_Z = 10;
-/**
- * El que cura o hace inmune y se queda sin nadie a quien cubrir: pasados estos segundos sin aliados
- * vivos, deja de esperar plantado y va a la puerta como cualquiera.
- */
-export const SHAMAN_ALONE = 1.5;
 export const GOLEM_HOLD_Z = 22;
 /** Radio del aura del chamán: los enemigos que están adentro son inmunes mientras él conjure. */
 export const SHAMAN_WARD_RADIUS = 8;

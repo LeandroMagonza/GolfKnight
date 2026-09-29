@@ -2103,8 +2103,10 @@ Es una cuenta a ojo, y no sabe del daño nuevo de los palos (el mejor golpe en 4
 - **El élite llega al 85 % de la oleada** (`ELITE.at`), con unos pocos chicos detrás, no último.
 - "Primero" y "al final" se miden por la llegada: el que presenta el poder nuevo es el primero en
   llegar, y la escalera de escudos (de menor a mayor) sigue el orden de llegada.
-- **El que cura o hace inmune no espera si está solo** (`SHAMAN_ALONE`): con 1.5 s sin aliados vivos,
-  deja de plantarse y va a la puerta, donde pega como cualquiera. Ya no vuelve atrás aunque lleguen
-  otros.
+- **El que cura o hace inmune no espera si está solo** (`forsaken`): si al llegar a donde se planta no
+  tiene a nadie en su círculo, sigue de largo a la puerta sin frenar (o sale apenas se le vacía el
+  círculo). Atropella y pega en la puerta como cualquiera, y ya no vuelve atrás aunque lleguen otros.
+  Mientras camina sigue yendo al paso del aliado más lento que tenga cerca (`updatePace`): probado con
+  un caballero al lado, no se le separó más de 2.8 m (el círculo es de 8).
 - **Panel de balance → Pruebas → Oleada N revive**: si habías perdido (o ganado), el golfista se levanta
   con la vida llena, la puerta se arregla y la partida sigue desde esa oleada.
