@@ -13,6 +13,7 @@ import type { Shot } from './player';
 import type { Traps } from './traps';
 import { heightAt, terrainOn } from '../core/terrain';
 import { GATE_Z } from './world';
+import { SHIELD_TOP } from '../core/shield';
 
 const TRAIL_POINTS = 18;
 const MAX_STEP = 0.3;
@@ -278,7 +279,9 @@ export class Balls {
       // El escudo, o el aura de un chamán, devuelven **cualquier** pelota que les llegue de frente, no
       // solo la que atraviesa: si no, el hierro reventaba contra el escudo y lo mataba igual. Lo único
       // que lo pasa es lo que cae casi a plomo, que es el globo del wedge (ver Enemy.blocks).
-      if (e.warded || e.blocks(s.vel.x, s.vel.y, s.vel.z)) {
+      // El hierro que le llega por encima del escudo (a la cabeza) no rebota: le pega y revienta ahí
+      const overShield = ball.club.id === 'iron' && s.pos.y - e.position.y > e.height * SHIELD_TOP;
+      if (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield)) {
         // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
         // número entra. El muro y el aura del chamán no dejan pasar nada
         const leaked = !e.warded && !e.shieldWall && this.directHit(ball, e, false, e.shieldLevel);

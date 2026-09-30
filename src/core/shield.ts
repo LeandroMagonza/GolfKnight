@@ -19,6 +19,12 @@ export interface Point {
  */
 export const SHIELD_FRONT = 0.55;
 
+/**
+ * Hasta qué altura tapa el escudo, en fracción de la altura del que lo lleva. Más arriba está la cabeza:
+ * el hierro que le llega ahí (un arco apuntado un poco detrás de él) no rebota, le pega de verdad.
+ */
+export const SHIELD_TOP = 0.62;
+
 /** ¿Algo que pasa en `from` le llega de frente a un escudo parado en `shield` que mira hacia `facing`? */
 export function shieldFaces(from: Point, shield: Point, facing: Point): boolean {
   const sx = shield.x - from.x;

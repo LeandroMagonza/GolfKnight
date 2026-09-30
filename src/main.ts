@@ -600,32 +600,6 @@ function prepareShields(gltf: GLTF): void {
   }
 }
 
-/** Lo que ya se presentó en esta partida: cada enemigo o modificador nuevo se anuncia una sola vez. */
-const announced = new Set<string>();
-function announce(kind: EnemyKind, mods?: EnemyMods): void {
-  const once = (key: string, text: string) => {
-    if (announced.has(key)) return;
-    announced.add(key);
-    hud.feedback(text, 'bad');
-  };
-  // los cuerpos nuevos
-  if (kind === 'stoneling') once('stoneling', '¡Gólem chico! 10 de vida: carga el golpe');
-  // los poderes: se presentan la primera vez que aparecen, estén en el bicho que estén
-  if (!mods) return;
-  if (mods.shield && mods.shield >= SHIELD_WALL) once('wall', '¡Escudo calavera! De frente no le entra nada: por detrás, de costado o con la granada');
-  else if (mods.shield) once(`shield${mods.shield}`, `Escudo ${mods.shield}: a lo que le llega de frente le resta ${mods.shield}`);
-  if (mods.armor) once(`armor${mods.armor}`, `¡Blindaje ${mods.armor}! Le resta ${mods.armor} a cada golpe. La granada se lo saca mientras dura`);
-  if (mods.explode) once('explode', '¡Ese explota! Corre a la puerta y revienta, y se lleva a los de al lado');
-  if (mods.divine) once('divine', 'Escudo divino: el primer golpe no le entra, y se le recarga');
-  if (mods.ethereal) once('ethereal', '¡Etéreo! Ningún golpe le saca más de 1: pegale muchas veces, no fuerte');
-  if (mods.dig) once('dig', '¡Ese cava! Se planta y levanta una loma: matalo antes de que termine');
-  if (mods.banner) once('banner', '¡Abanderado! Se queda al fondo, y mientras viva todos tienen 1 de vida más');
-  if (mods.ranged) once('ranged', '¡Hechicero! Te tira al puesto donde estás: cuando el piso se marca en rojo, movete');
-  if (mods.aura === 'heal') once('healMod', '¡Ese cura! Los que tiene cerca recuperan vida de a poco: el aura verde');
-  if (mods.dodge) once('dodge', '¡Ese esquiva! Si le apuntás cuando la carga llega a 2, salta al costado: cargá mirando a otro lado y apuntale al final');
-  if (mods.aura === 'ward') once('wardMod', '¡Invencible! Los que tiene cerca son inmunes: silencialo con la granada (Q)');
-}
-
 balls.onEvent = (e) => {
   if (e.type === 'settled' && !e.ability) tutorial?.onShotDone();
   switch (e.type) {
@@ -723,7 +697,6 @@ function selectClub(index: number): void {
   if (cardOpen || !player || index < 0 || index >= CLUB_ORDER.length) return;
   const id = CLUB_ORDER[index];
   if (!player.unlocked.has(id)) {
-    hud.feedback(`${CLUBS[id].name}: todavía no lo tenés`, 'neutral');
     return;
   }
   player.setClub(CLUBS[id]);
@@ -741,8 +714,8 @@ function castAbility(index: number): void {
   player.teePosition(tee);
   const result = abilities.cast(index, tee, player.aimDir, aimPoint);
   const slot = abilities.slots[index];
-  if (result === 'empty') hud.feedback(`${ABILITY_KEYS[index]}: vacío · se llena eligiendo cartas entre oleadas`, 'neutral');
-  else if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
+  // el lugar vacío no dice nada: no hay nada que tirar
+  if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
   else if (result === 'blocked') hud.feedback(ABILITIES[slot.id].kind === 'melee' ? 'En pleno swing no hay palazo' : 'No hay palo para tirar ahora', 'neutral');
 }
 
@@ -1297,7 +1270,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
   };
   p.onWhiff = () => {
     audio.whoosh(0.3);
-    hud.feedback('¡Sin pelota! Movete con A / D', 'bad');
+    hud.feedback('¡Sin pelota!', 'bad');
   };
   p.onShot = (shot) => {
     shots++;
@@ -1543,11 +1516,8 @@ function updateWaves(dt: number): void {
           }
           horde.spawn(e.kind, undefined, mods);
         }
-        announce(e.kind, e.mods);
         // el élite cierra su escenario: que se note cuando entra
         if ((e.mods?.size ?? 1) > 1) hud.showBanner('¡Llega el élite!', ENEMIES[e.kind].name, 2.5);
-        if (e.kind === 'golem') hud.showBanner('¡El Gólem de roca!', 'Tira piedras a la puerta. La granada lo deja vulnerable');
-        else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Va por vos: si te agarra te congela. Pegale antes de que llegue', 'bad');
         break;
       case 'cleared':
         // al terminar un escenario: la puerta se arregla un poco y el golfista recupera toda su vida

@@ -111,14 +111,14 @@ export const CLUB_COLOR = 0xe6e2d3;
 
 export const CLUBS: Record<ClubId, Club> = {
   driver: {
-    id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Sale casi al ras y atraviesa la fila entera. Cobra de lejos y poco de cerca',
+    id: 'driver', name: 'Driver', title: 'Rasante', hint: 'Larga distancia',
     loftDeg: 3.5, minRange: 0, maxRange: 66, spread: [0, 0, 0],
     pierces: true, burstsOnGround: false, stopsOnLand: false,
     damage: [[1, 2, 3], [1, 2, 3], [2, 3, 4]],
     knockback: 5, restitution: 0.3, bounceKeep: 0.8, maxHits: 99, fixedRange: 50, color: CLUB_COLOR,
   },
   iron: {
-    id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Arco que pasa por arriba de las lomas y revienta en el que toca, salpicando a los de al lado',
+    id: 'iron', name: 'Hierro 7', title: 'Arco bajo', hint: 'Obstáculos y explota',
     loftDeg: 27, minRange: 0, maxRange: 55, spread: [2.2, 3, 3.5],
     // modo por defecto: no atraviesa, y el área sale solo si le pega a alguien (ver IRON_MODES)
     pierces: false, burstsOnGround: false, stopsOnLand: true,
@@ -127,7 +127,7 @@ export const CLUBS: Record<ClubId, Club> = {
     knockback: 4, restitution: 0.28, bounceKeep: 0.72, maxHits: 3, rollFriction: [6, 6, 6], fixedRange: 0, color: CLUB_COLOR,
   },
   wedge: {
-    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Globo alto: tarda en llegar, cae en picada donde apuntás y abre un área grande, le pegue a alguien o no. Con el golpe 1 se pifia: no sale. Al del escudo hay que caerle detrás, o silenciarlo antes',
+    id: 'wedge', name: 'Wedge', title: 'Globo', hint: 'Área',
     loftDeg: 55, minRange: 0, maxRange: 55, spread: [3.5, 4.2, 5],
     pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto.
@@ -137,7 +137,7 @@ export const CLUBS: Record<ClubId, Club> = {
     knockback: 0, restitution: 0, bounceKeep: 0, maxHits: 1, fixedRange: 0, color: CLUB_COLOR,
   },
   putter: {
-    id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Rueda hasta 20 m y le pega al primero que toca, a él solo. Cobra de cerca como ninguno',
+    id: 'putter', name: 'Putter', title: 'Rodado', hint: 'Corta distancia',
     loftDeg: 0, minRange: 0, maxRange: 20, spread: [0, 0, 0],
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[2, 3, 4], [1, 2, 3], [1, 2, 3]],

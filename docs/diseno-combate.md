@@ -2250,3 +2250,18 @@ demasiado finito, se puede volver atrás o darle un mínimo de ancho.
 Al despejar la última oleada de cada escenario (la 3, la 6 y la 9), **la puerta recupera 7** (sin pasar
 de 10) **y el golfista, toda su vida** (`scenarioHeal`). Es aparte del botiquín, que sigue curando al
 empezar cada oleada.
+
+## Hecho: menos texto, y el hierro a la cabeza del escudado (30/9/2026)
+
+- **Se sacaron las explicaciones** que saltaban la primera vez que aparecía un poder o un enemigo (el
+  escudo, el blindaje, el etéreo, el divino, el que esquiva, el que explota, el que cura, el invencible,
+  la abanderada, el hechicero, el que cava, el gólem chico, el alma en pena y el cartel del jefe). Para
+  eso están los íconos.
+- **Nada que hable de botones que no tenés**: se fueron «Q: vacío…» y «Driver: todavía no lo tenés».
+  «¡Sin pelota! Movete con A / D» quedó en «¡Sin pelota!».
+- **La ayuda de cada palo**, corta: driver «Larga distancia», hierro «Obstáculos y explota», wedge
+  «Área», putter «Corta distancia».
+- **El hierro que le pega a la cabeza** de uno con escudo no rebota: cuenta como golpe, hace su daño y
+  revienta ahí. El escudo tapa hasta el 62 % de la altura (`SHIELD_TOP`); se logra apuntando un par de
+  metros detrás de él, para que el arco le llegue alto. Probado con un esqueleto de escudo 2: a los pies
+  y a 1 m detrás, el escudo lo para; de 2 m detrás en adelante, le saca 2 y revienta.
