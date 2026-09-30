@@ -2236,10 +2236,17 @@ el amarillo, 2.7 en el rojo), y el punto dulce se veía como una aguja que frena
 (`arcLayout`, `arcAngle` en core/swing) **la aguja sube siempre a la misma velocidad y cada tramo ocupa
 lo que dura**. La velocidad sale de la barra sin mejoras: de borde a tope, 90°. Los tiempos no
 cambiaron, solo cómo se dibujan:
-- sin mejoras, el rojo es finito (dura seis centésimas) y su número va arriba del arco;
+- sin mejoras, el rojo es finito (dura seis centésimas): su número va encima del rojo aunque sobresalga
+  a los costados, con borde oscuro;
 - el **punto dulce** agranda el rojo y deja igual el verde y el amarillo (el arco crece un poco);
 - la **muñeca rápida** y el **ritmo** achican el verde y el amarillo: el arco se achica y el rojo llega antes;
 - el **swing parejo** achica el verde y agranda el amarillo y el rojo.
 
 El rebote tiene su propio tiempo: al bajar, la aguja no va pareja. Si el rojo sin mejoras se ve
 demasiado finito, se puede volver atrás o darle un mínimo de ancho.
+
+## Hecho: al terminar cada escenario, la puerta +7 y vos a pleno (29/9/2026)
+
+Al despejar la última oleada de cada escenario (la 3, la 6 y la 9), **la puerta recupera 7** (sin pasar
+de 10) **y el golfista, toda su vida** (`scenarioHeal`). Es aparte del botiquín, que sigue curando al
+empezar cada oleada.

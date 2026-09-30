@@ -881,6 +881,15 @@ function medkitHeal(): void {
   if (gate > 0 || hp > 0) hud.feedback(`Botiquín: ${[gate ? `la puerta +${gate}` : '', hp ? `vos +${hp}` : ''].filter(Boolean).join(' · ')}`, 'good');
 }
 
+/** Al terminar cada escenario: la puerta recupera `SCENARIO_HEAL.gate` y el golfista, toda su vida. */
+const SCENARIO_HEAL = { gate: 7 };
+function scenarioHeal(): void {
+  const gate = Math.min(GATE_MAX - gateHp, SCENARIO_HEAL.gate);
+  gateHp += gate;
+  player.heal(player.maxHp);
+  hud.feedback(gate > 0 ? `Fin del escenario: la puerta +${gate}, y vos a pleno` : 'Fin del escenario: vos a pleno', 'good');
+}
+
 /** Carcaj: vas a pegar donde no hay pelota y te aparece una a los pies, si está lista. */
 function useQuiver(): void {
   if (!perks.quiver || !quiver.ready || !player.atSpot || hasBallHere()) return;
@@ -1537,6 +1546,8 @@ function updateWaves(dt: number): void {
         else if (e.kind === 'wraith') hud.feedback('¡Alma en pena! Va por vos: si te agarra te congela. Pegale antes de que llegue', 'bad');
         break;
       case 'cleared':
+        // al terminar un escenario: la puerta se arregla un poco y el golfista recupera toda su vida
+        if (director.list[e.index + 1] && director.list[e.index + 1].scenario !== director.list[e.index].scenario) scenarioHeal();
         if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner('¡Oleada despejada!', '', 2.5);
         break;
       case 'victory':

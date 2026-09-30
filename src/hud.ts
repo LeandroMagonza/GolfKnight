@@ -144,11 +144,12 @@ export class Hud {
       return `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="${fill}">${n}</text>`;
     };
     const dark = '#10151c';
-    // el fuerte es angosto: si el número no entra adentro, va arriba del arco
+    // el fuerte suele ser angosto: su número va encima del tramo aunque sobresalga a los costados, con
+    // borde oscuro para que se lea sobre los tramos de al lado
     const topLabel = () => {
       if (damage[2] === undefined) return '';
-      if (2 * y >= 11) return label(0, damage[2], duff ? dark : '#ffffff');
-      return `<text x="0" y="${-(R + 11)}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="#ffffff" stroke="#0b0f14" stroke-width="3" paint-order="stroke">${damage[2]}</text>`;
+      if (duff) return label(0, damage[2], dark);
+      return `<text x="0" y="${-(R + r) / 2}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="#ffffff" stroke="#0b0f14" stroke-width="3" paint-order="stroke">${damage[2]}</text>`;
     };
     const numbers = (duff ? '' : label(-(edge + g) / 2, damage[0], dark) + label((edge + g) / 2, damage[0], dark))
       + label(-(g + y) / 2, damage[1], dark) + label((g + y) / 2, damage[1], dark)
