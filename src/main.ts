@@ -1434,8 +1434,12 @@ camera.position.set(0, 11, -2);
  * inclinarla se retrasa lo necesario, y el golfista nunca queda tapado por el HUD. Sin él, mira un
  * punto fijo `ahead` metros por delante del puesto, como antes.
  */
-/** A cuántos píxeles por encima de las barras de abajo queda la línea de los puestos. */
-const CAM_MARGIN = 70;
+/**
+ * A cuántos píxeles por encima de las tarjetas de los palos queda la línea de los puestos. Se mide desde
+ * las tarjetas y no desde todo el HUD de abajo: el texto de ayuda de cada palo tiene su largo, y con el
+ * del wedge (dos renglones) la cámara se alejaba sola al elegirlo.
+ */
+const CAM_MARGIN = 117;
 const cam = {
   pitch: savedBalance.camera?.pitch ?? 32, dist: 18.9, rise: savedBalance.camera?.rise ?? 0, ahead: 5.5,
   auto: savedBalance.camera?.auto ?? true, margin: savedBalance.camera?.margin ?? CAM_MARGIN,
@@ -1443,7 +1447,7 @@ const cam = {
 /** Dónde empieza el HUD de abajo, en píxeles desde arriba. Se mide cada tanto: casi no cambia. */
 let hudTop = innerHeight * 0.8;
 let hudMeasured = -Infinity;
-const hudBottom = document.getElementById('bottom')!;
+const hudBottom = document.getElementById('rows')!;
 const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
 
 function tiltCamera(delta: number): void {

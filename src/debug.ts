@@ -87,7 +87,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 9;
+const VERSION = 10;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -105,6 +105,9 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   8: ['enemies.damage'],
   // la cámara más atrás: los puestos a 70 px de las barras (eran 24), que las habilidades no los tapen
   9: ['camera.margin'],
+  // el margen de la cámara pasó a medirse desde las tarjetas de los palos (antes, desde el texto de
+  // ayuda, que con el wedge ocupa dos renglones y movía la cámara)
+  10: ['camera.margin'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -940,7 +943,7 @@ export class DebugPanel {
     camLine.className = 'note';
     this.camLine = camLine;
     const c = this.hooks.camera();
-    const margin = this.numbers([['puestos sobre las barras', () => c.margin, (v) => { c.margin = Math.max(0, v); }, 4, 'px']]);
+    const margin = this.numbers([['puestos sobre los palos', () => c.margin, (v) => { c.margin = Math.max(0, v); }, 4, 'px']]);
     el.append(camLine, this.row(this.toggleButton('Encuadre automático', () => c.auto, (v) => { c.auto = v; this.save(); })), margin.table, note(
       'Rueda del mouse: inclinación. Flechas arriba y abajo: altura, sin girarla. '
       + 'Con el encuadre automático la cámara se aleja o se acerca sola para que la línea de los puestos quede siempre justo arriba de las barras de abajo: '
