@@ -136,6 +136,8 @@ const BADGE_PX = 52;
 const PIP_LAYER = 10;
 /** Los colores de las capas: la primera decena, la segunda, la tercera, la cuarta. */
 const PIP_COLORS = ['#5be07a', '#ffd34d', '#ff9a3c', '#ff4d6a'];
+/** Cuánta vida vale cada barra del jefe. */
+const BOSS_BAR_HP = 10;
 /** Lo ancho de la vida del jefe, en cuadraditos: el número y la barra. */
 const BOSS_BAR_SLOTS = 13;
 
@@ -819,8 +821,8 @@ export class Enemy {
    * - **Más de 10**, diez cuadraditos en capas de color: la primera decena en verde, la segunda en
    *   amarillo encima, la tercera en naranja. Con 11 se ven 1 amarillo y 9 verdes; con un golpe, 10
    *   verdes; con otro, 9 verdes y uno vacío.
-   * - **El jefe** (80), una barra con una rayita cada 5 y el número de vida al lado: en capas serían ocho
-   *   colores.
+   * - **El jefe** (80), una barra roja de 10 y al lado cuántas barras enteras le quedan detrás («×6»):
+   *   en capas serían ocho colores.
    */
   private drawPips(): void {
     const p = this.pips;
@@ -855,34 +857,39 @@ export class Enemy {
     const empty = 'rgba(10, 14, 20, 0.7)';
     ctx.strokeStyle = '#0b0f14';
     if (bar) {
-      // la barra del jefe: el número a la izquierda, y una rayita cada 5
+      // el jefe: una barra roja de 10 y, al lado, cuántas barras enteras le quedan detrás de esa
       const hp = Math.max(0, this.hp);
+      const behind = hp > 0 ? Math.floor((hp - 1) / BOSS_BAR_HP) : 0;
+      const shown = hp - behind * BOSS_BAR_HP;
       const numW = 32 * 3;
-      ctx.font = '900 42px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.lineWidth = 5;
-      ctx.strokeText(String(hp), left + numW / 2, top + 18);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(String(hp), left + numW / 2, top + 18);
+      if (behind > 0) {
+        ctx.font = '900 38px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 5;
+        ctx.strokeText(`×${behind}`, left + numW / 2, top + 18);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`×${behind}`, left + numW / 2, top + 18);
+      }
       const x0 = left + numW + 4;
       const w = 32 * (slots - 3) - 8;
-      const f = hp / this.maxHp;
-      ctx.lineWidth = 3;
       ctx.fillStyle = empty;
       ctx.beginPath();
       ctx.roundRect(x0, top + 5, w, 22, 5);
       ctx.fill();
-      ctx.fillStyle = `hsl(${Math.round(120 * f)}, 70%, 55%)`;
-      ctx.fillRect(x0, top + 5, w * f, 22);
+      ctx.fillStyle = '#ff3b4a';
+      ctx.fillRect(x0, top + 5, (w * shown) / BOSS_BAR_HP, 22);
+      // una rayita por punto, para contar lo que le queda a esta barra
+      ctx.strokeStyle = 'rgba(11, 15, 20, 0.55)';
       ctx.lineWidth = 2;
-      for (let k = 5; k < this.maxHp; k += 5) {
-        const x = x0 + (w * k) / this.maxHp;
+      for (let k = 1; k < BOSS_BAR_HP; k++) {
+        const x = x0 + (w * k) / BOSS_BAR_HP;
         ctx.beginPath();
         ctx.moveTo(x, top + 5);
-        ctx.lineTo(x, top + (k % 20 === 0 ? 27 : 16));
+        ctx.lineTo(x, top + 27);
         ctx.stroke();
       }
+      ctx.strokeStyle = '#0b0f14';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.roundRect(x0, top + 5, w, 22, 5);

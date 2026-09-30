@@ -2224,5 +2224,6 @@ calavera ni su poder). Ahora todos llevan el cartelito con íconos y vida (`draw
 - **Más de 10**, diez cuadraditos **en capas de color**: la primera decena en verde, la segunda en
   amarillo encima, la tercera en naranja. Con 11 se ven 1 amarillo y 9 verdes; con un golpe, 10 verdes;
   con otro, 9 verdes y uno vacío.
-- **El jefe** (80): una barra con una rayita cada 5 (más larga cada 20) y **el número de vida** al lado.
-  En capas serían ocho colores.
+- **El jefe** (80): una **barra roja de 10**, con una rayita por punto, y al lado **cuántas barras
+  enteras le quedan detrás** de esa («×6» con 62 de vida: la barra muestra 2 de 10). En capas serían
+  ocho colores.
