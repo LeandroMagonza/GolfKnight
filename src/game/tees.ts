@@ -64,6 +64,8 @@ export class Tees {
   /** Desde dónde tiran las pelotas los guardias. */
   guards: THREE.Vector3[] = [];
   private readonly tosses: Toss[] = [];
+  /** Los palitos con bandera de cada puesto. */
+  private readonly props: THREE.Object3D[] = [];
   private timer = 0;
   private age = 0;
   private readonly ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff1b8, emissiveIntensity: 0.9 });
@@ -96,8 +98,14 @@ export class Tees {
       ring.position.set(x, 0.05, TEE_Z);
       ring.visible = false;
       scene.add(stick, flag, ballMesh, ring);
+      this.props.push(stick, flag);
       this.spots.push({ x, spawns, ball: false, golden: false, bonus: false, incoming: false, ballMesh, ring });
     }
+  }
+
+  /** Muestra u oculta los puestos (el modo tenis no los usa). */
+  setVisible(on: boolean): void {
+    for (const o of this.props) o.visible = on;
   }
 
   get centerIndex(): number {

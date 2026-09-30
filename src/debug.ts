@@ -15,6 +15,7 @@ import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from '.
 import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
 import { COURSES } from './core/terrain';
+import { TENNIS } from './tennis/bounce';
 import { ENEMIES, GEOMANCER, HEAL_AURA, type EnemyKind, type WaveDirector } from './core/waves';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
@@ -33,6 +34,7 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
   carga: CHARGE as unknown as Record<string, number>,
   curandero: HEAL_AURA, geomante: GEOMANCER,
+  tenis: TENNIS as unknown as Record<string, number | number[]>,
 };
 
 export interface DebugHooks {
@@ -634,8 +636,34 @@ export class DebugPanel {
   }
 
 
+  /** Los números del modo tenis (?tenis): cómo rebota la pelota, la ventana para devolverla y el bolsillo. */
+  private buildTennis(el: HTMLElement): void {
+    el.append(heading('Modo tenis'));
+    const t = TENNIS;
+    const num = (key: 'backSpeed' | 'wallKeep' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'backFriction' | 'runSpeed' | 'chargeMove' | 'pocketMax', min = 0) =>
+      [() => t[key], (v: number) => { t[key] = Math.max(min, v); }] as const;
+    const rows: [string, () => number, (v: number) => void, number, string][] = [
+      ...[0, 1, 2].map((q): [string, () => number, (v: number) => void, number, string] =>
+        [`plano, golpe ${q + 1}`, () => t.outSpeed[q], (v) => { t.outSpeed[q] = Math.max(1, v); }, 1, 'm/s de ida']),
+      ['vuelta', ...num('backSpeed', 1), 1, 'm/s después de rebotar en un enemigo'],
+      ['pared', ...num('wallKeep'), 0.05, 'de la velocidad que conserva'],
+      ['mínimo de vuelta', ...num('minBack'), 0.05, 'de la velocidad va hacia el jugador, como mínimo'],
+      ['piques', ...num('hop'), 0.05, 'm de alto'],
+      ['alcance', ...num('reach', 0.2), 0.1, 'm de x a cada lado para devolverla'],
+      ['ventana adelante', ...num('ahead'), 0.1, 'm delante de la línea'],
+      ['ventana atrás', ...num('behind'), 0.1, 'm detrás de la línea'],
+      ['racha', ...num('rallyStep', 1), 1, 'devoluciones por cada +1 de daño'],
+      ['fondo', ...num('backFriction', 0.5), 0.5, 'm/s² que la frena detrás de la línea'],
+      ['correr', ...num('runSpeed', 1), 0.5, 'm/s de costado'],
+      ['cargando', ...num('chargeMove'), 0.05, 'de esa velocidad mientras carga'],
+      ['bolsillo', ...num('pocketMax', 1), 1, 'pelotas como máximo'],
+    ];
+    el.append(this.numbers(rows).table, note('Solo cuentan en el modo tenis (?tenis en la dirección, o el botón de la intro).'));
+  }
+
   // ---- el tiro: correrse cargando o darle efecto ----
   private buildShot(el: HTMLElement): void {
+    this.buildTennis(el);
     el.append(heading('A y D mientras cargás'));
     const shift = this.numbers([
       ['alcance', () => SHIFT.reach, (v) => { SHIFT.reach = Math.max(0, v); }, 0.1, 'm para cada lado'],

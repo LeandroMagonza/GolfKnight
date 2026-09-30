@@ -52,6 +52,10 @@
       #run img.done { opacity: 0.7; filter: none; }
       #run img.now { opacity: 1; filter: drop-shadow(0 0 5px #ffd66b); transform: scale(1.2); }
       #score { position: absolute; top: 62px; right: 14px; font-size: 15px; text-shadow: 0 1px 3px #000; text-align: right; }
+      #pocket { position: absolute; top: 78px; left: 50%; transform: translateX(-50%); font-size: 17px; text-shadow: 0 1px 3px #000; letter-spacing: 2px; color: #e8ff6a; }
+      #pocket[hidden] { display: none; }
+      #pocket .off { opacity: 0.25; }
+      #pocket small { letter-spacing: 0; font-size: 13px; color: #cfd6e0; margin-right: 6px; }
       #skin { position: absolute; top: 88px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
       #skin:hover { background: rgba(0,0,0,0.75); }
       #clubrow { position: relative; }
@@ -233,6 +237,7 @@
         <button id="start" type="button" disabled>Cargando…</button>
       </div>
       <button id="alt" type="button" class="link" hidden></button>
+      <button id="mode" type="button" class="link" hidden></button>
       <button id="replaycine" type="button">Ver la intro de nuevo</button>
       <div id="version"></div>
     </div>
@@ -243,6 +248,7 @@
       </div>
       <div id="wave"><div class="n"></div><div class="sub"></div><div id="run"></div></div>
       <div id="score"></div>
+      <div id="pocket" hidden></div>
       <button id="skin" type="button" tabindex="-1"></button>
       <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>
       <div id="balance" hidden></div>

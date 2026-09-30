@@ -29,6 +29,19 @@ const SLIDES: Slide[] = [
   },
 ];
 
+/** La placa del modo tenis: los mismos botones, otro juego. */
+const TENNIS_SLIDE: Slide = {
+  art: '',
+  html: `<p class="controls">
+      <em>Modo tenis</em> (prototipo): la pelota rebota en el primer enemigo y vuelve. Andá a buscarla y devolvésela a otro<br />
+      Caminá de costado con <kbd>A</kbd> y <kbd>D</kbd> · la marca en tu línea dice dónde va a llegar cada pelota<br />
+      Mantené <kbd>click</kbd> para cargar y soltá para pegar: si hay una pelota al alcance, la devolvés; si no, sacás del bolsillo<br />
+      <kbd>1</kbd> plano: rebota y vuelve · <kbd>2</kbd> globo: revienta en área y esa pelota se pierde<br />
+      Cuantas más veces devolvés la misma pelota, más pega. Las que se quedan en el fondo se levantan pasándoles por encima<br />
+      <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> habilidades · <kbd>Espacio</kbd> clava el golpe · pausa <kbd>Esc</kbd>
+    </p>`,
+};
+
 const SEEN_KEY = 'gk.introSeen';
 const CINE_URL = './cine.html?embed';
 
@@ -40,9 +53,15 @@ export class Intro {
   private ready = false;
   private cine: HTMLIFrameElement | null = null;
   private readonly alt = document.getElementById('alt') as HTMLButtonElement;
+  private readonly mode = document.getElementById('mode') as HTMLButtonElement;
 
-  /** @param tutorialFirst el botón grande empieza el tutorial (la primera vez) */
-  constructor(private readonly onStart: (tutorial: boolean) => void, private readonly tutorialFirst: boolean) {
+  /**
+   * @param tutorialFirst el botón grande empieza el tutorial (la primera vez)
+   * @param tennis se está en el modo tenis; `onMode` pasa al otro modo
+   */
+  constructor(private readonly onStart: (tutorial: boolean) => void, private readonly tutorialFirst: boolean, private readonly tennis = false, onMode?: () => void) {
+    if (tennis) SLIDES.splice(0, SLIDES.length, TENNIS_SLIDE);
+    this.mode.addEventListener('click', () => onMode?.());
     const version = document.getElementById('version');
     if (version) version.textContent = `versión ${__BUILD__}`;
     this.dots.innerHTML = SLIDES.length > 1 ? SLIDES.map(() => '<span></span>').join('') : '';
@@ -122,9 +141,12 @@ export class Intro {
     Array.from(this.dots.children).forEach((d, i) => d.classList.toggle('on', i === this.index));
     // la historia se puede leer mientras carga; solo el arranque espera a los modelos
     this.next.disabled = this.last && !this.ready;
-    const go = this.tutorialFirst ? 'Aprender a jugar (Espacio)' : '¡A defender Valdehoyo! (Espacio)';
+    const go = this.tennis ? '¡A jugar! (Espacio)' : this.tutorialFirst ? 'Aprender a jugar (Espacio)' : '¡A defender Valdehoyo! (Espacio)';
     this.next.textContent = this.last ? (this.ready ? go : 'Cargando…') : 'Siguiente (Espacio)';
-    this.alt.hidden = !this.last || !this.ready;
+    // en el tenis no hay tutorial
+    this.alt.hidden = !this.last || !this.ready || this.tennis;
+    this.mode.hidden = !this.ready;
+    this.mode.textContent = this.tennis ? 'Volver al golf' : 'Probar el modo tenis (nuevo)';
     this.alt.textContent = this.tutorialFirst ? 'Saltar el tutorial' : 'Hacer el tutorial';
   }
 }

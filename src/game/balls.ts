@@ -12,8 +12,9 @@ import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
 import type { Traps } from './traps';
 import { heightAt, terrainOn } from '../core/terrain';
-import { GATE_Z } from './world';
+import { FIELD_HALF_WIDTH, GATE_Z, SPAWN_Z, TEE_LINE_Z } from './world';
 import { SHIELD_TOP } from '../core/shield';
+import { bounceOffEnemy, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
 
 const TRAIL_POINTS = 18;
 const MAX_STEP = 0.3;
@@ -65,6 +66,10 @@ export interface Ball {
   trail: THREE.Line;
   trailPositions: Float32Array;
   done: boolean;
+  /** Modo tenis: la pelota que rebota y vuelve (ver src/tennis). Null en las del golf. */
+  phase: TennisPhase | null;
+  /** Modo tenis: cuántas veces se la devolvió el tenista. Cada `TENNIS.rallyStep`, pega 1 más. */
+  rally: number;
 }
 
 export type BallEvent =
@@ -77,9 +82,28 @@ export type BallEvent =
   /** Un tiro le pegó a alguien por primera vez. Sale apenas pega, sin esperar a que la pelota pare. */
   | { type: 'connected'; ability: boolean }
   /** Un tiro ya se jugó: a cuántos alcanzó y cuántas bajas hizo. */
-  | { type: 'settled'; club: Club; hits: number; kills: number; ability: boolean };
+  | { type: 'settled'; club: Club; hits: number; kills: number; ability: boolean }
+  /** Tenis: la pelota rebotó en un enemigo y viene de vuelta, o pegó en una pared. */
+  | { type: 'returned'; ball: Ball }
+  | { type: 'wall'; ball: Ball }
+  /** Tenis: la pelota quedó en el piso para levantarla, o se perdió (se la llevan los alcanzapelotas). */
+  | { type: 'floor'; ball: Ball }
+  | { type: 'lost'; ball: Ball };
 
 const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
+/** Tenis: hacia dónde empuja la pelota que vuelve a los que atraviesa. */
+const AWAY = new THREE.Vector3(0, 0, 1);
+
+/** Tenis: el golpe plano sale de la altura de la raqueta, rasante y a la velocidad del nivel del golpe. */
+function tennisLaunch(shot: Shot): BallState {
+  const speed = TENNIS.outSpeed[Math.min(TENNIS.outSpeed.length, Math.max(1, shot.quality)) - 1];
+  const dir = new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize();
+  return {
+    pos: { x: shot.from.x, y: 0.9, z: shot.from.z },
+    vel: { x: dir.x * speed, y: 0, z: dir.z * speed },
+    rolling: false, resting: false, bounces: 0,
+  };
+}
 
 export class Balls {
   readonly list: Ball[] = [];
@@ -104,7 +128,12 @@ export class Balls {
       gravity: shot.club.gravity,
       rollFriction: rollFrictionFor(shot.club, shot.quality),
     };
-    const state = lift
+    // el plano del tenis sale rasante y a velocidad fija, y vuela con su propia física (ver src/tennis).
+    // Los tiros de habilidad con elemento no: esos son de una vez y no vuelven
+    const tennis = !!shot.club.returns && !shot.element;
+    const state = tennis
+      ? tennisLaunch(shot)
+      : lift
       ? launchWith({ x: shot.from.x, y: heightAt(shot.from.x, shot.from.z) + BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, lift.speed, lift.angle)
       : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity, bounce.rollFriction);
     const color = shot.club.color;
@@ -119,13 +148,14 @@ export class Balls {
     trail.frustumCulled = false;
     this.scene.add(mesh, trail);
     // el efecto curva hacia la derecha de la pantalla, que es el costado (-dz, dx) de la dirección
-    const spin = spinFor(state, range, shot.curve, -shot.dir.z, shot.dir.x, bounce.rollFriction ?? ROLL_FRICTION);
+    const spin = tennis ? null : spinFor(state, range, shot.curve, -shot.dir.z, shot.dir.x, bounce.rollFriction ?? ROLL_FRICTION);
     const ball: Ball = {
       state, club: shot.club, bounce, quality: shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
       element: shot.element ?? null, ability: !!shot.ability, zapped: new Set(),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
       hitIds: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      phase: tennis ? 'out' : null, rally: 0,
     };
     this.list.push(ball);
     return ball;
@@ -135,6 +165,8 @@ export class Balls {
   private damageOf(ball: Ball, base: number): number {
     // la potencia suma a cada uno que alcanza (a la pifia no: esa no sale)
     if (base > 0 && ball.bonus) base += ball.bonus;
+    // la racha del tenis: cada tantas devoluciones de la misma pelota, pega uno más
+    if (base > 0 && ball.rally) base += Math.floor(ball.rally / TENNIS.rallyStep);
     if (ball.ability) return base;
     if (ball.hot === undefined) ball.hot = this.hotDamage !== null;
     return ball.hot && this.hotDamage ? this.hotDamage(base) : base;
@@ -178,12 +210,12 @@ export class Balls {
    * El pelotazo a un enemigo puntual, con el número de **impacto** (no el del área). `finish` dice si con
    * eso se termina el tiro: el que atraviesa sigue, y pierde un poco de velocidad.
    */
-  private directHit(ball: Ball, enemy: Enemy, finish: boolean, guard = 0): boolean {
+  private directHit(ball: Ball, enemy: Enemy, finish: boolean, guard = 0, push?: THREE.Vector3): boolean {
     const s = ball.state;
     ball.hitIds.add(enemy.id);
     const pos = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
     this.effects.spark(pos, ball.club.color);
-    const dir = new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
+    const dir = push ?? new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
     const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
     this.horde.shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability };
     const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
@@ -252,6 +284,17 @@ export class Balls {
 
   /** La pelota tocó a alguien: según el palo, lo atraviesa, revienta ahí, o le pega solo a él. */
   private hitEnemy(ball: Ball, enemy: Enemy): void {
+    // tenis: de ida, el primero que toca la devuelve; de vuelta, atraviesa a los que se cruce y los
+    // empuja para atrás (si no, la vuelta te los traía hacia la puerta)
+    if (ball.phase === 'out') {
+      this.directHit(ball, enemy, false);
+      this.sendBack(ball, enemy);
+      return;
+    }
+    if (ball.phase === 'back') {
+      this.directHit(ball, enemy, false, 0, AWAY);
+      return;
+    }
     // los que no atraviesan terminan en el primero que tocan. Si abren área, revientan **al ras del
     // piso, abajo del enemigo**, que es lo que se ve; si no, le pegan a él solo.
     if (!ball.club.pierces) {
@@ -275,6 +318,19 @@ export class Balls {
     }
   }
 
+  /** Tenis: rebota en un enemigo como en un ladrillo y viene de vuelta hacia el tenista. */
+  private sendBack(ball: Ball, enemy: Enemy): void {
+    const s = ball.state;
+    const v = bounceOffEnemy(s.vel.x, s.vel.z, TENNIS.backSpeed);
+    s.vel.x = v.vx;
+    s.vel.z = v.vz;
+    // que no lo vuelva a tocar al salir, pero sí a los demás, aunque ya les haya pegado de ida
+    ball.hitIds.clear();
+    ball.hitIds.add(enemy.id);
+    ball.phase = 'back';
+    this.onEvent?.({ type: 'returned', ball });
+  }
+
   private collide(ball: Ball): void {
     const s = ball.state;
     for (const e of this.horde.enemies) {
@@ -290,24 +346,48 @@ export class Balls {
       // que lo pasa es lo que cae casi a plomo, que es el globo del wedge (ver Enemy.blocks).
       // El hierro que le llega por encima del escudo (a la cabeza) no rebota: le pega y revienta ahí
       const overShield = ball.club.id === 'iron' && s.pos.y - e.position.y > e.height * SHIELD_TOP;
-      if (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield)) {
+      if (ball.phase === 'back' && e.warded) {
+        // de vuelta el aura la deja pasar, sin daño
+        ball.hitIds.add(e.id);
+        continue;
+      }
+      // de vuelta le llega por la espalda: el escudo de frente no la para
+      if (ball.phase !== 'back' && (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
         // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
         // número entra. El muro y el aura del chamán no dejan pasar nada
         const leaked = !e.warded && !e.shieldWall && this.directHit(ball, e, false, e.shieldLevel);
         ball.hitIds.add(e.id);
         // el fuego prende igual: el escudo para la pelota, no las llamas
         if (!leaked) this.burnBlocked(ball, e);
+        this.effects.spark(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), e.warded ? 0xb26bff : 0xcccccc);
+        if (!leaked) this.onEvent?.({ type: 'blocked', enemy: e, warded: e.warded || e.shieldWall });
+        // la del tenis rebota en el escudo igual que en el enemigo: vuelve
+        if (ball.phase === 'out') {
+          this.sendBack(ball, e);
+          continue;
+        }
         const n = Math.hypot(dx, dz) || 1;
         const dot = (s.vel.x * dx + s.vel.z * dz) / n;
         s.vel.x = (s.vel.x - (2 * dot * dx) / n) * 0.4;
         s.vel.z = (s.vel.z - (2 * dot * dz) / n) * 0.4;
-        this.effects.spark(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), e.warded ? 0xb26bff : 0xcccccc);
-        if (!leaked) this.onEvent?.({ type: 'blocked', enemy: e, warded: e.warded || e.shieldWall });
         continue;
       }
       this.hitEnemy(ball, e);
       if (ball.done) return;
     }
+  }
+
+  private drawBall(ball: Ball): void {
+    const s = ball.state;
+    ball.mesh.position.set(s.pos.x, s.pos.y, s.pos.z);
+    const t = ball.trailPositions;
+    t.copyWithin(3, 0, t.length - 3);
+    t[0] = s.pos.x;
+    t[1] = s.pos.y;
+    t[2] = s.pos.z;
+    ball.trail.geometry.attributes.position.needsUpdate = true;
+    // quieta en el piso, sin estela
+    ball.trail.visible = ball.phase !== 'floor';
   }
 
   private settle(ball: Ball): void {
@@ -316,10 +396,69 @@ export class Balls {
     this.onEvent?.({ type: 'settled', club: ball.club, hits: ball.hits, kills: ball.kills, ability: ball.ability });
   }
 
+  /** Tenis: las que vienen de vuelta, que el tenista puede devolver. */
+  get returning(): Ball[] {
+    return this.list.filter((b) => !b.done && b.phase === 'back');
+  }
+
+  /** Tenis: las que están quietas en el piso, para levantarlas. */
+  get onFloor(): Ball[] {
+    return this.list.filter((b) => !b.done && b.phase === 'floor');
+  }
+
+  /** Saca una pelota sin que cuente como tiro jugado: el tenista la devolvió o la levantó. */
+  retire(ball: Ball): void {
+    ball.settled = true;
+    ball.done = true;
+  }
+
+  /** Tenis: un paso de la pelota que rebota. */
+  private updateTennis(ball: Ball, dt: number): void {
+    const s = ball.state;
+    if (ball.phase === 'floor') return;
+    const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
+    const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
+    for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
+      // de vuelta, pasada la línea del tenista, el fondo la frena hasta que queda quieta
+      const friction = ball.phase === 'back' && s.pos.z < TEE_LINE_Z - TENNIS.behind ? TENNIS.backFriction : 0;
+      if (stepTennis(s, dt / steps, FIELD_HALF_WIDTH, friction)) this.onEvent?.({ type: 'wall', ball });
+      // la muralla la devuelve, floja
+      if (s.pos.z < GATE_Z + 0.6 && s.vel.z < 0) {
+        s.pos.z = GATE_Z + 0.6;
+        s.vel.z *= -0.3;
+      }
+      this.collide(ball);
+    }
+    // de ida y sin pegarle a nadie, se va por el fondo de la cancha: perdida
+    if (ball.phase === 'out' && s.pos.z > SPAWN_Z + 12) this.lose(ball);
+    // quieta en el fondo: si era la única en juego queda en el piso para levantarla; si no, se la llevan
+    if (s.resting && !ball.done) {
+      const others = this.list.some((b) => b !== ball && !b.done && (b.phase === 'out' || b.phase === 'back' || b.phase === 'floor'));
+      if (others) this.lose(ball);
+      else {
+        ball.phase = 'floor';
+        this.onEvent?.({ type: 'floor', ball });
+      }
+    }
+    if (ball.age > 40) this.lose(ball);
+  }
+
+  private lose(ball: Ball): void {
+    if (ball.done) return;
+    ball.done = true;
+    this.onEvent?.({ type: 'lost', ball });
+  }
+
   update(dt: number): void {
     for (const ball of this.list) {
       const s = ball.state;
       ball.age += dt;
+      if (ball.phase) {
+        this.updateTennis(ball, dt);
+        if (ball.age >= SETTLE_AFTER) this.settle(ball);
+        this.drawBall(ball);
+        continue;
+      }
       const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
       for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
@@ -347,14 +486,7 @@ export class Balls {
       if (s.resting) ball.restTime += dt;
       if (ball.restTime > 1.2 || ball.age > 14 || Math.abs(s.pos.x) > 90 || s.pos.z > 150) ball.done = true;
       if (ball.done || s.resting || ball.age >= SETTLE_AFTER) this.settle(ball);
-
-      ball.mesh.position.set(s.pos.x, s.pos.y, s.pos.z);
-      const t = ball.trailPositions;
-      t.copyWithin(3, 0, t.length - 3);
-      t[0] = s.pos.x;
-      t[1] = s.pos.y;
-      t[2] = s.pos.z;
-      ball.trail.geometry.attributes.position.needsUpdate = true;
+      this.drawBall(ball);
     }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const ball = this.list[i];

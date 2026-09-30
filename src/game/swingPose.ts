@@ -159,6 +159,32 @@ export class SwingRig {
     this.glowMat.color.setHex(club.color);
   }
 
+  /**
+   * Modo tenis: una raqueta de primitivas en lugar del palo. Va igual que el palo (mango en el origen, a
+   * lo largo de +Z) y la cara mira hacia +X, que en la postura es hacia el objetivo.
+   */
+  useRacket(): void {
+    this.club.clear();
+    const frame = new THREE.MeshStandardMaterial({ color: 0x2b3440, metalness: 0.4, roughness: 0.4 });
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.8 }));
+    grip.rotation.x = Math.PI / 2;
+    grip.position.z = 0.15;
+    const throat = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6), frame);
+    throat.rotation.x = Math.PI / 2;
+    throat.position.z = 0.37;
+    // el aro: un toro estirado a lo largo del mango, parado en el plano YZ
+    const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.012, 8, 28), frame);
+    hoop.scale.set(1, 1.3, 1);
+    hoop.rotation.set(0, Math.PI / 2, Math.PI / 2);
+    hoop.position.z = 0.63;
+    const strings = new THREE.Mesh(new THREE.CircleGeometry(0.135, 24), new THREE.MeshBasicMaterial({ color: 0xd9f27a, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
+    strings.scale.set(1, 1.3, 1);
+    strings.rotation.set(0, Math.PI / 2, Math.PI / 2);
+    strings.position.z = 0.63;
+    this.head.position.set(0, 0, 0.63);
+    this.club.add(grip, throat, hoop, strings, this.head);
+  }
+
   /** Posición en mundo de la cabeza del palo. */
   headWorld(out: THREE.Vector3): THREE.Vector3 {
     return this.head.getWorldPosition(out);

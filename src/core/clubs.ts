@@ -78,6 +78,11 @@ export interface Club {
    */
   fixedRange: number;
   color: number;
+  /**
+   * Modo tenis: la pelota rebota en el primer enemigo y vuelve hacia el jugador, que la puede volver a
+   * pegar (ver src/tennis). Solo lo lleva el golpe plano.
+   */
+  returns?: boolean;
 }
 
 /**

@@ -20,7 +20,7 @@ import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player, type Shot } from './game/player';
-import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
+import { FIELD_HALF_WIDTH, GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { loadVisual, VISUAL, Visuals } from './game/visuals';
 import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
 import { DebugPanel, loadBalance } from './debug';
@@ -28,6 +28,11 @@ import { Hud, type PerkChip } from './hud';
 import { Input } from './input';
 import { Intro } from './intro';
 import { Tutorial } from './tutorial';
+import { applyTennis, POCKET_RAIN, switchMode, TENNIS_ON } from './tennis/mode';
+import { crossingX, TENNIS } from './tennis/bounce';
+import { Pocket } from './tennis/pocket';
+import { buildCourt } from './tennis/court';
+import type { Ball } from './game/balls';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -40,10 +45,13 @@ const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 30
 // El campo de esta partida sale de core/terrain: ?campo=N fuerza uno y ?plano deja el campo liso. Tiene
 // que decidirse antes de armar el mundo, porque la malla del terreno se construye una sola vez.
 const params = new URLSearchParams(location.search);
-const gameCourse = pickCourse(params.has('plano') ? 'plano' : params.get('campo'));
+// el tenis se juega en cancha lisa: la pelota que rebota no sabe de lomas
+const gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.get('campo'));
 // el balance ajustado en el panel vuelve al recargar: cambiar de campo recarga la página, así que sin
 // esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
 const savedBalance = loadBalance();
+// el modo tenis cambia los palos y las cartas: antes de armar el HUD, que dibuja los palos
+if (TENNIS_ON) applyTennis();
 const world = new World(scene);
 loadVisual(params);
 const visuals = new Visuals(renderer, scene, camera, world.sun, world.hemi, shadowMat);
@@ -56,6 +64,12 @@ const abilities = new Abilities(scene, horde, effects);
 const tees = new Tees(scene);
 const traps = new Traps(scene, horde, effects);
 balls.traps = traps;
+/** Modo tenis: el bolsillo de pelotas (null en el golf), y la cancha con sus paredes. */
+const pocket = TENNIS_ON ? new Pocket(scene) : null;
+if (TENNIS_ON) {
+  buildCourt(scene);
+  tees.setVisible(false);
+}
 
 // ---------- estado ----------
 const GATE_MAX = 10;
@@ -287,6 +301,8 @@ let lastQuality = 0;
 
 /** ¿El golfista está parado en un puesto que tiene pelota? */
 function hasBallHere(): boolean {
+  // el tenista puede pegar si tiene pelota en el bolsillo o si viene alguna para devolver
+  if (pocket) return pocket.count > 0 || balls.returning.length > 0;
   // parado en el puesto, o corrido un poco cargando el tiro: la pelota va con él
   const i = player.stanceSpot();
   return i >= 0 && tees.hasBall(i);
@@ -348,7 +364,7 @@ function updatePreview(): void {
   landing.visible = show;
   // en carrera la pelota es la del puesto al que va: si no tuviera, la carga ya se habría cortado
   const ballHere = hasBallHere();
-  teeBall.visible = show && player.mode === 'charging' && ballHere;
+  teeBall.visible = show && player.mode === 'charging' && ballHere && !pocket;
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
   // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
@@ -622,6 +638,14 @@ balls.onEvent = (e) => {
     case 'bounce':
       audio.bounce();
       break;
+    // tenis: rebotó en un enemigo o en una pared, o quedó en el piso para levantarla
+    case 'returned':
+    case 'wall':
+      audio.bounce();
+      break;
+    case 'floor':
+      hud.feedback('Quedó en el fondo: pasale por encima para levantarla', 'neutral');
+      break;
     case 'blocked': {
       audio.bounce();
       const s = toScreen(e.enemy.position, e.enemy.height);
@@ -820,6 +844,7 @@ function applyCard(card: Card): void {
 /** Pasa las mejoras tomadas a los números del juego. Se llama cada vez que se toma una. */
 function applyPerks(): void {
   BALLS.max = 3 + (perks.extraBall ?? 0);
+  if (pocket) pocket.max = TENNIS.pocketMax + (perks.extraBall ?? 0);
   abilities.secondWind.owned = !!perks.secondWind;
   horde.mastery.ice = !!perks.masteryIce;
   horde.mastery.fire = !!perks.masteryFire;
@@ -871,12 +896,115 @@ function scenarioHeal(): void {
 
 /** Carcaj: vas a pegar donde no hay pelota y te aparece una a los pies, si está lista. */
 function useQuiver(): void {
+  if (pocket) {
+    // en el tenis el carcaj pone una en el bolsillo, si está vacío
+    if (!perks.quiver || !quiver.ready || pocket.count > 0) return;
+    quiver.ready = false;
+    quiver.timer = PERK_NUMBERS.quiverCooldown;
+    pocket.add(1);
+    hud.feedback('Carcaj', 'neutral');
+    return;
+  }
   if (!perks.quiver || !quiver.ready || !player.atSpot || hasBallHere()) return;
   quiver.ready = false;
   quiver.timer = PERK_NUMBERS.quiverCooldown;
   tees.place(player.spotIndex);
   audio.bounce();
   hud.feedback('Carcaj', 'neutral');
+}
+
+// ---------- modo tenis ----------
+/** La pelota que viene de vuelta y que el tenista le va a devolver en este golpe (la elige `tennisFire`). */
+let rehit: Ball | null = null;
+
+/** -1, 0 o +1: A/izquierda o D/derecha apretadas, en pantalla. */
+function heldRight(): number {
+  const k = input.keys;
+  return (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+}
+
+/**
+ * La pelota que se devolvería ahora mismo: de las que vienen de vuelta, la más cercana a la raqueta
+ * dentro de la ventana (un poco delante y un poco detrás de la línea, y a `reach` de costado).
+ */
+function hittableBall(): Ball | null {
+  let best: Ball | null = null;
+  let bestD = Infinity;
+  for (const b of balls.returning) {
+    const p = b.state.pos;
+    const dx = Math.abs(p.x - player.anchor.x);
+    if (dx > TENNIS.reach || p.z > TEE_Z + TENNIS.ahead || p.z < TEE_Z - TENNIS.behind) continue;
+    const d = dx + Math.abs(p.z - TEE_Z) * 0.3;
+    if (d < bestD) {
+      bestD = d;
+      best = b;
+    }
+  }
+  return best;
+}
+
+/** El golpe del tenista llegó al impacto: devuelve la que tiene al alcance, o saca una del bolsillo. */
+function tennisFire(): boolean {
+  rehit = hittableBall();
+  if (rehit) return true;
+  return !!pocket?.take();
+}
+
+/** Las marcas en la línea: dónde va a llegar cada pelota que viene de vuelta. */
+const crossMarks: THREE.Mesh[] = [];
+const crossGeo = new THREE.RingGeometry(0.35, 0.55, 24);
+/** El anillo de la pelota que se devolvería si pegás ahora. */
+const hitRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.68, 28), new THREE.MeshBasicMaterial({ color: 0x5be07a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+hitRing.rotation.x = -Math.PI / 2;
+hitRing.visible = false;
+scene.add(hitRing);
+
+function crossMark(i: number): THREE.Mesh {
+  let m = crossMarks[i];
+  if (!m) {
+    m = new THREE.Mesh(crossGeo, new THREE.MeshBasicMaterial({ color: 0xffd66b, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    scene.add(m);
+    crossMarks.push(m);
+  }
+  return m;
+}
+
+/**
+ * Cada cuadro del tenis: el bolsillo, levantar las del piso, el alcanzapelotas de emergencia y las
+ * marcas de dónde llega cada pelota.
+ */
+function updateTennis(dt: number): void {
+  if (!pocket) return;
+  const at = new THREE.Vector3(player.anchor.x, 1.1, TEE_Z);
+  pocket.update(dt, at);
+  // levantar: pasarle por encima a una que quedó en el piso
+  for (const b of balls.onFloor) {
+    if (Math.abs(b.state.pos.x - player.anchor.x) > TENNIS.pickReach || pocket.count >= pocket.max) continue;
+    balls.retire(b);
+    pocket.add(1);
+    audio.bounce();
+    hud.feedback('+1 pelota', 'neutral');
+  }
+  // sin pelota en ningún lado (ni en el bolsillo, ni en el piso, ni en juego): el alcanzapelotas te tira una
+  const inPlay = balls.list.some((b) => !b.done && b.phase !== null);
+  if (started && !ended && pocket.count === 0 && pocket.incoming === 0 && !inPlay) pocket.toss(at);
+  // las marcas de llegada, y el anillo de la que devolverías ahora
+  let n = 0;
+  for (const b of balls.returning) {
+    const s = b.state;
+    const x = crossingX(s.pos.x, s.pos.z, s.vel.x, s.vel.z, TEE_Z, FIELD_HALF_WIDTH);
+    if (x === null) continue;
+    const m = crossMark(n++);
+    m.visible = true;
+    m.position.set(x, 0.04, TEE_Z);
+    (m.material as THREE.MeshBasicMaterial).color.setHex(Math.abs(x - player.anchor.x) <= TENNIS.reach ? 0x5be07a : 0xffd66b);
+  }
+  for (let i = n; i < crossMarks.length; i++) crossMarks[i].visible = false;
+  const target = hittableBall();
+  hitRing.visible = !!target && !ended;
+  if (target) hitRing.position.set(target.state.pos.x, 0.05, target.state.pos.z);
+  hud.setPocket(pocket.count, pocket.max);
 }
 
 /**
@@ -1007,6 +1135,11 @@ abilities.hooks = {
     balls.fire({ club, quality, power: 1, curve: 0, element, ability: true, from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
   },
   fillSpots() {
+    if (pocket) {
+      for (let i = 0; i < POCKET_RAIN; i++) pocket.toss(player.anchor);
+      hud.feedback(`¡Lluvia de pelotas! +${POCKET_RAIN}`, 'good');
+      return POCKET_RAIN;
+    }
     const n = tees.fillAll();
     if (n) hud.feedback(`¡Lluvia de pelotas! +${n}`, 'good');
     return n;
@@ -1076,7 +1209,7 @@ async function startGame(withTutorial = false): Promise<void> {
   await audio.start();
   audio.startMusic();
   overlay.hidden = true;
-  if (withTutorial) {
+  if (withTutorial && !TENNIS_ON) {
     tutorial = new Tutorial({
       horde,
       player: () => player,
@@ -1092,8 +1225,8 @@ async function startGame(withTutorial = false): Promise<void> {
     tutorial.start();
     return;
   }
-  // el que lo salteó ya no lo ve primero
-  saveTutorialDone();
+  // el que lo salteó ya no lo ve primero (el tenis no cuenta: ese no tiene tutorial)
+  if (!TENNIS_ON) saveTutorialDone();
   // con ?palos, para probar: arranca eligiendo una carta
   if (ALL_CLUBS) offerChoice();
   if (BOT) {
@@ -1291,9 +1424,15 @@ async function makePlayer(skin: Skin): Promise<Player> {
   root.add(model);
   scene.add(root);
   playerClips = gltf.animations;
-  const p = new Player(root, gltf.animations, scene, clubModel ? clubModel.clone() : null);
+  const p = new Player(root, gltf.animations, scene, clubModel && !pocket ? clubModel.clone() : null);
   p.spotXs = tees.spots.map((s) => s.x);
+  if (pocket) {
+    // el tenista: raqueta, y camina libre de costado
+    p.rig.useRacket();
+    p.freeMove = { speed: TENNIS.runSpeed, charging: TENNIS.chargeMove, half: FIELD_HALF_WIDTH - 1 };
+  }
   p.canFire = () => {
+    if (pocket) return tennisFire();
     const i = p.stanceSpot();
     return i >= 0 && tees.take(i);
   };
@@ -1323,8 +1462,25 @@ async function makePlayer(skin: Skin): Promise<Player> {
     const range = shotRange(shot.club);
     // la potencia va en este tiro, y el eco lo repite igual (con la potencia incluida)
     if (nextShot.bonus) shot = { ...shot, bonus: nextShot.bonus };
+    // tenis: si le pegó a una que venía de vuelta, sale desde esa pelota y hacia el mouse
+    const back = rehit;
+    rehit = null;
+    if (back) {
+      const from = new THREE.Vector3(back.state.pos.x, 0, back.state.pos.z);
+      const dx = aimPoint.x - from.x;
+      const dz = aimPoint.z - from.z;
+      const len = Math.hypot(dx, dz);
+      shot = { ...shot, from, dir: len > 0.5 && dz > 0.3 ? new THREE.Vector3(dx / len, 0, dz / len) : shot.dir.clone() };
+    }
     const lift = shotLift(shot.club, range);
-    balls.fire(shot, range, lift);
+    const fired = balls.fire(shot, range, lift);
+    if (back) {
+      fired.rally = back.rally + 1;
+      balls.retire(back);
+      const bonus = Math.floor(fired.rally / TENNIS.rallyStep);
+      const s = toScreen(fired.mesh.position, 0.8);
+      hud.float(s.x, s.y, bonus ? `×${fired.rally} +${bonus}` : `×${fired.rally}`, bonus ? 'kill' : '');
+    }
     for (let k = 1; k <= nextShot.echoes; k++) {
       echoQueue.push({ at: gameClock + k * ECHO.delay, shot: { ...shot, ability: true, from: shot.from.clone(), dir: shot.dir.clone() }, range, lift });
     }
@@ -1418,12 +1574,13 @@ async function loadModels(): Promise<void> {
     return makePlayer(SKINS[0]);
   });
   player.placeAt(tees.centerIndex);
-  // arranca con una pelota a los pies y dos a los costados
-  for (const d of [0, -2, 2]) tees.place(tees.centerIndex + d);
+  // arranca con una pelota a los pies y dos a los costados (el tenista, con la del bolsillo)
+  if (!pocket) for (const d of [0, -2, 2]) tees.place(tees.centerIndex + d);
   if (guardGltf) {
     world.addGuards(scene, guardGltf);
     tees.guards = GUARD_POSTS.map(([x, z]) => new THREE.Vector3(x, 0, z));
   }
+  if (pocket) pocket.guards = GUARD_POSTS.map(([x, z]) => new THREE.Vector3(x, 0, z));
   for (const k of kinds) measured[k] = +horde.register(k, dungeon).toFixed(3);
   hud.setClub(player.club);
   hud.setSkin(SKINS[skinIndex].name);
@@ -1436,7 +1593,7 @@ async function loadModels(): Promise<void> {
 
 // ---------- inicio ----------
 const overlay = document.getElementById('overlay')!;
-const intro = new Intro((withTutorial) => void startGame(withTutorial), tutorialFirst);
+const intro = new Intro((withTutorial) => void startGame(withTutorial), tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON));
 loadModels().then(() => intro.setReady()).catch((e) => {
   console.error(e);
   intro.setError('Error cargando modelos');
@@ -1596,7 +1753,10 @@ function frame(): void {
     // carcaj: se repone solo
     if (!quiver.ready && (quiver.timer -= dt) <= 0) quiver.ready = true;
     // caddie dorado: mientras dure, el puesto donde estás nunca se queda sin pelota
-    if (caddieLeft > 0) {
+    if (caddieLeft > 0 && pocket) {
+      caddieLeft -= dt;
+      if (pocket.count === 0 && pocket.incoming === 0) pocket.toss(player.anchor, true);
+    } else if (caddieLeft > 0) {
       caddieLeft -= dt;
       const i = player.stanceSpot();
       if (i >= 0 && !tees.hasBall(i)) tees.place(i, true);
@@ -1606,7 +1766,9 @@ function frame(): void {
     // pantalla es hacia -x, como en `step`
     // Y el efecto: mantener A o D curva el tiro (continuo), y con «al soltar» vuelve a cero apenas no
     // hay ninguna de las dos apretada
-    if (started && !ended && player.mode === 'charging' && (!tutorial || tutorial.canMove)) {
+    // el tenista camina con las teclas apretadas, cargando o no. El derecho de la pantalla es -x
+    if (pocket) player.moveDir = started && !ended && !cardOpen ? -heldRight() : 0;
+    if (!pocket && started && !ended && player.mode === 'charging' && (!tutorial || tutorial.canMove)) {
       const right = (input.keys.has('KeyD') || input.keys.has('ArrowRight') ? 1 : 0) - (input.keys.has('KeyA') || input.keys.has('ArrowLeft') ? 1 : 0);
       if (SHIFT.mode === 'continuo' && right) player.shiftStance(-right * SHIFT.speed * dt);
       if (player.curving) {
@@ -1630,7 +1792,8 @@ function frame(): void {
       abilities.update(dt);
       const stance = player.mode === 'charging' || player.mode === 'swinging';
       // en la postura la pelota se dibuja a los pies del golfista, aunque se haya corrido cargando
-      tees.update(dt, player.spotIndex, stance && player.stanceSpot() >= 0 ? player.spotIndex : -1);
+      if (pocket) updateTennis(dt);
+      else tees.update(dt, player.spotIndex, stance && player.stanceSpot() >= 0 ? player.spotIndex : -1);
       traps.update(dt);
     }
     effects.update(dt);
@@ -1725,6 +1888,9 @@ addEventListener('resize', () => {
   /** Desde dónde sale la pelota ahora mismo. */
   get tee() { player.teePosition(tee); return [tee.x, tee.z]; },
   get tees() { return tees; },
+  /** Modo tenis: el bolsillo, y la pelota que se devolvería ahora mismo. */
+  get pocket() { return pocket; },
+  get hittable() { return pocket ? hittableBall() : null; },
 
   get traps() { return traps; },
   /** Las habilidades: cuáles se tienen, las recargas y las zonas de hielo en el piso. */

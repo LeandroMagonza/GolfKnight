@@ -340,6 +340,18 @@ export class Hud {
     this.waveSub.textContent = restLeft > 0 && index >= 0 ? `próxima oleada en ${Math.ceil(restLeft)}` : index < 0 ? '' : `quedan ${alive + pending}`;
   }
 
+  private pocketEl = $('pocket');
+  private pocketKey = '';
+
+  /** Modo tenis: las pelotas del bolsillo, llenas y vacías. */
+  setPocket(count: number, max: number): void {
+    const key = `${count}/${max}`;
+    if (key === this.pocketKey) return;
+    this.pocketKey = key;
+    this.pocketEl.hidden = false;
+    this.pocketEl.innerHTML = `<small>bolsillo</small>${'<span>●</span>'.repeat(Math.min(count, max))}${'<span class="off">●</span>'.repeat(Math.max(0, max - count))}`;
+  }
+
   setScore(score: number, kills: number): void {
     this.score.textContent = `${score} pts · ${kills} bajas`;
   }

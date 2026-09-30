@@ -2312,3 +2312,31 @@ golpe 1 ya no deja a nadie clavado. El **palazo** (que sí manda lejos a todos) 
   cartel de la carga ya muestran el daño con la potencia sumada.
 - Los dos se **pierden si cancelás el tiro, cambiás de palo o pifiás**: no hay reintentos. Si los tenés
   armados a los dos, el eco repite también la potencia.
+
+## Hecho: modo tenis, prototipo (30/9/2026)
+
+Un tenista en vez del golfista, como un rompeladrillos. Se entra con **?tenis** en la dirección o con
+«Probar el modo tenis» en la intro (y se vuelve con «Volver al golf»). Enemigos, oleadas, cartas,
+habilidades y la barra de carga son los mismos; el código está en `src/tennis/`.
+
+- **Dos golpes**, en el 1 y el 2: el **plano** (es el driver, para que sus habilidades sigan andando)
+  sale rasante y **rebota en el primer enemigo** como en un ladrillo, con su cara plana mirando al
+  jugador: de frente vuelve recta, en diagonal sale espejada para el otro lado. El **globo** (el wedge)
+  cae donde apuntás, revienta en área y esa pelota se pierde. Sin hierro ni putter, y sin sus cartas.
+- **La vuelta**: a 13 m/s, con piques bajos. **Atraviesa** a los que se cruza (les pega y los empuja
+  para atrás) y si se va por un costado, el **alambrado** de la cancha la devuelve como en el paddle. En
+  la línea del tenista hay una **marca** donde va a llegar cada una (verde si ya estás a tiro).
+- **Devolverla**: cargás y soltás; si en el impacto hay una pelota a menos de 1.6 m de costado (y entre
+  3 m delante y 1.2 m detrás de la línea), le pegás a esa, desde donde está y hacia el mouse. Si no, es un
+  saque del bolsillo. Cada vez que devolvés la misma pelota sube su **racha**: +1 de daño cada 2.
+- **El bolsillo**: arranca con 1 y entran 6 (más con «Pelota extra»). No se recarga solo: se llena
+  levantando pelotas y con la lluvia de pelotas (+3), el caddie dorado y el carcaj. La que pasa de largo
+  se frena en el fondo: **si era la única en juego queda en el piso** y se levanta pasándole por encima;
+  si había otras, se la llevan. **Si no te queda ninguna** (ni en el bolsillo, ni en el piso, ni en
+  juego), un alcanzapelotas te tira una al toque.
+- **El tenista** camina libre de costado (9 m/s; cargando, al 40 %) y usa una raqueta de primitivas con
+  los clips del golf. La cancha es siempre lisa.
+- Todos los números están en el panel de balance, pestaña del tiro, «Modo tenis».
+
+Para después: clips de saque, drive y revés, una raqueta modelada, un tercer golpe (un liftado que pase
+por arriba de los escudos) y el smash con salto.

@@ -92,6 +92,12 @@ export class Player {
   spotIndex = 0;
   /** Velocidad lateral actual, para el easing entre puestos. */
   private runVel = 0;
+  /**
+   * Modo tenis: camina libre de costado en vez de ir de puesto en puesto. `moveDir` lo pone el juego en
+   * cada cuadro con las teclas apretadas (+1 hacia +x, -1 hacia -x, 0 quieto).
+   */
+  freeMove: { speed: number; charging: number; half: number } | null = null;
+  moveDir = 0;
   /** ¿Hay pelota en este puesto? El tiro la consume. */
   canFire: (() => boolean) | null = null;
   /** ¿Se puede empezar a cargar? Sin pelota en el puesto, no: cargar para pegarle al aire solo frustraba. */
@@ -238,7 +244,7 @@ export class Player {
       const keptCurve = this.curve;
       this.cancelSwing();
       this.applyClub(club);
-      this.anchor.x = this.spotXs[this.spotIndex];
+      if (!this.freeMove) this.anchor.x = this.spotXs[this.spotIndex];
       this.startSwing();
       this.shiftStance(kept);
       this.bendShot(keptCurve);
@@ -414,6 +420,7 @@ export class Player {
 
   /** Ya llegó al puesto al que iba. */
   get atSpot(): boolean {
+    if (this.freeMove) return true;
     return Math.abs(this.anchor.x - this.spotXs[this.spotIndex]) < 0.05;
   }
 
@@ -425,7 +432,7 @@ export class Player {
    * `SHIFT.reach` para cada lado: es para alinearse con una fila, no para caminar.
    */
   shiftStance(dx: number): void {
-    if (this.mode !== 'charging' || SHIFT.mode === 'apagado' || SHIFT.mode === 'efecto') return;
+    if (this.mode !== 'charging' || SHIFT.mode === 'apagado' || SHIFT.mode === 'efecto' || this.freeMove) return;
     this.shift = THREE.MathUtils.clamp(this.shift + dx, -SHIFT.reach, SHIFT.reach);
     this.anchor.x = this.spotXs[this.spotIndex] + this.shift;
   }
@@ -464,7 +471,8 @@ export class Player {
    * después. Es un buffer para el toque que llega justo sobre el final, no una cola.
    */
   step(delta: number): void {
-    if (!this.alive) return;
+    // caminando libre, lo que mueve es mantener apretado (`moveDir`), no los toques
+    if (!this.alive || this.freeMove) return;
     // agarrado, congelado: no se mueve
     if (this.grabbedBy) return;
     // cargando, A y D corren con la pelota en vez de anotar un cambio de puesto (ver `SHIFT`). En el
@@ -624,13 +632,15 @@ export class Player {
       this.animator.setLocomotion('Idle', 1.6);
     } else if (this.mode === 'charging') {
       stance = true;
+      // el tenista se acomoda a la pelota mientras carga, más despacio
+      if (this.freeMove && this.moveDir) this.walk(this.moveDir * this.freeMove.speed * this.freeMove.charging * dt);
       this.yaw = lerpAngle(this.yaw, this.stanceYaw(), 1 - Math.exp(-16 * dt));
       this.backswing += (this.meter.power - this.backswing) * (1 - Math.exp(-18 * dt));
       const clip = this.swingClip;
       if (clip) this.animator.poseOneShot(clip.name, this.backswingTime(clip));
       else this.rig.phi = -(0.6 + 3.0 * this.backswing);
       this.animator.setLocomotion('Idle', 1);
-    } else if (this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER && !this.atSpot) {
+    } else if (this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER && (this.freeMove ? this.moveDir !== 0 : !this.atSpot)) {
       // ya pegó y quiere irse: corta el final del gesto y sale corriendo
       if (this.swingClip) this.animator.clearOneShot();
       this.mode = 'free';
@@ -639,6 +649,15 @@ export class Player {
       if (this.swingClip) this.updateClipSwing(dt, this.swingClip);
       else this.updateSwing(dt);
       this.animator.setLocomotion('Idle', 1);
+    } else if (this.freeMove) {
+      if (this.moveDir) {
+        this.walk(this.moveDir * this.freeMove.speed * dt);
+        this.yaw = lerpAngle(this.yaw, Math.atan2(this.moveDir, 0), 1 - Math.exp(-30 * dt));
+        this.animator.setLocomotion('Running', 1.4);
+      } else {
+        this.yaw = lerpAngle(this.yaw, Math.atan2(this.aimDir.x, this.aimDir.z), 1 - Math.exp(-8 * dt));
+        this.animator.setLocomotion('Idle', 1);
+      }
     } else {
       // de puesto en puesto, con easing (resorte amortiguado crítico: arranca y frena suave). Cada toque
       // es un puesto: mantener apretado no repite
@@ -680,6 +699,12 @@ export class Player {
     this.root.rotation.y = this.yaw;
     this.animator.update(dt);
     this.rig.apply();
+  }
+
+  /** Tenis: camina `dx` metros de costado, sin salirse de la cancha. */
+  private walk(dx: number): void {
+    const half = this.freeMove?.half ?? 0;
+    this.anchor.x = THREE.MathUtils.clamp(this.anchor.x + dx, -half, half);
   }
 
   /** Solo para depurar: mientras carga, deja el clip de swing clavado en este instante. */
