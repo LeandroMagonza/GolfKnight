@@ -2227,3 +2227,19 @@ calavera ni su poder). Ahora todos llevan el cartelito con íconos y vida (`draw
 - **El jefe** (80): una **barra roja de 10**, con una rayita por punto, y al lado **cuántas barras
   enteras le quedan detrás** de esa («×6» con 62 de vida: la barra muestra 2 de 10). En capas serían
   ocho colores.
+
+## Hecho: el arco de carga a velocidad pareja (29/9/2026)
+
+Antes los tramos del arco tenían un tamaño fijo (el 1 hasta el 55 %, el 3 desde el 92 %) y las mejoras
+cambiaban cuánto duraba cada uno: la aguja aceleraba al subir (0.9 arcos por segundo en el verde, 2 en
+el amarillo, 2.7 en el rojo), y el punto dulce se veía como una aguja que frenaba en el rojo. Ahora
+(`arcLayout`, `arcAngle` en core/swing) **la aguja sube siempre a la misma velocidad y cada tramo ocupa
+lo que dura**. La velocidad sale de la barra sin mejoras: de borde a tope, 90°. Los tiempos no
+cambiaron, solo cómo se dibujan:
+- sin mejoras, el rojo es finito (dura seis centésimas) y su número va arriba del arco;
+- el **punto dulce** agranda el rojo y deja igual el verde y el amarillo (el arco crece un poco);
+- la **muñeca rápida** y el **ritmo** achican el verde y el amarillo: el arco se achica y el rojo llega antes;
+- el **swing parejo** achica el verde y agranda el amarillo y el rojo.
+
+El rebote tiene su propio tiempo: al bajar, la aguja no va pareja. Si el rojo sin mejoras se ve
+demasiado finito, se puede volver atrás o darle un mínimo de ancho.

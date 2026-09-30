@@ -2,6 +2,10 @@
 // números de daño flotantes.
 import { ABILITIES, ABILITY_KEYS, SLOTS, type AbilityId } from './core/abilities';
 import { CLUB_KEYS, CLUB_ORDER, CLUBS, type Club, type ClubId } from './core/clubs';
+import { arcAngle, type ArcLayout } from './core/swing';
+
+/** Hasta dónde se abre el arco de carga, de arriba a cada borde: con las mejoras puede pasar de 90°. */
+const ARC_MAX = 105;
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -37,6 +41,9 @@ export class Hud {
   private floats = $('floats');
   private meter = $('meter');
   private needle: SVGGElement | null = null;
+  /** Cómo está repartido el arco (ver `setMarks`), y los umbrales de potencia de cada tramo. */
+  private layout: ArcLayout = { weak: 60, mid: 20, strong: 10, span: 90 };
+  private marks: readonly [number, number] = [0.55, 0.92];
   private marksKey = '';
   private range = $('range');
   private hint = $('hint');
@@ -105,19 +112,22 @@ export class Hud {
    * gris con un triángulo de peligro, el 2 en verde y el 3 en amarillo. `damage`: lo que pega cada nivel
    * con el palo y la distancia de ahora; va escrito en su tramo.
    */
-  setMarks(midFrom: number, strongFrom: number, duff = false, damage: readonly number[] = []): void {
-    // se llama en cada cuadro (los umbrales, el palo y la distancia cambian): solo se rearma si cambió algo
-    const key = `${midFrom}/${strongFrom}/${duff}/${damage.join()}`;
+  setMarks(layout: ArcLayout, marks: readonly [number, number], duff = false, damage: readonly number[] = []): void {
+    this.layout = layout;
+    this.marks = marks;
+    // se llama en cada cuadro (las mejoras, el palo y la distancia cambian): solo se rearma si cambió algo
+    const key = `${layout.weak.toFixed(2)}/${layout.mid.toFixed(2)}/${layout.strong.toFixed(2)}/${duff}/${damage.join()}`;
     if (key === this.marksKey) return;
     this.marksKey = key;
     const R = 66;
     const r = 44;
-    const deg = (p: number) => (1 - p) * 90;
     const at = (rad: number, a: number) => `${(rad * Math.sin((a * Math.PI) / 180)).toFixed(2)} ${(-rad * Math.cos((a * Math.PI) / 180)).toFixed(2)}`;
     const sector = (a1: number, a2: number, color: string) =>
       `<path class="zone" fill="${color}" d="M ${at(R, a1)} A ${R} ${R} 0 0 1 ${at(R, a2)} L ${at(r, a2)} A ${r} ${r} 0 0 0 ${at(r, a1)} Z" />`;
-    const g = deg(midFrom);
-    const y = deg(strongFrom);
+    // de dónde a dónde va cada tramo, en grados desde arriba: cada uno ocupa lo que dura (ver `arcLayout`)
+    const edge = Math.min(ARC_MAX, layout.span);
+    const g = Math.min(edge, layout.mid + layout.strong);
+    const y = Math.min(g, layout.strong);
     const low = duff ? '#4d535c' : '#5be07a';
     const mid = duff ? '#5be07a' : '#ffd66b';
     const top = duff ? '#ffd21f' : '#ff2d3c';
@@ -134,14 +144,21 @@ export class Hud {
       return `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="${fill}">${n}</text>`;
     };
     const dark = '#10151c';
-    const numbers = (duff ? '' : label(-(90 + g) / 2, damage[0], dark) + label((90 + g) / 2, damage[0], dark))
+    // el fuerte es angosto: si el número no entra adentro, va arriba del arco
+    const topLabel = () => {
+      if (damage[2] === undefined) return '';
+      if (2 * y >= 11) return label(0, damage[2], duff ? dark : '#ffffff');
+      return `<text x="0" y="${-(R + 11)}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="#ffffff" stroke="#0b0f14" stroke-width="3" paint-order="stroke">${damage[2]}</text>`;
+    };
+    const numbers = (duff ? '' : label(-(edge + g) / 2, damage[0], dark) + label((edge + g) / 2, damage[0], dark))
       + label(-(g + y) / 2, damage[1], dark) + label((g + y) / 2, damage[1], dark)
-      + label(0, damage[2], duff ? dark : '#ffffff');
+      + topLabel();
     // un fondo oscuro un poco más grande, como tenía la barra: sobre el pasto el verde se perdía
-    const back = `<path fill="rgba(0,0,0,0.6)" d="M ${at(R + 4, -92)} A ${R + 4} ${R + 4} 0 0 1 ${at(R + 4, 92)} L ${at(r - 4, 92)} A ${r - 4} ${r - 4} 0 0 0 ${at(r - 4, -92)} Z" />`;
-    this.meter.innerHTML = `<svg viewBox="-72 -72 144 78">` + back
-      + sector(-90, -g, low) + sector(-g, -y, mid) + sector(-y, y, top) + sector(y, g, mid) + sector(g, 90, low)
-      + (duff ? warn(-(90 + g) / 2) + warn((90 + g) / 2) : '') + numbers
+    const b = edge + 2;
+    const back = `<path fill="rgba(0,0,0,0.6)" d="M ${at(R + 4, -b)} A ${R + 4} ${R + 4} 0 0 1 ${at(R + 4, b)} L ${at(r - 4, b)} A ${r - 4} ${r - 4} 0 0 0 ${at(r - 4, -b)} Z" />`;
+    this.meter.innerHTML = `<svg viewBox="-72 -86 144 100">` + back
+      + sector(-edge, -g, low) + sector(-g, -y, mid) + sector(-y, y, top) + sector(y, g, mid) + sector(g, edge, low)
+      + (duff ? warn(-(edge + g) / 2) + warn((edge + g) / 2) : '') + numbers
       + `<g class="needle"><line x1="0" y1="-30" x2="0" y2="-72" stroke="#0b0f14" stroke-width="6" stroke-linecap="round" />`
       + `<line x1="0" y1="-30" x2="0" y2="-72" stroke="#ffffff" stroke-width="3" stroke-linecap="round" /></g>`
       + `<circle r="5" fill="#ffffff" stroke="#0b0f14" stroke-width="2" /></svg>`;
@@ -353,7 +370,9 @@ export class Hud {
   setMeter(charging: boolean, power: number, locked: boolean, label: string, side = -1): void {
     this.meter.classList.toggle('on', charging);
     this.meter.classList.toggle('locked', charging && locked);
-    const angle = charging ? side * (1 - Math.min(1, Math.max(0, power))) * 90 : -90;
+    // velocidad pareja: la aguja va a la par del tiempo, y cada tramo ocupa lo que dura
+    const edge = Math.min(ARC_MAX, this.layout.span);
+    const angle = charging ? side * Math.max(0, edge - arcAngle(power, this.marks, this.layout)) : -edge;
     this.needle?.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
     this.range.textContent = charging ? label : '';
   }

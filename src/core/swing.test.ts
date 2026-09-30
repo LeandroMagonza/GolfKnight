@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHARGE, qualityMarks, qualityOf, QUALITY_FROM } from './clubs';
-import { MIN_POWER, NO_MODS, SwingMeter, timingWith, type ChargeTimes } from './swing';
+import { arcAngle, arcLayout, MIN_POWER, NO_MODS, SwingMeter, timingWith, type ChargeTimes } from './swing';
 
 const T: ChargeTimes = { weak: 0.6, mid: 0.2, strong: 0.1, rebound: 0.3 };
 const MARKS: [number, number] = [0.55, 0.92];
@@ -149,5 +149,48 @@ describe('las mejoras sobre los tiempos', () => {
   it('el reparto va primero y las otras encima: con todo, el fuerte puede durar más que el débil', () => {
     const all = timingWith(T, { even: 1, lowMul: 0.72, strongMul: 1.8 });
     expect(all.strong).toBeGreaterThan(all.weak);
+  });
+});
+
+describe('el arco a velocidad pareja', () => {
+  const marks = qualityMarks();
+
+  it('sin mejoras va de borde a tope en 90°, y cada tramo ocupa lo que dura', () => {
+    const L = arcLayout(CHARGE, CHARGE);
+    expect(L.span).toBeCloseTo(90, 9);
+    const perSec = L.span / (CHARGE.weak + CHARGE.mid + CHARGE.strong / 2);
+    expect(L.weak / CHARGE.weak).toBeCloseTo(perSec, 9);
+    expect(L.mid / CHARGE.mid).toBeCloseTo(perSec, 9);
+    expect(L.strong / (CHARGE.strong / 2)).toBeCloseTo(perSec, 9);
+  });
+
+  it('la aguja va pareja: la misma velocidad en los tres tramos', () => {
+    const L = arcLayout(CHARGE, CHARGE);
+    const m = new SwingMeter();
+    m.start(CHARGE, marks);
+    const at = (t: number) => {
+      m.start(CHARGE, marks);
+      m.update(t);
+      return arcAngle(m.power, marks, L);
+    };
+    const speed = (t: number) => (at(t + 0.005) - at(t)) / 0.005;
+    const v = 90 / (CHARGE.weak + CHARGE.mid + CHARGE.strong / 2);
+    for (const t of [0.1, 0.5, 0.7, 0.8, 0.83]) expect(speed(t)).toBeCloseTo(v, 3);
+  });
+
+  it('el punto dulce agranda el rojo y deja igual el verde y el amarillo; la muñeca los achica', () => {
+    const base = arcLayout(CHARGE, CHARGE);
+    const sweet = arcLayout(timingWith(CHARGE, { ...NO_MODS, strongMul: 1.35 }), CHARGE);
+    expect(sweet.weak).toBeCloseTo(base.weak, 9);
+    expect(sweet.mid).toBeCloseTo(base.mid, 9);
+    expect(sweet.strong).toBeCloseTo(base.strong * 1.35, 9);
+    expect(sweet.span).toBeGreaterThan(base.span);
+    const wrist = arcLayout(timingWith(CHARGE, { ...NO_MODS, lowMul: 0.85 }), CHARGE);
+    expect(wrist.weak).toBeCloseTo(base.weak * 0.85, 9);
+    expect(wrist.strong).toBeCloseTo(base.strong, 9);
+    expect(wrist.span).toBeLessThan(base.span);
+    const even = arcLayout(timingWith(CHARGE, { ...NO_MODS, even: 1 }), CHARGE);
+    expect(even.weak).toBeLessThan(base.weak);
+    expect(even.strong).toBeGreaterThan(base.strong);
   });
 });

@@ -9,7 +9,7 @@ import { ABILITIES, ABILITY_KEYS, ICE, lv, PALAZO, SLOTS, type AbilityId, type E
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
-import { timingWith } from './core/swing';
+import { arcLayout, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls } from './game/balls';
 import { MoundView } from './game/mounds';
@@ -357,7 +357,8 @@ function updatePreview(): void {
   const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
   const duff = damageFor(club, hitAt, 1) <= 0 && areaDamageFor(club, hitAt, 1) <= 0;
-  hud.setMarks(...qualityMarks(), duff, [1, 2, 3].map((q) => damageFor(club, hitAt, q)));
+  // mientras carga, los tiempos con los que arrancó la carga; si no, los de ahora
+  hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, [1, 2, 3].map((q) => damageFor(club, hitAt, q)));
   hud.setMeter(charging, player.meter.power, player.meter.locked, `${hitAt.toFixed(0)} m · ${BAND_NAMES[bandOf(hitAt)]} · ${dmgLabel}`, player.meter.side);
   if (charging) placeMeter();
   if (!show) return;
@@ -1635,6 +1636,12 @@ addEventListener('resize', () => {
   get shots() { return shots; },
   get ended() { return ended; },
   get tutorial() { return tutorial; },
+  /** Pone una mejora en un nivel (0 la saca), para las pruebas. */
+  perk(id: PerkId, level: number) {
+    if (level > 0) perks[id] = level;
+    else delete perks[id];
+    applyPerks();
+  },
   /** Dónde está la marca de caída del tiro, para las pruebas. */
   get landingAt() { return [+landing.position.x.toFixed(1), +landing.position.z.toFixed(1)]; },
   get paused() { return paused; },

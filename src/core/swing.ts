@@ -69,6 +69,45 @@ export function timingWith(base: ChargeTimes, mods: TimingMods): ChargeTimes {
 
 const MIN_SEGMENT = 1e-4;
 
+/**
+ * **El arco a velocidad pareja.** La aguja sube siempre a la misma velocidad angular, y cada tramo ocupa
+ * en el arco lo que dura: así el tamaño del tramo es la ventana de tiempo, que es lo que importa. La
+ * velocidad sale de la barra sin mejoras (`base`): de borde a tope, 90°. Con las mejoras el arco cambia
+ * de tamaño en vez de cambiar la velocidad: el punto dulce agranda el rojo (y el arco entero, un poco);
+ * la muñeca rápida y el ritmo achican el verde y el amarillo (el arco se achica: el rojo llega antes); el
+ * swing parejo achica el verde y agranda los otros dos.
+ *
+ * Todo en grados. `weak` y `mid` son lo que ocupan esos tramos de cada lado; `strong` es **media**
+ * ventana del fuerte (de cada lado del tope, porque la aguja pasa por el tope y vuelve); `span` es de
+ * borde a tope. El rebote no entra acá: tiene su propio tiempo y la aguja lo recorre como pueda.
+ */
+export interface ArcLayout {
+  weak: number;
+  mid: number;
+  strong: number;
+  span: number;
+}
+
+export function arcLayout(times: ChargeTimes, base: ChargeTimes): ArcLayout {
+  const perSec = 90 / (base.weak + base.mid + base.strong / 2);
+  const weak = times.weak * perSec;
+  const mid = times.mid * perSec;
+  const strong = (times.strong / 2) * perSec;
+  return { weak, mid, strong, span: weak + mid + strong };
+}
+
+/**
+ * Dónde va la aguja para una potencia, en grados desde el borde del arco: la potencia de cada tramo se
+ * reparte en lo que ocupa ese tramo. `marks` son los umbrales de potencia del medio y del fuerte.
+ */
+export function arcAngle(power: number, marks: readonly [number, number], layout: ArcLayout): number {
+  const [a, b] = marks;
+  const p = Math.min(1, Math.max(0, power));
+  if (p < a) return (p / a) * layout.weak;
+  if (p < b) return layout.weak + ((p - a) / (b - a)) * layout.mid;
+  return layout.weak + layout.mid + ((p - b) / (1 - b)) * layout.strong;
+}
+
 export class SwingMeter {
   private elapsed = 0;
   private times: ChargeTimes = { weak: 0.63, mid: 0.185, strong: 0.06, rebound: 0.3 };
