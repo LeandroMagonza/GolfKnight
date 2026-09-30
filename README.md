@@ -426,7 +426,7 @@ necesita en cada caso (`mesh` en `ENEMIES`, `src/core/waves.ts`). El putter ya n
 `Golf Putt` queda sin uso por ahora (serviría para animar el tiro del portal). Para rearmarlo:
 
 ```
-blender -b --python tools/retarget_to_glb.py -- "<PolygonDungeon>/Models/Characters.fbx" "<PolygonDungeon>/Textures/Dungeons_Texture_01.png" public/models/dungeon.glb "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "Golf Drive=assets/mixamo/Golf Drive.fbx" "Golf Chip=assets/mixamo/Golf Chip.fbx" "Golf Putt=assets/mixamo/Golf Putt.fbx" "Dropping=assets/mixamo/Dropping.fbx"
+blender -b --python tools/retarget_to_glb.py -- "<PolygonDungeon>/Models/Characters.fbx" "<PolygonDungeon>/Textures/Dungeons_Texture_01.png" public/models/dungeon.glb "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "Golf Drive=assets/mixamo/Golf Drive.fbx" "Golf Chip=assets/mixamo/Golf Chip.fbx" "Golf Putt=assets/mixamo/Golf Putt.fbx" "Dropping=assets/mixamo/Dropping.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx"
 ```
 
 Sumar un enemigo es agregar una entrada en `ENEMIES` con la malla del personaje (quedan sin usar
@@ -457,11 +457,11 @@ otras proporciones; `fbx_to_glb.py` descarta las pistas de los huesos que el gua
 reescala el recorrido de la cadera. Para rearmar:
 
 ```
-blender -b --python tools/fbx_to_glb.py -- assets/mixamo/castle_guard_01.fbx public/models/player.glb --normalize-humanoid "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "assets/mixamo/Golf Drive.fbx" "assets/mixamo/Golf Chip.fbx" "assets/mixamo/Golf Putt.fbx"
+blender -b --python tools/fbx_to_glb.py -- assets/mixamo/castle_guard_01.fbx public/models/player.glb --normalize-humanoid "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "assets/mixamo/Golf Drive.fbx" "assets/mixamo/Golf Chip.fbx" "assets/mixamo/Golf Putt.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx"
 blender -b --python tools/club_to_glb.py -- "<Used Golf Club>/Assets/Meshes/Golf Club Model.fbx" "<Used Golf Club>/Assets/Textures" public/models/club.glb
 ```
 
-(`<pack>` es `MonsterTamer/web/assets/mixamo/action-adventure-pack`.)
+(`<pack>` es `MonsterTamer/web/assets/mixamo/action-adventure-pack` y `<extra>`, `MonsterTamer/web/assets/mixamo/extra`: los dos clips de caminar de costado, que usa el tenista. El Guardia veterano, `player-guard3.glb` y `guard.glb`, se arma igual que `dungeon.glb` pero con `assets/mixamo/Dropping.fbx` de base y `-` como atlas.)
 
 Cómo funciona el swing con clips: `golfClips.ts` muestrea la mano derecha del clip y encuentra el
 impacto (máxima velocidad horizontal), el tope (la pausa anterior), el address y el final; también

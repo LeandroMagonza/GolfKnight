@@ -3,24 +3,34 @@
 // Sale rasante, con piques bajos. El primer enemigo que toca la devuelve como un ladrillo: su cara es
 // plana y mira al jugador, así que de frente vuelve recta y en diagonal sale espejada para el otro lado.
 // De vuelta atraviesa a los que se cruce, y si se va por un costado, la pared de la cancha la devuelve
-// como en el paddle. Todo en el plano (x, z); la altura son solo los piques, para que se vea.
+// como en el paddle. Al fondo hay una pared mágica que devuelve todo lo que llega. Todo en el plano (x,
+// z); la altura son solo los piques, para que se vea.
 import { BALL_RADIUS, GRAVITY, type BallState } from '../core/ballistics';
 
 /** Los números del modo tenis. Se tocan en el panel de balance (tecla B). */
 export const TENNIS = {
   /** Velocidad de salida del golpe plano, por nivel de golpe, en m/s. */
-  outSpeed: [22, 26, 30],
-  /** Velocidad con la que vuelve después de rebotar en un enemigo, en m/s. */
-  backSpeed: 13,
-  /** Lo que conserva al rebotar contra una pared lateral. */
+  outSpeed: [70, 80, 90],
+  /** Velocidad con la que vuelve después de rebotar (en un enemigo o en la pared del fondo), en m/s. */
+  backSpeed: 50,
+  /** Lo que conserva al rebotar contra una pared lateral: de 0 a 1 (más de 1 la aceleraba sin fin). */
   wallKeep: 0.9,
+  /** La pared mágica del fondo: a cuántos metros de la línea del tenista. Devuelve todo lo que llega. */
+  backWall: 50,
+  /** 1: el primer enemigo que toca la devuelve. 0: los atraviesa y la devuelve la pared del fondo (los escudos igual la rebotan). */
+  enemyBounce: 1,
+  /**
+   * 1: cargando, apenas una pelota que vuelve entra al alcance, el golpe sale solo y se la devuelve. 0:
+   * hay que soltar a tiempo. A estas velocidades la pelota cruza la ventana en menos de una décima.
+   */
+  autoSwing: 1,
   /**
    * La vuelta nunca sale más cruzada que esto: al menos esta fracción de la velocidad va hacia el
    * jugador. Sin esto, una pelota que le pega de costado a un enemigo quedaba yendo de pared a pared.
    */
   minBack: 0.4,
   /** Altura de los piques, en metros. */
-  hop: 0.5,
+  hop: 1,
   /** Alcance de la raqueta: metros de x a cada lado del tenista. */
   reach: 1.6,
   /** La ventana para devolverla: desde cuántos metros delante de la línea hasta cuántos detrás. */
@@ -28,10 +38,8 @@ export const TENNIS = {
   behind: 1.2,
   /** Racha: cada tantos re-golpes de una misma pelota, +1 de daño. */
   rallyStep: 2,
-  /** Cuánto la frena el fondo (detrás de la línea), en m/s². */
-  backFriction: 12,
   /** A qué velocidad corre el tenista de costado, en m/s, y qué parte de eso mientras carga. */
-  runSpeed: 9,
+  runSpeed: 16,
   chargeMove: 0.4,
   /** Pelotas en el bolsillo al empezar, y cuántas entran. */
   pocketStart: 1,
@@ -41,7 +49,10 @@ export const TENNIS = {
 };
 
 /** En qué anda una pelota de tenis: de ida, de vuelta, quieta en el piso para levantarla. */
-export type TennisPhase = 'out' | 'back' | 'floor';
+export type TennisPhase = 'out' | 'back' | 'floor' | 'held';
+
+/** Lo más rápido que puede ir una pelota, en m/s: con números locos en el panel el juego se colgaba. */
+export const MAX_BALL_SPEED = 150;
 
 /**
  * Rebote contra un enemigo, como contra un ladrillo: la cara plana mira al jugador. La velocidad hacia
@@ -67,7 +78,8 @@ export function bounceOffEnemy(vx: number, vz: number, speed: number, minBack = 
  * paredes laterales (en x = ±`half`). Con `friction` se va frenando (el fondo): los piques se achican y
  * cuando casi no se mueve queda quieta. Devuelve true si pegó en una pared.
  */
-export function stepTennis(s: BallState, dt: number, half: number, friction = 0, hop = TENNIS.hop, wallKeep = TENNIS.wallKeep): boolean {
+export function stepTennis(s: BallState, dt: number, half: number, friction = 0, hop = TENNIS.hop, keep = TENNIS.wallKeep): boolean {
+  const wallKeep = Math.min(1, Math.max(0, keep));
   if (friction > 0) {
     const speed = Math.hypot(s.vel.x, s.vel.z);
     const next = Math.max(0, speed - friction * dt);

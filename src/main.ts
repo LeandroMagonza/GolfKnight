@@ -31,7 +31,7 @@ import { Tutorial } from './tutorial';
 import { applyTennis, POCKET_RAIN, switchMode, TENNIS_ON } from './tennis/mode';
 import { crossingX, TENNIS } from './tennis/bounce';
 import { Pocket } from './tennis/pocket';
-import { buildCourt } from './tennis/court';
+import { Court } from './tennis/court';
 import type { Ball } from './game/balls';
 
 // ---------- escena ----------
@@ -66,10 +66,8 @@ const traps = new Traps(scene, horde, effects);
 balls.traps = traps;
 /** Modo tenis: el bolsillo de pelotas (null en el golf), y la cancha con sus paredes. */
 const pocket = TENNIS_ON ? new Pocket(scene) : null;
-if (TENNIS_ON) {
-  buildCourt(scene);
-  tees.setVisible(false);
-}
+const court = TENNIS_ON ? new Court(scene) : null;
+if (TENNIS_ON) tees.setVisible(false);
 
 // ---------- estado ----------
 const GATE_MAX = 10;
@@ -644,7 +642,7 @@ balls.onEvent = (e) => {
       audio.bounce();
       break;
     case 'floor':
-      hud.feedback('Quedó en el fondo: pasale por encima para levantarla', 'neutral');
+      audio.bounce();
       break;
     case 'blocked': {
       audio.bounce();
@@ -943,9 +941,20 @@ function hittableBall(): Ball | null {
   return best;
 }
 
-/** El golpe del tenista llegó al impacto: devuelve la que tiene al alcance, o saca una del bolsillo. */
+/**
+ * El tenista soltó el golpe: si hay una pelota al alcance, la atrapa la raqueta y queda quieta ahí hasta
+ * el impacto. A estas velocidades, si se esperaba al impacto para buscarla ya se había ido.
+ */
+function catchBall(): void {
+  if (!pocket || rehit) return;
+  const b = hittableBall();
+  if (!b) return;
+  rehit = b;
+  balls.hold(b);
+}
+
+/** El golpe del tenista llegó al impacto: devuelve la que atrapó, o saca una del bolsillo. */
 function tennisFire(): boolean {
-  rehit = hittableBall();
   if (rehit) return true;
   return !!pocket?.take();
 }
@@ -978,6 +987,17 @@ function updateTennis(dt: number): void {
   if (!pocket) return;
   const at = new THREE.Vector3(player.anchor.x, 1.1, TEE_Z);
   pocket.update(dt, at);
+  court?.update(dt);
+  // cargando, el golpe sale solo apenas una pelota entra al alcance (ver TENNIS.autoSwing)
+  if (TENNIS.autoSwing && player.mode === 'charging' && !ended && hittableBall()) {
+    audio.whoosh(player.meter.power);
+    player.releaseSwing();
+  }
+  // la que atrapó y no llegó a pegarle (lo golpearon, pifió): se la llevan a la línea
+  if (rehit && player.mode !== 'swinging') {
+    balls.toLine(rehit);
+    rehit = null;
+  }
   // levantar: pasarle por encima a una que quedó en el piso
   for (const b of balls.onFloor) {
     if (Math.abs(b.state.pos.x - player.anchor.x) > TENNIS.pickReach || pocket.count >= pocket.max) continue;
@@ -1429,7 +1449,13 @@ async function makePlayer(skin: Skin): Promise<Player> {
   if (pocket) {
     // el tenista: raqueta, y camina libre de costado
     p.rig.useRacket();
-    p.freeMove = { speed: TENNIS.runSpeed, charging: TENNIS.chargeMove, half: FIELD_HALF_WIDTH - 1 };
+    // con getters: lo que se toque en el panel entra en el acto, sin recargar
+    p.freeMove = {
+      get speed() { return TENNIS.runSpeed; },
+      get charging() { return TENNIS.chargeMove; },
+      half: FIELD_HALF_WIDTH - 1,
+    };
+    p.onRelease = catchBall;
   }
   p.canFire = () => {
     if (pocket) return tennisFire();
@@ -1890,6 +1916,7 @@ addEventListener('resize', () => {
   get tees() { return tees; },
   /** Modo tenis: el bolsillo, y la pelota que se devolvería ahora mismo. */
   get pocket() { return pocket; },
+  tennis: TENNIS,
   get hittable() { return pocket ? hittableBall() : null; },
 
   get traps() { return traps; },

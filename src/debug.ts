@@ -89,7 +89,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 12;
+const VERSION = 13;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -114,6 +114,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   11: ['shove.cooldown'],
   // el fuego pasó a morder cada 1.5 s (`burnTicks` veces, en vez de `burnSeconds`)
   12: ['elementos'],
+  // el tenis pasó a las velocidades que probó Leandro (70/80/90 y 50), con pared del fondo y topes
+  13: ['tenis'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -640,25 +642,37 @@ export class DebugPanel {
   private buildTennis(el: HTMLElement): void {
     el.append(heading('Modo tenis'));
     const t = TENNIS;
-    const num = (key: 'backSpeed' | 'wallKeep' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'backFriction' | 'runSpeed' | 'chargeMove' | 'pocketMax', min = 0) =>
-      [() => t[key], (v: number) => { t[key] = Math.max(min, v); }] as const;
-    const rows: [string, () => number, (v: number) => void, number, string][] = [
-      ...[0, 1, 2].map((q): [string, () => number, (v: number) => void, number, string] =>
-        [`plano, golpe ${q + 1}`, () => t.outSpeed[q], (v) => { t.outSpeed[q] = Math.max(1, v); }, 1, 'm/s de ida']),
-      ['vuelta', ...num('backSpeed', 1), 1, 'm/s después de rebotar en un enemigo'],
-      ['pared', ...num('wallKeep'), 0.05, 'de la velocidad que conserva'],
-      ['mínimo de vuelta', ...num('minBack'), 0.05, 'de la velocidad va hacia el jugador, como mínimo'],
-      ['piques', ...num('hop'), 0.05, 'm de alto'],
-      ['alcance', ...num('reach', 0.2), 0.1, 'm de x a cada lado para devolverla'],
-      ['ventana adelante', ...num('ahead'), 0.1, 'm delante de la línea'],
-      ['ventana atrás', ...num('behind'), 0.1, 'm detrás de la línea'],
+    type Key = 'backSpeed' | 'backWall' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'runSpeed' | 'chargeMove' | 'pocketMax';
+    const num = (key: Key, min = 0, max = Infinity) =>
+      [() => t[key], (v: number) => { t[key] = Math.min(max, Math.max(min, v)); }] as const;
+    type Row = [string, () => number, (v: number) => void, number, string];
+    const rows: Row[] = [
+      ...[0, 1, 2].map((q): Row => [`plano, golpe ${q + 1}`, () => t.outSpeed[q], (v) => { t.outSpeed[q] = Math.min(150, Math.max(1, v)); }, 1, 'm/s de ida']),
+      ['vuelta', ...num('backSpeed', 1, 150), 1, 'm/s después de rebotar (enemigo o pared del fondo)'],
+      ['pared del fondo', ...num('backWall', 5, 80), 1, 'm desde tu línea'],
+      ['paredes laterales', () => t.wallKeep, (v) => { t.wallKeep = Math.min(1, Math.max(0, v)); }, 0.05, 'de la velocidad que conserva (0 a 1)'],
+      ['mínimo de vuelta', ...num('minBack', 0, 1), 0.05, 'de la velocidad va hacia vos, como mínimo'],
+      ['piques', ...num('hop', 0, 6), 0.1, 'm de alto'],
+      ['alcance', ...num('reach', 0.2, 6), 0.1, 'm de x a cada lado para devolverla'],
+      ['ventana adelante', ...num('ahead', 0, 15), 0.1, 'm delante de la línea'],
+      ['ventana atrás', ...num('behind', 0, 8), 0.1, 'm detrás de la línea'],
       ['racha', ...num('rallyStep', 1), 1, 'devoluciones por cada +1 de daño'],
-      ['fondo', ...num('backFriction', 0.5), 0.5, 'm/s² que la frena detrás de la línea'],
-      ['correr', ...num('runSpeed', 1), 0.5, 'm/s de costado'],
-      ['cargando', ...num('chargeMove'), 0.05, 'de esa velocidad mientras carga'],
-      ['bolsillo', ...num('pocketMax', 1), 1, 'pelotas como máximo'],
+      ['correr', ...num('runSpeed', 1, 60), 1, 'm/s de costado'],
+      ['cargando', ...num('chargeMove', 0, 1), 0.05, 'de esa velocidad mientras carga'],
+      ['bolsillo', ...num('pocketMax', 1, 20), 1, 'pelotas como máximo'],
     ];
-    el.append(this.numbers(rows).table, note('Solo cuentan en el modo tenis (?tenis en la dirección, o el botón de la intro).'));
+    el.append(
+      this.choiceRow('enemigos', ['rebotan', 'atraviesa'] as const, () => (t.enemyBounce ? 'rebotan' : 'atraviesa'), (v) => { t.enemyBounce = v === 'rebotan' ? 1 : 0; }, {
+        rebotan: 'El primer enemigo que toca la devuelve',
+        atraviesa: 'Los atraviesa a todos y la devuelve la pared del fondo (los escudos igual la rebotan)',
+      }),
+      this.choiceRow('devolver', ['solo', 'a mano'] as const, () => (t.autoSwing ? 'solo' : 'a mano'), (v) => { t.autoSwing = v === 'solo' ? 1 : 0; }, {
+        solo: 'Cargando, el golpe sale solo apenas una pelota entra al alcance',
+        'a mano': 'Hay que soltar justo cuando la pelota está al alcance',
+      }),
+      this.numbers(rows).table,
+      note('Solo cuentan en el modo tenis (?tenis en la dirección, o el botón de la intro). Todo cambia en el acto.'),
+    );
   }
 
   // ---- el tiro: correrse cargando o darle efecto ----

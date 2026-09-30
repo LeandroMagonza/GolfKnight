@@ -12,9 +12,9 @@ import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
 import type { Traps } from './traps';
 import { heightAt, terrainOn } from '../core/terrain';
-import { FIELD_HALF_WIDTH, GATE_Z, SPAWN_Z, TEE_LINE_Z } from './world';
+import { FIELD_HALF_WIDTH, GATE_Z, TEE_LINE_Z } from './world';
 import { SHIELD_TOP } from '../core/shield';
-import { bounceOffEnemy, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
+import { bounceOffEnemy, MAX_BALL_SPEED, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
 
 const TRAIL_POINTS = 18;
 const MAX_STEP = 0.3;
@@ -70,6 +70,8 @@ export interface Ball {
   phase: TennisPhase | null;
   /** Modo tenis: cuántas veces se la devolvió el tenista. Cada `TENNIS.rallyStep`, pega 1 más. */
   rally: number;
+  /** Modo tenis: la que pasó de largo vuelve a la línea por el aire, como tirada por un alcanzapelotas. */
+  toss?: { from: THREE.Vector3; to: THREE.Vector3; t: number };
 }
 
 export type BallEvent =
@@ -93,6 +95,10 @@ export type BallEvent =
 const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
 /** Tenis: hacia dónde empuja la pelota que vuelve a los que atraviesa. */
 const AWAY = new THREE.Vector3(0, 0, 1);
+/** Tenis: tope de pasos por cuadro, cuánto tarda en volver a la línea la que pasó de largo, y el color de la pared del fondo. */
+const MAX_TENNIS_STEPS = 60;
+const TOSS_TIME = 0.6;
+export const MAGIC_WALL_COLOR = 0x9d7bff;
 
 /** Tenis: el golpe plano sale de la altura de la raqueta, rasante y a la velocidad del nivel del golpe. */
 function tennisLaunch(shot: Shot): BallState {
@@ -288,7 +294,8 @@ export class Balls {
     // empuja para atrás (si no, la vuelta te los traía hacia la puerta)
     if (ball.phase === 'out') {
       this.directHit(ball, enemy, false);
-      this.sendBack(ball, enemy);
+      // con los enemigos que no rebotan, los atraviesa y la devuelve la pared del fondo
+      if (TENNIS.enemyBounce) this.sendBack(ball, enemy);
       return;
     }
     if (ball.phase === 'back') {
@@ -318,15 +325,18 @@ export class Balls {
     }
   }
 
-  /** Tenis: rebota en un enemigo como en un ladrillo y viene de vuelta hacia el tenista. */
-  private sendBack(ball: Ball, enemy: Enemy): void {
+  /**
+   * Tenis: rebota como en un ladrillo (un enemigo, o la pared del fondo) y viene de vuelta hacia el
+   * tenista, a la velocidad de vuelta.
+   */
+  private sendBack(ball: Ball, enemy: Enemy | null): void {
     const s = ball.state;
-    const v = bounceOffEnemy(s.vel.x, s.vel.z, TENNIS.backSpeed);
+    const v = bounceOffEnemy(s.vel.x, s.vel.z, Math.min(MAX_BALL_SPEED, TENNIS.backSpeed));
     s.vel.x = v.vx;
     s.vel.z = v.vz;
     // que no lo vuelva a tocar al salir, pero sí a los demás, aunque ya les haya pegado de ida
     ball.hitIds.clear();
-    ball.hitIds.add(enemy.id);
+    if (enemy) ball.hitIds.add(enemy.id);
     ball.phase = 'back';
     this.onEvent?.({ type: 'returned', ball });
   }
@@ -401,9 +411,9 @@ export class Balls {
     return this.list.filter((b) => !b.done && b.phase === 'back');
   }
 
-  /** Tenis: las que están quietas en el piso, para levantarlas. */
+  /** Tenis: las que están quietas en el piso, para levantarlas (no las que todavía vienen por el aire). */
   get onFloor(): Ball[] {
-    return this.list.filter((b) => !b.done && b.phase === 'floor');
+    return this.list.filter((b) => !b.done && b.phase === 'floor' && !b.toss);
   }
 
   /** Saca una pelota sin que cuente como tiro jugado: el tenista la devolvió o la levantó. */
@@ -412,35 +422,69 @@ export class Balls {
     ball.done = true;
   }
 
+  /** Tenis: la atrapa la raqueta: queda quieta ahí hasta el impacto del golpe (ver main, `catchBall`). */
+  hold(ball: Ball): void {
+    ball.phase = 'held';
+    ball.state.vel.x = 0;
+    ball.state.vel.y = 0;
+    ball.state.vel.z = 0;
+  }
+
+  /** Tenis: la manda por el aire a la línea del tenista, donde queda para levantarla. */
+  toLine(ball: Ball): void {
+    const s = ball.state;
+    const edge = FIELD_HALF_WIDTH - 1;
+    ball.phase = 'floor';
+    ball.toss = {
+      from: new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z),
+      to: new THREE.Vector3(THREE.MathUtils.clamp(s.pos.x, -edge, edge), BALL_RADIUS, TEE_LINE_Z - 0.5),
+      t: 0,
+    };
+    s.vel.x = 0;
+    s.vel.y = 0;
+    s.vel.z = 0;
+  }
+
   /** Tenis: un paso de la pelota que rebota. */
   private updateTennis(ball: Ball, dt: number): void {
     const s = ball.state;
-    if (ball.phase === 'floor') return;
-    const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
-    const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
-    for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
-      // de vuelta, pasada la línea del tenista, el fondo la frena hasta que queda quieta
-      const friction = ball.phase === 'back' && s.pos.z < TEE_LINE_Z - TENNIS.behind ? TENNIS.backFriction : 0;
-      if (stepTennis(s, dt / steps, FIELD_HALF_WIDTH, friction)) this.onEvent?.({ type: 'wall', ball });
-      // la muralla la devuelve, floja
-      if (s.pos.z < GATE_Z + 0.6 && s.vel.z < 0) {
-        s.pos.z = GATE_Z + 0.6;
-        s.vel.z *= -0.3;
-      }
-      this.collide(ball);
-    }
-    // de ida y sin pegarle a nadie, se va por el fondo de la cancha: perdida
-    if (ball.phase === 'out' && s.pos.z > SPAWN_Z + 12) this.lose(ball);
-    // quieta en el fondo: si era la única en juego queda en el piso para levantarla; si no, se la llevan
-    if (s.resting && !ball.done) {
-      const others = this.list.some((b) => b !== ball && !b.done && (b.phase === 'out' || b.phase === 'back' || b.phase === 'floor'));
-      if (others) this.lose(ball);
-      else {
-        ball.phase = 'floor';
+    if (ball.phase === 'held') return;
+    if (ball.phase === 'floor') {
+      // volando a la línea: una parábola corta, y al llegar queda para levantarla
+      const toss = ball.toss;
+      if (!toss) return;
+      toss.t = Math.min(1, toss.t + dt / TOSS_TIME);
+      s.pos.x = toss.from.x + (toss.to.x - toss.from.x) * toss.t;
+      s.pos.z = toss.from.z + (toss.to.z - toss.from.z) * toss.t;
+      s.pos.y = toss.from.y + (toss.to.y - toss.from.y) * toss.t + Math.sin(toss.t * Math.PI) * 2.4;
+      if (toss.t >= 1) {
+        ball.toss = undefined;
         this.onEvent?.({ type: 'floor', ball });
       }
+      return;
     }
-    if (ball.age > 40) this.lose(ball);
+    // con números locos en el panel se aceleraba sin fin y se colgaba: tope de velocidad y de pasos
+    const speed = Math.hypot(s.vel.x, s.vel.z);
+    if (speed > MAX_BALL_SPEED) {
+      s.vel.x *= MAX_BALL_SPEED / speed;
+      s.vel.z *= MAX_BALL_SPEED / speed;
+    }
+    const steps = Math.min(MAX_TENNIS_STEPS, Math.max(1, Math.ceil((Math.min(speed, MAX_BALL_SPEED) * dt) / MAX_STEP)));
+    const wallZ = TEE_LINE_Z + TENNIS.backWall;
+    const moving = () => ball.phase === 'out' || ball.phase === 'back';
+    for (let i = 0; i < steps && !ball.done && moving(); i++) {
+      if (stepTennis(s, dt / steps, FIELD_HALF_WIDTH, 0, TENNIS.hop)) this.onEvent?.({ type: 'wall', ball });
+      // la pared mágica del fondo devuelve todo lo que llega
+      if (ball.phase === 'out' && s.pos.z >= wallZ && s.vel.z > 0) {
+        s.pos.z = wallZ;
+        this.sendBack(ball, null);
+        this.effects.blink(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), MAGIC_WALL_COLOR);
+      }
+      this.collide(ball);
+      // pasó de largo: se va hasta la muralla y un alcanzapelotas la tira a la línea
+      if (ball.phase === 'back' && s.pos.z < GATE_Z + 2) this.toLine(ball);
+    }
+    if (ball.age > 60) this.lose(ball);
   }
 
   private lose(ball: Ball): void {

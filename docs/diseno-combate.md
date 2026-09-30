@@ -2340,3 +2340,29 @@ habilidades y la barra de carga son los mismos; el código está en `src/tennis/
 
 Para después: clips de saque, drive y revés, una raqueta modelada, un tercer golpe (un liftado que pase
 por arriba de los escudos) y el smash con salto.
+
+## Hecho: tenis, segunda vuelta; y el golfista corre siempre detrás de la línea (30/9/2026)
+
+Después de la primera prueba de Leandro (que lo colgó subiendo los números):
+
+- **Pared mágica al fondo**, a `backWall` m de la línea (50; en el panel): devuelve todo lo que llega.
+- **Enemigos que rebotan o que se atraviesan** (panel, «enemigos»): con *atraviesa*, la pelota le pega a
+  todos los que cruza, de ida y de vuelta, y la devuelve la pared del fondo; los escudos igual la
+  rebotan.
+- **La que pasa de largo** ya no rebota en la muralla y vuelve al campo: llega hasta la muralla y un
+  alcanzapelotas la tira a la línea, donde queda para levantarla (pasándole por encima).
+- **Devolver sola** (panel, «devolver»; prendido): cargando, apenas una pelota entra al alcance el golpe
+  sale solo. A 50 m/s la pelota cruza la ventana en menos de una décima, así que soltar a mano era casi
+  imposible. Además, al soltar, la raqueta **atrapa** la pelota que tiene al alcance y la deja quieta
+  hasta el impacto: antes se buscaba recién en el impacto, y a esa velocidad ya se había ido.
+- **Números por defecto**, los que probó Leandro: 70, 80 y 90 m/s de ida, 50 de vuelta, piques de 1 m;
+  correr a 16 m/s. El panel subió a la versión 13 (se reinicia lo guardado del tenis).
+- **No se cuelga más**: la pelota tiene tope de velocidad (150 m/s) y de pasos por cuadro, y lo que
+  conserva en las paredes va de 0 a 1 (con 70 se aceleraba sin fin). Todo lo del panel entra en el acto,
+  también la velocidad de correr (antes hacía falta recargar).
+- **Corre de costado**: `Strafe Left` y `Strafe Right` (de MonsterTamer, `assets/mixamo/extra`), sumados
+  a los cuatro modelos del jugador y a `dungeon.glb`. El tenista corre mirando a la cancha.
+- **Golf y tenis: corriendo, siempre detrás de la línea.** Antes la postura dependía del mouse aun
+  corriendo: apuntando a un lado corría sobre la línea y apuntando al otro, un metro atrás. Ahora corre a
+  1 m detrás del puesto, derecho, y recién al quedarse quieto un cuarto de segundo (o al cargar) se
+  acomoda alrededor de la pelota, con una transición.

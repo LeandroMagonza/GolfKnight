@@ -53,7 +53,7 @@ describe('la pelota en la cancha', () => {
 
   it('con fricción termina quieta', () => {
     const s = ball(0, 8, 0, -8);
-    for (let i = 0; i < 400 && !s.resting; i++) stepTennis(s, 0.01, 18, TENNIS.backFriction);
+    for (let i = 0; i < 400 && !s.resting; i++) stepTennis(s, 0.01, 18, 12);
     expect(s.resting).toBe(true);
     expect(s.vel.z).toBe(0);
   });

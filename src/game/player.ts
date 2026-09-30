@@ -63,6 +63,14 @@ const STANCE_BEHIND = 0.05;
 /** De puesto en puesto con easing: arranca y frena suave. Un puesto (4 m) lleva unos 0.4 s. */
 const RUN_SMOOTH_TIME = 0.12;
 const RUN_MAX_SPEED = 30;
+/**
+ * Corriendo, el cuerpo va siempre **detrás** de la línea, a esta distancia, y derecho sobre el puesto.
+ * Recién cuando se queda quieto `SETTLE_DELAY` segundos (o empieza a cargar) se acomoda alrededor de la
+ * pelota, con una transición. Antes la postura dependía del mouse aun corriendo: apuntando a un lado
+ * corría sobre la línea y apuntando al otro, bastante atrás.
+ */
+const RUN_BACK = 1;
+const SETTLE_DELAY = 0.25;
 /** Segundos de invulnerabilidad después de recibir un golpe. */
 const HIT_GRACE = 1.2;
 /** Palazo: el clip de swing, desde el tope, bien rápido; y cuánto dura el gesto después del golpe. */
@@ -96,8 +104,14 @@ export class Player {
    * Modo tenis: camina libre de costado en vez de ir de puesto en puesto. `moveDir` lo pone el juego en
    * cada cuadro con las teclas apretadas (+1 hacia +x, -1 hacia -x, 0 quieto).
    */
-  freeMove: { speed: number; charging: number; half: number } | null = null;
+  freeMove: { readonly speed: number; readonly charging: number; readonly half: number } | null = null;
   moveDir = 0;
+  /** Se llama al soltar el golpe, antes de que baje (el tenista atrapa ahí la pelota que va a devolver). */
+  onRelease: (() => void) | null = null;
+  /** Cuánto está acomodado en la postura: 0 corriendo (detrás de la línea), 1 alrededor de la pelota. */
+  private settle = 1;
+  /** Segundos que lleva quieto. */
+  private stillTime = 1;
   /** ¿Hay pelota en este puesto? El tiro la consume. */
   canFire: (() => boolean) | null = null;
   /** ¿Se puede empezar a cargar? Sin pelota en el puesto, no: cargar para pegarle al aire solo frustraba. */
@@ -338,6 +352,7 @@ export class Player {
 
   releaseSwing(): void {
     if (this.mode !== 'charging') return;
+    this.onRelease?.();
     this.swingShot = this.meter.release();
     this.giftInHand = false;
     this.mode = 'swinging';
@@ -651,11 +666,19 @@ export class Player {
       this.animator.setLocomotion('Idle', 1);
     } else if (this.freeMove) {
       if (this.moveDir) {
-        this.walk(this.moveDir * this.freeMove.speed * dt);
-        this.yaw = lerpAngle(this.yaw, Math.atan2(this.moveDir, 0), 1 - Math.exp(-30 * dt));
-        this.animator.setLocomotion('Running', 1.4);
+        const speed = this.freeMove.speed;
+        this.walk(this.moveDir * speed * dt);
+        if (this.animator.has('Strafe Left') && this.animator.has('Strafe Right')) {
+          // de costado, de frente a la cancha: mirando a +z, su izquierda es +x
+          this.yaw = lerpAngle(this.yaw, 0, 1 - Math.exp(-12 * dt));
+          this.animator.setLocomotion(this.moveDir > 0 ? 'Strafe Left' : 'Strafe Right', THREE.MathUtils.clamp(speed / 5, 1.2, 2.8));
+        } else {
+          this.yaw = lerpAngle(this.yaw, Math.atan2(this.moveDir, 0), 1 - Math.exp(-30 * dt));
+          this.animator.setLocomotion('Running', THREE.MathUtils.clamp(speed / 7, 1, 2.6));
+        }
       } else {
-        this.yaw = lerpAngle(this.yaw, Math.atan2(this.aimDir.x, this.aimDir.z), 1 - Math.exp(-8 * dt));
+        // quieto: gira de a poco hacia donde apunta
+        this.yaw = lerpAngle(this.yaw, Math.atan2(this.aimDir.x, this.aimDir.z), 1 - Math.exp(-5 * dt));
         this.animator.setLocomotion('Idle', 1);
       }
     } else {
@@ -692,8 +715,18 @@ export class Player {
       this.rig.phi = 0;
     }
 
-    // el cuerpo se acomoda alrededor de la pelota, que se queda en el puesto
+    // el cuerpo se acomoda alrededor de la pelota, que se queda en el puesto. Corriendo va detrás de la
+    // línea, y recién se acomoda al quedarse quieto o al cargar
+    const moving = this.mode === 'free' && (this.freeMove ? this.moveDir !== 0 : Math.abs(this.spotXs[this.spotIndex] - this.anchor.x) >= 0.05);
+    this.stillTime = moving ? 0 : this.stillTime + dt;
+    const settled = this.mode !== 'free' || this.stillTime >= SETTLE_DELAY;
+    this.settle += ((settled ? 1 : 0) - this.settle) * (1 - Math.exp(-(settled ? 8 : 16) * dt));
     this.stancePosition(this.position);
+    if (this.settle < 0.999) {
+      const k = this.settle;
+      this.position.x = this.anchor.x + (this.position.x - this.anchor.x) * k;
+      this.position.z = this.anchor.z - RUN_BACK + (this.position.z - (this.anchor.z - RUN_BACK)) * k;
+    }
     // mientras es invulnerable, titila
     this.root.visible = !(this.alive && this.blinkTimer > 0 && Math.floor(this.blinkTimer * 14) % 2 === 1);
     this.root.rotation.y = this.yaw;
