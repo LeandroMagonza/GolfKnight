@@ -10,13 +10,14 @@
 //   viento. Es un tiro de ese palo, instantáneo, con pelota gratis y cargado al nivel de la habilidad: el
 //   driver de hielo a nivel 1 es un driver nivel 1 que además enfría a cada uno que atraviesa.
 // - **Las demás**, cada una con su mecánica propia: granada, hielo, carrito, hoyo, bandera, pólvora,
-//   boomerang, lluvia de pelotas, caddie dorado, lupa, clon y palazo.
+//   boomerang, lluvia de pelotas, caddie dorado, lupa, clon, palazo, eco y potencia.
 import type { ClubId } from './clubs';
 
 export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning' | 'wind';
 export type AbilityKind =
-  | 'grenade' | 'iceZone' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'boomerang' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee';
+  | 'grenade' | 'iceZone' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'boomerang' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
+  | 'echo' | 'boost';
 
 export interface Ability {
   id: AbilityId;
@@ -73,21 +74,32 @@ export const GRENADE = { radius: [5, 5.75, 6.5], push: [6, 6.75, 7.5], core: 1 /
  * Los elementos de los tiros de palo y elemento.
  * - **Hielo**: enfría `iceSeconds` a cada uno que alcanza. Con la maestría, al que ya estaba frío lo
  *   **congela** `freezeSeconds`, y el golpe que rompe el hielo pega el doble.
- * - **Fuego**: lo prende `burnSeconds`, y le saca `burnDamage` cada `burnTick` segundos. Con la maestría,
- *   el que muere prendido contagia a los que tiene a `spreadRadius`.
+ * - **Fuego**: lo prende y le saca `burnDamage` cada `burnTick` segundos, `burnTicks` veces según el nivel
+ *   (3, 4 y 5 de daño en total). **El blindaje no le resta**, y prende aunque el escudo pare la pelota:
+ *   es la respuesta al blindado, y también al fantasma (muchos golpes de 1) y al divino (el primer
+ *   mordisco se come el escudo). Con la maestría, el que muere prendido contagia a los que tiene a
+ *   `spreadRadius`.
  * - **Rayo**: del que alcanza salta a `chainJumps` más, a `chainRange` como mucho, sacándole `chainDamage`
  *   a cada uno. **Nunca salta a uno que ya tocó**, así que no puede dar vueltas matando a todo. Con la
  *   maestría salta una vez más y cada salto pega el doble.
  */
 export const ELEMENTS = {
   iceSeconds: [3, 4, 5], freezeSeconds: 2,
-  burnSeconds: [3, 4, 5], burnTick: 1, burnDamage: 1, spreadRadius: 2.5,
+  burnTicks: [3, 4, 5], burnTick: 1.5, burnDamage: 1, spreadRadius: 2.5,
   chainJumps: [1, 2, 3], chainRange: 6, chainDamage: 1,
   // el viento hace algo distinto con cada palo (ver WIND_HINT): el driver junta sobre la línea a los de
   // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a
   // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`
   windLine: [3, 3.75, 4.5], windPush: [6, 8, 10], windPushRadius: 3.5, windPull: [4.5, 5.25, 6],
 };
+
+/**
+ * Cuánto dura prendido para morder `ticks` veces: el primer mordisco es en el acto y los demás, cada
+ * `burnTick`; el último medio tick es de margen para que no se pierda por redondeo.
+ */
+export function burnSeconds(ticks: number): number {
+  return (Math.max(1, ticks) - 0.5) * ELEMENTS.burnTick;
+}
 
 /** Carrito de golf: cruza el campo de costado a costado, a la altura que apuntás, y atropella. */
 export const CART = { damage: [2, 3, 4], speed: 20, width: 1.2 };
@@ -110,6 +122,14 @@ export const LENS = { radius: [3.5, 4, 4.5], seconds: [5, 6, 7], scale: 1.6 };
 /** Clon: deja una copia tuya donde estás; tus próximos `shots` tiros salen también desde ahí, hacia el mismo lado. */
 export const CLONE = { shots: [1, 2, 3], life: 20 };
 /**
+ * Eco: tu próximo tiro sale otra vez, igual (mismo palo, misma carga, mismo lado), `shots` veces más,
+ * una cada `delay` segundos. Sirve contra lo que se defiende de a un golpe: el escudo divino (el primero
+ * se lo come) y el fantasma (de a 1 por golpe). Se pierde si cancelás el tiro, cambiás de palo o pifiás.
+ */
+export const ECHO = { shots: [1, 2, 3], delay: 0.25 };
+/** Potencia: tu próximo tiro le saca `bonus` de más a cada uno que alcanza. Se pierde igual que el eco. */
+export const BOOST = { bonus: [1, 2, 3] };
+/**
  * Palazo: no hace daño. Empuja hacia atrás a todo lo que haya a `radius` metros de un paso adelante tuyo
  * (hasta `targets`), y les corta el ataque por `stagger` segundos. El empujón es `knockback` m/s, que
  * se frena solo: con 84 los manda unos 14 m.
@@ -120,6 +140,7 @@ export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1,
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
   hielo: ICE, granada: GRENADE, elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
   bandera: FLAG, 'pólvora': POWDER, boomerang: BOOMERANG, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
+  eco: ECHO, potencia: BOOST,
 };
 
 const BASE: Ability[] = [
@@ -171,6 +192,14 @@ const BASE: Ability[] = [
     id: 'shove', kind: 'melee', name: 'Palazo', title: 'empujón', cooldown: 12, range: 0, color: 0xfff1b8,
     hint: 'Un palazo a lo que tengas encima: no hace daño, pero los manda lejos hacia atrás y les corta el ataque',
   },
+  {
+    id: 'echo', kind: 'echo', name: 'Eco', title: 'el tiro, otra vez', cooldown: 12, range: 0, color: 0x7ff0e0,
+    hint: 'Tu próximo tiro sale otra vez, con la misma carga, un instante después; con más nivel, más veces. Se pierde si cancelás el tiro o cambiás de palo',
+  },
+  {
+    id: 'boost', kind: 'boost', name: 'Potencia', title: 'el próximo pega más', cooldown: 8, range: 0, color: 0xff9a3c,
+    hint: 'Tu próximo tiro le pega más a cada uno que alcanza. Se pierde si cancelás el tiro o cambiás de palo',
+  },
 ];
 
 const CLUB_LABEL: Record<ClubId, string> = { driver: 'Driver', iron: 'Hierro', wedge: 'Wedge', putter: 'Putter' };
@@ -207,13 +236,14 @@ export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);
 /** Las claves de ELEMENTS que usa cada elemento. */
 const ELEMENT_KEYS: Record<Element, string[]> = {
   ice: ['iceSeconds', 'freezeSeconds'],
-  fire: ['burnSeconds', 'burnTick', 'burnDamage', 'spreadRadius'],
+  fire: ['burnTicks', 'burnTick', 'burnDamage', 'spreadRadius'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
   wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
   grenade: 'granada', iceZone: 'hielo', cart: 'carrito', hole: 'hoyo', flag: 'bandera',
   powder: 'pólvora', boomerang: 'boomerang', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
+  echo: 'eco', boost: 'potencia',
 };
 
 /**

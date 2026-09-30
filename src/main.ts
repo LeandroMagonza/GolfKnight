@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ICE, lv, PALAZO, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, ECHO, ICE, lv, PALAZO, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
@@ -19,7 +19,7 @@ import { BALLS, TEE_Z, Tees } from './game/tees';
 import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
-import { Player } from './game/player';
+import { Player, type Shot } from './game/player';
 import { GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { loadVisual, VISUAL, Visuals } from './game/visuals';
 import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
@@ -352,13 +352,16 @@ function updatePreview(): void {
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
   // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
-  const damage = damageFor(club, hitAt, quality);
-  const areaHit = areaDamageFor(club, hitAt, quality);
-  const dmgLabel = damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`;
+  // la potencia armada suma a lo que pega (menos a la pifia, que no sale)
+  const plus = (n: number) => (n > 0 ? n + nextShot.bonus : n);
+  const damage = plus(damageFor(club, hitAt, quality));
+  const areaHit = plus(areaDamageFor(club, hitAt, quality));
+  const echo = nextShot.echoes ? ` · eco ×${nextShot.echoes}` : '';
+  const dmgLabel = (damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`) + echo;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
   const duff = damageFor(club, hitAt, 1) <= 0 && areaDamageFor(club, hitAt, 1) <= 0;
   // mientras carga, los tiempos con los que arrancó la carga; si no, los de ahora
-  hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, [1, 2, 3].map((q) => damageFor(club, hitAt, q)));
+  hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, [1, 2, 3].map((q) => plus(damageFor(club, hitAt, q))));
   hud.setMeter(charging, player.meter.power, player.meter.locked, `${hitAt.toFixed(0)} m · ${BAND_NAMES[bandOf(hitAt)]} · ${dmgLabel}`, player.meter.side);
   if (charging) placeMeter();
   if (!show) return;
@@ -686,6 +689,7 @@ function cycleClub(delta: number): void {
   const order = CLUB_ORDER.filter((id) => player.unlocked.has(id));
   if (order.length < 2) return;
   const i = order.indexOf((player.pendingClub ?? player.club).id);
+  dropNextShot();
   player.setClub(CLUBS[order[(i + delta + order.length) % order.length]]);
 }
 
@@ -700,6 +704,7 @@ function selectClub(index: number): void {
   if (!player.unlocked.has(id)) {
     return;
   }
+  if (id !== (player.pendingClub ?? player.club).id) dropNextShot();
   player.setClub(CLUBS[id]);
 }
 
@@ -929,6 +934,33 @@ function perkStatus(): PerkChip[] {
   return out;
 }
 
+/**
+ * Lo armado para el próximo tiro (el eco y la potencia). Se gasta al pegar, y se pierde si cancelás el
+ * tiro, cambiás de palo o pifiás: así no hay reintentos.
+ */
+const nextShot = { echoes: 0, bonus: 0 };
+/** Los ecos que faltan salir, con el reloj de juego (no corre en pausa). */
+const echoQueue: { at: number; shot: Shot; range: number; lift: ReturnType<typeof shotLift> }[] = [];
+
+function dropNextShot(): void {
+  if (!nextShot.echoes && !nextShot.bonus) return;
+  hud.feedback(nextShot.echoes && nextShot.bonus ? 'Se perdieron el eco y la potencia' : nextShot.echoes ? 'Se perdió el eco' : 'Se perdió la potencia', 'bad');
+  nextShot.echoes = 0;
+  nextShot.bonus = 0;
+}
+
+/** Sale el eco que toque: el mismo tiro, desde el mismo lugar y hacia el mismo lado. */
+function fireEchoes(): void {
+  for (let i = echoQueue.length - 1; i >= 0; i--) {
+    const e = echoQueue[i];
+    if (e.at > gameClock) continue;
+    echoQueue.splice(i, 1);
+    audio.tock(e.shot.quality >= QUALITY_LEVELS);
+    effects.blink(e.shot.from.clone(), ABILITIES.echo.color);
+    balls.fire(e.shot, e.range, e.lift);
+  }
+}
+
 /** Clon: una copia tuya que repite tus próximos tiros desde donde la dejaste. */
 let clone: { pos: THREE.Vector3; shots: number; left: number; mesh: THREE.Group } | null = null;
 function placeClone(shots: number, life: number): void {
@@ -991,6 +1023,14 @@ abilities.hooks = {
   throwClub: () => player.throwClub(),
   catchClub: () => player.catchClub(),
   clubMesh: boomerangClub,
+  armEcho(shots: number) {
+    nextShot.echoes = Math.max(nextShot.echoes, shots);
+    hud.feedback(shots > 1 ? `Eco ×${shots}` : 'Eco', 'good');
+  },
+  armBoost(bonus: number) {
+    nextShot.bonus = Math.max(nextShot.bonus, bonus);
+    hud.feedback(`Potencia +${bonus}`, 'good');
+  },
 };
 
 /**
@@ -1148,6 +1188,7 @@ const input = new Input({
     }
   },
   swingCancel() {
+    if (player?.mode === 'charging') dropNextShot();
     player?.cancelSwing();
   },
   castAbility,
@@ -1264,6 +1305,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     return damageFor(club, range, quality) <= 0 && areaDamageFor(club, range, quality) <= 0;
   };
   p.onDuff = () => {
+    // la pifia también gasta el eco y la potencia
+    dropNextShot();
     audio.duff();
     hud.feedback('¡Pifia!', 'bad');
     setCleanStreak(0);
@@ -1278,7 +1321,15 @@ async function makePlayer(skin: Skin): Promise<Player> {
     audio.tock(shot.quality >= QUALITY_LEVELS);
     if (shot.quality >= QUALITY_LEVELS) hud.feedback('¡Golpe perfecto!', 'good');
     const range = shotRange(shot.club);
-    balls.fire(shot, range, shotLift(shot.club, range));
+    // la potencia va en este tiro, y el eco lo repite igual (con la potencia incluida)
+    if (nextShot.bonus) shot = { ...shot, bonus: nextShot.bonus };
+    const lift = shotLift(shot.club, range);
+    balls.fire(shot, range, lift);
+    for (let k = 1; k <= nextShot.echoes; k++) {
+      echoQueue.push({ at: gameClock + k * ECHO.delay, shot: { ...shot, ability: true, from: shot.from.clone(), dir: shot.dir.clone() }, range, lift });
+    }
+    nextShot.echoes = 0;
+    nextShot.bonus = 0;
     // el clon repite el tiro desde donde quedó, **hacia el mouse**: las dos pelotas se cruzan donde
     // apuntaste. Con el palo de distancia fija, solo la dirección
     if (clone && clone.shots > 0) {
@@ -1568,6 +1619,7 @@ function frame(): void {
     const active = started && !ended;
     if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
     player.update(dt);
+    fireEchoes();
     // en el tutorial no hay oleadas: los enemigos los pone él
     if (active && tutorial) tutorial.update(dt);
     else if (active) updateWaves(dt);

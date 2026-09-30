@@ -30,6 +30,8 @@ export interface Shot {
   element?: Element;
   /** El tiro es de una habilidad, con pelota gratis: no cuenta para las rachas. */
   ability?: boolean;
+  /** Daño de más a cada uno que alcanza (la potencia). */
+  bonus?: number;
   from: THREE.Vector3;
   dir: THREE.Vector3;
 }

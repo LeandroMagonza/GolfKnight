@@ -2296,3 +2296,19 @@ La cuenta, con los tiempos medidos en el juego (un tiro con ir a buscar la pelot
 Caminando libres van a 2.3 y 2.6 m/s. El golpe 3 es ahora lo que más pega **y** lo que más frena; el
 golpe 1 ya no deja a nadie clavado. El **palazo** (que sí manda lejos a todos) recarga en **12 s**
 (eran 2.5); el panel de balance subió a la versión 11 para que pise lo guardado.
+
+## Hecho: el fuego contra el blindaje, y dos habilidades nuevas: eco y potencia (30/9/2026)
+
+- **El fuego**: muerde 1 cada **1.5 s** (era 1 s), 3, 4 o 5 veces según el nivel (`burnTicks`): 3, 4 o
+  5 de daño en total, como antes, pero más lento. **El blindaje no le resta** (antes, a un blindado 1 no
+  le hacía nada) y **prende aunque el escudo pare la pelota**, de frente o en área. Así el fuego pasa a
+  ser la respuesta al blindado, y sirve también contra el fantasma (muchos golpes de 1) y el divino (el
+  primer mordisco se come el escudo). El panel subió a la versión 12 (se reinician los números de los
+  elementos guardados).
+- **Eco** (recarga 12 s): tu próximo tiro sale otra vez, igual (mismo palo, misma carga, mismo lado),
+  cada 0.25 s: una vez más a nivel 1, dos a nivel 2, tres a nivel 3. Es para lo que se defiende de a un
+  golpe: el escudo divino y el fantasma.
+- **Potencia** (recarga 8 s): tu próximo tiro le saca +1, +2 o +3 a cada uno que alcanza. El arco y el
+  cartel de la carga ya muestran el daño con la potencia sumada.
+- Los dos se **pierden si cancelás el tiro, cambiás de palo o pifiás**: no hay reintentos. Si los tenés
+  armados a los dos, el eco repite también la potencia.

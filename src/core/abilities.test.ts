@@ -91,7 +91,7 @@ describe('habilidades', () => {
     }
     // las de palo y elemento comparten la tabla del elemento, y cada una ve solo lo suyo
     expect(configOf('driver-fire')!.table).toBe(ELEMENTS);
-    expect(configOf('driver-fire')!.keys).toContain('burnSeconds');
+    expect(configOf('driver-fire')!.keys).toContain('burnTicks');
     expect(configOf('driver-fire')!.keys).not.toContain('chainJumps');
   });
 });

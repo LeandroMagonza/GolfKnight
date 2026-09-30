@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
+import { burnSeconds, ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
@@ -1647,8 +1647,8 @@ export class Horde {
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
-    // la armadura (hasta 3): el silencio de la granada se la saca mientras dura
-    const armor = enemy.armor;
+    // la armadura (hasta 3): el silencio de la granada se la saca mientras dura. Al fuego no le resta
+    const armor = dot ? 0 : enemy.armor;
     if (armor > 0 && dealt > 0) {
       dealt = Math.max(0, dealt - armor);
       if (dealt === 0) this.emit({ type: 'armored', enemy });
@@ -1688,7 +1688,7 @@ export class Horde {
       if (wasBurning && this.mastery.fire) {
         for (const e of this.enemies) {
           if (e === enemy || !e.alive || e.passed) continue;
-          if (Math.hypot(e.position.x - enemy.position.x, e.position.z - enemy.position.z) - e.radius <= ELEMENTS.spreadRadius) e.burn(this.spreadBurn);
+          if (Math.hypot(e.position.x - enemy.position.x, e.position.z - enemy.position.z) - e.radius <= ELEMENTS.spreadRadius) e.burn(burnSeconds(this.spreadBurn));
         }
       }
     }
@@ -1713,7 +1713,7 @@ export class Horde {
 
   /** Cuánto pega la explosión de la pólvora: lo fija el nivel de la habilidad al marcar. */
   powderDamage = 2;
-  /** Cuánto dura el fuego contagiado. */
+  /** Cuántas veces muerde el fuego contagiado. */
   spreadBurn = 3;
 
   /**
@@ -1765,7 +1765,8 @@ export class Horde {
    * daño entero, esté en el centro o en el borde. Antes caía hasta un 60 % hacia el borde, y el número
    * del panel no era el que se cobraba.
    */
-  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>, onHit?: (e: Enemy) => void): number {
+  /** @param onBlocked al que el escudo le paró todo el golpe (para el fuego, que prende igual) */
+  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>, onHit?: (e: Enemy) => void, onBlocked?: (e: Enemy) => void): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -1779,13 +1780,17 @@ export class Horde {
       if (guard >= SHIELD_WALL) {
         this.emit({ type: 'shielded', enemy: e });
         skip?.add(e.id);
+        onBlocked?.(e);
         continue;
       }
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
       this.damage(e, damage, dir.normalize(), knockback, false, guard);
       skip?.add(e.id);
       // si el escudo se comió todo, no cuenta como alcanzado (para las rachas es como errar)
-      if (guard > 0 && this.lastDealt === 0) continue;
+      if (guard > 0 && this.lastDealt === 0) {
+        onBlocked?.(e);
+        continue;
+      }
       onHit?.(e);
       count++;
     }

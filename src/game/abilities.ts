@@ -7,7 +7,7 @@
 // pelotas, el caddie, el clon y el palo que se tira) lo hace el juego, a través de `hooks`.
 import * as THREE from 'three';
 import {
-  ABILITIES, BOOMERANG, CADDIE, CART, CLONE, cooldownAt, FLAG, GRENADE, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
+  ABILITIES, BOOMERANG, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, GRENADE, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
   type AbilityId, type Element,
 } from '../core/abilities';
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
@@ -36,6 +36,10 @@ export interface AbilityHooks {
   melee(level: number): boolean;
   /** Una copia del modelo del palo, para que el boomerang sea el palo de verdad. */
   clubMesh(): THREE.Object3D;
+  /** Eco: el próximo tiro sale `shots` veces más. */
+  armEcho(shots: number): void;
+  /** Potencia: el próximo tiro pega `bonus` de más. */
+  armBoost(bonus: number): void;
 }
 
 /** Cómo vuela la pelota de cada habilidad que se tira. */
@@ -220,6 +224,8 @@ export class Abilities {
       case 'rain': this.hooks?.fillSpots(); break;
       case 'caddie': this.hooks?.startCaddie(lv(CADDIE.seconds, level)); break;
       case 'clone': this.hooks?.placeClone(lv(CLONE.shots, level), CLONE.life); break;
+      case 'echo': this.hooks?.armEcho(lv(ECHO.shots, level)); break;
+      case 'boost': this.hooks?.armBoost(lv(BOOST.bonus, level)); break;
       case 'melee':
         if (!this.hooks?.melee(level)) {
           // en pleno swing no sale, y no se gasta

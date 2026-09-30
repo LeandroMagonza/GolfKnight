@@ -5,7 +5,7 @@
 // no llevan poder: el hielo, el viento y la granada van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
-import { ELEMENTS, lv, type Element } from '../core/abilities';
+import { burnSeconds, ELEMENTS, lv, type Element } from '../core/abilities';
 import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
@@ -44,6 +44,8 @@ export interface Ball {
   spinTime: number;
   hitIds: Set<number>;
   hits: number;
+  /** Daño de más a cada uno que alcanza (la potencia). */
+  bonus: number;
   /** Ya abrió su área: no la vuelve a abrir aunque siga rodando. */
   burst: boolean;
   /** Enemigos que mató esta pelota. */
@@ -123,7 +125,7 @@ export class Balls {
       from: shot.from.clone(), spin, spinTime: 0,
       element: shot.element ?? null, ability: !!shot.ability, zapped: new Set(),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
-      hitIds: new Set(), hits: 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
     };
     this.list.push(ball);
     return ball;
@@ -131,6 +133,8 @@ export class Balls {
 
   /** El daño con el que pega esta pelota: el de la tabla, o el de «En racha» si le toca. */
   private damageOf(ball: Ball, base: number): number {
+    // la potencia suma a cada uno que alcanza (a la pifia no: esa no sale)
+    if (base > 0 && ball.bonus) base += ball.bonus;
     if (ball.ability) return base;
     if (ball.hot === undefined) ball.hot = this.hotDamage !== null;
     return ball.hot && this.hotDamage ? this.hotDamage(base) : base;
@@ -161,7 +165,7 @@ export class Balls {
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
     this.horde.shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability };
-    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
+    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e), (e) => this.burnBlocked(ball, e));
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     if (ball.element === 'wind') this.windBurst(ball, pos);
@@ -204,8 +208,13 @@ export class Balls {
     // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst)
     if (!ball.element || ball.element === 'wind') return;
     if (ball.element === 'ice') this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
-    else if (ball.element === 'fire') enemy.burn(lv(ELEMENTS.burnSeconds, ball.quality));
+    else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
     else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality), ball.zapped);
+  }
+
+  /** Al que el escudo le paró el golpe, el fuego lo prende igual. */
+  private burnBlocked(ball: Ball, enemy: Enemy): void {
+    if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
   }
 
   /**
@@ -286,6 +295,8 @@ export class Balls {
         // número entra. El muro y el aura del chamán no dejan pasar nada
         const leaked = !e.warded && !e.shieldWall && this.directHit(ball, e, false, e.shieldLevel);
         ball.hitIds.add(e.id);
+        // el fuego prende igual: el escudo para la pelota, no las llamas
+        if (!leaked) this.burnBlocked(ball, e);
         const n = Math.hypot(dx, dz) || 1;
         const dot = (s.vel.x * dx + s.vel.z * dz) / n;
         s.vel.x = (s.vel.x - (2 * dot * dx) / n) * 0.4;
