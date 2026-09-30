@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
-import { EXPLOSION_RADIUS, KNOCK_DECAY, type ClubId } from '../core/clubs';
+import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
 import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
@@ -940,12 +940,15 @@ export class Enemy {
     this.barFill.material.color.setHSL(0.33 * f, 0.75, 0.55);
   }
 
-  /** Aplica daño. Devuelve true si murió con este golpe. */
-  damage(amount: number, knockDir: THREE.Vector3 | null, knockback: number): boolean {
+  /**
+   * Aplica daño. Devuelve true si murió con este golpe. El empujón se divide por el tamaño (el élite casi
+   * no se mueve) y los pesados se llevan un poco nomás; `stun` es cuánto trastabillea (los pesados, nada).
+   */
+  damage(amount: number, knockDir: THREE.Vector3 | null, knockback: number, stun = 0.35): boolean {
     if (!this.alive || this.warded) return false;
     this.hp -= amount;
     this.flashTimer = 0.12;
-    if (knockDir) this.knock.addScaledVector(knockDir, knockback * (this.stats.heavy ? 0.12 : 1));
+    if (knockDir) this.knock.addScaledVector(knockDir, (knockback * (this.stats.heavy ? 0.12 : 1)) / this.size);
     if (this.hp <= 0) {
       this.state = 'dying';
       this.dyingTime = 0;
@@ -964,7 +967,7 @@ export class Enemy {
       return true;
     }
     this.refreshBar();
-    if (!this.stats.heavy && this.state !== 'attack') this.stunTimer = 0.35;
+    if (!this.stats.heavy && this.state !== 'attack' && stun > 0) this.stunTimer = Math.max(this.stunTimer, stun);
     return false;
   }
 
@@ -1665,7 +1668,10 @@ export class Horde {
     this.lastDealt = dealt;
     const hadPowder = enemy.powderTimer > 0;
     const wasBurning = enemy.burning;
-    const killed = enemy.damage(dealt, knockDir, knockback);
+    // el pelotazo empuja y hace trastabillar según qué tan bien se le pegó (ver `KNOCK`); lo demás (el
+    // carrito, el boomerang, las explosiones) empuja como siempre
+    const q = this.shot ? Math.min(KNOCK.quality.length, Math.max(1, this.shot.quality)) - 1 : -1;
+    const killed = enemy.damage(dealt, knockDir, q >= 0 ? knockback * KNOCK.quality[q] : knockback, q >= 0 ? KNOCK.stun[q] : undefined);
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });

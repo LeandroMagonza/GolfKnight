@@ -168,7 +168,7 @@ const BASE: Ability[] = [
     hint: 'Deja una copia tuya donde estás. Tu próximo tiro sale también desde ahí, hacia el mismo lado',
   },
   {
-    id: 'shove', kind: 'melee', name: 'Palazo', title: 'empujón', cooldown: 2.5, range: 0, color: 0xfff1b8,
+    id: 'shove', kind: 'melee', name: 'Palazo', title: 'empujón', cooldown: 12, range: 0, color: 0xfff1b8,
     hint: 'Un palazo a lo que tengas encima: no hace daño, pero los manda lejos hacia atrás y les corta el ataque',
   },
 ];

@@ -2272,3 +2272,27 @@ Si el élite **entra por la puerta, se pierde la partida** («Entró el élite»
 vida que le quede; y si **atropella al golfista, lo mata** («Te atropelló el élite»), aunque alguna
 mejora le haya subido la vida (`ELITE.damage` es infinito). Es el examen de cada escenario: con la cura
 de +7 al terminarlo, lo que hayan hecho los demás se recupera; lo que no se perdona es dejarlo pasar.
+
+## Hecho: el empujón depende de la carga y del tamaño; el palazo recarga en 12 s (30/9/2026)
+
+Antes cada pelotazo empujaba lo mismo en los tres niveles (el putter, 1.7 m y 0.35 s de tropiezo) y no
+importaba el tamaño: tirando golpes 1 seguidos, a un jefe goblin élite se lo dejaba en el lugar. Ahora
+(`KNOCK` en core/clubs) el empujón del palo se multiplica por **0.3, 0.55 y 0.8** según el nivel del
+golpe, y se **divide por el tamaño** del enemigo; el tropiezo es de **0, 0.12 y 0.25 s**. Los pesados
+siguen llevándose el 12 %. Lo demás (el carrito, el boomerang, las explosiones, el palazo) empuja como
+siempre.
+
+La cuenta, con los tiempos medidos en el juego (un tiro con ir a buscar la pelota: 1.2 s en el golpe 1,
+1.65 s en el 2 y 1.86 s en el 3; el putter de cerca saca 2, 3 y 4):
+
+| | Golpe 1 | Golpe 2 | Golpe 3 |
+|---|---|---|---|
+| Daño por segundo | 1.67 | 1.82 | 2.15 |
+| Jefe goblin élite avanza (m/s), antes | 0.24 | 0.64 | 0.97 |
+| Jefe goblin élite avanza (m/s), ahora | 2.07 | 1.83 | 1.60 |
+| Orco avanza (m/s), antes | 0.45 | 0.87 | 1.21 |
+| Orco avanza (m/s), ahora | 2.18 | 1.85 | 1.54 |
+
+Caminando libres van a 2.3 y 2.6 m/s. El golpe 3 es ahora lo que más pega **y** lo que más frena; el
+golpe 1 ya no deja a nadie clavado. El **palazo** (que sí manda lejos a todos) recarga en **12 s**
+(eran 2.5); el panel de balance subió a la versión 11 para que pise lo guardado.

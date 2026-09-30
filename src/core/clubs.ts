@@ -263,6 +263,20 @@ export const EXPLOSION_RADIUS = 3.6;
 export const KNOCK_DECAY = 6;
 
 /**
+ * **El empujón de los pelotazos depende de qué tan bien se le pegó** (y del tamaño del enemigo: se
+ * divide por su tamaño, así que el élite casi no se mueve). `quality` multiplica el `knockback` del palo
+ * y `stun` es cuánto trastabillea, uno por nivel de golpe.
+ *
+ * La cuenta (30/9, medida en el juego): un tiro, contando ir a buscar la pelota al puesto de al lado,
+ * tarda 1.2 s en el golpe 1, 1.65 s en el 2 y 1.86 s en el 3. El putter de cerca saca 2, 3 y 4: 1.67,
+ * 1.82 y 2.15 de daño por segundo. Cargar ya rendía más daño; lo que lo rompía era el empujón, que era
+ * el mismo en los tres niveles (1.7 m y 0.35 s de tropiezo con el putter): tirando golpes 1 seguidos, a
+ * un jefe goblin élite se lo dejaba avanzar 0.3 m por tiro. Ahora el golpe 1 empuja poco y no hace
+ * trastabillar, y el 3 es lo que más frena por segundo, además de lo que más pega.
+ */
+export const KNOCK = { quality: [0.3, 0.55, 0.8], stun: [0, 0.12, 0.25] };
+
+/**
  * Tótem del putter: en pausa. El código sigue en `src/game/traps.ts` y volver a prenderlo es plantar
  * uno cuando para la pelota del putter. Quedó afuera al separar palo de encantamiento, para ver
  * primero cómo funciona la combinación sin él.
