@@ -2265,3 +2265,10 @@ empezar cada oleada.
   revienta ahí. El escudo tapa hasta el 62 % de la altura (`SHIELD_TOP`); se logra apuntando un par de
   metros detrás de él, para que el arco le llegue alto. Probado con un esqueleto de escudo 2: a los pies
   y a 1 m detrás, el escudo lo para; de 2 m detrás en adelante, le saca 2 y revienta.
+
+## Hecho: el élite mata de una (30/9/2026)
+
+Si el élite **entra por la puerta, se pierde la partida** («Entró el élite»), le quede a la puerta la
+vida que le quede; y si **atropella al golfista, lo mata** («Te atropelló el élite»), aunque alguna
+mejora le haya subido la vida (`ELITE.damage` es infinito). Es el examen de cada escenario: con la cura
+de +7 al terminarlo, lo que hayan hecho los demás se recupera; lo que no se perdona es dejarlo pasar.

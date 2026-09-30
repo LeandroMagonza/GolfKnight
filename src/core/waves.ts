@@ -75,7 +75,7 @@ export interface EnemyStats {
   /**
    * Daño al golfista (al atropellarlo, o al pegarle). En los cuerpos es el mismo que a la puerta, y
    * crece con la vida: los goblins 1, del orco al chamán 2, el caballero y el gólem chico 3. Con 3 de
-   * vida, chocarse con uno de los grandes (o con un élite, ver `ELITE.damage`) te mata.
+   * vida, chocarse con uno de los grandes te mata; con un élite, siempre (ver `ELITE.damage`).
    */
   damage: number;
   /** Daño a la puerta. Los que pelean cuerpo a cuerpo lo hacen una sola vez: llegan, golpean y se pierden adentro. */
@@ -349,10 +349,11 @@ export const HEAVY: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
 /**
  * El tamaño del élite, según el modelo: llega a `height` metros (más alto que cualquier enemigo común),
  * y crece por lo menos `minScale`. El jefe goblin, que es chico, crece mucho; el caballero, que ya es
- * grande, poco. Pega `damage` a la puerta y al golfista, sea del cuerpo que sea: dejarlo pasar cuesta
- * caro, y chocarse con él te mata. Y trae vida de más sobre la de su cuerpo: `hp[escenario]`.
+ * grande, poco. **Mata de una**: si entra por la puerta se pierde la partida, y si atropella al golfista
+ * lo mata, tengan la vida que tengan (también con las mejoras que la suban). Y trae vida de más sobre la
+ * de su cuerpo: `hp[escenario]`.
  */
-export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: 3, hp: [2, 3, 4] };
+export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: Number.POSITIVE_INFINITY, hp: [2, 3, 4] };
 
 /** El élite del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
 export function elite(scenario: number, power: ScenarioPower): WaveGroup {

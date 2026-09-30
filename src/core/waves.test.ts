@@ -223,13 +223,14 @@ describe('waves', () => {
     }
   });
 
-  it('el daño crece con la vida, igual al golfista que a la puerta; el élite pega 3', () => {
+  it('el daño crece con la vida, igual al golfista que a la puerta; el élite mata de una', () => {
     const want: Partial<Record<EnemyKind, number>> = { goblin: 1, goblina: 1, orc: 2, skeleton: 2, warchief: 2, shaman: 2, knight: 3, stoneling: 3 };
     for (const [kind, d] of Object.entries(want) as [EnemyKind, number][]) {
       expect(ENEMIES[kind].damage, kind).toBe(d);
       expect(ENEMIES[kind].gateDamage, kind).toBe(d);
     }
-    expect(ELITE.damage).toBe(3);
+    // el élite mata de una, a la puerta y al golfista
+    expect(ELITE.damage).toBe(Number.POSITIVE_INFINITY);
   });
 
   it('la vida de los cuerpos es una escalera: cada uno pega un salto sobre el anterior', () => {

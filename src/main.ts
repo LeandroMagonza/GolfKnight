@@ -493,8 +493,8 @@ horde.onEvent = (e) => {
       audio.hurt();
       shake = Math.max(shake, e.enemy?.grabbing ? 0.1 : 0.3);
       const s = toScreen(player.position, 2);
-      hud.float(s.x, s.y, `-${e.amount}`, 'hurt');
-      if (!player.alive) endGame('defeat', 'Caíste en combate', 'Valdehoyo se quedó sin golfista');
+      hud.float(s.x, s.y, Number.isFinite(e.amount) ? `-${e.amount}` : '☠', 'hurt');
+      if (!player.alive) endGame('defeat', 'Caíste en combate', (e.enemy?.size ?? 1) > 1 ? 'Te atropelló el élite' : 'Valdehoyo se quedó sin golfista');
       break;
     }
     case 'gateHit':
@@ -502,7 +502,8 @@ horde.onEvent = (e) => {
       audio.gateHit();
       world.flashDoor();
       hud.gateAlert();
-      if (gateHp <= 0) endGame('defeat', 'La puerta cayó', 'Las hordas entraron a Valdehoyo');
+      // el élite que entra la tira abajo de una, le quede la vida que le quede
+      if (gateHp <= 0) endGame('defeat', 'La puerta cayó', e.enemy.size > 1 ? 'Entró el élite' : 'Las hordas entraron a Valdehoyo');
       break;
     case 'trample': {
       // lo atropelló y murió en el choque: ese enemigo ya no llega a la puerta
@@ -513,7 +514,7 @@ horde.onEvent = (e) => {
       // entró por la puerta: una nube de polvo donde estaba, y el cartel del daño
       effects.explosion(new THREE.Vector3(e.enemy.position.x, 0.8, e.enemy.position.z), 1.6, 0xc9b38a);
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, `puerta -${e.enemy.gateDamage}`, 'hurt');
+      hud.float(s.x, s.y, Number.isFinite(e.enemy.gateDamage) ? `puerta -${e.enemy.gateDamage}` : 'puerta ☠', 'hurt');
       break;
     }
     case 'explosion':
