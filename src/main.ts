@@ -1574,7 +1574,8 @@ function frame(): void {
         if (CURVE.reset === 'soltar' && !right) player.curve = 0;
       }
     }
-    updateAim();
+    // terminada la partida (o tirado en el piso) el golfista ya no sigue al mouse
+    if (!ended && player.alive) updateAim();
     const active = started && !ended;
     if (active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();
     player.update(dt);
