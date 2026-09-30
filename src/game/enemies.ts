@@ -132,6 +132,12 @@ const AURA_COLORS: Record<Aura, number> = { ward: 0xb26bff, heal: 0x6be38a };
 
 /** Lado de cada ícono en el lienzo de la vida: un 60 % más grande que un cuadradito (32). */
 const BADGE_PX = 52;
+/** Cuántos cuadraditos de vida entran por capa: pasando eso, van en capas de color (ver `drawPips`). */
+const PIP_LAYER = 10;
+/** Los colores de las capas: la primera decena, la segunda, la tercera, la cuarta. */
+const PIP_COLORS = ['#5be07a', '#ffd34d', '#ff9a3c', '#ff4d6a'];
+/** Lo ancho de la vida del jefe, en cuadraditos: el número y la barra. */
+const BOSS_BAR_SLOTS = 13;
 
 export type BadgeIcon = 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge' | 'skull';
 
@@ -603,14 +609,14 @@ export class Enemy {
     this.barBg.scale.set(barWidth, 0.16, 1);
     this.barFill.scale.set(barWidth, 0.1, 1);
     this.barFill.renderOrder = 11;
-    if (this.maxHp <= 10) {
+    // la vida y los íconos, en un cartelito dibujado (ver `drawPips`): todos lo llevan, tengan la vida que
+    // tengan. Antes los de más de 10 llevaban una barra lisa, y sin sus íconos
+    {
       const canvas = document.createElement('canvas');
-      canvas.width = 32 * this.maxHp;
+      canvas.width = 32;
       canvas.height = 32;
       const tex = new THREE.CanvasTexture(canvas);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-      const pip = Math.min(0.3, 2.4 / this.maxHp);
-      sprite.scale.set(pip * this.maxHp, pip, 1);
       sprite.position.set(0, stats.height + 0.45, 0);
       sprite.renderOrder = 12;
       this.group.add(sprite);
@@ -808,15 +814,23 @@ export class Enemy {
 
   /**
    * Arriba de cada uno: primero sus poderes en íconos (el escudo y el blindaje con su número), después la
-   * vida en cuadraditos, uno por punto, siempre a la vista para decidir cuánto cargar. El punto de más de
-   * la abanderada va en dorado. Lo que la granada silencia se tacha mientras dura.
+   * vida, siempre a la vista para decidir cuánto cargar. Lo que la granada silencia se tacha mientras dura.
+   * - **Hasta 10 de vida**, un cuadradito por punto. El punto de más de la abanderada va en dorado.
+   * - **Más de 10**, diez cuadraditos en capas de color: la primera decena en verde, la segunda en
+   *   amarillo encima, la tercera en naranja. Con 11 se ven 1 amarillo y 9 verdes; con un golpe, 10
+   *   verdes; con otro, 9 verdes y uno vacío.
+   * - **El jefe** (80), una barra con una rayita cada 5 y el número de vida al lado: en capas serían ocho
+   *   colores.
    */
   private drawPips(): void {
     const p = this.pips;
     if (!p) return;
     const badges = this.badges();
+    const bar = !!this.stats.boss;
+    // cuántos cuadraditos de ancho ocupa la vida
+    const slots = bar ? BOSS_BAR_SLOTS : Math.min(this.maxHp, PIP_LAYER);
     // los íconos van más grandes que los cuadraditos: tienen un número o una forma que leer de lejos
-    const width = BADGE_PX * badges.length + 32 * this.maxHp;
+    const width = BADGE_PX * badges.length + 32 * slots;
     if (p.canvas.width !== width || p.canvas.height !== BADGE_PX) {
       p.canvas.width = width;
       p.canvas.height = BADGE_PX;
@@ -824,7 +838,7 @@ export class Enemy {
       p.tex = new THREE.CanvasTexture(p.canvas);
       p.sprite.material.map = p.tex;
       p.sprite.material.needsUpdate = true;
-      const perPx = Math.min(0.3, 2.4 / (this.maxHp + badges.length)) / 32;
+      const perPx = Math.min(0.36, (bar ? 4.6 : 2.4) / (slots + badges.length)) / 32;
       p.sprite.scale.set(width * perPx, BADGE_PX * perPx, 1);
     }
     const ctx = p.canvas.getContext('2d')!;
@@ -837,15 +851,63 @@ export class Enemy {
       ctx.restore();
     });
     const top = (BADGE_PX - 32) / 2;
-    for (let i = 0; i < this.maxHp; i++) {
-      if (i >= this.hp) ctx.fillStyle = 'rgba(10, 14, 20, 0.7)';
-      else ctx.fillStyle = this.bannered && i === this.maxHp - 1 ? '#ffd34d' : '#5be07a';
-      ctx.strokeStyle = '#0b0f14';
+    const left = badges.length * BADGE_PX;
+    const empty = 'rgba(10, 14, 20, 0.7)';
+    ctx.strokeStyle = '#0b0f14';
+    if (bar) {
+      // la barra del jefe: el número a la izquierda, y una rayita cada 5
+      const hp = Math.max(0, this.hp);
+      const numW = 32 * 3;
+      ctx.font = '900 42px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 5;
+      ctx.strokeText(String(hp), left + numW / 2, top + 18);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(String(hp), left + numW / 2, top + 18);
+      const x0 = left + numW + 4;
+      const w = 32 * (slots - 3) - 8;
+      const f = hp / this.maxHp;
+      ctx.lineWidth = 3;
+      ctx.fillStyle = empty;
+      ctx.beginPath();
+      ctx.roundRect(x0, top + 5, w, 22, 5);
+      ctx.fill();
+      ctx.fillStyle = `hsl(${Math.round(120 * f)}, 70%, 55%)`;
+      ctx.fillRect(x0, top + 5, w * f, 22);
+      ctx.lineWidth = 2;
+      for (let k = 5; k < this.maxHp; k += 5) {
+        const x = x0 + (w * k) / this.maxHp;
+        ctx.beginPath();
+        ctx.moveTo(x, top + 5);
+        ctx.lineTo(x, top + (k % 20 === 0 ? 27 : 16));
+        ctx.stroke();
+      }
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.roundRect(badges.length * BADGE_PX + i * 32 + 4, top + 5, 24, 22, 5);
-      ctx.fill();
+      ctx.roundRect(x0, top + 5, w, 22, 5);
       ctx.stroke();
+    } else {
+      // capas de 10: la de arriba cubre los primeros `rem` cuadraditos, y abajo se ve la anterior
+      const hp = Math.max(0, this.hp);
+      const layer = Math.ceil(hp / PIP_LAYER);
+      const rem = hp - PIP_LAYER * (layer - 1);
+      for (let i = 0; i < slots; i++) {
+        if (this.maxHp <= PIP_LAYER) {
+          if (i >= hp) ctx.fillStyle = empty;
+          else ctx.fillStyle = this.bannered && i === this.maxHp - 1 ? '#ffd34d' : PIP_COLORS[0];
+        } else if (layer <= 0) {
+          ctx.fillStyle = empty;
+        } else {
+          const at = i < rem ? layer - 1 : layer - 2;
+          ctx.fillStyle = at < 0 ? empty : PIP_COLORS[Math.min(at, PIP_COLORS.length - 1)];
+        }
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(left + i * 32 + 4, top + 5, 24, 22, 5);
+        ctx.fill();
+        ctx.stroke();
+      }
     }
     p.tex.needsUpdate = true;
     p.sprite.visible = this.alive && !this.passed;

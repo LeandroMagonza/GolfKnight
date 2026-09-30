@@ -2215,3 +2215,14 @@ oleada salía unos veinte segundos antes que todos (el caballero tarda 38 s en c
 se lo mataba tranquilo antes de que apareciera el resto: el «viene solo» había pasado del final al
 principio. Ahora **ningún pesado (más lento que `HEAVY_SPEED`, 2 m/s) sale antes que el primer
 liviano**: el que tenía que salir antes sale con él y llega un poco más tarde, en el medio del montón.
+
+## Hecho: la vida de más de 10 en capas de color, y el jefe con número (29/9/2026)
+
+Los de más de 10 de vida llevaban una barra lisa, sin sus íconos (el élite de 11 no mostraba ni la
+calavera ni su poder). Ahora todos llevan el cartelito con íconos y vida (`drawPips`):
+- **Hasta 10 de vida**, un cuadradito por punto, como siempre.
+- **Más de 10**, diez cuadraditos **en capas de color**: la primera decena en verde, la segunda en
+  amarillo encima, la tercera en naranja. Con 11 se ven 1 amarillo y 9 verdes; con un golpe, 10 verdes;
+  con otro, 9 verdes y uno vacío.
+- **El jefe** (80): una barra con una rayita cada 5 (más larga cada 20) y **el número de vida** al lado.
+  En capas serían ocho colores.
