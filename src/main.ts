@@ -444,8 +444,9 @@ horde.onEvent = (e) => {
   switch (e.type) {
     case 'damage': {
       const s = toScreen(e.enemy.position, e.enemy.height);
+      // el que cae al hoyo no muestra daño: el «¡Al hoyo!» ya lo dice
       const text = `${e.crit ? '✸ ' : ''}${e.amount}${e.killed ? ' ☠' : ''}`;
-      hud.float(s.x, s.y, text, e.killed || e.crit ? 'kill' : '');
+      if (!e.swallowed) hud.float(s.x, s.y, text, e.killed || e.crit ? 'kill' : '');
       if (e.killed) {
         kills++;
         score += e.enemy.stats.score;

@@ -452,9 +452,10 @@ export class Abilities {
         } else {
           for (const e of this.horde.enemies) {
             if (m.swallows <= 0) break;
-            if (!e.alive || e.passed || e.stats.boss) continue;
+            // al jefe y a los élites no se los traga
+            if (!e.alive || e.passed || e.stats.boss || e.size > 1) continue;
             if (Math.hypot(e.position.x - m.pos.x, e.position.z - m.pos.z) > m.radius + e.radius * 0.3) continue;
-            if (this.horde.swallow(e)) {
+            if (this.horde.swallow(e, m.pos)) {
               m.swallows--;
               this.onEvent?.({ type: 'swallow', enemy: e });
             }

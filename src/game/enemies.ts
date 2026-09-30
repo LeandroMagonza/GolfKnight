@@ -32,7 +32,7 @@ export type EnemyState = 'walk' | 'attack' | 'dying' | 'gone';
 
 export type HordeEvent =
   /** `crit`: rompió un congelado y pegó el doble. */
-  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean }
+  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean }
   /** El escudo divino se comió el golpe. */
   | { type: 'divine'; enemy: Enemy }
   /** La armadura se comió todo el golpe. */
@@ -465,6 +465,18 @@ export class Enemy {
   private attackEnd = 0;
   private attackHitDone = false;
   private dyingTime = 0;
+  /** Se cayó en un hoyo: se desliza hasta el centro y se hunde, en vez de caerse muerto. */
+  private sinkAt: THREE.Vector3 | null = null;
+
+  /** Cae en el hoyo de `at`: sin la animación de morir, y sin explotar si era de los que explotan. */
+  sink(at: THREE.Vector3): void {
+    this.sinkAt = at.clone();
+    this.fuse = -1;
+    this.knock.set(0, 0, 0);
+    this.animator.clearOneShot();
+    this.animator.setLocomotion('Idle', 1);
+    this.barBg.visible = this.barFill.visible = false;
+  }
   /** Cuenta regresiva de la explosión de un kamikaze. */
   private fuse = -1;
   /** Reloj del chamán (cura) y del gólem (piedras). */
@@ -994,6 +1006,18 @@ export class Enemy {
     this.age += dt;
     this.updateLook(dt);
 
+    if (this.state === 'dying' && this.sinkAt) {
+      // al hoyo: se va al centro y se hunde rápido, achicándose un poco
+      this.dyingTime += dt;
+      const k = 1 - Math.exp(-12 * dt);
+      this.position.x += (this.sinkAt.x - this.position.x) * k;
+      this.position.z += (this.sinkAt.z - this.position.z) * k;
+      this.position.y = this.sinkAt.y - this.dyingTime * this.dyingTime * 9;
+      this.group.scale.setScalar(this.size * Math.max(0.3, 1 - this.dyingTime * 0.8));
+      if (this.dyingTime > 0.7) this.state = 'gone';
+      this.animator.update(dt);
+      return;
+    }
     if (this.state === 'dying') {
       this.dyingTime += dt;
       if (this.fuse >= 0) {
@@ -1597,14 +1621,18 @@ export class Horde {
   }
 
   /**
-   * El hoyo: se lo traga entero, tenga la vida que tenga. El aura del chamán lo salva igual, y el
-   * escudo divino no (no es un golpe). Devuelve true si se lo tragó.
+   * El hoyo: se lo traga entero, tenga la vida que tenga, y cae adentro (sin número de daño: no es un
+   * golpe). El aura del chamán lo salva igual, y el escudo divino no. A los jefes y a los élites no se
+   * los traga. Devuelve true si se lo tragó.
    */
-  swallow(e: Enemy): boolean {
-    if (!e.alive || e.passed || e.warded) return false;
+  swallow(e: Enemy, at: THREE.Vector3): boolean {
+    if (!e.alive || e.passed || e.warded || e.stats.boss || e.size > 1) return false;
     const hp = e.hp;
     const killed = e.damage(hp, null, 0);
-    if (killed) this.emit({ type: 'damage', enemy: e, amount: hp, killed: true });
+    if (killed) {
+      e.sink(at);
+      this.emit({ type: 'damage', enemy: e, amount: hp, killed: true, swallowed: true });
+    }
     return killed;
   }
 

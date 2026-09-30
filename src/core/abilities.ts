@@ -91,7 +91,7 @@ export const ELEMENTS = {
 
 /** Carrito de golf: cruza el campo de costado a costado, a la altura que apuntás, y atropella. */
 export const CART = { damage: [2, 3, 4], speed: 20, width: 1.2 };
-/** Hoyo: el primero que lo pisa cae y muere (los jefes no). Se traga a `swallows` y se cierra. */
+/** Hoyo: el primero que lo pisa cae y muere (el jefe y los élites no). Se traga a `swallows` y se cierra. */
 export const HOLE = { swallows: [1, 2, 3], life: 15, radius: 0.9 };
 /** Bandera: los que están a `radius` se desvían a caminar hacia ella durante `seconds`. */
 export const FLAG = { radius: [10, 12, 14], seconds: [4, 5, 6] };
@@ -137,7 +137,7 @@ const BASE: Ability[] = [
   },
   {
     id: 'hole', kind: 'hole', name: 'Hoyo', title: 'se lo traga', cooldown: 12, range: 55, color: 0x9aa4b2,
-    hint: 'Abre un hoyo donde apuntás: el primero que lo pisa cae y no vuelve. A los jefes no se los traga',
+    hint: 'Abre un hoyo donde apuntás: el primero que lo pisa cae y no vuelve. Al jefe y a los élites no se los traga',
   },
   {
     id: 'flag', kind: 'flag', name: 'Bandera', title: 'los desvía', cooldown: 15, range: 55, color: 0xd8413a,

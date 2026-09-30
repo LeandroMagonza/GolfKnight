@@ -2201,3 +2201,9 @@ Sobre la vida de su cuerpo, **+2 en el primer escenario, +3 en el segundo y +4 e
 el élite etéreo (que se lleva de a 1 por golpe): el caballero etéreo del segundo escenario pide 11
 golpes. La dificultad medida de las oleadas del élite subió poco: 1.05, 1.56 y 1.79 (antes 1.01, 1.50 y
 1.70).
+
+## Hecho: el hoyo se los traga de verdad, y no a los élites (29/9/2026)
+
+El que pisa el hoyo **cae adentro**: se desliza al centro y se hunde en unos 0.7 s (`Enemy.sink`), sin la
+animación de morir y **sin número de daño** (el «¡Al hoyo!» ya lo dice). La baja y los puntos cuentan
+igual, y el que explotaba no explota. **Al jefe y a los élites no se los traga**: pasan por encima.
