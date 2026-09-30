@@ -2365,4 +2365,5 @@ Después de la primera prueba de Leandro (que lo colgó subiendo los números):
 - **Golf y tenis: corriendo, siempre detrás de la línea.** Antes la postura dependía del mouse aun
   corriendo: apuntando a un lado corría sobre la línea y apuntando al otro, un metro atrás. Ahora corre a
   1 m detrás del puesto, derecho, y recién al quedarse quieto un cuarto de segundo (o al cargar) se
-  acomoda alrededor de la pelota, con una transición.
+  acomoda alrededor de la pelota, con una transición. **El tenista no**: va siempre derecho sobre la
+  línea, corriendo y pegando (pedido de Leandro después de probarlo).

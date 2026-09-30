@@ -722,7 +722,9 @@ export class Player {
     const settled = this.mode !== 'free' || this.stillTime >= SETTLE_DELAY;
     this.settle += ((settled ? 1 : 0) - this.settle) * (1 - Math.exp(-(settled ? 8 : 16) * dt));
     this.stancePosition(this.position);
-    if (this.settle < 0.999) {
+    // el tenista va siempre derecho sobre la línea: ni corre atrás ni se adelanta para pegar
+    if (this.freeMove) this.position.set(this.anchor.x, 0, this.anchor.z);
+    else if (this.settle < 0.999) {
       const k = this.settle;
       this.position.x = this.anchor.x + (this.position.x - this.anchor.x) * k;
       this.position.z = this.anchor.z - RUN_BACK + (this.position.z - (this.anchor.z - RUN_BACK)) * k;
