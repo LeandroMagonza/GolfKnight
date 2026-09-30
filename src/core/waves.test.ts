@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalOrder, arrivals, behaviorOf, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -197,6 +197,18 @@ describe('waves', () => {
       const at = order.indexOf(kind) / order.length;
       expect(at).toBeGreaterThan(0.25);
       expect(at).toBeLessThan(0.75);
+    }
+  });
+
+  it('ningún pesado sale antes que el primer liviano: no queda uno solo al principio', () => {
+    for (const run of runs(10)) {
+      for (const w of run.waves) {
+        const order = spawnOrder(w, seeded(6));
+        let t = 0;
+        const times = order.map((s, i) => (t += i ? s.delay ?? w.interval : 0));
+        const firstLight = Math.min(...order.map((s, i) => (ENEMIES[s.kind].speed >= HEAVY_SPEED ? times[i] : Infinity)));
+        order.forEach((s, i) => { if (ENEMIES[s.kind].speed < HEAVY_SPEED) expect(times[i], `${w.title} ${s.kind}`).toBeGreaterThanOrEqual(firstLight - 1e-9); });
+      }
     }
   });
 

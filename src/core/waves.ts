@@ -434,6 +434,9 @@ export const INTERMISSION = 6;
  */
 export const TRAVEL = 58;
 
+/** Los que caminan más lento que esto son pesados: nunca salen antes que el primer liviano de la oleada. */
+export const HEAVY_SPEED = 2;
+
 /** Segundos que tarda en llegar a los puestos un enemigo de este tipo. */
 export function travelTime(kind: EnemyKind): number {
   return TRAVEL / ENEMIES[kind].speed;
@@ -484,7 +487,14 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   // tiempo. Cada uno lleva la espera desde el anterior, así llegan con el ritmo de la oleada
   const arriving = slots.map((s) => s.spawn);
   const lag = lags(arriving.map((s) => s.kind));
-  const leave = arriving.map((spawn, k) => ({ spawn, t: k * wave.interval - lag[k] })).sort((a, b) => a.t - b.t);
+  const want = arriving.map((spawn, k) => k * wave.interval - lag[k]);
+  // pero ningún pesado sale antes que el primer liviano: el caballero que tiene su turno al principio
+  // salía veinte segundos antes que todos, y se lo mataba tranquilo antes de que apareciera el resto.
+  // Sale con el primero y llega un poco más tarde, en el medio del montón
+  const lightStart = Math.min(...arriving.map((s, k) => (ENEMIES[s.kind].speed >= HEAVY_SPEED ? want[k] : Infinity)));
+  const leave = arriving
+    .map((spawn, k) => ({ spawn, t: Number.isFinite(lightStart) && ENEMIES[spawn.kind].speed < HEAVY_SPEED ? Math.max(want[k], lightStart) : want[k] }))
+    .sort((a, b) => a.t - b.t);
   leave.forEach((l, i) => { if (i) l.spawn.delay = l.t - leave[i - 1].t; });
   const order = leave.map((s) => s.spawn);
 

@@ -2207,3 +2207,11 @@ golpes. La dificultad medida de las oleadas del élite subió poco: 1.05, 1.56 y
 El que pisa el hoyo **cae adentro**: se desliza al centro y se hunde en unos 0.7 s (`Enemy.sink`), sin la
 animación de morir y **sin número de daño** (el «¡Al hoyo!» ya lo dice). La baja y los puntos cuentan
 igual, y el que explotaba no explota. **Al jefe y a los élites no se los traga**: pasan por encima.
+
+## Hecho: ningún pesado sale solo al principio (29/9/2026)
+
+Con las salidas calculadas para llegar en su turno, el pesado que tenía su turno al principio de la
+oleada salía unos veinte segundos antes que todos (el caballero tarda 38 s en cruzar, el goblin 16), y
+se lo mataba tranquilo antes de que apareciera el resto: el «viene solo» había pasado del final al
+principio. Ahora **ningún pesado (más lento que `HEAVY_SPEED`, 2 m/s) sale antes que el primer
+liviano**: el que tenía que salir antes sale con él y llega un poco más tarde, en el medio del montón.
