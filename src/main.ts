@@ -1717,7 +1717,8 @@ function frame(): void {
     // hay ninguna de las dos apretada
     // el tenista camina con las teclas apretadas, cargando o no. El derecho de la pantalla es -x
     // y si no tocás nada y viene una pelota cerca, el imán te lleva
-    if (pocket) player.moveDir = started && !ended && !cardOpen ? -heldRight() : 0;
+    // (sacando, no: el saque se hace parado)
+    if (pocket) player.moveDir = started && !ended && !cardOpen && !tennis?.servingNow ? -heldRight() : 0;
     if (!pocket && started && !ended && player.mode === 'charging' && (!tutorial || tutorial.canMove)) {
       const right = (input.keys.has('KeyD') || input.keys.has('ArrowRight') ? 1 : 0) - (input.keys.has('KeyA') || input.keys.has('ArrowLeft') ? 1 : 0);
       if (SHIFT.mode === 'continuo' && right) player.shiftStance(-right * SHIFT.speed * dt);

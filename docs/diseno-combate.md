@@ -2458,3 +2458,5 @@ pelota es legible y predecible, y lo que hace el jugador es ubicarse. Todo en `s
   (`LayeredAnimator.legs`).
 - Arreglado: soltar en la última décima antes del impacto (que es el momento justo) daba el golpe 1.
   Medido: golpe 3 entre −0.05 y +0.05 s, golpe 2 hasta ±0.15 s.
+- **El saque se hace parado**: mientras la pelota está en el aire y hasta que sale el golpe, A y D no
+  mueven.

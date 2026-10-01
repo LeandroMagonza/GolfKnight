@@ -85,6 +85,11 @@ export class TennisPlay {
     return this.host.player();
   }
 
+  /** Está sacando (la pelota en el aire, o el golpe del saque saliendo): no se puede correr. */
+  get servingNow(): boolean {
+    return this.prep?.kind === 'serve' || this.serving;
+  }
+
   /** Las que vienen de vuelta por el aire, de la que llega primero a la última. */
   incoming(): Incoming[] {
     const out: Incoming[] = [];
