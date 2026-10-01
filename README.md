@@ -121,8 +121,8 @@ clases:
 Cada habilidad tira **su propia pelota**: no gasta la del puesto. Sale en el acto hacia el mouse, aun con
 un tiro cargando.
 
-**Palo y elemento** (15): cualquier palo con hielo, fuego o rayo, y el driver, el hierro y el wedge con
-viento. Es un tiro de ese palo, instantáneo, con pelota gratis y **cargado al nivel de la habilidad**, que
+**Palo y elemento** (23): cualquier palo con hielo, fuego, rayo, fantasma o silencio, y el driver, el
+hierro y el wedge con viento. Es un tiro de ese palo, instantáneo, con pelota gratis y **cargado al nivel de la habilidad**, que
 además:
 - *Hielo*: enfría a cada uno que alcanza.
 - *Fuego*: lo prende; pierde 1 de vida por segundo.
@@ -136,12 +136,18 @@ además:
   - hierro: donde revienta, una ráfaga **manda para atrás** 6 m (8 y 10) a los que están a 3.5 m;
   - wedge: donde cae, un remolino **los amontona** hacia el centro, desde 4.5 m (5.25 y 6).
   Con el putter no hay.
+- *Fantasma*: el golpe pasa escudos (también el de la calavera) y blindaje, y le entra entero. El del
+  driver atraviesa además las lomas. Desde el nivel 2, al enemigo fantasma también le entra entero. No
+  pasa el divino ni el aura de invencible.
+- *Silenciador*: silencia 4 s (5 y 6) a cada uno que alcanza, como la granada (al élite, la mitad).
+  Silencia **después** del golpe: ese choca con sus defensas, los siguientes no. Silencia aunque el
+  escudo pare la pelota.
 
 **Las demás** (12):
 
 | Habilidad | Qué hace |
 | --- | --- |
-| Granada | silencia a los que agarra: se les apagan **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba) y reciben 1 de daño extra por golpe; al élite le dura la mitad. A los del borde los tira a los costados |
+| Granada | silencia a los que agarra: se les apagan **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba); solo silencia, no hace ni suma daño. Al élite le dura la mitad. A los del borde los tira a los costados |
 | Hielo | zona fría que dura: el que está adentro camina lento |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
 | Hoyo | el primero que lo pisa cae y no vuelve (los jefes no) |
@@ -232,7 +238,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
 | **Divino** | el primer golpe no le entra; se le recarga a los 5 s |
-| **Etéreo** | ningún golpe le saca más de 1 (agrandado por la lupa, hasta 2): hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
+| **Etéreo** | ningún golpe le saca más de 1 (agrandado por la lupa, hasta 2; el golpe fantasma de nivel 2, entero): hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
 | **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |

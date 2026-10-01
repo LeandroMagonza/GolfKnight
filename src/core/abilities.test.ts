@@ -16,8 +16,11 @@ describe('habilidades', () => {
       expect(a.cooldown, id).toBeGreaterThan(0);
     }
     for (const club of Object.keys(CLUBS)) {
-      for (const element of ['ice', 'fire', 'lightning']) expect(ABILITIES[`${club}-${element}`]?.kind, `${club}-${element}`).toBe('shot');
+      for (const element of ['ice', 'fire', 'lightning', 'ghost', 'silence']) expect(ABILITIES[`${club}-${element}`]?.kind, `${club}-${element}`).toBe('shot');
     }
+    // el fantasma del driver dice que además atraviesa lomas
+    expect(ABILITIES['driver-ghost'].hint).toContain('lomas');
+    expect(ABILITIES['iron-ghost'].hint).not.toContain('lomas');
     // el viento, en tres palos: con el putter no tiene sentido
     for (const club of ['driver', 'iron', 'wedge']) expect(ABILITIES[`${club}-wind`]?.element, club).toBe('wind');
     expect(ABILITIES['putter-wind']).toBeUndefined();

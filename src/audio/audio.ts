@@ -5,10 +5,14 @@ import * as Tone from 'tone';
 const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 /**
- * Las notas de las bajas de un mismo tiro, una más aguda por baja: el arpegio de sol mayor, que entra en
- * el re dórico de la música y no se confunde con el do mayor de la carga.
+ * **Un solo arpegio para el palo y las bajas** (do mayor desde do4: 1ra, 3ra, 5ta, 8va, 10ma...). La carga
+ * suena en el escalón de su nivel (golpe 1 = 1ra, 2 = 3ra, 3 = 5ta) y cada baja del tiro sube uno más
+ * desde ahí: con un golpe 2, la primera baja es la 5ta y la segunda la 8va. Así matar suena como seguir
+ * el golpe hacia arriba.
  */
-const KILL_NOTES = [67, 71, 74, 79, 83, 86, 91];
+const BASE_NOTE = 60;
+const ARPEGGIO = [0, 4, 7, 12, 16, 19, 24, 28, 31, 36];
+const arpeggioNote = (step: number) => BASE_NOTE + ARPEGGIO[Math.min(ARPEGGIO.length - 1, Math.max(0, step))];
 /**
  * Las bajas que caen en el mismo instante (un área) salen separadas por esto, como un rasgueo rápido: se
  * oye cada una y igual suenan juntas.
@@ -122,14 +126,12 @@ export class GameAudio {
   }
 
   /**
-   * Una nota por escalón de carga, para timear el tiro de oído: el acorde mayor (do, mi, sol) para los
-   * tres niveles de daño, y la octava para el crítico.
+   * Una nota por escalón de carga, para timear el tiro de oído: 1ra, 3ra y 5ta del arpegio para los tres
+   * niveles del golpe (ver `ARPEGGIO`).
    */
   chargeTick(level: number): void {
     if (!this.ready) return;
-    const notes = ['C5', 'E5', 'G5', 'C6'];
-    const note = notes[Math.min(notes.length, Math.max(1, level)) - 1];
-    this.chargeSynth.triggerAttackRelease(note, level >= notes.length ? 0.22 : 0.09, this.at(this.chargeSynth), level >= notes.length ? 1 : 0.75);
+    this.chargeSynth.triggerAttackRelease(midiToFreq(arpeggioNote(level - 1)), 0.09, this.at(this.chargeSynth), 0.75);
   }
 
   /** Música de fondo: progresión modal en re dórico, arpegio de laúd y colchón. */
@@ -196,15 +198,15 @@ export class GameAudio {
   }
 
   /**
-   * Una baja. `nth` es cuántas lleva el mismo tiro: la segunda suena más aguda, la tercera más, y como
-   * cada nota sigue sonando, se arma el acorde. Sin límite de ráfaga: cada baja tiene que sonar.
+   * Una baja, en el escalón `step` del arpegio: el nivel del golpe menos uno, más cuántas lleva el tiro
+   * (ver `ARPEGGIO`). Como cada nota sigue sonando, las bajas seguidas arman el acorde. Sin límite de
+   * ráfaga: cada baja tiene que sonar.
    */
-  kill(nth: number): void {
+  kill(step: number): void {
     if (!this.ready) return;
-    const i = Math.min(KILL_NOTES.length, Math.max(1, nth)) - 1;
     const t = Math.max(Tone.now(), this.killAt + KILL_STRUM);
     this.killAt = t;
-    this.killBell.triggerAttackRelease(midiToFreq(KILL_NOTES[i]), 0.5, t, Math.min(1, 0.65 + 0.06 * i));
+    this.killBell.triggerAttackRelease(midiToFreq(arpeggioNote(step)), 0.5, t, Math.min(1, 0.6 + 0.06 * step));
   }
 
   bounce(): void {

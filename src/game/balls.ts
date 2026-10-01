@@ -89,8 +89,11 @@ export type BallEvent =
   | { type: 'blocked'; enemy: Enemy; warded: boolean }
   /** Un tiro le pegó a alguien por primera vez. Sale apenas pega, sin esperar a que la pelota pare. */
   | { type: 'connected'; ability: boolean }
-  /** Este tiro mató a uno, y ya lleva `kills`. Sale en el acto: el doblete se ve al caer el segundo. */
-  | { type: 'kill'; kills: number; ability: boolean }
+  /**
+   * Este tiro mató a uno, y ya lleva `kills`. Sale en el acto: el doblete se ve al caer el segundo.
+   * `quality` es el nivel del golpe, para que la nota de la baja siga a la de la carga.
+   */
+  | { type: 'kill'; kills: number; quality: number; ability: boolean }
   /** Un tiro ya se jugó: a cuántos alcanzó y cuántas bajas hizo. */
   | { type: 'settled'; club: Club; hits: number; kills: number; ability: boolean }
   /** Tenis: la pelota rebotó en un enemigo y viene de vuelta, o pegó en una pared. */
@@ -108,6 +111,8 @@ const MAX_TENNIS_STEPS = 60;
 /** Tenis: dónde rebota la vuelta contra los costados (un poco antes del alambrado, para que se llegue). */
 const RETURN_EDGE = FIELD_HALF_WIDTH - 0.6;
 const TOSS_TIME = 0.6;
+/** El piso para el driver fantasma: sin las lomas (lo que sube), con los valles (lo que baja). */
+const underHills = (x: number, z: number) => Math.min(0, heightAt(x, z));
 export const MAGIC_WALL_COLOR = 0x9d7bff;
 
 /** Tenis: el golpe plano sale de la altura de la raqueta, rasante y a la velocidad del nivel del golpe. */
@@ -158,6 +163,8 @@ export class Balls {
       : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity, bounce.rollFriction);
     const color = shot.club.color;
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: color, emissiveIntensity: shot.quality >= 3 ? 1.6 : 0.7 });
+    // la fantasma se ve medio transparente, y se la sigue viendo adentro de una loma
+    if (shot.element === 'ghost') Object.assign(mat, { transparent: true, opacity: 0.45, depthTest: false });
     const mesh = new THREE.Mesh(ballGeo, mat);
     mesh.position.set(state.pos.x, state.pos.y, state.pos.z);
     const trailPositions = new Float32Array(TRAIL_POINTS * 3);
@@ -201,7 +208,7 @@ export class Balls {
 
   /** Le avisa a la horda qué tiro está pegando, para que cuente las bajas que hace (ver `Horde.shot`). */
   private markShot(ball: Ball): NonNullable<Horde['shot']> {
-    const shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability, kills: 0 };
+    const shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability, kills: 0, ghost: ball.element === 'ghost' ? ball.quality : 0 };
     this.horde.shot = shot;
     return shot;
   }
@@ -210,7 +217,7 @@ export class Balls {
   private countKills(ball: Ball, n: number): void {
     for (let i = 0; i < n; i++) {
       ball.kills++;
-      this.onEvent?.({ type: 'kill', kills: ball.kills, ability: ball.ability });
+      this.onEvent?.({ type: 'kill', kills: ball.kills, quality: ball.quality, ability: ball.ability });
     }
   }
 
@@ -277,17 +284,22 @@ export class Balls {
    * rayo.
    */
   private applyElement(ball: Ball, enemy: Enemy): void {
-    // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst)
-    if (!ball.element || ball.element === 'wind') return;
+    // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst). El
+    // fantasma no deja nada: lo suyo es el golpe mismo (ver Horde.damage)
+    if (!ball.element || ball.element === 'wind' || ball.element === 'ghost') return;
     if (ball.element === 'ice') this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
     else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
     // cada uno que alcanza larga su propio rayo
     else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality));
+    // después del golpe: ese ya chocó con sus defensas, los que vienen no
+    else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.quality));
   }
 
-  /** Al que el escudo le paró el golpe, el fuego lo prende igual. */
+  /** Al que el escudo le paró el golpe, el fuego lo prende igual y el silenciador lo silencia igual. */
   private burnBlocked(ball: Ball, enemy: Enemy): void {
     if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
+    // y el silenciador silencia igual: el escudo para la pelota, no lo que trae
+    else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.quality));
   }
 
   /**
@@ -392,8 +404,10 @@ export class Balls {
         ball.hitIds.add(e.id);
         continue;
       }
-      // de vuelta le llega por la espalda: el escudo de frente no la para
-      if (ball.phase !== 'back' && (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
+      // de vuelta le llega por la espalda: el escudo de frente no la para. Al golpe fantasma no lo para
+      // ningún escudo (el aura del chamán sí)
+      const ghost = ball.element === 'ghost';
+      if (ball.phase !== 'back' && (e.warded || (!ghost && e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
         // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
         // número entra. El muro y el aura del chamán no dejan pasar nada
         const leaked = !e.warded && !e.shieldWall && this.directHit(ball, e, false, e.shieldLevel);
@@ -620,11 +634,13 @@ export class Balls {
       }
       const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
+      // el driver fantasma atraviesa las lomas: para él, el piso no sube nunca (los valles sí bajan)
+      const ground = !terrainOn() ? undefined : ball.element === 'ghost' && ball.club.id === 'driver' ? underHills : heightAt;
       // (el globo del tenis que reventó pasa a volver por el aire: desde ahí lo mueve updateTennis)
       for (let i = 0; i < steps && !ball.done && !s.resting && !ball.phase; i++) {
         applySpin(s, ball.spin, ball.spinTime, dt / steps);
         ball.spinTime += dt / steps;
-        const landed = stepBall(s, dt / steps, ball.bounce, terrainOn() ? heightAt : undefined);
+        const landed = stepBall(s, dt / steps, ball.bounce, ground);
         // la muralla devuelve la pelota
         if (s.pos.z < GATE_Z - 0.4 && s.vel.z < 0) {
           s.pos.z = GATE_Z - 0.4;

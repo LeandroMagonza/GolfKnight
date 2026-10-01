@@ -301,7 +301,7 @@ const LABELS: Record<string, string> = {
   halfWidth: 'ancho a cada lado m', push: 'los corre hasta m', core: 'centro quieto (fracción)', silence: 'silencio s',
   damage: 'daño', speed: 'velocidad m/s', width: 'ancho m', swallows: 'se traga', life: 'dura s',
   seconds: 'dura s', blast: 'radio de la explosión m', reach: 'alcance m', hitRadius: 'radio del golpe m',
-  scale: 'crecen ×', shots: 'tiros repetidos', ghostHit: 'al fantasma, hasta por golpe', eliteSilence: 'al élite, silencio ×',
+  scale: 'crecen ×', shots: 'tiros repetidos', ghostHit: 'al fantasma, hasta por golpe', eliteSilence: 'al élite, silencio ×', ghostFullFrom: 'al fantasma entero desde nivel', silenceSeconds: 'silencio s',
   iceSeconds: 'frío s', freezeSeconds: 'congelado s (maestría)', burnTicks: 'fuego: mordiscos', burnTick: 'pierde cada s',
   burnDamage: 'daño por vez', spreadRadius: 'contagio m (maestría)', chainJumps: 'saltos',
   chainRange: 'salta hasta m', chainDamage: 'daño por salto',

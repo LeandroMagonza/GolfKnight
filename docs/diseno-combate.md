@@ -1580,6 +1580,17 @@ está en «Lo que cambió con esta revisión» de ese doc: la granada silencia t
 divino y bomba) y al élite la mitad del tiempo, la lupa le pega hasta 2 al fantasma, el rayo nuevo (cada
 alcanzado larga el suyo, para los dos lados), y el Gólem que no se congela.
 
+1/10, tercera tanda:
+- La granada pasa a ser **solo silencio**: sin el +1, porque para daño en área está el wedge.
+- Nuevos **golpe fantasma** y **golpe silenciador** para los cuatro palos (detalle en
+  `docs/counters.md`).
+- Las bajas suenan en el mismo arpegio que la carga, desde do4: la carga marca el escalón y cada baja
+  sube uno.
+- Leandro descartó el ícono de los apoyos.
+- Pendiente de decisión (en `docs/counters.md`): esquiva que salte también ante habilidades, un punto
+  flojo para el fuego, granada o silenciador (uno solo), modificadores de la oleada 2, y el kamikaze
+  más seguido.
+
 ### Botiquín
 
 Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación

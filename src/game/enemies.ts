@@ -762,9 +762,9 @@ export class Enemy {
     return this.frozenTimer > 0;
   }
 
-  /** Vulnerable: cada pelotazo le saca uno más (el silencio de la granada, la lupa). */
+  /** Vulnerable: cada pelotazo le saca uno más (la lupa). El silencio de la granada ya no: solo silencia. */
   get vulnerable(): boolean {
-    return this.silenced || this.growTimer > 0;
+    return this.growTimer > 0;
   }
 
   get burning(): boolean {
@@ -1631,9 +1631,11 @@ export class Horde {
 
   /**
    * El tiro de palo que está pegando ahora: lo marca `Balls` mientras reparte su daño. `kills` cuenta los
-   * que mueren mientras tanto, también los de una cadena (la pólvora que explota al morir).
+   * que mueren mientras tanto, también los de una cadena (la pólvora que explota al morir). `ghost` es el
+   * nivel del golpe fantasma (0 si no lo es): pasa blindaje y escudos, y desde `ELEMENTS.ghostFullFrom`
+   * también el tope del enemigo fantasma.
    */
-  shot: { club: ClubId; quality: number; ability: boolean; kills: number } | null = null;
+  shot: { club: ClubId; quality: number; ability: boolean; kills: number; ghost: number } | null = null;
 
   /**
    * El tutorial: decide si este golpe puede matar a este enemigo. Si no, el golpe lo deja con 1 de vida
@@ -1656,9 +1658,8 @@ export class Horde {
       this.emit({ type: 'divine', enemy });
       return false;
     }
-    // El vulnerable (silenciado por la granada, o agrandado por la lupa) cobra uno más por pelotazo,
-    // aunque el palo pegue cero. Es lo que hace que la granada sirva contra los jefes, no solo contra
-    // los grupos. Y el congelado se rompe: ese golpe pega el doble.
+    // El vulnerable (agrandado por la lupa) cobra uno más por pelotazo, aunque el palo pegue cero. Y el
+    // congelado se rompe: ese golpe pega el doble.
     let raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0);
     const crit = enemy.frozen && !dot;
     if (crit) {
@@ -1668,8 +1669,10 @@ export class Horde {
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
-    // la armadura (hasta 3): el silencio de la granada se la saca mientras dura. Al fuego no le resta
-    const armor = dot ? 0 : enemy.armor;
+    // la armadura (hasta 3): el silencio de la granada se la saca mientras dura. Al fuego y al golpe
+    // fantasma no les resta
+    const ghost = this.shot?.ghost ?? 0;
+    const armor = dot || ghost ? 0 : enemy.armor;
     if (armor > 0 && dealt > 0) {
       dealt = Math.max(0, dealt - armor);
       if (dealt === 0) this.emit({ type: 'armored', enemy });
@@ -1680,8 +1683,8 @@ export class Horde {
       if (dealt === 0) this.emit({ type: 'shielded', enemy });
     }
     // el etéreo es el revés: ningún golpe le saca más de 1, por fuerte que sea. Agrandado por la lupa,
-    // hasta `LENS.ghostHit`; silenciado deja de ser fantasma
-    if (enemy.ethereal && !enemy.silenced) dealt = Math.min(dealt, enemy.enlarged ? LENS.ghostHit : 1);
+    // hasta `LENS.ghostHit`; silenciado deja de ser fantasma, y el golpe fantasma de nivel alto lo pasa
+    if (enemy.ethereal && !enemy.silenced && ghost < ELEMENTS.ghostFullFrom) dealt = Math.min(dealt, enemy.enlarged ? LENS.ghostHit : 1);
     // el tutorial: con un tiro que no es el que se está enseñando, no lo mata
     if (this.mayKill && dealt >= enemy.hp && !this.mayKill(enemy, this.shot)) {
       dealt = Math.max(0, enemy.hp - 1);
@@ -1792,8 +1795,9 @@ export class Horde {
       const d = dir.length() - e.radius;
       if (d > radius) continue;
       // el escudo también para lo que estalla en el piso, si estalló adelante suyo
-      // lo que estalla adelante de un escudo pasa descontado; el muro no deja pasar nada
-      const guard = this.shadeOf(pos, e);
+      // lo que estalla adelante de un escudo pasa descontado; el muro no deja pasar nada. Al área de un
+      // golpe fantasma no la para ningún escudo
+      const guard = this.shot?.ghost ? 0 : this.shadeOf(pos, e);
       if (guard >= SHIELD_WALL) {
         this.emit({ type: 'shielded', enemy: e });
         skip?.add(e.id);
@@ -1905,6 +1909,14 @@ export class Horde {
   }
 
   /**
+   * Silencia a uno `seconds` (la granada, el golpe silenciador). Al élite le dura menos: es el que más se
+   * aprovecha de que se le apague todo.
+   */
+  silence(e: Enemy, seconds: number): void {
+    e.silence(e.size > 1 ? seconds * GRENADE.eliteSilence : seconds);
+  }
+
+  /**
    * Granada: agarra a todos los que estén a `radius` de `pos`, los **silencia** `silence` segundos, y
    * a los que no están en el centro los tira **a los costados de la línea del tiro** (`along`,
    * unitario), hasta dejarlos a `push` metros de ella: dos filas paralelas al tiro, que apuntan hacia el
@@ -1921,8 +1933,7 @@ export class Horde {
       const rz = e.position.z - pos.z;
       const d = Math.hypot(rx, rz);
       if (d - e.radius > radius) continue;
-      // al élite le dura menos: es el que más se aprovecha de que se le apague todo
-      e.silence(e.size > 1 ? silence * GRENADE.eliteSilence : silence);
+      this.silence(e, silence);
       count++;
       // el centro no se mueve: tirándola encima de un grupo, los dejás silenciados donde están
       if (d <= core) continue;

@@ -15,7 +15,7 @@
 import type { ClubId } from './clubs';
 
 export type AbilityId = string;
-export type Element = 'ice' | 'fire' | 'lightning' | 'wind';
+export type Element = 'ice' | 'fire' | 'lightning' | 'wind' | 'ghost' | 'silence';
 export type AbilityKind =
   | 'grenade' | 'iceZone' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
   | 'echo' | 'boost';
@@ -52,7 +52,7 @@ export function lv(table: number[], level: number): number {
   return table[Math.min(table.length, Math.max(1, level)) - 1];
 }
 
-/** Lo que vuelve **vulnerable** a un enemigo (el silencio de la granada, la lupa): cada pelotazo le saca esto de más. */
+/** Lo que vuelve **vulnerable** a un enemigo (la lupa): cada pelotazo le saca esto de más. */
 export const VULNERABLE = { bonus: 1 };
 
 /**
@@ -66,7 +66,8 @@ export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5,
 /**
  * Granada: agarra a todos los que estén a `radius` de donde cae y los **silencia** `silence` segundos:
  * se les apagan todos los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizos,
- * bomba) y quedan vulnerables. Al élite le dura `eliteSilence` de eso. Los del **centro** (hasta `core`
+ * bomba). **Solo eso**: no hace daño ni suma daño (para el daño en área está el wedge). Al élite le dura
+ * `eliteSilence` de eso. Los del **centro** (hasta `core`
  * del radio) se quedan quietos; los de afuera salen hacia los costados de la línea del tiro, hasta
  * quedar a `push` metros de ella.
  */
@@ -86,6 +87,13 @@ export const GRENADE = { radius: [5, 5.75, 6.5], push: [6, 6.75, 7.5], core: 1 /
  *   (ver core/chain). Un rayo nunca toca dos veces al mismo ni vuelve al que lo largó; el de otro sí
  *   puede. El blindaje se lo come (es un golpe, no fuego). Con la maestría salta una vez más por rama y
  *   cada salto pega el doble.
+ * - **Fantasma**: el golpe pasa escudos (también el muro) y blindaje: le entra entero a cualquiera. El
+ *   del driver atraviesa además las lomas. Desde el nivel `ghostFullFrom`, al enemigo fantasma también
+ *   le entra el golpe entero. No pasa el divino ni la inmunidad del aura.
+ * - **Silenciador**: silencia `silenceSeconds` a cada uno que alcanza, como la granada (al élite, la
+ *   mitad). Silencia **después** del golpe: ese golpe choca con las defensas, los que vienen no. Por
+ *   eso es distinto del fantasma, que pasa las defensas en ese golpe y no deja nada. Silencia aunque
+ *   el escudo pare la pelota, igual que el fuego prende.
  */
 export const ELEMENTS = {
   iceSeconds: [3, 4, 5], freezeSeconds: 2,
@@ -95,6 +103,10 @@ export const ELEMENTS = {
   // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a
   // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`
   windLine: [3, 3.75, 4.5], windPush: [6, 8, 10], windPushRadius: 3.5, windPull: [4.5, 5.25, 6],
+  // el golpe fantasma pasa escudos y blindaje (el driver, además, lomas); desde este nivel, al fantasma
+  // también le entra entero
+  ghostFullFrom: 2,
+  silenceSeconds: [4, 5, 6],
 };
 
 /**
@@ -147,7 +159,7 @@ export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> =
 const BASE: Ability[] = [
   {
     id: 'grenade', kind: 'grenade', name: 'Granada', title: 'los silencia', cooldown: 6, range: 45, color: 0xffc94a,
-    hint: 'Cae donde apuntás y silencia a todos los que agarra: se les apagan todos los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bomba) y reciben 1 de daño extra por golpe. Al élite le dura la mitad. A los del borde los tira a los costados; a los del centro los deja quietos. No hace daño',
+    hint: 'Cae donde apuntás y silencia a todos los que agarra: se les apagan todos los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bomba). Al élite le dura la mitad. A los del borde los tira a los costados; a los del centro los deja quietos. No hace daño',
   },
   {
     id: 'ice', kind: 'iceZone', name: 'Hielo', title: 'zona fría', cooldown: 10, range: 55, color: 0x7fd4ff,
@@ -207,8 +219,16 @@ export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: n
   fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a cada uno que alcanza, que va perdiendo vida' },
   lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'de cada uno que alcanza sale un rayo para los dos lados, que salta de enemigo en enemigo sin repetir y le saca 1 a cada uno' },
   wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los que agarra' },
+  ghost: {
+    name: 'Fantasma', adj: 'fantasma', color: 0xd8e6ff,
+    hint: `pasa escudos y blindaje: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma`,
+  },
+  silence: {
+    name: 'Silencio', adj: 'silenciador', color: 0xff6b4a,
+    hint: 'silencia a cada uno que alcanza: se le apagan todos los poderes un rato (al élite, la mitad). Silencia después del golpe: ese choca con sus defensas, los siguientes no',
+  },
 };
-export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning', 'wind'];
+export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning', 'wind', 'ghost', 'silence'];
 
 /** El viento hace algo distinto con cada palo. Con el putter no tiene sentido: no hay. */
 const WIND_HINT: Partial<Record<ClubId, string>> = {
@@ -217,13 +237,19 @@ const WIND_HINT: Partial<Record<ClubId, string>> = {
   wedge: 'donde cae, un remolino chupa hacia el centro a los de alrededor: quedan amontonados',
 };
 
-/** Las de palo y elemento: los cuatro palos con hielo, fuego y rayo, y tres con viento. */
+/** Lo que cambia de un elemento según el palo. El fantasma del driver, además, atraviesa lomas. */
+const CLUB_HINT: Partial<Record<Element, Partial<Record<ClubId, string>>>> = {
+  wind: WIND_HINT,
+  ghost: { driver: `atraviesa escudos, blindaje y lomas: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma` },
+};
+
+/** Las de palo y elemento: los cuatro palos con hielo, fuego, rayo, fantasma y silencio, y tres con viento. */
 const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).flatMap((club) => ELEMENT_ORDER
   .filter((element) => element !== 'wind' || WIND_HINT[club])
   .map((element): Ability => ({
     id: `${club}-${element}`, kind: 'shot', club, element,
     name: `${CLUB_LABEL[club]} ${ELEMENT_INFO[element].adj}`, title: ELEMENT_INFO[element].name.toLowerCase(),
-    hint: `Un tiro de ${CLUB_LABEL[club].toLowerCase()} al instante, con pelota gratis y cargado al nivel de la habilidad, que además ${element === 'wind' ? WIND_HINT[club] : ELEMENT_INFO[element].hint}`,
+    hint: `Un tiro de ${CLUB_LABEL[club].toLowerCase()} al instante, con pelota gratis y cargado al nivel de la habilidad, que además ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
     cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
   })));
 
@@ -236,6 +262,8 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
   fire: ['burnTicks', 'burnTick', 'burnDamage', 'spreadRadius'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
   wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],
+  ghost: ['ghostFullFrom'],
+  silence: ['silenceSeconds'],
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
   grenade: 'granada', iceZone: 'hielo', cart: 'carrito', hole: 'hoyo', flag: 'bandera',

@@ -482,8 +482,8 @@ horde.onEvent = (e) => {
       const text = `${e.crit ? '✸ ' : ''}${e.amount}${e.killed ? ' ☠' : ''}`;
       if (!e.swallowed) hud.float(s.x, s.y, text, e.killed || e.crit ? 'kill' : '');
       if (e.killed) {
-        // la de un tiro de palo suena desde las pelotas (evento 'kill'), que saben cuántas lleva ese
-        // tiro; las demás (fuego, carrito, hoyo...) suenan acá, con la primera nota
+        // la de un tiro de palo suena desde las pelotas (evento 'kill'), que saben el nivel del golpe y
+        // cuántas lleva; las demás (fuego, carrito, hoyo...) suenan acá, como la baja de un golpe 1 (3ra)
         if (!horde.shot) audio.kill(1);
         kills++;
         score += e.enemy.stats.score;
@@ -675,8 +675,9 @@ balls.onEvent = (e) => {
       setCleanStreak(cleanStreak + 1);
       break;
     case 'kill': {
-      // cada baja suena, y cada una más del mismo tiro, más aguda: se arma el acorde
-      audio.kill(e.kills);
+      // cada baja sigue el arpegio del golpe hacia arriba: con un golpe 2 (3ra), la primera es la 5ta,
+      // la segunda la 8va. Las notas siguen sonando y se arma el acorde
+      audio.kill(e.quality - 1 + e.kills);
       // el doblete se canta (y suma) en el acto, cuando cae el segundo; el tercero suma otra vez
       if (e.ability || e.kills < 2) break;
       const name = MULTI_KILL[e.kills] ?? `¡${e.kills} de un tiro!`;
