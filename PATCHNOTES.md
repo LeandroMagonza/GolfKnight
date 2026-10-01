@@ -10,6 +10,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 1 de octubre
 
 **Golf**
+- La segunda oleada de cada escenario trae una sorpresa, en orden al azar: **la estampida** (muchos y
+  chicos), **los gigantes** (menos, más grandes y con más vida) o **todos con poder** (cada uno trae
+  uno, hasta poderes que no salieron en la partida, pero con 1 de vida menos). `025d07e`
+- La esquiva ahora salta ni bien soltás el tiro o tirás una habilidad. Hacela saltar con algo y pegale
+  con lo que importa antes de que se recupere; el área del wedge la agarra igual. `025d07e`
+- El golpe fantasma pasa también la burbuja divina. La burbuja, en cambio, salva del hoyo. `025d07e`
 - Se fue la granada: el silencio en área ahora es el wedge silenciador. `24f7283`
 - Los efectos de las habilidades salen solo si el golpe toca: si el escudo para la pelota, el divino se
   come el golpe o el aura de invencible lo protege, no hay fuego, hielo, rayo ni silencio. El wedge,
