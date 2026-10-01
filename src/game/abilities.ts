@@ -409,12 +409,10 @@ export class Abilities {
         } else {
           for (const e of this.horde.enemies) {
             if (m.swallows <= 0) break;
-            // al jefe y a los élites no se los traga; al que la burbuja divina le salvó de este hoyo, tampoco
-            if (!e.alive || e.passed || e.stats.boss || e.size > 1 || m.seen.has(e.id)) continue;
+            // al jefe y a los élites no se los traga
+            if (!e.alive || e.passed || e.stats.boss || e.size > 1) continue;
             if (Math.hypot(e.position.x - m.pos.x, e.position.z - m.pos.z) > m.radius + e.radius * 0.3) continue;
-            const swallowed = this.horde.swallow(e, m.pos);
-            if (swallowed === 'divine') m.seen.add(e.id);
-            else if (swallowed) {
+            if (this.horde.swallow(e, m.pos)) {
               m.swallows--;
               this.onEvent?.({ type: 'swallow', enemy: e });
             }

@@ -5,7 +5,7 @@
 // no llevan poder: las habilidades van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
-import { burnSeconds, ELEMENTS, lv, type Element } from '../core/abilities';
+import { burnSeconds, effectOnly, ELEMENTS, lv, type Element } from '../core/abilities';
 import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
@@ -239,7 +239,10 @@ export class Balls {
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
     const shot = this.markShot(ball);
-    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
+    // el tiro de efecto no pega: toca a los del área y les deja el efecto
+    const hits = effectOnly(ball.element)
+      ? this.horde.touchArea(pos, radius, ball.hitIds, (e) => this.applyElement(ball, e))
+      : this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
@@ -262,6 +265,21 @@ export class Balls {
     const pos = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
     this.effects.spark(pos, ball.club.color);
     const dir = push ?? new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
+    // el tiro de efecto no pega ni empuja: si toca (escudo, aura y burbuja lo paran), deja el efecto
+    if (effectOnly(ball.element)) {
+      const shot = this.markShot(ball);
+      const touched = this.horde.touch(enemy, guard);
+      if (touched) {
+        ball.hits++;
+        this.checkConnected(ball);
+        this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage: 0, quality: ball.quality, killed: false });
+        this.applyElement(ball, enemy);
+      }
+      this.horde.shot = null;
+      this.countKills(ball, shot.kills);
+      if (finish) ball.done = true;
+      return touched;
+    }
     const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
     const shot = this.markShot(ball);
     const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
@@ -289,11 +307,13 @@ export class Balls {
     // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst). El
     // fantasma no deja nada: lo suyo es el golpe mismo (ver Horde.damage)
     if (!ball.element || ball.element === 'wind' || ball.element === 'ghost') return;
-    if (ball.element === 'ice') this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
-    else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
-    // cada uno que alcanza larga su propio rayo
-    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality));
-    // después del golpe: ese ya chocó con sus defensas, los que vienen no
+    if (ball.element === 'ice') {
+      this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
+      if (ball.quality >= ELEMENTS.iceFreezeFrom) this.horde.freeze(enemy);
+    } else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
+    // a cada uno que toca le cae un rayo, y de ahí sale el suyo
+    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality), true);
+    // lo deja apagado para lo que venga
     else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.quality));
   }
 

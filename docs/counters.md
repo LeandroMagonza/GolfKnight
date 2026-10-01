@@ -1,64 +1,70 @@
 # Counters por enemigo
 
-Qué le sirve y qué no a cada poder de enemigo, sacado del código. Es la quinta versión (1/10/2026) y ya
+Qué le sirve y qué no a cada poder de enemigo, sacado del código. Es la sexta versión (1/10/2026) y ya
 cuenta lo de esta tanda:
-- el **golpe fantasma pasa el divino**;
-- la **burbuja divina se come también el hoyo**;
-- la **esquiva salta al soltar el tiro o al tirar una habilidad**;
-- los **modificadores de oleada**.
+- **el palo pega y la habilidad pone el efecto**: los tiros de elemento no pegan, salvo el fantasma;
+- **el hoyo se traga a cualquiera, con burbuja o sin ella**, y recarga en 20 s.
 
 Los poderes de escenario son los que piden decidir cartas; los de apoyo se resuelven jugando (al final).
 
 ## Las reglas, juntas
 
-**La regla del toque.** El elemento de un tiro (fuego, hielo, rayo, silencio) sale solo si el golpe toca
-al enemigo.
+**El palo pega, la habilidad pone el efecto.**
+- Los tiros de palo y elemento (hielo, fuego, rayo, viento, silencio) **no pegan ni empujan**: la pelota
+  toca y deja el efecto. Por eso el efecto es más grande que cuando además pegaban:
+  - fuego: 4, 5 y 6 mordiscos;
+  - hielo: 5, 6.5 y 8 s, y en el nivel 3 congela;
+  - rayo: le cae también al tocado, y salta 2, 3 y 4 veces por rama;
+  - silencio: 5, 6.5 y 8 s.
+- **El fantasma es la excepción**: es un golpe, cargado al nivel de la habilidad.
 
-| Qué pasa | ¿Sale el elemento? |
+**La regla del toque.** El efecto sale solo si la pelota toca al enemigo.
+
+| Qué pasa | ¿Sale el efecto? |
 |---|---|
-| El escudo común para la pelota (se come todo el daño) | **No** |
-| El escudo común para una parte y el resto entra | Sí |
-| La burbuja divina se come el golpe | **No** |
+| El escudo común para la pelota | **No** |
+| La burbuja divina se come el toque | **No** (y la burbuja se gasta) |
 | El aura de invencible lo protege | **No** |
-| El blindaje se come el daño | Sí: tocó, solo que no le sacó vida |
-| El etéreo lo topea a 1 | Sí |
+| Tiene blindaje o es etéreo | Sí: no paran el toque |
 
-**El divino (escudo sagrado)**: con la burbuja arriba es inmune a todo golpe, con su elemento.
-- Sea del palo que sea: el wedge **no** lo pasa (el wedge pasa el escudo común, no la burbuja).
-- Tampoco lo traga el hoyo: la burbuja se come el hoyo, y ese hoyo ya no lo toma.
-- **Lo único que la pasa es el golpe fantasma**, sin gastarla.
-- Cuando se la sacás, se le recarga a los 5 s (al élite, a los 3).
-- Lo que no es un golpe sí lo agarra, porque no hace daño: el frío de la zona de hielo, la lupa, la
-  marca de la pólvora, la bandera.
+El wedge cae a plomo y el escudo común no lo para nunca: **el wedge, con cualquier efecto, pasa
+escudos**.
 
-**La esquiva**: salta ni bien soltás el tiro o tirás una habilidad que se apunta, si le apuntás más o
-menos. Salta siempre, si la tiene lista, y recarga en 5 s.
-- Se le gana **haciéndola saltar con algo**: un tiro flojo, una pifia, una habilidad. Después le pegás
-  con lo que importa antes de que recargue.
-- El área del wedge la agarra igual, aunque salte.
-- Silenciada, aturdida o congelada no esquiva.
+**El divino (escudo sagrado)**: con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto.
+Dos cosas la pasan:
+- **el golpe fantasma**, sin gastarla;
+- **el hoyo**, que se traga la unidad entera.
+
+Lo que no es un golpe sí lo agarra: el frío de la zona de hielo, la lupa, la marca de la pólvora, la
+bandera.
+
+**El hoyo** se traga entero al primero que lo pisa, tenga los poderes que tenga: es la respuesta a un
+enemigo potente. Recarga 20 s (antes 12). A los élites y al Gólem no los traga.
+
+**La esquiva** salta ni bien soltás el tiro o tirás una habilidad apuntada, siempre, si la tiene lista.
+Se le gana haciéndola saltar con algo y pegándole con lo que importa antes de que recargue (5 s), o con
+un área que la agarre igual.
 
 ## La tabla
 
-✅ lo resuelve · ½ a medias · ❌ el poder es fuerte contra esto · vacío: no cambia nada.
+✅ lo resuelve · ½ a medias · ❌ el poder es fuerte contra esto (la carta se pierde) · vacío: no
+cambia nada.
 
-Contra el **escudo** común, los elementos que necesitan tocar dependen del palo: el wedge pasa (cae a
-plomo), el hierro a veces le entra por arriba, el driver y el putter rebotan.
+Para los tiros de palo y elemento, el palo decide si llega:
+- contra el escudo común, el wedge pasa, el hierro a veces y el driver y el putter rebotan;
+- contra la esquiva, el área del wedge la agarra y los demás pasan por donde ya no está.
 
-Contra la **esquiva**:
-- el wedge la agarra con el área;
-- el rayo y el viento a veces la alcanzan igual;
-- los demás tiros de palo pasan por donde ella ya no está.
+Lo que no hace daño (hielo, viento) no resuelve nada solo: prepara.
 
 | Carta | Cartas | Escudo | Blindaje | Fantasma | Divino | Esquiva |
 |---|---|---|---|---|---|---|
-| Palo de **hielo** | 4 | wedge ✅, hierro ½, driver y putter ❌ | | | | wedge ✅, los otros ❌ |
+| Palo de **hielo** | 4 | driver y putter ❌ | | | ❌ | wedge ½, los otros ❌ |
 | Palo de **fuego** | 4 | wedge ✅, hierro ½, driver y putter ❌ | ✅ | ✅ | ❌ | wedge ✅, los otros ❌ |
 | Palo de **rayo** | 4 | wedge ✅, los otros ½ | ❌ | ✅ | ½ | wedge ✅, los otros ½ |
-| Palo de **viento** | 3 | wedge ✅, los otros ½ | | | | wedge ✅, los otros ½ |
+| Palo de **viento** | 3 | | | | | |
 | Palo **fantasma** | 4 | ✅ | ✅ | ✅ (desde nivel 2) | ✅ | wedge ✅, los otros ❌ |
 | Palo **silenciador** | 4 | wedge ✅, hierro ½, driver y putter ❌ | ✅ | ✅ | ❌ | wedge ✅, los otros ❌ |
-| Hoyo (no a élites) | 1 | ✅ | ✅ | ✅ | ❌ | ½ |
+| Hoyo (no a élites) | 1 | ✅ | ✅ | ✅ | ✅ | ½ |
 | Carrito | 1 | ✅ | ½ | ❌ | ❌ | ✅ |
 | Pólvora | 1 | ½ | ❌ | ✅ | ✅ | ✅ |
 | Lupa | 1 | ✅ | ✅ | ✅ | ❌ | ½ |
@@ -86,18 +92,20 @@ Sobre las 50 cartas del sorteo (35 habilidades y 15 mejoras).
 
 | Poder | Lo resuelven | A medias | Es fuerte contra | La respuesta sin carta |
 |---|---|---|---|---|
-| Escudo | 14 | 12 | 6 | Pegarle de costado o caerle detrás |
+| Escudo | 12 | 9 | 6 | Pegarle de costado o caerle detrás |
 | Blindaje | 20 | 5 | 5 | Cargar a fondo |
 | Fantasma | 25 | 3 | 8 | Pegarle muchas veces |
-| Divino | 9 | 9 | 15 | Dos golpes seguidos |
-| Esquiva | 9 | 8 | **16** | **Hacerla saltar con cualquier tiro** |
+| Divino | 10 | 9 | **18** | Dos golpes seguidos |
+| Esquiva | 7 | 7 | 16 | Hacerla saltar con cualquier tiro |
 
-- **El divino subió de 6 a 9** con el golpe fantasma. Sigue siendo el que más castiga cartas (15),
-  pero ahora tiene una respuesta directa.
-- **La esquiva cambió de punta a punta**: antes la resolvían 28 cartas, ahora 9, y deja sin valor a 16.
-  Es lo que pediste: su counter de verdad no es una carta sino jugar, con el cebo (un tiro cualquiera,
-  sin recarga) y después lo que pega en serio.
-- El **fantasma** sigue sobrado: lo resuelve casi todo lo que pega muchas veces.
+- **El divino es el que más cartas castiga** (18): con los tiros de efecto, todo lo que no sea golpe
+  fantasma, hoyo o pegarle varias veces se pierde en la burbuja. La respuesta sigue estando: el
+  fantasma, el hoyo, el eco, el clon, la pólvora, la lluvia y el caddie.
+- **La esquiva y el divino quedan como los que piden jugar**: el cebo y los dos golpes seguidos son
+  gratis, sin carta.
+- **El fantasma sigue sobrado** (25): lo resuelve casi todo lo que pega muchas veces, más el fuego, el
+  rayo, el silencio, la lupa y el golpe fantasma. Si querés que pese más, es el que tiene margen para
+  sacarle respuestas.
 
 ## Por poder del jugador
 
@@ -105,12 +113,12 @@ Contra los 5 poderes de escenario: a cuántos resuelve y contra cuántos no le s
 
 | Carta | Resuelve | No le sirve contra |
 |---|---|---|
+| Hoyo | **4** + ½ (no a élites) | 0 |
 | Fantasma (golpe) | **4**, y la esquiva con el wedge | esquiva, con los otros palos |
 | Pólvora | 3 + ½ | blindaje |
-| Hoyo | 3 + ½ (no a élites) | divino |
 | Lupa | 3 + ½ | divino |
 | Silenciador, Fuego | 2, y escudo y esquiva con el wedge | divino; escudo y esquiva con los otros palos |
-| Rayo | 2 + ½, y escudo y esquiva con el wedge | blindaje |
+| Rayo | 1 + ½, y escudo y esquiva con el wedge | blindaje |
 | Maestría del fuego | 2 + ½ | 0 |
 | Carrito | 2 + ½ | fantasma, divino |
 | Eco, Clon | 2 | esquiva |
@@ -118,9 +126,10 @@ Contra los 5 poderes de escenario: a cuántos resuelve y contra cuántos no le s
 | Maestría del hielo | 2 | fantasma, divino |
 | Potencia, El herrero | 2 | fantasma, divino, esquiva |
 | Perfecto de regalo | 1 + ½ | fantasma, divino |
-| Hielo, Viento (palo) | escudo y esquiva con el wedge | (hielo: escudo y esquiva con los otros palos) |
+| Hielo (palo) | 0 (prepara: frena y congela) | divino; escudo con driver y putter |
+| Viento (palo) | 0 (prepara: mueve) | 0 |
 
-## Los modificadores de oleada (hechos)
+## Los modificadores de oleada
 
 La segunda oleada de cada escenario trae uno, los tres en orden al azar, sin un enemigo que lo lleve:
 
@@ -137,21 +146,6 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
 - Cada goblin o goblina sin otro poder tiene un 10 % de salir kamikaze, en todas las oleadas.
 - En la estampida, casi un tercio.
 - Silenciado, no explota.
-
-## Lo que queda para decidir
-
-- **Tiros de elemento sin daño base** (tu idea). Con la esquiva nueva ya no hace falta para arreglarla,
-  pero sigue sirviendo para que quede claro que el palo pega y la habilidad pone el efecto. Tabla de
-  cómo se agrandaría cada efecto:
-
-| Elemento | Sin daño base, el efecto podría ser |
-|---|---|
-| Fuego | 4, 5 y 6 mordiscos (hoy 3, 4 y 5) |
-| Hielo | Frío más largo; en el nivel 3 congela sin maestría |
-| Rayo | El tocado también recibe el rayo, y un salto más por rama |
-| Silencio | 5, 6.5 y 8 s |
-| Viento | Igual |
-| Fantasma | Sigue con su daño: es lo suyo |
 
 ## Cómo se arma una partida
 
@@ -200,9 +194,11 @@ A todos los élites el silencio les dura la mitad, y el hoyo no los traga.
 
 ## Otras respuestas
 
-**¿El hielo congela?** No, ralentiza (al 40 %). Congela solo con la Maestría del hielo: una segunda
-fuente de hielo sobre uno que ya está frío lo congela 2 s, y el golpe que rompe el hielo pega el doble.
-Al Gólem nunca.
+**¿El hielo congela?**
+- El tiro de hielo enfría (el enemigo camina al 40 %), y en el nivel 3 además congela 2 s.
+- Con la Maestría del hielo, cualquier hielo congela al que ya estaba frío.
+- El golpe que rompe el hielo pega el doble.
+- Al Gólem nunca lo congela.
 
 **¿Qué golpe aturde?**
 
@@ -214,9 +210,9 @@ Al Gólem nunca.
 | Empujón del viento | 0.55 s |
 | Palazo | 0.7, 1 y 1.3 s según el nivel |
 
-Los pesados nunca se aturden.
+Los pesados nunca se aturden. Los tiros de efecto no aturden: no pegan.
 
-**¿El rayo afecta al blindado?** No: el blindaje se come el 1 de cada salto. Con la Maestría del rayo
+**¿El rayo afecta al blindado?** No: el blindaje se come el 1 de cada rayo. Con la Maestría del rayo
 pega 2, y a un blindaje 1 le entra 1.
 
 ## Historial (1/10)
@@ -239,6 +235,9 @@ pega 2, y a un blindaje 1 le entra 1.
 
 **Quinta tanda**
 - El golpe fantasma pasa el divino.
-- La burbuja divina se come el hoyo.
 - La esquiva salta al soltar o al tirar una habilidad.
-- Modificadores de oleada: estampida, gigantes, todos con poder.
+- Modificadores de oleada.
+
+**Sexta tanda**
+- El palo pega y la habilidad pone el efecto.
+- El hoyo vuelve a tragarse a cualquiera, con burbuja o sin ella, y recarga 20 s.

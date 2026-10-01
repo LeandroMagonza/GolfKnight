@@ -1742,17 +1742,13 @@ export class Horde {
   }
 
   /**
-   * El hoyo: se lo traga entero, tenga la vida que tenga, y cae adentro (sin número de daño). El aura del
-   * chamán lo salva igual, y **el escudo divino también**: con la burbuja arriba es inmune a todo, y el
-   * hoyo se la come como a cualquier golpe ('divine': ese hoyo ya no lo toma). A los jefes y a los
-   * élites no se los traga. Devuelve true si se lo tragó.
+   * El hoyo: se lo traga **entero**, tenga la vida y los poderes que tenga, también la burbuja divina, y
+   * cae adentro (sin número de daño). Por eso recarga mucho: es la respuesta a un enemigo potente. El
+   * aura del chamán lo salva igual. A los jefes y a los élites no se los traga. Devuelve true si se lo
+   * tragó.
    */
-  swallow(e: Enemy, at: THREE.Vector3): boolean | 'divine' {
+  swallow(e: Enemy, at: THREE.Vector3): boolean {
     if (!e.alive || e.passed || e.warded || e.stats.boss || e.size > 1) return false;
-    if (e.spendDivine()) {
-      this.emit({ type: 'divine', enemy: e });
-      return 'divine';
-    }
     const hp = e.hp;
     const killed = e.damage(hp, null, 0);
     if (killed) {
@@ -1774,22 +1770,71 @@ export class Horde {
    */
   applyIce(e: Enemy, seconds: number): void {
     if (!e.alive || e.passed) return;
-    // al jefe el hielo lo frena pero nunca lo congela
-    if (this.mastery.ice && e.chilled && !e.frozen && !e.stats.boss) {
-      e.freeze(ELEMENTS.freezeSeconds);
-      this.emit({ type: 'frozen', enemy: e });
-    }
+    // al jefe el hielo lo frena pero nunca lo congela (ver `freeze`)
+    if (this.mastery.ice && e.chilled) this.freeze(e);
     e.chill(seconds);
   }
 
   /**
-   * Rayo: el que largó `from` (al que le pegó la pelota). Sale para los dos lados y cada rama salta
-   * `jumps` veces al más cercano que este rayo todavía no tocó (ver core/chain). Cada enemigo al que le
-   * pega la pelota larga el suyo, así que el rayo de otro sí le puede pegar.
+   * Un tiro de efecto toca a `enemy` (ver `effectOnly` en core/abilities): no pega ni empuja. Devuelve
+   * si tocó de verdad: el aura de invencible lo protege, el escudo que le llega de frente (`guard` > 0)
+   * para la pelota antes de que lo toque, y la burbuja divina se come el toque.
    */
-  chain(from: Enemy, jumps: number): void {
+  touch(enemy: Enemy, guard = 0): boolean {
+    if (!enemy.alive || enemy.passed) return false;
+    if (enemy.warded) {
+      this.emit({ type: 'immune', enemy });
+      return false;
+    }
+    if (guard > 0) {
+      this.emit({ type: 'shielded', enemy });
+      return false;
+    }
+    if (enemy.spendDivine()) {
+      this.emit({ type: 'divine', enemy });
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * El área de un tiro de efecto: toca a todos los que están a `radius` de `pos`, menos a los que el
+   * escudo tapa (como en `blast`) y a los de `skip`. Llama `onTouch` con cada uno que tocó de verdad y
+   * devuelve cuántos fueron.
+   */
+  touchArea(pos: THREE.Vector3, radius: number, skip: Set<number> | undefined, onTouch: (e: Enemy) => void): number {
+    let count = 0;
+    for (const e of this.enemies) {
+      if (!e.alive || e.passed || skip?.has(e.id)) continue;
+      if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
+      skip?.add(e.id);
+      if (!this.touch(e, this.shadeOf(pos, e))) continue;
+      onTouch(e);
+      count++;
+    }
+    return count;
+  }
+
+  /** Congela a uno (el hielo de nivel alto, la maestría). Al jefe nunca: solo lo frena. */
+  freeze(e: Enemy): void {
+    if (!e.alive || e.passed || e.stats.boss || e.frozen) return;
+    e.freeze(ELEMENTS.freezeSeconds);
+    this.emit({ type: 'frozen', enemy: e });
+  }
+
+  /**
+   * Rayo: el que largó `from` (al que tocó la pelota). Con `strike`, primero le cae a él. Después sale
+   * para los dos lados y cada rama salta `jumps` veces al más cercano que este rayo todavía no tocó (ver
+   * core/chain). Cada enemigo que toca la pelota larga el suyo, así que el rayo de otro sí le puede pegar.
+   */
+  chain(from: Enemy, jumps: number, strike = false): void {
     const damage = ELEMENTS.chainDamage * (this.mastery.lightning ? 2 : 1);
     const total = jumps + (this.mastery.lightning ? 1 : 0);
+    if (strike) {
+      const at = from.position;
+      this.emit({ type: 'zap', from: at.clone().setY(at.y + 7), to: at.clone().setY(at.y + from.height * 0.6) });
+      this.damage(from, damage, null, 0);
+    }
     const point = (e: Enemy) => ({ id: e.id, x: e.position.x, z: e.position.z, enemy: e });
     const targets = this.enemies.filter((e) => e !== from && e.alive && !e.passed).map(point);
     for (const { from: { enemy: src }, to: { enemy: dst } } of chainJumps(point(from), targets, total, ELEMENTS.chainRange)) {

@@ -67,34 +67,39 @@ export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5,
 /**
  * Los elementos de los tiros de palo y elemento.
  *
- * **Regla para todos (1/10): el elemento sale solo si el golpe toca.** Si el escudo para la pelota, si
- * el divino se come el golpe o si el aura de invencible lo protege, no hay fuego, ni hielo, ni rayo, ni
- * silencio. El blindaje y el etéreo no paran el toque: restan o topean el daño, pero el elemento sale.
+ * **El palo pega, la habilidad pone el efecto (1/10).** Los tiros de elemento **no hacen daño ni
+ * empujan**: la pelota toca y deja el efecto, que por eso es más grande que cuando además pegaban. La
+ * excepción es el fantasma, que es justamente un golpe (ver `effectOnly`).
  *
- * - **Hielo**: enfría `iceSeconds` a cada uno que alcanza. Con la maestría, al que ya estaba frío lo
- *   **congela** `freezeSeconds`, y el golpe que rompe el hielo pega el doble.
+ * **Y el efecto sale solo si la pelota toca.** Si el escudo la para, si el divino se come el toque o si
+ * el aura de invencible lo protege, no hay fuego, ni hielo, ni rayo, ni silencio. El blindaje y el
+ * etéreo no paran el toque.
+ *
+ * - **Hielo**: enfría `iceSeconds` a cada uno que toca, y desde el nivel `iceFreezeFrom` además lo
+ *   **congela** `freezeSeconds`. Con la maestría, al que ya estaba frío lo congela cualquier hielo. El
+ *   golpe que rompe el hielo pega el doble. Al jefe nunca lo congela.
  * - **Fuego**: lo prende y le saca `burnDamage` cada `burnTick` segundos, `burnTicks` veces según el nivel
- *   (3, 4 y 5 de daño en total). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
- *   respuesta al blindado y al fantasma. El escudo y el divino lo paran. Con la maestría, el que muere
- *   prendido contagia a los que tiene a `spreadRadius`.
- * - **Rayo**: **cada uno que alcanza la pelota larga su propio rayo**, que sale para los dos lados y
- *   en cada rama salta `chainJumps` veces, a `chainRange` como mucho, sacándole `chainDamage` a cada uno
- *   (ver core/chain). Un rayo nunca toca dos veces al mismo ni vuelve al que lo largó; el de otro sí
- *   puede. El blindaje se lo come (es un golpe, no fuego). Con la maestría salta una vez más por rama y
- *   cada salto pega el doble.
+ *   (4, 5 y 6 de daño en total). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
+ *   respuesta al blindado y al fantasma. Con la maestría, el que muere prendido contagia a los que tiene
+ *   a `spreadRadius`.
+ * - **Rayo**: a **cada uno que toca la pelota le cae un rayo** (`chainDamage`), y de ahí sale para los
+ *   dos lados: en cada rama salta `chainJumps` veces, a `chainRange` como mucho, sacándole `chainDamage` a
+ *   cada uno (ver core/chain). Un rayo nunca toca dos veces al mismo ni vuelve al que lo largó; el de otro
+ *   sí puede. El blindaje se lo come (es un golpe, no fuego). Con la maestría salta una vez más por rama
+ *   y cada salto pega el doble.
  * - **Fantasma**: el golpe pasa escudos (también el muro) y blindaje: le entra entero a cualquiera. El
  *   del driver atraviesa además las lomas. Desde el nivel `ghostFullFrom`, al enemigo fantasma también
  *   le entra el golpe entero. **Pasa también el divino**, sin gastarle la burbuja. No pasa la
  *   inmunidad del aura de invencible.
- * - **Silenciador**: silencia `silenceSeconds` a cada uno que alcanza (al élite, `silenceElite` de
- *   eso): se le apagan todos los poderes. Silencia **después** del golpe: ese golpe choca con las
- *   defensas, los que vienen no. Por eso es distinto del fantasma, que pasa las defensas en ese golpe y
- *   no deja nada. El wedge silenciador es el silencio en área (antes era la granada).
+ * - **Silenciador**: silencia `silenceSeconds` a cada uno que toca (al élite, `silenceElite` de eso): se
+ *   le apagan todos los poderes. No hace daño: prepara a los que vienen. Por eso es distinto del
+ *   fantasma, que pasa las defensas en ese golpe y no deja nada. El wedge silenciador es el silencio en
+ *   área (antes era la granada).
  */
 export const ELEMENTS = {
-  iceSeconds: [3, 4, 5], freezeSeconds: 2,
-  burnTicks: [3, 4, 5], burnTick: 1.5, burnDamage: 1, spreadRadius: 2.5,
-  chainJumps: [1, 2, 3], chainRange: 6, chainDamage: 1,
+  iceSeconds: [5, 6.5, 8], iceFreezeFrom: 3, freezeSeconds: 2,
+  burnTicks: [4, 5, 6], burnTick: 1.5, burnDamage: 1, spreadRadius: 2.5,
+  chainJumps: [2, 3, 4], chainRange: 6, chainDamage: 1,
   // el viento hace algo distinto con cada palo (ver WIND_HINT): el driver junta sobre la línea a los de
   // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a
   // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`
@@ -102,8 +107,13 @@ export const ELEMENTS = {
   // el golpe fantasma pasa escudos y blindaje (el driver, además, lomas); desde este nivel, al fantasma
   // también le entra entero
   ghostFullFrom: 2,
-  silenceSeconds: [4, 5, 6], silenceElite: 0.5,
+  silenceSeconds: [5, 6.5, 8], silenceElite: 0.5,
 };
+
+/** ¿Es un tiro de efecto, que no pega? Todos los elementos menos el fantasma, que es un golpe. */
+export function effectOnly(element: Element | null | undefined): boolean {
+  return !!element && element !== 'ghost';
+}
 
 /**
  * Cuánto dura prendido para morder `ticks` veces: el primer mordisco es en el acto y los demás, cada
@@ -162,8 +172,8 @@ const BASE: Ability[] = [
     hint: 'Un carrito de golf cruza el campo de costado a costado, a la altura que apuntás, y atropella a todos los que encuentra',
   },
   {
-    id: 'hole', kind: 'hole', name: 'Hoyo', title: 'se lo traga', cooldown: 12, range: 55, color: 0x9aa4b2,
-    hint: 'Abre un hoyo donde apuntás: el primero que lo pisa cae y no vuelve. Al jefe y a los élites no se los traga, y al que tiene la burbuja divina, la burbuja lo salva',
+    id: 'hole', kind: 'hole', name: 'Hoyo', title: 'se lo traga', cooldown: 20, range: 55, color: 0x9aa4b2,
+    hint: 'Abre un hoyo donde apuntás: el primero que lo pisa cae entero y no vuelve, tenga los poderes que tenga. Al jefe y a los élites no se los traga',
   },
   {
     id: 'flag', kind: 'flag', name: 'Bandera', title: 'los desvía', cooldown: 15, range: 55, color: 0xd8413a,
@@ -207,9 +217,9 @@ const CLUB_LABEL: Record<ClubId, string> = { driver: 'Driver', iron: 'Hierro', w
 const CLUB_COOLDOWN: Record<ClubId, number> = { driver: 7, iron: 7, wedge: 8, putter: 6 };
 const CLUB_RANGE: Record<ClubId, number> = { driver: 55, iron: 55, wedge: 55, putter: 20 };
 export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: number; hint: string }> = {
-  ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: 'enfría a cada uno que alcanza' },
-  fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a cada uno que alcanza, que va perdiendo vida' },
-  lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'de cada uno que alcanza sale un rayo para los dos lados, que salta de enemigo en enemigo sin repetir y le saca 1 a cada uno' },
+  ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: `enfría a cada uno que toca, y desde el nivel ${ELEMENTS.iceFreezeFrom} lo congela` },
+  fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a cada uno que toca, que va perdiendo vida: al fuego el blindaje no le resta' },
+  lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'a cada uno que toca le cae un rayo, que sale para los dos lados y salta de enemigo en enemigo sin repetir, sacándole 1 a cada uno' },
   wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los que agarra' },
   ghost: {
     name: 'Fantasma', adj: 'fantasma', color: 0xd8e6ff,
@@ -217,7 +227,7 @@ export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: n
   },
   silence: {
     name: 'Silencio', adj: 'silenciador', color: 0xff6b4a,
-    hint: 'silencia a cada uno que toca: se le apagan todos los poderes un rato (al élite, la mitad). Silencia después del golpe: ese choca con sus defensas, los siguientes no. Si el escudo para la pelota, no silencia',
+    hint: 'silencia a cada uno que toca: se le apagan todos los poderes un rato (al élite, la mitad), para que lo que venga después le entre',
   },
 };
 export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning', 'wind', 'ghost', 'silence'];
@@ -235,13 +245,19 @@ const CLUB_HINT: Partial<Record<Element, Partial<Record<ClubId, string>>>> = {
   ghost: { driver: `atraviesa escudos, blindaje, la burbuja divina y las lomas: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma` },
 };
 
-/** Las de palo y elemento: los cuatro palos con hielo, fuego, rayo, fantasma y silencio, y tres con viento. */
+/**
+ * Las de palo y elemento: los cuatro palos con hielo, fuego, rayo, fantasma y silencio, y tres con
+ * viento. Las de efecto no pegan (el efecto sale si la pelota toca); el fantasma es un golpe cargado al
+ * nivel de la habilidad.
+ */
 const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).flatMap((club) => ELEMENT_ORDER
   .filter((element) => element !== 'wind' || WIND_HINT[club])
   .map((element): Ability => ({
     id: `${club}-${element}`, kind: 'shot', club, element,
     name: `${CLUB_LABEL[club]} ${ELEMENT_INFO[element].adj}`, title: ELEMENT_INFO[element].name.toLowerCase(),
-    hint: `Un tiro de ${CLUB_LABEL[club].toLowerCase()} al instante, con pelota gratis y cargado al nivel de la habilidad, que además ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
+    hint: effectOnly(element)
+      ? `Una pelota de ${CLUB_LABEL[club].toLowerCase()} al instante, que no pega: ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}. Si el escudo la para o la burbuja divina se la come, no hace nada`
+      : `Un tiro de ${CLUB_LABEL[club].toLowerCase()} al instante, con pelota gratis y cargado al nivel de la habilidad, que además ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
     cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
   })));
 
@@ -250,7 +266,7 @@ export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);
 
 /** Las claves de ELEMENTS que usa cada elemento. */
 const ELEMENT_KEYS: Record<Element, string[]> = {
-  ice: ['iceSeconds', 'freezeSeconds'],
+  ice: ['iceSeconds', 'iceFreezeFrom', 'freezeSeconds'],
   fire: ['burnTicks', 'burnTick', 'burnDamage', 'spreadRadius'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
   wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],

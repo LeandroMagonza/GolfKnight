@@ -1618,6 +1618,17 @@ alcanzado larga el suyo, para los dos lados), y el Gólem que no se congela.
 - Viento cruzado y dorados, descartados: solo hacían todo más fácil.
 - Sigue pendiente: tiros de elemento sin daño base.
 
+1/10, sexta tanda (decisiones de Leandro):
+- **El hoyo se traga la unidad entera**, con burbuja divina o sin ella: es la respuesta a un enemigo
+  potente. Por eso recarga 20 s (antes 12). Se deshizo lo de que la burbuja lo salve.
+- **El palo pega y la habilidad pone el efecto.** Los tiros de elemento no pegan ni empujan, salvo el
+  fantasma: tocan y dejan el efecto (`effectOnly`, `Horde.touch` y `touchArea`). El efecto se agrandó:
+  - fuego 4, 5 y 6;
+  - hielo 5, 6.5 y 8 s, y congela en el nivel 3;
+  - el rayo le cae también al tocado y salta 2, 3 y 4 por rama;
+  - silencio 5, 6.5 y 8 s.
+- El guardado del panel subió a la versión 15: descarta lo viejo de `hole.cooldown` y `elementos`.
+
 ### Botiquín
 
 Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación

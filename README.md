@@ -122,28 +122,30 @@ Cada habilidad tira **su propia pelota**: no gasta la del puesto. Sale en el act
 un tiro cargando.
 
 **Palo y elemento** (23): cualquier palo con hielo, fuego, rayo, fantasma o silencio, y el driver, el
-hierro y el wedge con viento. Es un tiro de ese palo, instantáneo, con pelota gratis y **cargado al nivel de la habilidad**, que
-además (siempre que el golpe **toque**: si el escudo para la pelota, el divino se come el golpe o el aura
-de invencible lo protege, el elemento no sale):
-- *Hielo*: enfría a cada uno que alcanza.
-- *Fuego*: lo prende; pierde 1 de vida cada 1.5 s, y el blindaje no le resta.
-- *Rayo*: **cada uno que alcanza la pelota larga su propio rayo**, que sale para los dos lados y en
-  cada rama salta al más cercano, una vez por nivel (a 6 m como mucho), sacándole 1 a cada uno. Un rayo
-  **nunca toca dos veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje se come
-  ese 1.
+hierro y el wedge con viento. Es una pelota de ese palo, instantánea y gratis, que vuela como ese palo
+(el driver atraviesa una fila, el wedge cae a plomo y abre un área). **El palo pega y la habilidad pone
+el efecto**: salvo el fantasma, **no pegan ni empujan**, solo dejan el efecto, y el efecto sale solo si
+la pelota **toca** (si el escudo la para, la burbuja divina se la come o el aura de invencible lo
+protege, no hace nada). Lo que hace cada una, por nivel:
+- *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela.
+- *Fuego*: lo prende; pierde 1 de vida cada 1.5 s, 4 veces (5 y 6), y el blindaje no le resta.
+- *Rayo*: **a cada uno que toca le cae un rayo**, y de ahí sale para los dos lados: en cada rama salta
+  al más cercano 2 veces (3 y 4), a 6 m como mucho, sacándole 1 a cada uno. Un rayo **nunca toca dos
+  veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje se come ese 1.
 - *Viento* (antes era el vendaval, solo rasante), distinto con cada palo:
   - driver: el viento va detrás de la pelota y **junta sobre la línea** a los que pasa (3 m de cada
     lado; 3.75 y 4.5 en los niveles 2 y 3), para el próximo tiro;
   - hierro: donde revienta, una ráfaga **manda para atrás** 6 m (8 y 10) a los que están a 3.5 m;
   - wedge: donde cae, un remolino **los amontona** hacia el centro, desde 4.5 m (5.25 y 6).
   Con el putter no hay.
-- *Fantasma*: el golpe pasa escudos (también el de la calavera) y blindaje, y le entra entero. El del
-  driver atraviesa además las lomas. Desde el nivel 2, al enemigo fantasma también le entra entero. Pasa
-  también la burbuja divina, sin gastarla. No pasa el aura de invencible.
-- *Silenciador*: silencia 4 s (5 y 6) a cada uno que toca (al élite, la mitad): se le apagan **todos**
-  los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba). Silencia
-  **después** del golpe: ese choca con sus defensas, los siguientes no. El wedge silenciador es el
-  silencio en área (la granada se fue el 1/10).
+- *Fantasma* (el único que pega: un golpe cargado al nivel de la habilidad): pasa escudos (también el de
+  la calavera) y blindaje, y le entra entero. El del driver atraviesa además las lomas. Desde el nivel 2,
+  al enemigo fantasma también le entra entero. Pasa también la burbuja divina, sin gastarla. No pasa el
+  aura de invencible.
+- *Silenciador*: silencia 5 s (6.5 y 8) a cada uno que toca (al élite, la mitad): se le apagan
+  **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba),
+  para que lo que venga después le entre. El wedge silenciador es el silencio en área (la granada se
+  fue el 1/10).
 
 **Las demás** (11):
 
@@ -151,7 +153,7 @@ de invencible lo protege, el elemento no sale):
 | --- | --- |
 | Hielo | zona fría que dura: el que está adentro camina lento |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
-| Hoyo | el primero que lo pisa cae y no vuelve (los jefes no; al que tiene la burbuja divina, la burbuja lo salva) |
+| Hoyo | el primero que lo pisa cae entero y no vuelve, tenga los poderes que tenga (los jefes y los élites no). Recarga 20 s |
 | Bandera | los que están cerca van hacia ella en vez de a la puerta |
 | Pólvora | marca; el marcado que muere explota, y encadena si los de al lado están marcados |
 | Lluvia de pelotas | una pelota en cada puesto; son de regalo, así que los guardias siguen reponiendo las suyas |
@@ -238,7 +240,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Escudo calavera (10)** | de frente no entra nada: por detrás, de costado, silenciado o con el golpe fantasma |
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
-| **Divino** | con la burbuja arriba es inmune a todo golpe, con su elemento, y al hoyo: el primero se lo come y se le recarga a los 5 s. Solo el golpe fantasma la pasa |
+| **Divino** | con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto: el primero se lo come y se le recarga a los 5 s. La pasan el golpe fantasma (sin gastarla) y el hoyo (que se lo traga entero) |
 | **Etéreo** | ningún golpe le saca más de 1 (agrandado por la lupa, hasta 2; el golpe fantasma de nivel 2, entero): hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |

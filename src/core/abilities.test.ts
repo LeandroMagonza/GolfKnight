@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, elementOf, ELEMENTS, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
 import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
@@ -56,9 +56,18 @@ describe('habilidades', () => {
     expect(ABILITIES['wedge-silence']?.element).toBe('silence');
   });
 
-  it('el rayo salta pocas veces: no puede dar vueltas matando a todo', () => {
-    expect(ELEMENTS.chainJumps[0]).toBe(1);
-    expect(Math.max(...ELEMENTS.chainJumps)).toBeLessThanOrEqual(3);
+  it('el rayo salta pocas veces por rama: no puede dar vueltas matando a todo', () => {
+    // sin daño de la pelota, salta una vez más que cuando pegaba (1/10): 2, 3 y 4 por rama
+    expect(ELEMENTS.chainJumps[0]).toBe(2);
+    expect(Math.max(...ELEMENTS.chainJumps)).toBeLessThanOrEqual(4);
+  });
+
+  it('el palo pega y la habilidad pone el efecto: los tiros de elemento no pegan, menos el fantasma', () => {
+    for (const element of ['ice', 'fire', 'lightning', 'wind', 'silence'] as const) expect(effectOnly(element), element).toBe(true);
+    expect(effectOnly('ghost')).toBe(false);
+    expect(effectOnly(null)).toBe(false);
+    expect(ABILITIES['driver-fire'].hint).toContain('no pega');
+    expect(ABILITIES['driver-ghost'].hint).toContain('cargado al nivel');
   });
 
   it('la zona de hielo frena y al salir se va enseguida', () => {
