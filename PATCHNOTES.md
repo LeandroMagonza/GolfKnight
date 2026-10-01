@@ -41,6 +41,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **Detrás de escena**
 - Estas patch notes, y el push a `main` se frena si falta anotar algún commit. `8b526f6`
 - Una prueba del freno de las patch notes (un commit vacío). `8e5f2ef`
+- Análisis de qué le sirve a cada enemigo y propuesta para que las cartas miren lo que viene (todavía
+  no cambia nada en el juego). `2bd547e`
 
 ## 30 de septiembre
 
