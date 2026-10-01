@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, KAMIKAZE, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, GIANTS, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, POWERED, POWERS, WAVE_MODS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -83,7 +83,8 @@ describe('waves', () => {
         expect(counts).toEqual([1, 3, 3]);
         for (const i of [0, 1, 2]) {
           const w = run.waves[s * 3 + i];
-          for (let seed = 1; seed < 6; seed++) for (const o of spawnOrder(w, seeded(seed))) if (o.kind === HEAVY[s] && o.plain) expect(o.mods).toBeUndefined();
+          // (el modificador de la oleada sí los agranda o les cambia la vida: eso no es un poder)
+          for (let seed = 1; seed < 6; seed++) for (const o of spawnOrder(w, seeded(seed))) if (o.kind === HEAVY[s] && o.plain) expect(hasPower(o.mods)).toBe(false);
         }
         // en la última también salen solos: de ese cuerpo, el único con poder es el élite
         expect(run.waves[s * 3 + 2].groups.find((g) => g.kind === HEAVY[s] && !g.mods)?.plain).toBe(true);
@@ -99,14 +100,15 @@ describe('waves', () => {
           const fixed = w.groups.filter((g) => g.mods || g.plain).reduce((n, g) => n + g.count, 0);
           const exploders = order.filter((o) => o.mods?.explode).length;
           const open = order.filter((o) => !ENEMIES[o.kind].boss).length - fixed - exploders;
-          const drawn = order.filter((o) => o.mods && !o.mods.explode && !w.groups.some((g) => g.mods === o.mods));
-          expect(drawn.length, `${i} ${w.title}`).toBe(Math.round(open / 3));
+          const drawn = order.filter((o) => hasPower(o.mods) && !o.mods!.explode && !o.plain && !w.groups.some((g) => g.mods === o.mods));
+          // con «todos con poder», todos; si no, un tercio
+          expect(drawn.length, `${i} ${w.title}`).toBe(w.mod === 'powered' ? open : Math.round(open / 3));
           // el jefe nunca; nadie recibe un poder que no pueda tener
           expect(order.filter((o) => ENEMIES[o.kind].boss).every((o) => !o.mods)).toBe(true);
-          for (const o of order) if (o.mods) expect(canTake(o.kind, o.mods), `${w.title}: ${o.kind}`).toBe(true);
+          for (const o of order) if (hasPower(o.mods)) expect(canTake(o.kind, o.mods!), `${w.title}: ${o.kind}`).toBe(true);
           // uno solo por enemigo: el blindaje y el etéreo nunca van juntos
           for (const o of order) expect(!!o.mods?.armor && !!o.mods?.ethereal).toBe(false);
-          if (w.focus) {
+          if (w.focus && w.mod !== 'powered') {
             const support = drawn.filter((o) => (w.supports ?? []).some((s) => has(o.mods, s.key))).length;
             const shared = drawn.length - support;
             const focus = drawn.filter((o) => has(o.mods, w.focus!)).length;
@@ -123,6 +125,48 @@ describe('waves', () => {
         }
       });
     }
+  });
+
+  it('la segunda oleada de cada escenario trae un modificador: los tres, en orden al azar', () => {
+    const orders = new Set<string>();
+    for (const run of runs(30)) {
+      const mods = [1, 4, 7].map((i) => run.waves[i].mod);
+      expect([...mods].sort()).toEqual([...WAVE_MODS].sort());
+      orders.add(mods.join());
+      // las demás no traen
+      run.waves.forEach((w, i) => { if (i % 3 !== 1 || i === 9) expect(w.mod, w.title).toBeUndefined(); });
+    }
+    expect(orders.size).toBeGreaterThan(3);
+  });
+
+  it('los gigantes: menos, más grandes y con más vida, sin ser élites', () => {
+    for (const run of runs(10)) {
+      const i = run.waves.findIndex((w) => w.mod === 'giants');
+      const s = Math.floor(i / 3);
+      const w = run.waves[i];
+      const order = spawnOrder(w, seeded(3));
+      for (const o of order) {
+        expect(o.mods?.giant).toBe(GIANTS.scale);
+        expect(o.mods?.size).toBeUndefined();
+        expect(o.mods?.hp ?? 0).toBeGreaterThanOrEqual(GIANTS.hp);
+      }
+      // menos que una oleada común del mismo escenario (la primera, sin contar el cuerpo fuerte)
+      const light = (x: Wave) => x.groups.filter((g) => !g.plain).reduce((n, g) => n + g.count, 0);
+      expect(light(w)).toBeLessThan(light(run.waves[s * 3]));
+    }
+  });
+
+  it('todos con poder: cada uno trae uno, a veces de los que no salieron sorteados, y con menos vida', () => {
+    const outside = new Set<string>();
+    for (const run of runs(20)) {
+      const w = run.waves.find((x) => x.mod === 'powered')!;
+      for (const o of spawnOrder(w, seeded(4))) {
+        // (en la segunda oleada no hay élite: a todos les toca lo mismo)
+        expect(o.mods?.hp, o.kind).toBe(POWERED.hp);
+        for (const p of SCENARIO_POWERS) if (has(o.mods, p) && !run.powers.includes(p)) outside.add(p);
+      }
+    }
+    expect(outside.size).toBeGreaterThan(0);
   });
 
   it('el kamikaze sale en todas las oleadas, de a poco, y solo entre los chicos', () => {
@@ -152,7 +196,9 @@ describe('waves', () => {
   it('la estampida: muchos, chicos, y los que explotan son de los más chicos', () => {
     for (const run of runs(10)) {
       const w = run.waves.find((x) => x.explode)!;
-      expect(w.scenario).toBe(1);
+      // es el modificador de la segunda oleada de algún escenario
+      expect(w.mod).toBe('stampede');
+      expect(run.waves.indexOf(w) % 3).toBe(1);
       const order = spawnOrder(w, seeded(5));
       expect(order.length).toBeGreaterThan(25);
       const exploders = order.filter((o) => o.mods?.explode);

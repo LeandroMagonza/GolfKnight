@@ -415,11 +415,8 @@ function updatePreview(): void {
   previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
   previewMat.size = charging ? (quality >= QUALITY_LEVELS ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
-  if (charging && quality !== lastLevel) {
-    audio.chargeTick(quality);
-    // al pasar a la carga 2, los que esquivan y están en la línea del tiro saltan al costado
-    if (lastLevel === 1 && quality === 2) horde.dodgeAim(tee, player.aimDir);
-  }
+  // (la esquiva ya no salta con la carga: salta al soltar o al tirar una habilidad, ver onRelease)
+  if (charging && quality !== lastLevel) audio.chargeTick(quality);
   lastLevel = charging ? quality : 0;
   const end = path[path.length - 1];
   const radius = spreadFor(club, quality);
@@ -759,6 +756,8 @@ function castAbility(index: number): void {
   player.teePosition(tee);
   const result = abilities.cast(index, tee, player.aimDir, aimPoint);
   const slot = abilities.slots[index];
+  // la esquiva salta también ni bien tirás una habilidad que se apunta (las que no tienen alcance, no)
+  if (result === 'ok' && ABILITIES[slot.id].range > 0) horde.dodgeAim(tee, player.aimDir);
   // el lugar vacío no dice nada: no hay nada que tirar
   if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
   else if (result === 'blocked') hud.feedback(ABILITIES[slot.id].kind === 'melee' ? 'En pleno swing no hay palazo' : 'No hay palo para tirar ahora', 'neutral');
@@ -1434,6 +1433,13 @@ async function makePlayer(skin: Skin): Promise<Player> {
     hud.feedback('¡Pifia!', 'bad');
     setCleanStreak(0);
     tutorial?.onDuff();
+  };
+  // la esquiva salta ni bien soltás (pifie o no): siempre, si está lista. Se le gana haciéndola saltar
+  // con un tiro cualquiera y pegándole con el que importa antes de que recargue
+  p.onRelease = () => {
+    if (tennis) return;
+    p.teePosition(tee);
+    horde.dodgeAim(tee, p.aimDir);
   };
   p.onWhiff = () => {
     audio.whoosh(0.3);

@@ -1604,6 +1604,20 @@ alcanzado larga el suyo, para los dos lados), y el Gólem que no se congela.
   - tiros de elemento sin daño base, que además arreglaría la esquiva;
   - el tercer modificador.
 
+1/10, quinta tanda (decisiones de Leandro):
+- **El golpe fantasma pasa el divino**, sin gastarle la burbuja.
+- **El divino es inmune a todo golpe hasta que le sacás la burbuja**, también al hoyo. Lo que no es un
+  golpe (el frío de la zona, la lupa, la marca de pólvora) sí lo agarra.
+- **La esquiva salta ni bien soltás el tiro o tirás una habilidad apuntada**, siempre. Su counter es
+  jugar: hacerla saltar con algo y pegarle con lo que importa, o el área del wedge.
+- **Modificadores de oleada** en la segunda de cada escenario, los tres en orden al azar
+  (`WAVE_MODS`):
+  - **estampida**;
+  - **gigantes**: escala `giant`, aparte del `size` del élite;
+  - **todos con poder**: de los cinco de escenario, sorteados o no, con 1 de vida menos.
+- Viento cruzado y dorados, descartados: solo hacían todo más fácil.
+- Sigue pendiente: tiros de elemento sin daño base.
+
 ### Botiquín
 
 Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación

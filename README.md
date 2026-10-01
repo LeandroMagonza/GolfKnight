@@ -138,8 +138,8 @@ de invencible lo protege, el elemento no sale):
   - wedge: donde cae, un remolino **los amontona** hacia el centro, desde 4.5 m (5.25 y 6).
   Con el putter no hay.
 - *Fantasma*: el golpe pasa escudos (también el de la calavera) y blindaje, y le entra entero. El del
-  driver atraviesa además las lomas. Desde el nivel 2, al enemigo fantasma también le entra entero. No
-  pasa el divino ni el aura de invencible.
+  driver atraviesa además las lomas. Desde el nivel 2, al enemigo fantasma también le entra entero. Pasa
+  también la burbuja divina, sin gastarla. No pasa el aura de invencible.
 - *Silenciador*: silencia 4 s (5 y 6) a cada uno que toca (al élite, la mitad): se le apagan **todos**
   los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba). Silencia
   **después** del golpe: ese choca con sus defensas, los siguientes no. El wedge silenciador es el
@@ -151,7 +151,7 @@ de invencible lo protege, el elemento no sale):
 | --- | --- |
 | Hielo | zona fría que dura: el que está adentro camina lento |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
-| Hoyo | el primero que lo pisa cae y no vuelve (los jefes no) |
+| Hoyo | el primero que lo pisa cae y no vuelve (los jefes no; al que tiene la burbuja divina, la burbuja lo salva) |
 | Bandera | los que están cerca van hacia ella en vez de a la puerta |
 | Pólvora | marca; el marcado que muere explota, y encadena si los de al lado están marcados |
 | Lluvia de pelotas | una pelota en cada puesto; son de regalo, así que los guardias siguen reponiendo las suyas |
@@ -238,14 +238,14 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Escudo calavera (10)** | de frente no entra nada: por detrás, de costado, silenciado o con el golpe fantasma |
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
-| **Divino** | el primer golpe no le entra; se le recarga a los 5 s |
+| **Divino** | con la burbuja arriba es inmune a todo golpe, con su elemento, y al hoyo: el primero se lo come y se le recarga a los 5 s. Solo el golpe fantasma la pasa |
 | **Etéreo** | ningún golpe le saca más de 1 (agrandado por la lupa, hasta 2; el golpe fantasma de nivel 2, entero): hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
 | **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |
 | **Cura** | se planta cerca de la puerta y cada 3 s le devuelve 1 de vida a los que tiene a 6 m. Aura y cuerpo verdes |
 | **Invencible** | se planta cerca de la puerta y vuelve inmunes a los que tiene a 8 m. Aura violeta |
-| **Esquiva** | si le apuntás más o menos (a unos 2 m de la línea) cuando la carga pasa a 2, salta 3 m al costado; recarga 5 s. Esperá a que se le pase, o cargá mirando a otro lado y apuntale al final |
+| **Esquiva** | si le apuntás más o menos (a unos 2 m de la línea), salta 3 m al costado **ni bien soltás el tiro o tirás una habilidad**, siempre; recarga 5 s. Hacela saltar con algo (un tiro flojo, una habilidad) y pegale con lo que importa antes de que recargue, o agarrala con un área |
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.
@@ -271,10 +271,15 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 - **Se acumulan**: un tercio de cada oleada sale con poder; la mitad con el del escenario, la otra mitad
   con los de escenarios anteriores. Uno solo por enemigo.
 - **Apoyo**: la partida sortea también dos poderes de apoyo (hechicero, cura, invencible, bandera), uno
-  para el segundo escenario y otro para el tercero, de a uno o dos por oleada. **Explotar**: en la
-  **estampida** (la oleada del medio del segundo escenario: muchos, chicos) explota casi un tercio; en
-  las demás, cada goblin o goblina sin otro poder tiene un 10 % de salir kamikaze.
-  **Cavar**, por ahora, no sale.
+  para el segundo escenario y otro para el tercero, de a uno o dos por oleada. **Cavar**, por ahora, no
+  sale.
+- **Modificadores**: la segunda oleada de cada escenario trae uno, los tres en orden al azar.
+  - **La estampida**: muchos más, chicos, y casi un tercio explota.
+  - **Los gigantes**: menos, más grandes y con 2 de vida más.
+  - **Todos con poder**: cada uno trae un poder de escenario, aunque no haya salido sorteado en la
+    partida, y 1 de vida menos.
+
+  En las demás oleadas, cada goblin o goblina sin otro poder tiene un 10 % de salir kamikaze.
 - **Los cuerpos** suben con los escenarios: del goblin al esqueleto y el jefe goblin en el primero;
   entran el caballero y el chamán en el segundo; el gólem chico y el alma en pena en el tercero.
 - **Arriba, debajo del número de oleada**, van los íconos de los tres poderes de la partida y la

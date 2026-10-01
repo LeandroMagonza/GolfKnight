@@ -84,7 +84,8 @@ export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5,
  *   cada salto pega el doble.
  * - **Fantasma**: el golpe pasa escudos (también el muro) y blindaje: le entra entero a cualquiera. El
  *   del driver atraviesa además las lomas. Desde el nivel `ghostFullFrom`, al enemigo fantasma también
- *   le entra el golpe entero. No pasa el divino ni la inmunidad del aura.
+ *   le entra el golpe entero. **Pasa también el divino**, sin gastarle la burbuja. No pasa la
+ *   inmunidad del aura de invencible.
  * - **Silenciador**: silencia `silenceSeconds` a cada uno que alcanza (al élite, `silenceElite` de
  *   eso): se le apagan todos los poderes. Silencia **después** del golpe: ese golpe choca con las
  *   defensas, los que vienen no. Por eso es distinto del fantasma, que pasa las defensas en ese golpe y
@@ -162,7 +163,7 @@ const BASE: Ability[] = [
   },
   {
     id: 'hole', kind: 'hole', name: 'Hoyo', title: 'se lo traga', cooldown: 12, range: 55, color: 0x9aa4b2,
-    hint: 'Abre un hoyo donde apuntás: el primero que lo pisa cae y no vuelve. Al jefe y a los élites no se los traga',
+    hint: 'Abre un hoyo donde apuntás: el primero que lo pisa cae y no vuelve. Al jefe y a los élites no se los traga, y al que tiene la burbuja divina, la burbuja lo salva',
   },
   {
     id: 'flag', kind: 'flag', name: 'Bandera', title: 'los desvía', cooldown: 15, range: 55, color: 0xd8413a,
@@ -212,7 +213,7 @@ export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: n
   wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los que agarra' },
   ghost: {
     name: 'Fantasma', adj: 'fantasma', color: 0xd8e6ff,
-    hint: `pasa escudos y blindaje: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma`,
+    hint: `pasa escudos, blindaje y la burbuja divina: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma`,
   },
   silence: {
     name: 'Silencio', adj: 'silenciador', color: 0xff6b4a,
@@ -231,7 +232,7 @@ const WIND_HINT: Partial<Record<ClubId, string>> = {
 /** Lo que cambia de un elemento según el palo. El fantasma del driver, además, atraviesa lomas. */
 const CLUB_HINT: Partial<Record<Element, Partial<Record<ClubId, string>>>> = {
   wind: WIND_HINT,
-  ghost: { driver: `atraviesa escudos, blindaje y lomas: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma` },
+  ghost: { driver: `atraviesa escudos, blindaje, la burbuja divina y las lomas: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma` },
 };
 
 /** Las de palo y elemento: los cuatro palos con hielo, fuego, rayo, fantasma y silencio, y tres con viento. */

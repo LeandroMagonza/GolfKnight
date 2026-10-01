@@ -771,18 +771,26 @@ export class Enemy {
     return this.burnTimer > 0;
   }
 
-  /** Tamaño propio (el mini jefe viene más grande), aparte de lo que lo agranda la lupa. */
+  /**
+   * Tamaño de élite: más de 1 es el élite (lo usan sus reglas: mata de una, la calavera, el hoyo no lo
+   * traga). Aparte de lo que lo agranda la lupa y de los gigantes.
+   */
   get size(): number {
     return this.mods.size ?? 1;
   }
 
-  // agrandado por la lupa (o por ser mini jefe), también es más grande para las pelotas: esa es la gracia
+  /** Lo grande que se ve y que es para las pelotas: el élite y la oleada de los gigantes. */
+  get bodyScale(): number {
+    return this.size * (this.mods.giant ?? 1);
+  }
+
+  // agrandado por la lupa (o por ser élite o gigante), también es más grande para las pelotas: esa es la gracia
   get radius(): number {
-    return this.stats.radius * this.growScale * this.size;
+    return this.stats.radius * this.growScale * this.bodyScale;
   }
 
   get height(): number {
-    return this.stats.height * this.growScale * this.size;
+    return this.stats.height * this.growScale * this.bodyScale;
   }
 
   /** Hacia dónde mira (unitario en el plano). */
@@ -1101,7 +1109,7 @@ export class Enemy {
       this.position.x += (this.sinkAt.x - this.position.x) * k;
       this.position.z += (this.sinkAt.z - this.position.z) * k;
       this.position.y = this.sinkAt.y - this.dyingTime * this.dyingTime * 9;
-      this.group.scale.setScalar(this.size * Math.max(0.3, 1 - this.dyingTime * 0.8));
+      this.group.scale.setScalar(this.bodyScale * Math.max(0.3, 1 - this.dyingTime * 0.8));
       if (this.dyingTime > 0.7) this.state = 'gone';
       this.animator.update(dt);
       return;
@@ -1150,7 +1158,7 @@ export class Enemy {
     // la lupa agranda de a poco, y achica de a poco: que se vea que crece
     const size = this.growTimer > 0 ? LENS.scale : 1;
     this.growScale += (size - this.growScale) * (1 - Math.exp(-8 * dt));
-    this.group.scale.setScalar(this.growScale * this.size);
+    this.group.scale.setScalar(this.growScale * this.bodyScale);
     this.refreshChill();
     const slow = this.chilled ? ICE.slow : 1;
     const behavior = this.behavior;
@@ -1660,8 +1668,10 @@ export class Horde {
       this.emit({ type: 'immune', enemy });
       return false;
     }
-    // el escudo divino se come el primer golpe entero, sea lo que sea, con su elemento
-    if (enemy.spendDivine()) {
+    const ghost = this.shot?.ghost ?? 0;
+    // el escudo divino se come el primer golpe entero, sea lo que sea, con su elemento. El golpe fantasma
+    // lo pasa sin gastarlo: es lo suyo, pasar las defensas
+    if (!ghost && enemy.spendDivine()) {
       this.lastStopped = true;
       this.emit({ type: 'divine', enemy });
       return false;
@@ -1679,7 +1689,6 @@ export class Horde {
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
     // la armadura (hasta 3): el silencio se la saca mientras dura. Al fuego y al golpe
     // fantasma no les resta
-    const ghost = this.shot?.ghost ?? 0;
     const armor = dot || ghost ? 0 : enemy.armor;
     if (armor > 0 && dealt > 0) {
       dealt = Math.max(0, dealt - armor);
@@ -1733,12 +1742,17 @@ export class Horde {
   }
 
   /**
-   * El hoyo: se lo traga entero, tenga la vida que tenga, y cae adentro (sin número de daño: no es un
-   * golpe). El aura del chamán lo salva igual, y el escudo divino no. A los jefes y a los élites no se
-   * los traga. Devuelve true si se lo tragó.
+   * El hoyo: se lo traga entero, tenga la vida que tenga, y cae adentro (sin número de daño). El aura del
+   * chamán lo salva igual, y **el escudo divino también**: con la burbuja arriba es inmune a todo, y el
+   * hoyo se la come como a cualquier golpe ('divine': ese hoyo ya no lo toma). A los jefes y a los
+   * élites no se los traga. Devuelve true si se lo tragó.
    */
-  swallow(e: Enemy, at: THREE.Vector3): boolean {
+  swallow(e: Enemy, at: THREE.Vector3): boolean | 'divine' {
     if (!e.alive || e.passed || e.warded || e.stats.boss || e.size > 1) return false;
+    if (e.spendDivine()) {
+      this.emit({ type: 'divine', enemy: e });
+      return 'divine';
+    }
     const hp = e.hp;
     const killed = e.damage(hp, null, 0);
     if (killed) {
@@ -2109,9 +2123,11 @@ export class Horde {
   }
 
   /**
-   * La carga llegó a 2 apuntando desde `from` hacia `dir` (unitario en el piso): los que esquivan y están
-   * «más o menos» en la línea del tiro saltan al costado. Para el lado en que ya estaban (así el salto
-   * los saca de la línea), o al azar si estaban justo en el medio; y nunca para afuera del campo.
+   * Soltaste el tiro, o tiraste una habilidad que se apunta, desde `from` hacia `dir` (unitario en el
+   * piso): los que esquivan y están «más o menos» en la línea saltan al costado, siempre, si tienen la
+   * esquiva lista. Para el lado en que ya estaban (así el salto los saca de la línea), o al azar si
+   * estaban justo en el medio; y nunca para afuera del campo. Se les gana haciéndolos saltar con algo y
+   * pegándoles con lo que importa antes de que recarguen, o con un área que los agarre igual.
    */
   dodgeAim(from: THREE.Vector3, dir: THREE.Vector3): number {
     const side = new THREE.Vector3(dir.z, 0, -dir.x);

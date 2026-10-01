@@ -50,12 +50,17 @@ export interface EnemyMods {
   banner?: boolean;
   /** Tira hechizos al golfista desde lejos (ver RANGED). */
   ranged?: boolean;
-  /** Esquiva: si le apuntás cuando la carga llega a 2, salta al costado (ver DODGE). */
+  /** Esquiva: si le apuntás al soltar el tiro o al tirar una habilidad, salta al costado (ver DODGE). */
   dodge?: boolean;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
-  /** Tamaño, sobre el del cuerpo (el élite viene más grande). Agranda también su radio para las pelotas. */
+  /**
+   * Tamaño de élite, sobre el del cuerpo. Más de 1 **es** el élite (mata de una, calavera, el hoyo no lo
+   * traga). Agranda también su radio para las pelotas.
+   */
   size?: number;
+  /** La oleada de los gigantes: más grande (y su radio para las pelotas), sin ser élite. */
+  giant?: number;
 }
 
 export interface EnemyStats {
@@ -212,11 +217,12 @@ export const GEOMANCER = { holdZ: 38, ahead: 5, height: 1.8, rx: 3.4, rz: 2.8, c
 export const RANGED = { holdZ: 34, every: 4.5, flight: 1.6, radius: 1.4, damage: 1 };
 
 /**
- * Esquiva: mientras cargás, en el momento en que la barra pasa del golpe débil al medio (la carga 2), el
- * que tenés «más o menos» apuntado (a menos de `aimWidth` metros de la línea del tiro, más su radio)
- * salta `distance` metros al costado, y no vuelve a saltar hasta `cooldown` segundos después. Se le
- * gana esperando que se le pase, o cargando mirando para otro lado y apuntándole recién al final.
- * Silenciado no esquiva.
+ * Esquiva: **ni bien soltás el tiro, o tirás una habilidad que se apunta**, el que tenés «más o menos»
+ * apuntado (a menos de `aimWidth` metros de la línea, más su radio) salta `distance` metros al costado,
+ * siempre, y no vuelve a saltar hasta `cooldown` segundos después. Se le gana haciéndolo saltar con
+ * algo (un tiro flojo, una pifia, una habilidad) y pegándole con lo que importa antes de que recargue, o
+ * con un área que lo agarre igual (el wedge). Silenciado, aturdido o congelado no esquiva. (Hasta el
+ * 1/10 saltaba cuando la carga pasaba al golpe 2.)
  */
 export const DODGE = { cooldown: 5, distance: 3.2, aimWidth: 2.2, hop: 0.6, hopTime: 0.35 };
 
@@ -324,7 +330,28 @@ export interface Wave {
   explode?: number;
   /** Fuera de la estampida: cada chico sin poder puede salir kamikaze (`KAMIKAZE.chance`). Aparte del tercio. */
   kamikaze?: boolean;
+  /** El modificador de la oleada (la segunda de cada escenario), si trae uno. */
+  mod?: WaveMod;
 }
+
+/**
+ * **Los modificadores de oleada** (1/10, pedido de Leandro): la segunda oleada de cada escenario trae
+ * uno, que vale para toda la oleada sin un enemigo que lo lleve (no hay a quién matar para sacarlo).
+ * Cada partida los reparte en orden al azar entre los tres escenarios. Son situaciones para aprovechar
+ * los tiros de otra forma:
+ * - **La estampida**: muchos más y más chicos, y casi un tercio explota (`explode`). Premia las áreas y
+ *   la fila del driver.
+ * - **Los gigantes**: menos enemigos (`count` de los de siempre), todos más grandes (`scale`) y con
+ *   `hp` de vida de más. Fáciles de pegar, piden más golpes. Es la bandera sin abanderada.
+ * - **Todos con poder**: cada uno trae un poder, **de los cinco de escenario**, salieran sorteados en la
+ *   partida o no, con `hp` de vida (de menos). Pide leer los íconos y elegir a quién primero.
+ */
+export const WAVE_MODS = ['stampede', 'giants', 'powered'] as const;
+export type WaveMod = (typeof WAVE_MODS)[number];
+export const MOD_TITLES: Record<WaveMod, string> = { stampede: 'La estampida', giants: 'Los gigantes', powered: 'Todos con poder' };
+export const STAMPEDE = { explode: 0.3, interval: 1.3 };
+export const GIANTS = { count: 0.6, scale: 1.35, hp: 2, interval: 1.4 };
+export const POWERED = { hp: -1 };
 
 /**
  * El kamikaze, fuera de la estampida (pedido de Leandro, 1/10): cada goblin o goblina (1 o 2 de vida) que
@@ -401,30 +428,56 @@ function bodies(goblin: number, goblina: number, orc: number, skeleton: number, 
  * poder (sorteado entre SCENARIO_POWERS) y termina con un élite que lo lleva en su versión más dura.
  * El cuerpo fuerte del escenario (HEAVY) viene desde la primera oleada: uno, después tres, y tres en la
  * última, siempre sin poder: de ese cuerpo, el único con poder es el élite, así se distingue.
- * Los escenarios se acumulan: en el segundo siguen viniendo algunos con el poder del primero. La del
- * medio del segundo escenario es la estampida: muchos, chicos, y varios que explotan. Desde el segundo
- * escenario entra además un poder de apoyo por escenario, de a pocos.
+ * Los escenarios se acumulan: en el segundo siguen viniendo algunos con el poder del primero. La segunda
+ * oleada de cada escenario trae un modificador (estampida, gigantes, todos con poder), los tres en orden
+ * al azar (ver WAVE_MODS). Desde el segundo escenario entra además un poder de apoyo por escenario, de a
+ * pocos.
  */
 export function buildRun(rand: () => number = Math.random): Run {
   const powers = draw(SCENARIO_POWERS, 3, rand);
   const supports = draw(SUPPORT_POWERS, 2, rand);
+  const mods = draw(WAVE_MODS, 3, rand);
   const at = (scenario: number, i: number) => ({ scenario, focus: powers[scenario], debut: i === 0, old: powers.slice(0, scenario) });
   const boss = (scenario: number) => elite(scenario, powers[scenario]);
   const bossTitle = (scenario: number) => `Élite: ${ENEMIES[boss(scenario).kind].name.toLowerCase()} ${BOSS_TITLES[powers[scenario]]}`;
   // el cuerpo fuerte del escenario: 1, 3 y 3, siempre sin poder; de ese cuerpo, el único con poder es el élite
   const heavy = (scenario: number, count: number): WaveGroup => ({ kind: HEAVY[scenario], count, plain: true });
+  // la segunda de cada escenario: los cuerpos de siempre de ese escenario, con el modificador que le tocó
+  const usual: { interval: number; counts: [number, number, number, number]; more: [EnemyKind, number][] }[] = [
+    { interval: 2.05, counts: [6, 5, 3, 2], more: [] },
+    { interval: 1.9, counts: [6, 5, 3, 2], more: [['warchief', 2]] },
+    { interval: 1.9, counts: [5, 4, 3, 2], more: [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 2]] },
+  ];
+  const second = (s: number): Wave => {
+    const mod = mods[s];
+    const { interval, counts, more } = usual[s];
+    // el apoyo del escenario viene también acá, salvo en la estampida, que ya es mucho
+    const support = s > 0 && mod !== 'stampede' ? { supports: [{ key: supports[s - 1], count: s }] } : {};
+    const base = { title: MOD_TITLES[mod], mod, ...at(s, 1), ...support };
+    if (mod === 'stampede') {
+      // muchos y chicos; el alma en pena del tercer escenario viene igual
+      const wraiths = more.filter(([k]) => k === 'wraith');
+      return { ...base, interval: STAMPEDE.interval, groups: [...bodies(13, 8, 2, 0, wraiths), heavy(s, 3)], explode: STAMPEDE.explode };
+    }
+    if (mod === 'giants') {
+      const few = (n: number) => (n > 0 ? Math.max(1, Math.round(n * GIANTS.count)) : 0);
+      const [g, ga, o, sk] = counts.map(few);
+      return { ...base, interval: interval * GIANTS.interval, groups: [...bodies(g, ga, o, sk, more.map(([k, n]): [EnemyKind, number] => [k, few(n)])), heavy(s, 3)] };
+    }
+    return { ...base, interval, groups: [...bodies(...counts, more), heavy(s, 3)] };
+  };
   const waves: Wave[] = [
     // primer escenario: los cuerpos de 1 a 4, el jefe goblin desde el arranque, y el poder solo
     { title: TITLES[powers[0]], interval: 2.1, groups: [...bodies(8, 5, 2, 2), heavy(0, 1)], ...at(0, 0) },
-    { title: 'Refuerzos', interval: 2.05, groups: [...bodies(6, 5, 3, 2), heavy(0, 3)], ...at(0, 1) },
+    second(0),
     { title: bossTitle(0), interval: 2.0, groups: [...bodies(6, 5, 3, 2), heavy(0, 3), boss(0)], ...at(0, 2) },
     // segundo escenario: el caballero desde el arranque, el chamán, y el primer apoyo
     { title: TITLES[powers[1]], interval: 1.85, groups: [...bodies(6, 5, 3, 2, [['warchief', 2]]), heavy(1, 1)], ...at(1, 0), supports: [{ key: supports[0], count: 1 }] },
-    { title: 'La estampida', interval: 1.3, groups: [...bodies(13, 8, 2, 0), heavy(1, 3)], ...at(1, 1), explode: 0.3 },
+    second(1),
     { title: bossTitle(1), interval: 2.1, groups: [...bodies(5, 4, 2, 2, [['warchief', 2], ['shaman', 2]]), heavy(1, 3), boss(1)], ...at(1, 2), supports: [{ key: supports[0], count: 2 }] },
     // tercer escenario: el gólem chico desde el arranque, el alma en pena, y el segundo apoyo
     { title: TITLES[powers[2]], interval: 1.75, groups: [...bodies(6, 5, 3, 3, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 1]]), heavy(2, 1)], ...at(2, 0), supports: [{ key: supports[1], count: 1 }] },
-    { title: 'Refuerzos', interval: 1.9, groups: [...bodies(5, 4, 3, 2, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 2]]), heavy(2, 3)], ...at(2, 1), supports: [{ key: supports[1], count: 2 }] },
+    second(2),
     { title: bossTitle(2), interval: 1.9, groups: [...bodies(5, 4, 2, 2, [['warchief', 1], ['shaman', 1], ['knight', 1]]), heavy(2, 3), boss(2)], ...at(2, 2), supports: [{ key: supports[1], count: 2 }] },
     // el jefe solo ya tiene 80 de vida: la escolta es más chica, con los tres poderes y los dos apoyos
     {
@@ -531,22 +584,38 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   } else if (wave.kamikaze) {
     for (const s of small) if (rand() < KAMIKAZE.chance) s.mods = { explode: true };
   }
-  const total = Math.round(open().length * POWERED_SHARE);
-  const supports = Math.min(total, (wave.supports ?? []).reduce((n, s) => n + s.count, 0));
-  const old = wave.old ?? [];
-  let focus = wave.focus ? (old.length ? Math.ceil((total - supports) * FOCUS_SHARE) : total - supports) : 0;
-  let rest = total - supports - focus;
-  // el que presenta el poder del escenario va primero, así ningún otro poder le gana de mano
-  if (wave.debut && focus > 0 && give(POWERS[wave.focus!](wave.scenario, rand), true)) focus--;
-  let left = supports;
-  for (const s of wave.supports ?? []) for (let i = 0; i < s.count && left > 0; i++, left--) give(POWERS[s.key](wave.scenario, rand), false);
-  for (; focus > 0; focus--) give(POWERS[wave.focus!](wave.scenario, rand), false);
-  for (; rest > 0 && old.length; rest--) give(POWERS[old[Math.floor(rand() * old.length)]](wave.scenario, rand), false);
+  if (wave.mod === 'powered') {
+    // todos con poder: los apoyos que traiga, y a cada uno de los demás uno de los cinco de escenario,
+    // haya salido sorteado en la partida o no
+    for (const s of wave.supports ?? []) for (let i = 0; i < s.count; i++) give(POWERS[s.key](wave.scenario, rand), false);
+    for (let tries = 0; open().length && tries < 500; tries++) give(POWERS[SCENARIO_POWERS[Math.floor(rand() * SCENARIO_POWERS.length)]](wave.scenario, rand), false);
+  } else {
+    const total = Math.round(open().length * POWERED_SHARE);
+    const supports = Math.min(total, (wave.supports ?? []).reduce((n, s) => n + s.count, 0));
+    const old = wave.old ?? [];
+    let focus = wave.focus ? (old.length ? Math.ceil((total - supports) * FOCUS_SHARE) : total - supports) : 0;
+    let rest = total - supports - focus;
+    // el que presenta el poder del escenario va primero, así ningún otro poder le gana de mano
+    if (wave.debut && focus > 0 && give(POWERS[wave.focus!](wave.scenario, rand), true)) focus--;
+    let left = supports;
+    for (const s of wave.supports ?? []) for (let i = 0; i < s.count && left > 0; i++, left--) give(POWERS[s.key](wave.scenario, rand), false);
+    for (; focus > 0; focus--) give(POWERS[wave.focus!](wave.scenario, rand), false);
+    for (; rest > 0 && old.length; rest--) give(POWERS[old[Math.floor(rand() * old.length)]](wave.scenario, rand), false);
+  }
   // los escudos sorteados van de menor a mayor a lo largo de la oleada: el más duro, al final
   const shielded = arriving.filter((s) => s.mods?.shield && s.mods.shield < SHIELD_WALL && !wave.groups.some((g) => g.mods === s.mods));
   const levels = shielded.map((s) => s.mods!.shield!).sort((a, b) => a - b);
   shielded.forEach((s, i) => { s.mods = { ...s.mods, shield: levels[i] }; });
+  // lo que el modificador le cambia a todos (menos al jefe): no es un poder, va encima del que tengan
+  const extra: EnemyMods | null = wave.mod === 'giants' ? { giant: GIANTS.scale, hp: GIANTS.hp } : wave.mod === 'powered' ? { hp: POWERED.hp } : null;
+  if (extra) for (const s of order) if (!ENEMIES[s.kind].boss) s.mods = { ...s.mods, ...extra, hp: (s.mods?.hp ?? 0) + (extra.hp ?? 0) };
   return order;
+}
+
+/** ¿Trae algún poder? (Lo que agrega el modificador de la oleada, el tamaño y la vida, no cuenta.) */
+export function hasPower(mods: EnemyMods | undefined): boolean {
+  if (!mods) return false;
+  return Object.keys(mods).some((k) => k !== 'giant' && k !== 'hp' && k !== 'size');
 }
 
 export type DirectorEvent =
