@@ -66,8 +66,8 @@ describe('habilidades', () => {
     for (const element of ['ice', 'fire', 'lightning', 'wind', 'silence'] as const) expect(effectOnly(element), element).toBe(true);
     expect(effectOnly('ghost')).toBe(false);
     expect(effectOnly(null)).toBe(false);
-    expect(ABILITIES['driver-fire'].hint).toContain('no pega');
-    expect(ABILITIES['driver-ghost'].hint).toContain('cargado al nivel');
+    expect(ABILITIES['wedge-wind'].hint).toBe('Un disparo de wedge instantáneo que atrae a los enemigos');
+    expect(ABILITIES['iron-ghost'].hint).toContain('fantasma');
   });
 
   it('la zona de hielo frena y al salir se va enseguida', () => {

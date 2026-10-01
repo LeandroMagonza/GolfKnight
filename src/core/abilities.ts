@@ -165,51 +165,51 @@ export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> =
 const BASE: Ability[] = [
   {
     id: 'ice', kind: 'iceZone', name: 'Hielo', title: 'zona fría', cooldown: 10, range: 55, color: 0x7fd4ff,
-    hint: 'Un globo que cae donde apuntás y deja el piso helado unos segundos: el que está adentro, o entra después, camina lento',
+    hint: 'Hiela el piso donde apuntás: los que lo pisan caminan lento',
   },
   {
     id: 'cart', kind: 'cart', name: 'Carrito', title: 'atropella', cooldown: 14, range: 60, color: 0xe9e2cf,
-    hint: 'Un carrito de golf cruza el campo de costado a costado, a la altura que apuntás, y atropella a todos los que encuentra',
+    hint: 'Un carrito de golf cruza el campo a la altura que apuntás y atropella a todos',
   },
   {
     id: 'hole', kind: 'hole', name: 'Hoyo', title: 'se lo traga', cooldown: 20, range: 55, color: 0x9aa4b2,
-    hint: 'Abre un hoyo donde apuntás: el primero que lo pisa cae entero y no vuelve, tenga los poderes que tenga. Al jefe y a los élites no se los traga',
+    hint: 'Abre un hoyo: el primero que lo pisa cae y no vuelve. Menos el jefe y los élites',
   },
   {
     id: 'flag', kind: 'flag', name: 'Bandera', title: 'los desvía', cooldown: 15, range: 55, color: 0xd8413a,
-    hint: 'Planta una bandera donde apuntás: los que están cerca se olvidan de la puerta y van hacia ella un rato',
+    hint: 'Planta una bandera: los que están cerca van hacia ella un rato',
   },
   {
     id: 'powder', kind: 'powder', name: 'Pólvora', title: 'en cadena', cooldown: 10, range: 50, color: 0xb0413e,
-    hint: 'Marca a los que agarra donde cae. El marcado que muere explota y le pega a los de al lado, y si esos también estaban marcados, siguen explotando',
+    hint: 'Marca a los enemigos donde cae: el marcado que muere explota y le pega a los de al lado',
   },
   {
     id: 'rain', kind: 'rain', name: 'Lluvia de pelotas', title: 'todos los puestos', cooldown: 40, range: 0, color: 0xfff1b8,
-    hint: 'Los guardias llenan todos los puestos de una. No tiran más hasta que gastes las de sobra',
+    hint: 'Los guardias llenan de pelotas todos los puestos',
   },
   {
     id: 'caddie', kind: 'caddie', name: 'Caddie dorado', title: 'pelota infinita', cooldown: 35, range: 0, color: 0xffd66b,
-    hint: 'Durante unos segundos tu puesto nunca se queda sin pelota: apenas pegás, el caddie te deja otra, dorada',
+    hint: 'Unos segundos de pelota infinita en tu puesto',
   },
   {
     id: 'lens', kind: 'lens', name: 'Lupa', title: 'los agranda', cooldown: 12, range: 50, color: 0xa8e063,
-    hint: 'Los que agarra crecen un rato: son más fáciles de pegar y reciben 1 de daño extra por golpe. Al fantasma agrandado le entran hasta 2 por golpe, en vez de 1',
+    hint: 'Agranda a los enemigos un rato: son más fáciles de pegar y reciben 1 de daño extra',
   },
   {
     id: 'clone', kind: 'clone', name: 'Clon', title: 'dos tiros', cooldown: 15, range: 0, color: 0xc9b8ff,
-    hint: 'Deja una copia tuya donde estás. Tu próximo tiro sale también desde ahí, hacia el mismo lado',
+    hint: 'Deja una copia tuya donde estás: tu próximo tiro sale también desde ahí',
   },
   {
     id: 'shove', kind: 'melee', name: 'Palazo', title: 'empujón', cooldown: 12, range: 0, color: 0xfff1b8,
-    hint: 'Un palazo a lo que tengas encima: no hace daño, pero los manda lejos hacia atrás y les corta el ataque',
+    hint: 'Manda lejos a los enemigos que tenés encima',
   },
   {
     id: 'echo', kind: 'echo', name: 'Eco', title: 'el tiro, otra vez', cooldown: 12, range: 0, color: 0x7ff0e0,
-    hint: 'Tu próximo tiro sale otra vez, con la misma carga, un instante después; con más nivel, más veces. Se pierde si cancelás el tiro o cambiás de palo',
+    hint: 'Tu próximo tiro se repite, una vez por nivel',
   },
   {
     id: 'boost', kind: 'boost', name: 'Potencia', title: 'el próximo pega más', cooldown: 8, range: 0, color: 0xff9a3c,
-    hint: 'Tu próximo tiro le pega más a cada uno que alcanza. Se pierde si cancelás el tiro o cambiás de palo',
+    hint: 'Tu próximo tiro pega 1 más por nivel',
   },
 ];
 
@@ -217,47 +217,49 @@ const CLUB_LABEL: Record<ClubId, string> = { driver: 'Driver', iron: 'Hierro', w
 const CLUB_COOLDOWN: Record<ClubId, number> = { driver: 7, iron: 7, wedge: 8, putter: 6 };
 const CLUB_RANGE: Record<ClubId, number> = { driver: 55, iron: 55, wedge: 55, putter: 20 };
 export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: number; hint: string }> = {
-  ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: `enfría a cada uno que toca, y desde el nivel ${ELEMENTS.iceFreezeFrom} lo congela` },
-  fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a cada uno que toca, que va perdiendo vida: al fuego el blindaje no le resta' },
-  lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'a cada uno que toca le cae un rayo, que sale para los dos lados y salta de enemigo en enemigo sin repetir, sacándole 1 a cada uno' },
-  wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los que agarra' },
+  ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: `enfría a los enemigos. A nivel ${ELEMENTS.iceFreezeFrom}, los congela` },
+  fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a los enemigos' },
+  lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'electrocuta a los enemigos, y el rayo salta a los de al lado' },
+  wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los enemigos' },
   ghost: {
     name: 'Fantasma', adj: 'fantasma', color: 0xd8e6ff,
-    hint: `pasa escudos, blindaje y la burbuja divina: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma`,
+    hint: 'atraviesa escudos y blindaje',
   },
   silence: {
     name: 'Silencio', adj: 'silenciador', color: 0xff6b4a,
-    hint: 'silencia a cada uno que toca: se le apagan todos los poderes un rato (al élite, la mitad), para que lo que venga después le entre',
+    hint: 'apaga los poderes de los enemigos un rato',
   },
 };
 export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning', 'wind', 'ghost', 'silence'];
 
 /** El viento hace algo distinto con cada palo. Con el putter no tiene sentido: no hay. */
 const WIND_HINT: Partial<Record<ClubId, string>> = {
-  driver: 'el viento va detrás de la pelota y junta sobre la línea del tiro a los que pasa, para el próximo',
-  iron: 'donde revienta, una ráfaga manda para atrás a los que están alrededor',
-  wedge: 'donde cae, un remolino chupa hacia el centro a los de alrededor: quedan amontonados',
+  driver: 'junta a los enemigos sobre la línea del tiro',
+  iron: 'empuja a los enemigos para atrás',
+  wedge: 'atrae a los enemigos',
 };
 
 /** Lo que cambia de un elemento según el palo. El fantasma del driver, además, atraviesa lomas. */
 const CLUB_HINT: Partial<Record<Element, Partial<Record<ClubId, string>>>> = {
   wind: WIND_HINT,
-  ghost: { driver: `atraviesa escudos, blindaje, la burbuja divina y las lomas: le entra entero a cualquiera. Desde el nivel ${ELEMENTS.ghostFullFrom}, también al enemigo fantasma` },
+  ghost: { driver: 'atraviesa escudos, blindaje y lomas' },
 };
 
 /**
  * Las de palo y elemento: los cuatro palos con hielo, fuego, rayo, fantasma y silencio, y tres con
  * viento. Las de efecto no pegan (el efecto sale si la pelota toca); el fantasma es un golpe cargado al
  * nivel de la habilidad.
+ *
+ * Las descripciones son cortas a propósito (1/10): dicen qué hace, no cada cosa con la que choca. Que el
+ * escudo para el efecto o que el fuego pasa el blindaje se aprende jugando.
  */
 const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).flatMap((club) => ELEMENT_ORDER
   .filter((element) => element !== 'wind' || WIND_HINT[club])
   .map((element): Ability => ({
     id: `${club}-${element}`, kind: 'shot', club, element,
     name: `${CLUB_LABEL[club]} ${ELEMENT_INFO[element].adj}`, title: ELEMENT_INFO[element].name.toLowerCase(),
-    hint: effectOnly(element)
-      ? `Una pelota de ${CLUB_LABEL[club].toLowerCase()} al instante, que no pega: ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}. Si el escudo la para o la burbuja divina se la come, no hace nada`
-      : `Un tiro de ${CLUB_LABEL[club].toLowerCase()} al instante, con pelota gratis y cargado al nivel de la habilidad, que además ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
+    hint: `Un disparo de ${CLUB_LABEL[club].toLowerCase()} instantáneo que ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`
+      + (element === 'ghost' ? `. A nivel ${ELEMENTS.ghostFullFrom}, también le pega entero al fantasma` : ''),
     cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
   })));
 

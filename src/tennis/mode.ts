@@ -23,14 +23,14 @@ export function applyTennis(): void {
     if (a.club === 'iron' || a.club === 'putter' || a.id === 'boomerang') ABILITY_LIST.splice(i, 1);
     else if (a.club === 'driver') {
       a.name = a.name.replace('Driver', 'Plano');
-      a.hint = a.hint.replace('Un tiro de driver', 'Un plano');
+      a.hint = a.hint.replace('Un disparo de driver', 'Un plano');
     } else if (a.club === 'wedge') {
       a.name = a.name.replace('Wedge', 'Globo');
-      a.hint = a.hint.replace('Un tiro de wedge', 'Un globo');
+      a.hint = a.hint.replace('Un disparo de wedge', 'Un globo');
     }
   }
   Object.assign(ABILITIES.rain, { title: 'el bolsillo', hint: `Los alcanzapelotas te tiran ${POCKET_RAIN} pelotas al bolsillo` });
-  Object.assign(ABILITIES.caddie, { title: 'pelota infinita', hint: 'Durante unos segundos el bolsillo nunca se vacía: apenas sacás, el caddie te da otra, dorada' });
+  Object.assign(ABILITIES.caddie, { title: 'pelota infinita', hint: 'Unos segundos de pelota infinita en el bolsillo' });
 }
 
 /** Cuántas pelotas trae la lluvia de pelotas en el tenis. */

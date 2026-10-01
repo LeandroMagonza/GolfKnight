@@ -82,21 +82,21 @@ export const PERK_NUMBERS = {
 };
 
 export const PERKS: Record<PerkId, Perk> = {
-  quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'Llegás al golpe 3 un 15 % antes, con todos los palos. La ventana del perfecto dura lo mismo' },
-  sweetSpot: { id: 'sweetSpot', name: 'Punto dulce', title: 'perfecto más largo', max: 2, color: 0xff6b6b, hint: 'El golpe perfecto dura un 35 % más: abre en el mismo momento y la barra tarda más en rebotar' },
-  evenSwing: { id: 'evenSwing', name: 'Swing parejo', title: 'tramos iguales', max: 3, color: 0xffa3d1, hint: 'Cada nivel acerca un tercio los tiempos de la barra a partes iguales: el débil se acorta y el medio y el fuerte se alargan. Al tercero, los tres duran lo mismo. Las otras mejoras de la barra van encima' },
-  rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada tiro seguido sin errar te hace llegar al golpe 3 un 10 % antes, hasta tres, y ahí se queda. Un tiro que no le pega a nadie corta la racha' },
-  hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Después de 4 tiros seguidos sin errar, los golpes de palo que pegan 1 pasan a pegar 2, hasta que errás. Las habilidades no cuentan' },
-  masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada tiro que mata a dos suma 1, a tres suma 2, y así. Cada 5, la puerta +1. No se corta: se va juntando. Las habilidades no cuentan' },
-  smithStreak: { id: 'smithStreak', name: 'El herrero', title: 'dobletes que forjan', max: 1, color: 0x9fb4c8, hint: 'Cada tiro que mata a dos suma 1, a tres suma 2, y así. Cada 5, tu próxima pelota pega 1 más, aunque canceles, cambies de palo o pifies. No se corta: se va juntando. Las habilidades no cuentan' },
-  medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al empezar cada oleada, la puerta +1 y vos +1, por cada vez que lo tomaste' },
-  giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'cada 8 bajas', max: 1, color: 0xff2d3c, hint: 'Cada 8 bajas, el próximo tiro arranca ya clavado en el golpe perfecto: soltás cuando quieras' },
-  quiver: { id: 'quiver', name: 'Carcaj', title: 'pelota a mano', max: 1, color: 0xfff1b8, hint: 'Si vas a pegar donde no hay pelota, te aparece una a los pies. Una cada 12 segundos' },
-  extraBall: { id: 'extraBall', name: 'Pelota extra', title: 'una más en juego', max: 2, color: 0xfff1b8, hint: 'Los guardias mantienen una pelota más esperando en los puestos' },
-  secondWind: { id: 'secondWind', name: 'Segundo aire', title: 'otra vez', max: 1, color: 0x8fe3b0, hint: 'Si apretás una habilidad que está recargando, sale igual: la que se gasta es esta, que recarga 30 segundos' },
-  masteryIce: { id: 'masteryIce', name: 'Maestría del hielo', title: 'congela', max: 1, color: ELEMENT_INFO.ice.color, needs: 'ice', hint: 'Al que ya está frío, un segundo hielo lo congela en el lugar. Y el golpe que rompe el hielo pega el doble' },
-  masteryFire: { id: 'masteryFire', name: 'Maestría del fuego', title: 'contagia', max: 1, color: ELEMENT_INFO.fire.color, needs: 'fire', hint: 'El que muere prendido fuego contagia a los que tiene al lado' },
-  masteryLightning: { id: 'masteryLightning', name: 'Maestría del rayo', title: 'salta más', max: 1, color: ELEMENT_INFO.lightning.color, needs: 'lightning', hint: 'El rayo salta una vez más, y cada salto pega el doble' },
+  quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'Cargás un 15 % más rápido' },
+  sweetSpot: { id: 'sweetSpot', name: 'Punto dulce', title: 'perfecto más largo', max: 2, color: 0xff6b6b, hint: 'El golpe perfecto dura un 35 % más' },
+  evenSwing: { id: 'evenSwing', name: 'Swing parejo', title: 'tramos iguales', max: 3, color: 0xffa3d1, hint: 'Los tramos de la barra se emparejan: a nivel 3 duran lo mismo' },
+  rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada acierto seguido te hace cargar un 10 % más rápido, hasta 3 veces' },
+  hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Con 4 aciertos seguidos, los golpes que pegan 1 pasan a pegar 2' },
+  masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada baja de más en un mismo tiro suma 1. Cada 5, la puerta +1' },
+  smithStreak: { id: 'smithStreak', name: 'El herrero', title: 'dobletes que forjan', max: 1, color: 0x9fb4c8, hint: 'Cada baja de más en un mismo tiro suma 1. Cada 5, tu próxima pelota pega 1 más' },
+  medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al empezar cada oleada, la puerta +1 y vos +1' },
+  giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'cada 8 bajas', max: 1, color: 0xff2d3c, hint: 'Cada 8 bajas, el próximo tiro arranca en el golpe perfecto' },
+  quiver: { id: 'quiver', name: 'Carcaj', title: 'pelota a mano', max: 1, color: 0xfff1b8, hint: 'Si vas a pegar sin pelota, te aparece una. Cada 12 segundos' },
+  extraBall: { id: 'extraBall', name: 'Pelota extra', title: 'una más en juego', max: 2, color: 0xfff1b8, hint: 'Una pelota más esperando en los puestos' },
+  secondWind: { id: 'secondWind', name: 'Segundo aire', title: 'otra vez', max: 1, color: 0x8fe3b0, hint: 'Usás una habilidad aunque esté recargando. Cada 30 segundos' },
+  masteryIce: { id: 'masteryIce', name: 'Maestría del hielo', title: 'congela', max: 1, color: ELEMENT_INFO.ice.color, needs: 'ice', hint: 'El hielo congela a los que ya estaban fríos. Romper el hielo pega el doble' },
+  masteryFire: { id: 'masteryFire', name: 'Maestría del fuego', title: 'contagia', max: 1, color: ELEMENT_INFO.fire.color, needs: 'fire', hint: 'El que muere prendido fuego contagia a los de al lado' },
+  masteryLightning: { id: 'masteryLightning', name: 'Maestría del rayo', title: 'salta más', max: 1, color: ELEMENT_INFO.lightning.color, needs: 'lightning', hint: 'El rayo salta una vez más y pega el doble' },
 };
 export const PERK_LIST = Object.keys(PERKS) as PerkId[];
 
