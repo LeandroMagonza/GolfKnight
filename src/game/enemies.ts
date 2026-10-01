@@ -1611,8 +1611,11 @@ export class Horde {
   /** Lo que sacó de verdad el último golpe (después de blindaje, escudo y etéreo). */
   lastDealt = 0;
 
-  /** El tiro de palo que está pegando ahora: lo marca `Balls` mientras reparte su daño. */
-  shot: { club: ClubId; quality: number; ability: boolean } | null = null;
+  /**
+   * El tiro de palo que está pegando ahora: lo marca `Balls` mientras reparte su daño. `kills` cuenta los
+   * que mueren mientras tanto, también los de una cadena (la pólvora que explota al morir).
+   */
+  shot: { club: ClubId; quality: number; ability: boolean; kills: number } | null = null;
 
   /**
    * El tutorial: decide si este golpe puede matar a este enemigo. Si no, el golpe lo deja con 1 de vida
@@ -1669,13 +1672,14 @@ export class Horde {
     const hadPowder = enemy.powderTimer > 0;
     const wasBurning = enemy.burning;
     // el pelotazo empuja y hace trastabillar según qué tan bien se le pegó (ver `KNOCK`); lo demás (el
-    // carrito, el boomerang, las explosiones) empuja como siempre
+    // carrito, las explosiones) empuja como siempre
     const q = this.shot ? Math.min(KNOCK.quality.length, Math.max(1, this.shot.quality)) - 1 : -1;
     const killed = enemy.damage(dealt, knockDir, q >= 0 ? knockback * KNOCK.quality[q] : knockback, q >= 0 ? KNOCK.stun[q] : undefined);
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });
     if (killed) {
+      if (this.shot) this.shot.kills++;
       enemy.powderTimer = 0;
       enemy.burnTimer = 0;
       // la pólvora: el marcado explota al morir, y si los de al lado también están marcados, siguen

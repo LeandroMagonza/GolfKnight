@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITY_LIST, MAX_LEVEL, SLOTS } from './abilities';
-import { candidates, drawCards, needsHeal, PERKS, type Build } from './cards';
+import { ABILITIES, ABILITY_LIST, cooldownAt, MAX_LEVEL, SLOTS } from './abilities';
+import { candidates, cooldownNote, describe as describeCard, drawCards, needsHeal, PERKS, type Build } from './cards';
 
 const fresh = (over: Partial<Build> = {}): Build => ({ slots: [], perks: {}, hp: 3, hpMax: 3, gate: 10, gateMax: 10, ...over });
 
@@ -60,5 +60,15 @@ describe('cartas', () => {
   it('una mejora no sale más veces que su tope', () => {
     const pool = candidates(fresh({ perks: { quickWrist: PERKS.quickWrist.max, rhythm: 1 } }));
     expect(pool.some((c) => c.card.kind === 'perk' && (c.card.id === 'quickWrist' || c.card.id === 'rhythm'))).toBe(false);
+  });
+
+  it('la carta de habilidad dice su recarga: la de base si es nueva, y de cuánto a cuánto si sube', () => {
+    const base = ABILITIES.grenade.cooldown;
+    expect(cooldownNote('grenade', 1)).toEqual({ text: `Recarga: ${base} s`, slower: false });
+    const up = cooldownNote('grenade', 2);
+    expect(up.slower).toBe(true);
+    expect(up.text).toBe(`Recarga: ${base} s → ${+cooldownAt(ABILITIES.grenade, 2).toFixed(1)} s · más lenta`);
+    expect(describeCard({ kind: 'ability', id: 'grenade', level: 2 }).cool).toEqual(up);
+    expect(describeCard({ kind: 'perk', id: 'rhythm', level: 1 }).cool).toBeUndefined();
   });
 });

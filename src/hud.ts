@@ -86,11 +86,13 @@ export class Hud {
   onPick: ((i: number) => void) | null = null;
 
   /** Las tres cartas entre oleadas. Se elige con click o con 1, 2 y 3. */
-  showChoice(cards: { tag: string; name: string; title: string; hint: string; color: number }[], next: string): void {
+  showChoice(cards: { tag: string; name: string; title: string; hint: string; color: number; cool?: { text: string; slower: boolean } }[], next: string): void {
     const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
     (this.choiceEl.querySelector('.cards') as HTMLElement).innerHTML = cards.map((c, i) => {
       const color = '#' + c.color.toString(16).padStart(6, '0');
-      return `<div class="choice" data-i="${i}" style="--c:${color}"><kbd>${i + 1}</kbd><div class="tag">${esc(c.tag)}</div><div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div><div class="hint">${esc(c.hint)}</div></div>`;
+      // las de habilidad dicen su recarga; si subir de nivel la alarga, en otro color
+      const cool = c.cool ? `<div class="cool${c.cool.slower ? ' slower' : ''}">⟳ ${esc(c.cool.text)}</div>` : '';
+      return `<div class="choice" data-i="${i}" style="--c:${color}"><kbd>${i + 1}</kbd><div class="tag">${esc(c.tag)}</div><div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div><div class="hint">${esc(c.hint)}</div>${cool}</div>`;
     }).join('');
     (this.choiceEl.querySelector('.next') as HTMLElement).textContent = next ? `Próxima oleada: ${next}` : '';
     this.choiceEl.hidden = false;
@@ -197,9 +199,9 @@ export class Hud {
   private shownState = '';
   private readonly shownCd = new Map<string, string>();
 
-  /** Qué palos están habilitados, y cuál está volando como boomerang. */
-  setClubState(unlocked: ReadonlySet<ClubId>, thrown: ClubId | null = null): void {
-    const key = [...unlocked].join() + `|${thrown ?? ''}`;
+  /** Qué palos están habilitados. */
+  setClubState(unlocked: ReadonlySet<ClubId>): void {
+    const key = [...unlocked].join();
     if (key === this.shownState) return;
     const first = this.shownState === '';
     this.shownState = key;
@@ -212,8 +214,6 @@ export class Hud {
         setTimeout(() => el.classList.remove('appear'), 600);
       }
       el.classList.toggle('locked', !unlocked.has(id));
-      // el palo que está volando se ve apagado: no se puede elegir hasta que vuelva
-      el.classList.toggle('cooling', id === thrown);
     }
   }
 

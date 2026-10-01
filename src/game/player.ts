@@ -251,7 +251,7 @@ export class Player {
    * las manos: el pedido queda en cola y entra cuando el tiro termina.
    */
   setClub(club: Club): void {
-    if (!this.unlocked.has(club.id) || club.id === this.thrownClub) return;
+    if (!this.unlocked.has(club.id)) return;
     if (this.mode === 'charging') {
       this.pendingClub = null;
       if (club.id === this.club.id) return;
@@ -329,28 +329,6 @@ export class Player {
   /** ¿Hay un perfecto de regalo esperando, o en la mano? Para la ficha del HUD. */
   get giftReady(): boolean {
     return this.giftPerfect || this.giftInHand;
-  }
-
-  /**
-   * El palo que está volando como boomerang: mientras tanto no se puede usar. Si era el de la mano, se
-   * cambia solo al siguiente, y si estabas cargando, la carga sigue con ese.
-   */
-  thrownClub: ClubId | null = null;
-
-  /** Tira el palo de la mano como boomerang. Devuelve cuál tiró, o null si no se puede. */
-  throwClub(): ClubId | null {
-    if (this.thrownClub || this.mode === 'swinging' || this.mode === 'melee') return null;
-    const thrown = this.club.id;
-    const next = CLUB_ORDER.map((_, i) => CLUB_ORDER[(CLUB_ORDER.indexOf(thrown) + 1 + i) % CLUB_ORDER.length]).find((id) => id !== thrown && this.unlocked.has(id));
-    if (!next) return null;
-    this.setClub(CLUBS[next]);
-    this.thrownClub = thrown;
-    return thrown;
-  }
-
-  /** Volvió el boomerang: el palo se puede usar de nuevo. */
-  catchClub(): void {
-    this.thrownClub = null;
   }
 
   releaseSwing(): void {

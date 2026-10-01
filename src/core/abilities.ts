@@ -10,13 +10,14 @@
 //   viento. Es un tiro de ese palo, instantáneo, con pelota gratis y cargado al nivel de la habilidad: el
 //   driver de hielo a nivel 1 es un driver nivel 1 que además enfría a cada uno que atraviesa.
 // - **Las demás**, cada una con su mecánica propia: granada, hielo, carrito, hoyo, bandera, pólvora,
-//   boomerang, lluvia de pelotas, caddie dorado, lupa, clon, palazo, eco y potencia.
+//   lluvia de pelotas, caddie dorado, lupa, clon, palazo, eco y potencia. (El boomerang, que tiraba el
+//   palo de la mano, se fue el 1/10: no tenía mucho sentido.)
 import type { ClubId } from './clubs';
 
 export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning' | 'wind';
 export type AbilityKind =
-  | 'grenade' | 'iceZone' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'boomerang' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
+  | 'grenade' | 'iceZone' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
   | 'echo' | 'boost';
 
 export interface Ability {
@@ -109,12 +110,6 @@ export const HOLE = { swallows: [1, 2, 3], life: 15, radius: 0.9 };
 export const FLAG = { radius: [10, 12, 14], seconds: [4, 5, 6] };
 /** Pólvora: marca a los que están a `radius`; el marcado que muere explota y le saca `damage` a los de al lado. */
 export const POWDER = { radius: [3, 3.5, 4], blast: 2.5, damage: [2, 2, 3], life: 8 };
-/**
- * Boomerang: tirás **el palo que tenés en la mano**, que sale girando `reach` metros y vuelve por otro
- * lado, abierto `width` metros. Le pega a cada uno una vez de ida y una de vuelta. Mientras está en el
- * aire ese palo no se puede usar.
- */
-export const BOOMERANG = { damage: [2, 3, 4], reach: 28, width: 4, seconds: 1.8, hitRadius: 1.1 };
 /** Caddie dorado: durante `seconds`, tu puesto nunca se queda sin pelota, y las pelotas son doradas. */
 export const CADDIE = { seconds: [4, 6, 8] };
 /** Lupa: los que están a `radius` crecen `scale` veces durante `seconds`: más fáciles de pegar, y vulnerables. */
@@ -139,7 +134,7 @@ export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1,
 /** Todas las tablas de números de las habilidades, por nombre: el panel de balance las recorre. */
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
   hielo: ICE, granada: GRENADE, elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
-  bandera: FLAG, 'pólvora': POWDER, boomerang: BOOMERANG, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
+  bandera: FLAG, 'pólvora': POWDER, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
   eco: ECHO, potencia: BOOST,
 };
 
@@ -167,10 +162,6 @@ const BASE: Ability[] = [
   {
     id: 'powder', kind: 'powder', name: 'Pólvora', title: 'en cadena', cooldown: 10, range: 50, color: 0xb0413e,
     hint: 'Marca a los que agarra donde cae. El marcado que muere explota y le pega a los de al lado, y si esos también estaban marcados, siguen explotando',
-  },
-  {
-    id: 'boomerang', kind: 'boomerang', name: 'Boomerang', title: 'tu palo', cooldown: 9, range: 28, color: 0xcfd6e0,
-    hint: 'Tirás el palo que tenés en la mano: sale girando, vuelve por otro lado y le pega a cada uno de ida y de vuelta. Mientras vuela, ese palo no lo podés usar',
   },
   {
     id: 'rain', kind: 'rain', name: 'Lluvia de pelotas', title: 'todos los puestos', cooldown: 40, range: 0, color: 0xfff1b8,
@@ -242,7 +233,7 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
   grenade: 'granada', iceZone: 'hielo', cart: 'carrito', hole: 'hoyo', flag: 'bandera',
-  powder: 'pólvora', boomerang: 'boomerang', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
+  powder: 'pólvora', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
   echo: 'eco', boost: 'potencia',
 };
 

@@ -1,13 +1,13 @@
-// Las habilidades en juego. Cada una tira **su propia pelota** (o su carrito, su bandera, su palo), que
-// no tiene nada que ver con las del puesto. Acá viven las cuatro que tenés en Q, W, E y R con su nivel y
-// su recarga, y todo lo que dejan en el campo: zonas de hielo, hoyos, banderas, carritos y boomerangs.
+// Las habilidades en juego. Cada una tira **su propia pelota** (o su carrito, su bandera), que no tiene
+// nada que ver con las del puesto. Acá viven las cuatro que tenés en Q, W, E y R con su nivel y su
+// recarga, y todo lo que dejan en el campo: zonas de hielo, hoyos, banderas y carritos.
 // Los números están en core/abilities.
 //
 // Lo que tiene que ver con el golfista o con los puestos (los tiros de palo y elemento, la lluvia de
-// pelotas, el caddie, el clon y el palo que se tira) lo hace el juego, a través de `hooks`.
+// pelotas, el caddie, el clon y el palazo) lo hace el juego, a través de `hooks`.
 import * as THREE from 'three';
 import {
-  ABILITIES, BOOMERANG, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, GRENADE, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
+  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, GRENADE, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
   type AbilityId, type Element,
 } from '../core/abilities';
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
@@ -28,14 +28,8 @@ export interface AbilityHooks {
   startCaddie(seconds: number): void;
   /** Clon: tus próximos `shots` tiros salen también desde donde estás ahora. */
   placeClone(shots: number, life: number): void;
-  /** Boomerang: tira el palo de la mano. Devuelve cuál, o null si no se puede ahora. */
-  throwClub(): ClubId | null;
-  /** Volvió el boomerang. */
-  catchClub(): void;
   /** Palazo al nivel `level`. Devuelve false si no se puede ahora (en pleno swing, aturdido). */
   melee(level: number): boolean;
-  /** Una copia del modelo del palo, para que el boomerang sea el palo de verdad. */
-  clubMesh(): THREE.Object3D;
   /** Eco: el próximo tiro sale `shots` veces más. */
   armEcho(shots: number): void;
   /** Potencia: el próximo tiro pega `bonus` de más. */
@@ -91,18 +85,6 @@ interface Cart {
   mesh: THREE.Group;
 }
 
-interface Boomerang {
-  club: ClubId;
-  level: number;
-  from: THREE.Vector3;
-  dir: THREE.Vector3;
-  side: THREE.Vector3;
-  t: number;
-  out: Set<number>;
-  back: Set<number>;
-  mesh: THREE.Object3D;
-}
-
 export type AbilityEvent =
   | { type: 'cast'; id: AbilityId }
   /** Cayó el hielo: la zona quedó armada y agarró a `hits` de entrada. */
@@ -113,7 +95,7 @@ export type AbilityEvent =
   | { type: 'mark'; id: AbilityId; pos: THREE.Vector3; hits: number }
   /** El hoyo se tragó a uno. */
   | { type: 'swallow'; enemy: Enemy }
-  /** El carrito o el boomerang le pegaron a uno. */
+  /** El carrito le pegó a uno. */
   | { type: 'bump'; pos: THREE.Vector3 };
 
 export type CastResult = 'ok' | 'empty' | 'cooling' | 'blocked';
@@ -130,7 +112,6 @@ export class Abilities {
   private readonly balls: AbilityBall[] = [];
   private readonly marks: Mark[] = [];
   private readonly carts: Cart[] = [];
-  private readonly boomerangs: Boomerang[] = [];
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
@@ -210,16 +191,6 @@ export class Abilities {
       case 'hole': this.makeMark('hole', at, HOLE.radius, HOLE.life, lv(HOLE.swallows, level)); break;
       case 'flag': this.makeMark('flag', at, lv(FLAG.radius, level), lv(FLAG.seconds, level), 0); break;
       case 'cart': this.sendCart(at.z, from.x, level); break;
-      case 'boomerang': {
-        const club = this.hooks?.throwClub() ?? null;
-        if (!club) {
-          // no había palo para tirar (ya hay uno volando, o estás en pleno swing): no se gasta
-          this.cooldowns[slot] = 0;
-          return 'blocked';
-        }
-        this.throwBoomerang(club, level, from, dir);
-        break;
-      }
       case 'shot': this.hooks?.fireShot(a.club!, level, a.element!); break;
       case 'rain': this.hooks?.fillSpots(); break;
       case 'caddie': this.hooks?.startCaddie(lv(CADDIE.seconds, level)); break;
@@ -391,21 +362,12 @@ export class Abilities {
     this.carts.push({ x, z, dir, level, hit: new Set(), mesh });
   }
 
-  private throwBoomerang(club: ClubId, level: number, from: THREE.Vector3, dir: THREE.Vector3): void {
-    const mesh = this.hooks?.clubMesh() ?? new THREE.Mesh(new THREE.BoxGeometry(0.08, 1, 0.08), new THREE.MeshStandardMaterial({ color: 0xcfd6e0 }));
-    this.scene.add(mesh);
-    const d = new THREE.Vector3(dir.x, 0, dir.z).normalize();
-    this.boomerangs.push({ club, level, from: from.clone(), dir: d, side: new THREE.Vector3(-d.z, 0, d.x), t: 0, out: new Set(), back: new Set(), mesh });
-  }
-
-
   update(dt: number): void {
     for (let i = 0; i < SLOTS; i++) this.cooldowns[i] = Math.max(0, this.cooldowns[i] - dt);
     this.secondWind.left = Math.max(0, this.secondWind.left - dt);
     this.updateBalls(dt);
     this.updateMarks(dt);
     this.updateCarts(dt);
-    this.updateBoomerangs(dt);
   }
 
   private updateBalls(dt: number): void {
@@ -497,33 +459,6 @@ export class Abilities {
       if (Math.abs(c.x) <= FIELD_HALF_WIDTH + 4) continue;
       this.scene.remove(c.mesh);
       this.carts.splice(i, 1);
-    }
-  }
-
-  private updateBoomerangs(dt: number): void {
-    for (let i = this.boomerangs.length - 1; i >= 0; i--) {
-      const b = this.boomerangs[i];
-      b.t += dt / BOOMERANG.seconds;
-      const u = Math.min(1, b.t);
-      // sale hasta `reach` y vuelve, abierto hacia un costado a la ida y hacia el otro a la vuelta
-      const forward = BOOMERANG.reach * Math.sin(Math.PI * u);
-      const lateral = BOOMERANG.width * Math.sin(2 * Math.PI * u);
-      const x = b.from.x + b.dir.x * forward + b.side.x * lateral;
-      const z = b.from.z + b.dir.z * forward + b.side.z * lateral;
-      b.mesh.position.set(x, heightAt(x, z) + 1.1, z);
-      b.mesh.rotation.set(Math.PI / 2, 0, b.t * 40);
-      const hitSet = u < 0.5 ? b.out : b.back;
-      for (const e of this.horde.enemies) {
-        if (!e.alive || e.passed || hitSet.has(e.id)) continue;
-        if (Math.hypot(e.position.x - x, e.position.z - z) > BOOMERANG.hitRadius + e.radius) continue;
-        hitSet.add(e.id);
-        this.horde.damage(e, lv(BOOMERANG.damage, b.level), new THREE.Vector3(e.position.x - x, 0, e.position.z - z).normalize(), 4);
-        this.onEvent?.({ type: 'bump', pos: e.position.clone() });
-      }
-      if (u < 1) continue;
-      this.scene.remove(b.mesh);
-      this.hooks?.catchClub();
-      this.boomerangs.splice(i, 1);
     }
   }
 

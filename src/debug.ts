@@ -318,6 +318,7 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
   rhythm: [[PERK_NUMBERS, 'rhythmStep', 'más rápido por tiro'], [PERK_NUMBERS, 'rhythmMax', 'hasta tiros']],
   hotStreak: [[PERK_NUMBERS, 'hotStreakShots', 'tiros sin errar'], [PERK_NUMBERS, 'hotStreakAdd', 'daño de más'], [PERK_NUMBERS, 'hotStreakCap', 'sin pasar de']],
   masonStreak: [[PERK_NUMBERS, 'masonStreak', 'bajas de más para curar']],
+  smithStreak: [[PERK_NUMBERS, 'smithStreak', 'bajas de más para forjar'], [PERK_NUMBERS, 'smithBonus', 'la próxima pega +']],
   giftPerfect: [[PERK_NUMBERS, 'giftPerfect', 'cada bajas']],
   quiver: [[PERK_NUMBERS, 'quiverCooldown', 'una cada s']],
   secondWind: [[PERK_NUMBERS, 'secondWindCooldown', 'recarga s']],

@@ -1561,6 +1561,19 @@ tercero suma otra vez. También cuentan las bajas del área (antes solo las de i
 tiro que mata a varios se canta siempre («¡Doblete!», «¡Triplete!», «¡Cuádruple!», «¡N de un
 tiro!»), y con el albañil se suma el avance («Albañil 3/5») o el «¡Los albañiles! La puerta +1».
 
+1/10, segunda tanda (pedidos de Leandro):
+- **Sonido de baja**: cada baja suena con una campanita, y cada baja más del mismo tiro suena más aguda
+  (arpegio de sol mayor: sol, si, re, sol...). Las notas siguen sonando, así que un triplete arma el
+  acorde. Las que caen en el mismo instante (un área) salen rasgueadas a 60 ms, para que se oiga cada
+  una (`KILL_STRUM` en `audio.ts`; con 0 sonarían juntas). La horda cuenta las bajas del tiro que está
+  pegando (`Horde.shot.kills`), así que también suman las de la cadena de pólvora.
+- **El herrero** (mejora nueva): cuenta igual que el albañil, y cada 5 la próxima pelota de palo pega
+  +1. No se pierde al cancelar, cambiar de palo ni pifiar (a diferencia de la Potencia); si se juntan
+  dos antes de pegar, se suman. El eco y el clon repiten el tiro con el +1 incluido.
+- **Se fue el Boomerang**: a Leandro no le cerraba como estaba.
+- **La carta de habilidad dice su recarga**: la de base si es nueva, y «9 s → 11.7 s · más lenta» si
+  sube de nivel (hoy subir siempre la alarga un 30 % de la base por nivel).
+
 ### Botiquín
 
 Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación

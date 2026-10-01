@@ -201,10 +201,19 @@ export class Balls {
     this.onEvent?.({ type: 'connected', ability: ball.ability });
   }
 
-  /** Suma una baja a la pelota y lo avisa en el acto. */
-  private countKill(ball: Ball): void {
-    ball.kills++;
-    this.onEvent?.({ type: 'kill', kills: ball.kills, ability: ball.ability });
+  /** Le avisa a la horda qué tiro está pegando, para que cuente las bajas que hace (ver `Horde.shot`). */
+  private markShot(ball: Ball): NonNullable<Horde['shot']> {
+    const shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability, kills: 0 };
+    this.horde.shot = shot;
+    return shot;
+  }
+
+  /** Suma las bajas a la pelota y las avisa de a una, en el acto. */
+  private countKills(ball: Ball, n: number): void {
+    for (let i = 0; i < n; i++) {
+      ball.kills++;
+      this.onEvent?.({ type: 'kill', kills: ball.kills, ability: ball.ability });
+    }
   }
 
   /** A qué distancia del golfista pegó: es lo que decide cuánto hace el palo. */
@@ -224,17 +233,12 @@ export class Balls {
     // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie. Al que esta
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
-    this.horde.shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability };
-    // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
-    let killed = 0;
-    const onHit = (e: Enemy) => {
-      if (!e.alive) killed++;
-      this.applyElement(ball, e);
-    };
-    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, onHit, (e) => this.burnBlocked(ball, e));
+    const shot = this.markShot(ball);
+    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e), (e) => this.burnBlocked(ball, e));
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
-    for (let i = 0; i < killed; i++) this.countKill(ball);
+    // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
+    this.countKills(ball, shot.kills);
     if (ball.element === 'wind') this.windBurst(ball, pos);
     ball.hits += hits;
     this.checkConnected(ball);
@@ -254,7 +258,7 @@ export class Balls {
     this.effects.spark(pos, ball.club.color);
     const dir = push ?? new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
     const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
-    this.horde.shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability };
+    const shot = this.markShot(ball);
     const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
     this.horde.shot = null;
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
@@ -262,7 +266,7 @@ export class Balls {
     if (landed) ball.hits++;
     this.checkConnected(ball);
     if (landed) this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
-    if (killed) this.countKill(ball);
+    this.countKills(ball, shot.kills);
     if (landed) this.applyElement(ball, enemy);
     if (finish) ball.done = true;
     return landed;

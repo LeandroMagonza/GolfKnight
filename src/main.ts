@@ -370,8 +370,8 @@ function updatePreview(): void {
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
   // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
-  // la potencia armada suma a lo que pega (menos a la pifia, que no sale)
-  const plus = (n: number) => (n > 0 ? n + nextShot.bonus : n);
+  // la potencia y el herrero suman a lo que pega (menos a la pifia, que no sale)
+  const plus = (n: number) => (n > 0 ? n + nextShot.bonus + smithBonus : n);
   const damage = plus(damageFor(club, hitAt, quality));
   const areaHit = plus(areaDamageFor(club, hitAt, quality));
   const echo = nextShot.echoes ? ` · eco ×${nextShot.echoes}` : '';
@@ -482,6 +482,9 @@ horde.onEvent = (e) => {
       const text = `${e.crit ? '✸ ' : ''}${e.amount}${e.killed ? ' ☠' : ''}`;
       if (!e.swallowed) hud.float(s.x, s.y, text, e.killed || e.crit ? 'kill' : '');
       if (e.killed) {
+        // la de un tiro de palo suena desde las pelotas (evento 'kill'), que saben cuántas lleva ese
+        // tiro; las demás (fuego, carrito, hoyo...) suenan acá, con la primera nota
+        if (!horde.shot) audio.kill(1);
         kills++;
         score += e.enemy.stats.score;
         // perfecto de regalo: cada tantas bajas, el próximo tiro arranca clavado
@@ -672,23 +675,17 @@ balls.onEvent = (e) => {
       setCleanStreak(cleanStreak + 1);
       break;
     case 'kill': {
+      // cada baja suena, y cada una más del mismo tiro, más aguda: se arma el acorde
+      audio.kill(e.kills);
       // el doblete se canta (y suma) en el acto, cuando cae el segundo; el tercero suma otra vez
       if (e.ability || e.kills < 2) break;
       const name = MULTI_KILL[e.kills] ?? `¡${e.kills} de un tiro!`;
-      // el albañil: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio; matar a
-      // varios de un tiro es lo que se le pide
-      if (!perks.masonStreak) {
-        hud.feedback(name, 'good');
-        break;
-      }
-      masonPoints++;
-      const every = PERK_NUMBERS.masonStreak;
-      if (masonPoints % every === 0 && gateHp < GATE_MAX) {
-        gateHp = Math.min(GATE_MAX, gateHp + 1);
-        hud.feedback(`${name} ¡Los albañiles! La puerta +1`, 'good');
-      } else {
-        hud.feedback(`${name} Albañil ${masonPoints % every || every}/${every}`, 'good');
-      }
+      // el albañil y el herrero: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio;
+      // matar a varios de un tiro es lo que se les pide
+      const progress: string[] = [];
+      if (perks.masonStreak) progress.push(masonStep());
+      if (perks.smithStreak) progress.push(smithStep());
+      hud.feedback(progress.length ? `${name} ${progress.join(' · ')}` : name, 'good');
       break;
     }
     case 'settled':
@@ -779,6 +776,31 @@ const perks: Partial<Record<PerkId, number>> = {};
 let choice: Card[] | null = null;
 /** El albañil: las bajas de más de cada tiro, juntadas (un doblete suma 1, un triplete 2). */
 let masonPoints = 0;
+/** El herrero: lo mismo, por su lado, y el daño de más que espera a la próxima pelota de palo. */
+let smithPoints = 0;
+let smithBonus = 0;
+
+/** Una baja de más para el albañil: cada tantas, la puerta +1. Devuelve qué decir. */
+function masonStep(): string {
+  const every = PERK_NUMBERS.masonStreak;
+  masonPoints++;
+  if (masonPoints % every === 0 && gateHp < GATE_MAX) {
+    gateHp = Math.min(GATE_MAX, gateHp + 1);
+    return '¡Los albañiles! La puerta +1';
+  }
+  return `Albañil ${masonPoints % every || every}/${every}`;
+}
+
+/** Una baja de más para el herrero: cada tantas, la próxima pelota pega más. Devuelve qué decir. */
+function smithStep(): string {
+  const every = PERK_NUMBERS.smithStreak;
+  smithPoints++;
+  if (smithPoints % every === 0) {
+    smithBonus += PERK_NUMBERS.smithBonus;
+    return `¡El herrero! Próxima pelota +${smithBonus}`;
+  }
+  return `Herrero ${smithPoints % every}/${every}`;
+}
 /** Cómo se canta un tiro que mata a varios; de 5 para arriba, «¡N de un tiro!». */
 const MULTI_KILL: Record<number, string> = { 2: '¡Doblete!', 3: '¡Triplete!', 4: '¡Cuádruple!' };
 /**
@@ -994,6 +1016,12 @@ function perkStatus(): PerkChip[] {
       case 'masonStreak':
         chip.status = `dobletes ${masonPoints % PERK_NUMBERS.masonStreak}/${PERK_NUMBERS.masonStreak}`;
         break;
+      case 'smithStreak': {
+        const count = `dobletes ${smithPoints % PERK_NUMBERS.smithStreak}/${PERK_NUMBERS.smithStreak}`;
+        chip.ready = smithBonus > 0;
+        chip.status = chip.ready ? `¡próxima +${smithBonus}! · ${count}` : count;
+        break;
+      }
       case 'medkit':
         chip.status = `+${n * PERK_NUMBERS.medkitGate} puerta · +${n * PERK_NUMBERS.medkitPlayer} vida`;
         break;
@@ -1065,17 +1093,6 @@ function removeClone(): void {
   clone = null;
 }
 
-/** Un palo simple para el boomerang: vara y cabeza, que gira. */
-function boomerangClub(): THREE.Object3D {
-  const g = new THREE.Group();
-  const metal = new THREE.MeshStandardMaterial({ color: 0xcfd6e0, metalness: 0.6, roughness: 0.3 });
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), metal);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.08), metal);
-  head.position.set(0.08, -0.55, 0);
-  g.add(shaft, head);
-  return g;
-}
-
 abilities.hooks = {
   fireShot(clubId: ClubId, quality: number, element: Element) {
     const club = CLUBS[clubId];
@@ -1103,9 +1120,6 @@ abilities.hooks = {
     meleeLevel = level;
     return player.startMelee();
   },
-  throwClub: () => player.throwClub(),
-  catchClub: () => player.catchClub(),
-  clubMesh: boomerangClub,
   armEcho(shots: number) {
     nextShot.echoes = Math.max(nextShot.echoes, shots);
     hud.feedback(shots > 1 ? `Eco ×${shots}` : 'Eco', 'good');
@@ -1438,8 +1452,11 @@ async function makePlayer(skin: Skin): Promise<Player> {
     audio.tock(shot.quality >= QUALITY_LEVELS);
     if (shot.quality >= QUALITY_LEVELS) hud.feedback('¡Golpe perfecto!', 'good');
     const range = shotRange(shot.club);
-    // la potencia va en este tiro, y el eco lo repite igual (con la potencia incluida)
-    if (nextShot.bonus) shot = { ...shot, bonus: nextShot.bonus };
+    // la potencia y el herrero van en este tiro, y el eco lo repite igual (con eso incluido). El herrero
+    // se gasta recién acá, cuando sale la pelota: cancelar, cambiar de palo o pifiar no lo tocan
+    const bonus = nextShot.bonus + smithBonus;
+    if (bonus) shot = { ...shot, bonus };
+    smithBonus = 0;
     // tenis: si le pegó a una que venía de vuelta, esa ya está en la raqueta y sale como un saque, desde
     // tu lugar y por donde marca la línea de tiro
     const back = t?.back ?? null;
@@ -1516,7 +1533,6 @@ async function cycleSkin(delta = 1): Promise<void> {
     for (const id of player.unlocked) fresh.unlocked.add(id);
     fresh.timing = player.timing;
     fresh.giftPerfect = player.giftPerfect;
-    fresh.thrownClub = player.thrownClub;
     fresh.onGift = player.onGift;
     fresh.setClub(player.club);
     fresh.aimDir.copy(player.aimDir);
@@ -1781,7 +1797,7 @@ function frame(): void {
 
     hud.setClub(player.club, player.pendingClub);
     hud.setAbilities(abilities.slots, abilities.cooldowns, abilities.slots.map((_, i) => abilities.cooldownOf(i)));
-    hud.setClubState(player.unlocked, player.thrownClub);
+    hud.setClubState(player.unlocked);
     hud.setPerks(perkStatus());
     hud.setBars(gateHp, GATE_MAX, player.hp, player.maxHp);
     if (!tutorial) hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);

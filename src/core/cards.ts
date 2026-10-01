@@ -8,10 +8,10 @@
 // poco al terminar cada oleada. Si la partida viene mal, el que sale sí o sí es el Botiquín.
 //
 // Todo acá es lógica pura, sin Three.js, para poder probar el sorteo.
-import { ABILITIES, ABILITY_LIST, elementOf, ELEMENT_INFO, MAX_LEVEL, SLOTS, type AbilityId, type Element } from './abilities';
+import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, MAX_LEVEL, SLOTS, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
-  | 'quickWrist' | 'sweetSpot' | 'evenSwing' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
+  | 'quickWrist' | 'sweetSpot' | 'evenSwing' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'smithStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
   | 'masteryIce' | 'masteryFire' | 'masteryLightning';
 
 export interface Perk {
@@ -63,6 +63,13 @@ export const PERK_NUMBERS = {
    * Al juntar tantos, la puerta +1. No se corta: se va juntando.
    */
   masonStreak: 5,
+  /**
+   * El herrero: cuenta igual que el albañil, y al juntar `smithStreak` la próxima pelota de palo pega
+   * `smithBonus` más. No se pierde al cancelar, cambiar de palo ni pifiar: espera a que salga una pelota.
+   * Si se juntan dos antes de pegar, se suman.
+   */
+  smithStreak: 5,
+  smithBonus: 1,
   /** Botiquín: al terminar cada oleada, la puerta y vos se curan esto, por cada vez que lo tomás. */
   medkitGate: 1,
   medkitPlayer: 1,
@@ -81,6 +88,7 @@ export const PERKS: Record<PerkId, Perk> = {
   rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada tiro seguido sin errar te hace llegar al golpe 3 un 10 % antes, hasta tres, y ahí se queda. Un tiro que no le pega a nadie corta la racha' },
   hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Después de 4 tiros seguidos sin errar, los golpes de palo que pegan 1 pasan a pegar 2, hasta que errás. Las habilidades no cuentan' },
   masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada tiro que mata a dos suma 1, a tres suma 2, y así. Cada 5, la puerta +1. No se corta: se va juntando. Las habilidades no cuentan' },
+  smithStreak: { id: 'smithStreak', name: 'El herrero', title: 'dobletes que forjan', max: 1, color: 0x9fb4c8, hint: 'Cada tiro que mata a dos suma 1, a tres suma 2, y así. Cada 5, tu próxima pelota pega 1 más, aunque canceles, cambies de palo o pifies. No se corta: se va juntando. Las habilidades no cuentan' },
   medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al empezar cada oleada, la puerta +1 y vos +1, por cada vez que lo tomaste' },
   giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'cada 8 bajas', max: 1, color: 0xff2d3c, hint: 'Cada 8 bajas, el próximo tiro arranca ya clavado en el golpe perfecto: soltás cuando quieras' },
   quiver: { id: 'quiver', name: 'Carcaj', title: 'pelota a mano', max: 1, color: 0xfff1b8, hint: 'Si vas a pegar donde no hay pelota, te aparece una a los pies. Una cada 12 segundos' },
@@ -168,11 +176,25 @@ export function drawCards(build: Build, n = 3, rand: () => number = Math.random)
   return out;
 }
 
-/** Nombre, título, texto y color de una carta, para mostrarla. */
-export function describe(card: Card): { name: string; title: string; hint: string; color: number; tag: string } {
+/**
+ * La recarga de una carta de habilidad: la de base si es nueva, y si sube de nivel, de cuánto a cuánto y
+ * si se alarga o se acorta (`slower`).
+ */
+export function cooldownNote(id: AbilityId, level: number): { text: string; slower: boolean } {
+  const a = ABILITIES[id];
+  const s = (n: number) => `${+n.toFixed(1)} s`;
+  const to = cooldownAt(a, level);
+  if (level <= 1) return { text: `Recarga: ${s(to)}`, slower: false };
+  const from = cooldownAt(a, level - 1);
+  if (to === from) return { text: `Recarga: ${s(to)}, igual que ahora`, slower: false };
+  return { text: `Recarga: ${s(from)} → ${s(to)} · ${to > from ? 'más lenta' : 'más rápida'}`, slower: to > from };
+}
+
+/** Nombre, título, texto y color de una carta, para mostrarla. Las de habilidad dicen también su recarga. */
+export function describe(card: Card): { name: string; title: string; hint: string; color: number; tag: string; cool?: { text: string; slower: boolean } } {
   if (card.kind === 'ability') {
     const a = ABILITIES[card.id];
-    return { name: a.name, title: a.title, hint: a.hint, color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA' };
+    return { name: a.name, title: a.title, hint: a.hint, color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA', cool: cooldownNote(card.id, card.level) };
   }
   if (card.kind === 'perk') {
     const p = PERKS[card.id];

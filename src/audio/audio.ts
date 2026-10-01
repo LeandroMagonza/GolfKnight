@@ -4,6 +4,17 @@ import * as Tone from 'tone';
 
 const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
+/**
+ * Las notas de las bajas de un mismo tiro, una más aguda por baja: el arpegio de sol mayor, que entra en
+ * el re dórico de la música y no se confunde con el do mayor de la carga.
+ */
+const KILL_NOTES = [67, 71, 74, 79, 83, 86, 91];
+/**
+ * Las bajas que caen en el mismo instante (un área) salen separadas por esto, como un rasgueo rápido: se
+ * oye cada una y igual suenan juntas.
+ */
+const KILL_STRUM = 0.06;
+
 const MUTE_KEY = 'gk-music-muted';
 function loadMuted(): boolean {
   try {
@@ -29,6 +40,9 @@ export class GameAudio {
   private pluck!: Tone.PolySynth;
   private pad!: Tone.PolySynth;
   private chargeSynth!: Tone.Synth;
+  private killBell!: Tone.PolySynth<Tone.FMSynth>;
+  /** Cuándo sonó la última baja: la siguiente no sale antes de `KILL_STRUM` después. */
+  private killAt = 0;
   ready = false;
   /** La música silenciada con M. Se guarda en el navegador: reiniciar recarga la página y no la tiene que volver a prender. */
   muted = loadMuted();
@@ -39,7 +53,7 @@ export class GameAudio {
   constructor() {
     // Un error de audio nunca tiene que cortar el cuadro del juego: los efectos se llaman desde el
     // medio del update de pelotas y enemigos.
-    const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'] as const;
+    const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'] as const;
     for (const name of sfx) {
       const fn = (this[name] as (...args: unknown[]) => void).bind(this);
       (this as Record<string, unknown>)[name] = (...args: unknown[]) => {
@@ -97,6 +111,13 @@ export class GameAudio {
     this.pluck = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.003, decay: 0.3, sustain: 0.05, release: 0.3 }, volume: -20 }).connect(this.musicBus);
     this.pad = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.6, decay: 0.4, sustain: 0.7, release: 1.6 }, volume: -24 }).connect(this.musicBus);
     this.chargeSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.002, decay: 0.16, sustain: 0, release: 0.08 }, volume: -11 }).connect(verb);
+    // campana de FM: el «tin» lo da la modulación, que se apaga enseguida, y la nota queda sonando
+    this.killBell = new Tone.PolySynth(Tone.FMSynth, {
+      harmonicity: 2, modulationIndex: 5,
+      envelope: { attack: 0.002, decay: 0.7, sustain: 0, release: 0.6 },
+      modulationEnvelope: { attack: 0.002, decay: 0.15, sustain: 0, release: 0.1 },
+      volume: -9,
+    }).connect(verb);
     this.ready = true;
   }
 
@@ -172,6 +193,18 @@ export class GameAudio {
   thud(): void {
     if (!this.ok('thud')) return;
     this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth));
+  }
+
+  /**
+   * Una baja. `nth` es cuántas lleva el mismo tiro: la segunda suena más aguda, la tercera más, y como
+   * cada nota sigue sonando, se arma el acorde. Sin límite de ráfaga: cada baja tiene que sonar.
+   */
+  kill(nth: number): void {
+    if (!this.ready) return;
+    const i = Math.min(KILL_NOTES.length, Math.max(1, nth)) - 1;
+    const t = Math.max(Tone.now(), this.killAt + KILL_STRUM);
+    this.killAt = t;
+    this.killBell.triggerAttackRelease(midiToFreq(KILL_NOTES[i]), 0.5, t, Math.min(1, 0.65 + 0.06 * i));
   }
 
   bounce(): void {
