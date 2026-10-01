@@ -9,6 +9,8 @@
 // El tutorial: la primera vez, el botón grande lo empieza y abajo se lo puede saltear. Cuando ya se hizo
 // (o se salteó), el botón grande va directo a la partida y abajo se lo puede repetir.
 
+import { setupPatchNotes } from './patchnotes';
+
 interface Slide {
   art: string;
   html: string;
@@ -64,6 +66,7 @@ export class Intro {
     this.mode.addEventListener('click', () => onMode?.());
     const version = document.getElementById('version');
     if (version) version.textContent = `versión ${__BUILD__}`;
+    setupPatchNotes();
     this.dots.innerHTML = SLIDES.length > 1 ? SLIDES.map(() => '<span></span>').join('') : '';
     this.next.addEventListener('click', () => this.advance());
     this.alt.addEventListener('click', () => this.finish(!this.tutorialFirst));

@@ -40,8 +40,33 @@
       .fill.hp { background: linear-gradient(90deg, #5be07a, #2fb95a); }
       .bar.alert .track { box-shadow: 0 0 0 2px #ff5b5b; animation: alert 0.5s infinite alternate; }
       @keyframes alert { from { box-shadow: 0 0 0 2px rgba(255,91,91,0.2); } to { box-shadow: 0 0 0 3px rgba(255,91,91,1); } }
-      /* la versión (día y hora de la publicación), chiquita en la esquina de la pantalla de entrada */
-      #version { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: rgba(228, 233, 240, 0.45); pointer-events: none; }
+      /* la versión (día y hora de la publicación), chiquita en la esquina de la pantalla de entrada, y al
+         lado la libreta que abre las patch notes (src/patchnotes.ts) */
+      #corner { position: absolute; right: 10px; bottom: 8px; display: flex; align-items: center; gap: 8px; }
+      #version { font-size: 11px; color: rgba(228, 233, 240, 0.45); pointer-events: none; }
+      #overlay button#notesbtn { position: relative; padding: 2px; border-radius: 6px; background: transparent; line-height: 0; transition: transform 0.15s; }
+      #overlay button#notesbtn:hover, #overlay button#notesbtn:focus-visible { transform: translateY(-2px) rotate(-5deg); }
+      #notesbtn svg { width: 30px; height: 34px; display: block; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
+      #notesbtn.fresh::after { content: ''; position: absolute; top: 0; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: #ff5b5b; box-shadow: 0 0 0 2px #0b1118; }
+      /* la libreta abierta: hoja rayada con margen rojo y espiral arriba; todo va en renglones de 30 px */
+      #notes { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.62); z-index: 20; }
+      #notes[hidden] { display: none; }
+      #notes .book { position: relative; width: min(640px, 92vw); height: min(80vh, 760px); display: flex; flex-direction: column; background: #f6efdc; color: #2b2a33; border-radius: 3px 3px 8px 8px; box-shadow: 0 3px 0 -1px #e8dec3, 0 6px 0 -2px #d9cca9, 0 22px 50px rgba(0, 0, 0, 0.6); }
+      #notes .rings { position: absolute; top: -11px; left: 26px; right: 26px; display: flex; justify-content: space-between; pointer-events: none; }
+      #notes .rings i { position: relative; width: 7px; height: 22px; border: 2px solid #c3cad3; border-radius: 5px; box-sizing: border-box; box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35); }
+      #notes .rings i::after { content: ''; position: absolute; left: -1px; top: 12px; width: 5px; height: 5px; border-radius: 50%; background: #3a3226; }
+      #notes .head { padding: 26px 56px 10px 64px; font-family: 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive; font-size: 26px; line-height: 34px; color: #1f3a6b; }
+      #notes .head small { display: block; font-family: system-ui, sans-serif; font-size: 13px; line-height: 20px; color: #8a7d5c; }
+      #notes .page { flex: 1; overflow-y: auto; padding: 0 28px 30px 64px; outline: none; font-size: 15px; line-height: 30px; scrollbar-width: thin; scrollbar-color: #c9b98f transparent;
+        background-image: linear-gradient(90deg, transparent 50px, rgba(214, 84, 84, 0.55) 50px 52px, transparent 52px), repeating-linear-gradient(180deg, transparent 0 22px, rgba(74, 118, 170, 0.28) 22px 23px, transparent 23px 30px);
+        background-attachment: local; }
+      #notes .page h3 { margin: 30px 0 0; font-family: 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive; font-size: 19px; font-weight: 700; line-height: 30px; color: #1f3a6b; }
+      #notes .page h3:first-child { margin-top: 0; }
+      #notes .page h4 { margin: 0; font-size: 12px; line-height: 30px; letter-spacing: 1px; text-transform: uppercase; color: #b0413e; }
+      #notes .page ul { margin: 0; padding-left: 18px; }
+      #notes .page code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: rgba(43, 42, 51, 0.07); padding: 1px 4px; border-radius: 3px; }
+      #notes .close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; padding: 0; border-radius: 50%; background: transparent; color: #8a7d5c; font-size: 26px; font-weight: 400; line-height: 1; }
+      #notes .close:hover { color: #b0413e; background: rgba(43, 42, 51, 0.07); }
       #wave { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000; }
       #wave .n { font-size: 20px; font-weight: 700; }
       #wave .sub { font-size: 13px; color: #e4e9f0; }
@@ -243,7 +268,28 @@
       <button id="alt" type="button" class="link" hidden></button>
       <button id="mode" type="button" class="link" hidden></button>
       <button id="replaycine" type="button">Ver la intro de nuevo</button>
-      <div id="version"></div>
+      <div id="corner">
+        <button id="notesbtn" type="button" title="Patch notes" aria-label="Patch notes">
+          <svg viewBox="0 0 30 34" aria-hidden="true">
+            <rect x="4" y="6" width="24" height="27" rx="2.5" fill="#efe4c6" />
+            <rect x="3" y="5" width="23.5" height="26.5" rx="2.5" fill="#d9a24a" stroke="#7a4b12" stroke-width="1.2" />
+            <rect x="8" y="13" width="13.5" height="7.5" rx="1" fill="#f6efdc" />
+            <path d="M10 15.7h9.5M10 18h6.5" stroke="#7a4b12" stroke-width="0.9" stroke-linecap="round" />
+            <path d="M22.5 5.6v25.8" stroke="#7a4b12" stroke-width="1.4" />
+            <g fill="#3a2a12"><circle cx="7.5" cy="8" r="1" /><circle cx="12" cy="8" r="1" /><circle cx="16.5" cy="8" r="1" /><circle cx="21" cy="8" r="1" /></g>
+            <g fill="none" stroke="#dfe5ec" stroke-width="1.3"><rect x="6.3" y="1.5" width="2.4" height="7.3" rx="1.2" /><rect x="10.8" y="1.5" width="2.4" height="7.3" rx="1.2" /><rect x="15.3" y="1.5" width="2.4" height="7.3" rx="1.2" /><rect x="19.8" y="1.5" width="2.4" height="7.3" rx="1.2" /></g>
+          </svg>
+        </button>
+        <div id="version"></div>
+      </div>
+      <div id="notes" hidden>
+        <div class="book">
+          <div class="rings"></div>
+          <div class="head">Patch notes<small>lo que fue cambiando en Valdehoyo, lo más nuevo arriba</small></div>
+          <button type="button" class="close" aria-label="Cerrar">×</button>
+          <div class="page" tabindex="-1"></div>
+        </div>
+      </div>
     </div>
     <div id="hud">
       <div class="bars">
