@@ -17,8 +17,31 @@ export const TENNIS = {
   wallKeep: 0.9,
   /** La pared mágica del fondo: a cuántos metros de la línea del tenista. Devuelve todo lo que llega. */
   backWall: 50,
-  /** 1: el primer enemigo que toca la devuelve. 0: los atraviesa y la devuelve la pared del fondo (los escudos igual la rebotan). */
-  enemyBounce: 1,
+  /**
+   * Qué hace la pelota de ida con los enemigos. 1: el primero que toca la devuelve. 0: los atraviesa y
+   * la devuelve la pared del fondo (los escudos igual la rebotan). 2: al que mata lo atraviesa, y el que
+   * sobrevive la devuelve.
+   */
+  enemyBounce: 2,
+  /**
+   * Cuánto apunta la vuelta hacia vos (o hacia el centro, con `homeTo`), al rebotar en un enemigo o en la
+   * pared del fondo: 0 es el rebote puro, como en un espejo; 1, derecho a vos.
+   */
+  homing: 0.5,
+  /** Hacia dónde tira la vuelta: 0, hacia el tenista; 1, hacia el centro de la línea. */
+  homeTo: 0,
+  /**
+   * Cuántos rebotes en las paredes de los costados aguanta: al llegar a ese número la pelota salta por
+   * arte de magia a tus pies, en la línea. 0: sin límite.
+   */
+  wallLimit: 2,
+  /** 1: el globo, después de reventar, vuelve por el aire a tu línea para seguir jugando. 0: se pierde. */
+  lobBack: 1,
+  /** Cuánto tarda ese globo de vuelta, en s, y qué tan alto va, en m. */
+  lobTime: 1.6,
+  lobHeight: 7,
+  /** 1: los enemigos te pegan como en el golf. 0: te atraviesan, y solo cuenta la puerta. */
+  hurtPlayer: 0,
   /**
    * 1: cargando, apenas una pelota que vuelve entra al alcance, el golpe sale solo y se la devuelve. 0:
    * hay que soltar a tiempo. A estas velocidades la pelota cruza la ventana en menos de una décima.
@@ -59,6 +82,22 @@ export const MAX_BALL_SPEED = 150;
  * adelante se da vuelta y la de costado se mantiene; después se lleva a `speed`, sin quedar más cruzada
  * que `minBack`.
  */
+/**
+ * La vuelta con puntería: el rebote puro (`bounceOffEnemy`) torcido hacia `target` (un punto de la línea)
+ * en una fracción `homing`. Con 0 es el espejo; con 1 va derecho al punto.
+ */
+export function homeBack(vx: number, vz: number, x: number, z: number, target: { x: number; z: number }, speed: number, homing = TENNIS.homing, minBack = TENNIS.minBack): { vx: number; vz: number } {
+  const pure = bounceOffEnemy(vx, vz, 1, minBack);
+  const h = Math.min(1, Math.max(0, homing));
+  const tx = target.x - x;
+  const tz = target.z - z;
+  const tl = Math.hypot(tx, tz);
+  if (h <= 0 || tl < 1e-6 || tz >= 0) return { vx: pure.vx * speed, vz: pure.vz * speed };
+  const mx = pure.vx * (1 - h) + (tx / tl) * h;
+  const mz = pure.vz * (1 - h) + (tz / tl) * h;
+  return bounceOffEnemy(mx, mz, speed, minBack);
+}
+
 export function bounceOffEnemy(vx: number, vz: number, speed: number, minBack = TENNIS.minBack): { vx: number; vz: number } {
   let bx = vx;
   let bz = -Math.abs(vz);

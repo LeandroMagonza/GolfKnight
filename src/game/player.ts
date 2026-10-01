@@ -183,9 +183,12 @@ export class Player {
     return this.swingClips.get(SWING_CLIP[this.club.id]) ?? null;
   }
 
-  /** Invulnerable un instante al llegar de un salto. */
+  /** Los enemigos lo atraviesan: no le pegan ni lo agarran (el tenista, si así está en el panel). */
+  ghost = false;
+
+  /** Invulnerable un instante al llegar de un salto, o siempre si los enemigos lo atraviesan. */
   get invulnerable(): boolean {
-    return this.blinkTimer > 0;
+    return this.ghost || this.blinkTimer > 0;
   }
 
   get alive(): boolean {

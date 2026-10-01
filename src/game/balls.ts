@@ -14,7 +14,7 @@ import type { Traps } from './traps';
 import { heightAt, terrainOn } from '../core/terrain';
 import { FIELD_HALF_WIDTH, GATE_Z, TEE_LINE_Z } from './world';
 import { SHIELD_TOP } from '../core/shield';
-import { bounceOffEnemy, MAX_BALL_SPEED, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
+import { homeBack, MAX_BALL_SPEED, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
 
 const TRAIL_POINTS = 18;
 const MAX_STEP = 0.3;
@@ -72,6 +72,12 @@ export interface Ball {
   rally: number;
   /** Modo tenis: la que pasó de largo vuelve a la línea por el aire, como tirada por un alcanzapelotas. */
   toss?: { from: THREE.Vector3; to: THREE.Vector3; t: number };
+  /** Modo tenis: el globo que vuelve por el aire a la línea (se puede devolver al llegar). */
+  arc?: { from: THREE.Vector3; to: THREE.Vector3; t: number; time: number; height: number };
+  /** Modo tenis: la que atrapó la raqueta va hasta acá, al lado del tenista, y sale de ahí en el impacto. */
+  holdAt?: THREE.Vector3;
+  /** Modo tenis: rebotes en las paredes de los costados. */
+  walls: number;
 }
 
 export type BallEvent =
@@ -119,6 +125,11 @@ export class Balls {
    * pega. Null si no está en racha. Las habilidades nunca pasan por acá.
    */
   hotDamage: ((base: number) => number) | null = null;
+  /**
+   * Modo tenis: hacia qué punto de la línea apunta la vuelta (el tenista o el centro; ver TENNIS.homing).
+   * Null en el golf: ahí no hay pelotas que vuelvan.
+   */
+  tennisTarget: (() => { x: number; z: number }) | null = null;
   /** Tótems: en pausa (ver core/clubs). El módulo sigue vivo para poder volver a prenderlo. */
   traps: Traps | null = null;
 
@@ -161,7 +172,7 @@ export class Balls {
       element: shot.element ?? null, ability: !!shot.ability, zapped: new Set(),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
       hitIds: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
-      phase: tennis ? 'out' : null, rally: 0,
+      phase: tennis ? 'out' : null, rally: 0, walls: 0,
     };
     this.list.push(ball);
     return ball;
@@ -209,7 +220,9 @@ export class Balls {
     if (ball.element === 'wind') this.windBurst(ball, pos);
     ball.hits += hits;
     this.checkConnected(ball);
-    if (finish) ball.done = true;
+    // tenis: el globo, después de reventar, vuelve por el aire a la línea para seguir jugando
+    if (finish && this.tennisTarget && TENNIS.lobBack && !ball.ability) this.lobBack(ball, pos);
+    else if (finish) ball.done = true;
   }
 
   /**
@@ -294,8 +307,8 @@ export class Balls {
     // empuja para atrás (si no, la vuelta te los traía hacia la puerta)
     if (ball.phase === 'out') {
       this.directHit(ball, enemy, false);
-      // con los enemigos que no rebotan, los atraviesa y la devuelve la pared del fondo
-      if (TENNIS.enemyBounce) this.sendBack(ball, enemy);
+      // según `enemyBounce`: lo devuelve el primero, ninguno (la pared del fondo), o el que sobrevive
+      if (TENNIS.enemyBounce === 1 || (TENNIS.enemyBounce === 2 && enemy.alive)) this.sendBack(ball, enemy);
       return;
     }
     if (ball.phase === 'back') {
@@ -331,7 +344,8 @@ export class Balls {
    */
   private sendBack(ball: Ball, enemy: Enemy | null): void {
     const s = ball.state;
-    const v = bounceOffEnemy(s.vel.x, s.vel.z, Math.min(MAX_BALL_SPEED, TENNIS.backSpeed));
+    const target = this.tennisTarget?.() ?? { x: s.pos.x, z: TEE_LINE_Z };
+    const v = homeBack(s.vel.x, s.vel.z, s.pos.x, s.pos.z, target, Math.min(MAX_BALL_SPEED, TENNIS.backSpeed));
     s.vel.x = v.vx;
     s.vel.z = v.vz;
     // que no lo vuelva a tocar al salir, pero sí a los demás, aunque ya les haya pegado de ida
@@ -422,22 +436,32 @@ export class Balls {
     ball.done = true;
   }
 
-  /** Tenis: la atrapa la raqueta: queda quieta ahí hasta el impacto del golpe (ver main, `catchBall`). */
-  hold(ball: Ball): void {
+  /**
+   * Tenis: la atrapa la raqueta. Va hasta `at` (al lado del tenista, donde pega la raqueta) y sale de ahí
+   * en el impacto: así se ve el golpe aunque hayas soltado temprano, y el tiro sale por donde marca la
+   * línea de tiro (ver main, `catchBall`).
+   */
+  hold(ball: Ball, at: THREE.Vector3): void {
     ball.phase = 'held';
+    ball.arc = undefined;
+    ball.holdAt = at.clone();
     ball.state.vel.x = 0;
     ball.state.vel.y = 0;
     ball.state.vel.z = 0;
   }
 
-  /** Tenis: la manda por el aire a la línea del tenista, donde queda para levantarla. */
-  toLine(ball: Ball): void {
+  /**
+   * Tenis: la manda por el aire a la línea del tenista, donde queda para levantarla. Cae en su misma x,
+   * o en `x` si se pide (la que rebotó de más en las paredes cae a tus pies).
+   */
+  toLine(ball: Ball, x?: number): void {
     const s = ball.state;
     const edge = FIELD_HALF_WIDTH - 1;
     ball.phase = 'floor';
+    ball.arc = undefined;
     ball.toss = {
       from: new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z),
-      to: new THREE.Vector3(THREE.MathUtils.clamp(s.pos.x, -edge, edge), BALL_RADIUS, TEE_LINE_Z - 0.5),
+      to: new THREE.Vector3(THREE.MathUtils.clamp(x ?? s.pos.x, -edge, edge), BALL_RADIUS, TEE_LINE_Z - 0.5),
       t: 0,
     };
     s.vel.x = 0;
@@ -445,10 +469,39 @@ export class Balls {
     s.vel.z = 0;
   }
 
+  /** Tenis: el globo que reventó vuelve por el aire hasta la línea, donde se lo puede devolver. */
+  private lobBack(ball: Ball, at: THREE.Vector3): void {
+    const target = this.tennisTarget?.() ?? { x: at.x, z: TEE_LINE_Z };
+    // como cualquier vuelta: entre la x donde reventó y la del tenista, según la puntería
+    const h = Math.min(1, Math.max(0, TENNIS.homing));
+    const edge = FIELD_HALF_WIDTH - 1;
+    const x = THREE.MathUtils.clamp(at.x + (target.x - at.x) * h, -edge, edge);
+    ball.phase = 'back';
+    ball.burst = false;
+    ball.hitIds.clear();
+    ball.arc = { from: new THREE.Vector3(at.x, Math.max(BALL_RADIUS, at.y), at.z), to: new THREE.Vector3(x, 0.9, TEE_LINE_Z), t: 0, time: Math.max(0.3, TENNIS.lobTime), height: TENNIS.lobHeight };
+    const s = ball.state;
+    s.vel.x = 0;
+    s.vel.y = 0;
+    s.vel.z = 0;
+    s.resting = false;
+    this.onEvent?.({ type: 'returned', ball });
+  }
+
   /** Tenis: un paso de la pelota que rebota. */
   private updateTennis(ball: Ball, dt: number): void {
     const s = ball.state;
-    if (ball.phase === 'held') return;
+    if (ball.phase === 'held') {
+      // va rápido hasta la raqueta y espera ahí el impacto
+      const at = ball.holdAt;
+      if (at) {
+        const k = 1 - Math.exp(-28 * dt);
+        s.pos.x += (at.x - s.pos.x) * k;
+        s.pos.y += (at.y - s.pos.y) * k;
+        s.pos.z += (at.z - s.pos.z) * k;
+      }
+      return;
+    }
     if (ball.phase === 'floor') {
       // volando a la línea: una parábola corta, y al llegar queda para levantarla
       const toss = ball.toss;
@@ -463,6 +516,22 @@ export class Balls {
       }
       return;
     }
+    if (ball.arc) {
+      // el globo de vuelta: una parábola hasta la línea. Si llega y nadie lo devolvió, queda en el piso
+      const a = ball.arc;
+      a.t = Math.min(1, a.t + dt / a.time);
+      s.pos.x = a.from.x + (a.to.x - a.from.x) * a.t;
+      s.pos.z = a.from.z + (a.to.z - a.from.z) * a.t;
+      s.pos.y = a.from.y + (a.to.y - a.from.y) * a.t + Math.sin(a.t * Math.PI) * a.height;
+      if (a.t >= 1) {
+        ball.arc = undefined;
+        ball.phase = 'floor';
+        s.pos.y = BALL_RADIUS;
+        s.pos.z = TEE_LINE_Z - 0.5;
+        this.onEvent?.({ type: 'floor', ball });
+      }
+      return;
+    }
     // con números locos en el panel se aceleraba sin fin y se colgaba: tope de velocidad y de pasos
     const speed = Math.hypot(s.vel.x, s.vel.z);
     if (speed > MAX_BALL_SPEED) {
@@ -473,10 +542,19 @@ export class Balls {
     const wallZ = TEE_LINE_Z + TENNIS.backWall;
     const moving = () => ball.phase === 'out' || ball.phase === 'back';
     for (let i = 0; i < steps && !ball.done && moving(); i++) {
-      if (stepTennis(s, dt / steps, FIELD_HALF_WIDTH, 0, TENNIS.hop)) this.onEvent?.({ type: 'wall', ball });
+      if (stepTennis(s, dt / steps, FIELD_HALF_WIDTH, 0, TENNIS.hop)) {
+        this.onEvent?.({ type: 'wall', ball });
+        // la que se queda rebotando de costado a costado salta a tus pies, por arte de magia
+        if (TENNIS.wallLimit > 0 && ++ball.walls >= TENNIS.wallLimit) {
+          this.effects.blink(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), MAGIC_WALL_COLOR);
+          this.toLine(ball, this.tennisTarget?.().x);
+          break;
+        }
+      }
       // la pared mágica del fondo devuelve todo lo que llega
       if (ball.phase === 'out' && s.pos.z >= wallZ && s.vel.z > 0) {
         s.pos.z = wallZ;
+        ball.walls = 0;
         this.sendBack(ball, null);
         this.effects.blink(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), MAGIC_WALL_COLOR);
       }
@@ -505,7 +583,8 @@ export class Balls {
       }
       const speed = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
       const steps = Math.max(1, Math.ceil((speed * dt) / MAX_STEP));
-      for (let i = 0; i < steps && !ball.done && !s.resting; i++) {
+      // (el globo del tenis que reventó pasa a volver por el aire: desde ahí lo mueve updateTennis)
+      for (let i = 0; i < steps && !ball.done && !s.resting && !ball.phase; i++) {
         applySpin(s, ball.spin, ball.spinTime, dt / steps);
         ball.spinTime += dt / steps;
         const landed = stepBall(s, dt / steps, ball.bounce, terrainOn() ? heightAt : undefined);
@@ -523,6 +602,10 @@ export class Balls {
           if (s.bounces === 1) this.onEvent?.({ type: 'bounce', pos: new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z) });
         }
         this.collide(ball);
+      }
+      if (ball.phase) {
+        this.drawBall(ball);
+        continue;
       }
       if (ball.element === 'wind' && ball.club.id === 'driver' && !ball.done) this.windTrail(ball);
       // la que para sin haber tocado a nadie y abre área por el piso (el globo) hace su efecto ahí

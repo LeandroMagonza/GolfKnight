@@ -1169,7 +1169,7 @@ export class Enemy {
     const toPlayer = Math.hypot(player.position.x - this.position.x, player.position.z - this.position.z);
     // Nadie persigue al golfista: todos van derecho a la puerta. La única excepción es el alma en pena,
     // que existe justamente para ir por él.
-    this.target = behavior === 'grabber' && player.alive ? 'player' : 'gate';
+    this.target = behavior === 'grabber' && player.alive && !player.ghost ? 'player' : 'gate';
 
     // Pero si en el camino le pasan por encima, lo atropellan: le sacan vida y mueren ahí mismo, así que
     // ese enemigo ya no llega a la puerta. Durante el respiro de invulnerabilidad pasan de largo.

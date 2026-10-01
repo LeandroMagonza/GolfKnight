@@ -67,6 +67,8 @@ balls.traps = traps;
 /** Modo tenis: el bolsillo de pelotas (null en el golf), y la cancha con sus paredes. */
 const pocket = TENNIS_ON ? new Pocket(scene) : null;
 const court = TENNIS_ON ? new Court(scene) : null;
+// la vuelta apunta al tenista o al centro de la línea (TENNIS.homing)
+if (TENNIS_ON) balls.tennisTarget = () => (TENNIS.homeTo ? { x: 0, z: TEE_Z } : { x: player.anchor.x, z: TEE_Z });
 if (TENNIS_ON) tees.setVisible(false);
 
 // ---------- estado ----------
@@ -950,7 +952,8 @@ function catchBall(): void {
   const b = hittableBall();
   if (!b) return;
   rehit = b;
-  balls.hold(b);
+  // va hasta la raqueta, al lado del tenista, y sale de ahí: por donde marca la línea de tiro
+  balls.hold(b, new THREE.Vector3(player.anchor.x, 0.9, TEE_Z));
 }
 
 /** El golpe del tenista llegó al impacto: devuelve la que atrapó, o saca una del bolsillo. */
@@ -1011,9 +1014,12 @@ function updateTennis(dt: number): void {
   if (started && !ended && pocket.count === 0 && pocket.incoming === 0 && !inPlay) pocket.toss(at);
   // las marcas de llegada, y el anillo de la que devolverías ahora
   let n = 0;
+  // los enemigos te pegan o te atraviesan, según el panel
+  player.ghost = !TENNIS.hurtPlayer;
   for (const b of balls.returning) {
     const s = b.state;
-    const x = crossingX(s.pos.x, s.pos.z, s.vel.x, s.vel.z, TEE_Z, FIELD_HALF_WIDTH);
+    // el globo que vuelve por el aire ya sabe dónde cae
+    const x = b.arc ? b.arc.to.x : crossingX(s.pos.x, s.pos.z, s.vel.x, s.vel.z, TEE_Z, FIELD_HALF_WIDTH);
     if (x === null) continue;
     const m = crossMark(n++);
     m.visible = true;
@@ -1488,16 +1494,10 @@ async function makePlayer(skin: Skin): Promise<Player> {
     const range = shotRange(shot.club);
     // la potencia va en este tiro, y el eco lo repite igual (con la potencia incluida)
     if (nextShot.bonus) shot = { ...shot, bonus: nextShot.bonus };
-    // tenis: si le pegó a una que venía de vuelta, sale desde esa pelota y hacia el mouse
+    // tenis: si le pegó a una que venía de vuelta, esa ya está en la raqueta y sale como un saque, desde
+    // tu lugar y por donde marca la línea de tiro
     const back = rehit;
     rehit = null;
-    if (back) {
-      const from = new THREE.Vector3(back.state.pos.x, 0, back.state.pos.z);
-      const dx = aimPoint.x - from.x;
-      const dz = aimPoint.z - from.z;
-      const len = Math.hypot(dx, dz);
-      shot = { ...shot, from, dir: len > 0.5 && dz > 0.3 ? new THREE.Vector3(dx / len, 0, dz / len) : shot.dir.clone() };
-    }
     const lift = shotLift(shot.club, range);
     const fired = balls.fire(shot, range, lift);
     if (back) {

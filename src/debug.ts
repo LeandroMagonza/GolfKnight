@@ -642,7 +642,7 @@ export class DebugPanel {
   private buildTennis(el: HTMLElement): void {
     el.append(heading('Modo tenis'));
     const t = TENNIS;
-    type Key = 'backSpeed' | 'backWall' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'runSpeed' | 'chargeMove' | 'pocketMax';
+    type Key = 'backSpeed' | 'backWall' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'runSpeed' | 'chargeMove' | 'pocketMax' | 'homing' | 'wallLimit' | 'lobTime' | 'lobHeight';
     const num = (key: Key, min = 0, max = Infinity) =>
       [() => t[key], (v: number) => { t[key] = Math.min(max, Math.max(min, v)); }] as const;
     type Row = [string, () => number, (v: number) => void, number, string];
@@ -651,6 +651,10 @@ export class DebugPanel {
       ['vuelta', ...num('backSpeed', 1, 150), 1, 'm/s después de rebotar (enemigo o pared del fondo)'],
       ['pared del fondo', ...num('backWall', 5, 80), 1, 'm desde tu línea'],
       ['paredes laterales', () => t.wallKeep, (v) => { t.wallKeep = Math.min(1, Math.max(0, v)); }, 0.05, 'de la velocidad que conserva (0 a 1)'],
+      ['puntería de la vuelta', ...num('homing', 0, 1), 0.05, '0 rebote puro, 1 derecho a vos (o al centro)'],
+      ['rebotes en los costados', ...num('wallLimit', 0, 20), 1, 'y salta a tus pies (0: sin límite)'],
+      ['globo de vuelta', ...num('lobTime', 0.3, 6), 0.1, 's en llegar a tu línea'],
+      ['altura del globo', ...num('lobHeight', 0, 20), 0.5, 'm'],
       ['mínimo de vuelta', ...num('minBack', 0, 1), 0.05, 'de la velocidad va hacia vos, como mínimo'],
       ['piques', ...num('hop', 0, 6), 0.1, 'm de alto'],
       ['alcance', ...num('reach', 0.2, 6), 0.1, 'm de x a cada lado para devolverla'],
@@ -662,9 +666,22 @@ export class DebugPanel {
       ['bolsillo', ...num('pocketMax', 1, 20), 1, 'pelotas como máximo'],
     ];
     el.append(
-      this.choiceRow('enemigos', ['rebotan', 'atraviesa'] as const, () => (t.enemyBounce ? 'rebotan' : 'atraviesa'), (v) => { t.enemyBounce = v === 'rebotan' ? 1 : 0; }, {
+      this.choiceRow('enemigos', ['rebotan', 'atraviesa', 'si sobrevive'] as const, () => (['atraviesa', 'rebotan', 'si sobrevive'] as const)[t.enemyBounce] ?? 'rebotan', (v) => { t.enemyBounce = v === 'atraviesa' ? 0 : v === 'rebotan' ? 1 : 2; }, {
         rebotan: 'El primer enemigo que toca la devuelve',
         atraviesa: 'Los atraviesa a todos y la devuelve la pared del fondo (los escudos igual la rebotan)',
+        'si sobrevive': 'Al que mata lo atraviesa y sigue; el que sobrevive la devuelve',
+      }),
+      this.choiceRow('la vuelta va', ['a vos', 'al centro'] as const, () => (t.homeTo ? 'al centro' : 'a vos'), (v) => { t.homeTo = v === 'al centro' ? 1 : 0; }, {
+        'a vos': 'La puntería de la vuelta tira hacia donde estás parado',
+        'al centro': 'La puntería de la vuelta tira hacia el centro de la línea',
+      }),
+      this.choiceRow('globo', ['vuelve', 'se pierde'] as const, () => (t.lobBack ? 'vuelve' : 'se pierde'), (v) => { t.lobBack = v === 'vuelve' ? 1 : 0; }, {
+        vuelve: 'Después de reventar, vuelve por el aire a tu línea y se lo puede devolver',
+        'se pierde': 'Revienta y esa pelota se pierde',
+      }),
+      this.choiceRow('enemigos y vos', ['te atraviesan', 'te pegan'] as const, () => (t.hurtPlayer ? 'te pegan' : 'te atraviesan'), (v) => { t.hurtPlayer = v === 'te pegan' ? 1 : 0; }, {
+        'te atraviesan': 'No te pegan ni te frenan: solo cuenta la puerta',
+        'te pegan': 'Te pegan y te atropellan como en el golf',
       }),
       this.choiceRow('devolver', ['solo', 'a mano'] as const, () => (t.autoSwing ? 'solo' : 'a mano'), (v) => { t.autoSwing = v === 'solo' ? 1 : 0; }, {
         solo: 'Cargando, el golpe sale solo apenas una pelota entra al alcance',

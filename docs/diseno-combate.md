@@ -2367,3 +2367,28 @@ Después de la primera prueba de Leandro (que lo colgó subiendo los números):
   1 m detrás del puesto, derecho, y recién al quedarse quieto un cuarto de segundo (o al cargar) se
   acomoda alrededor de la pelota, con una transición. **El tenista no**: va siempre derecho sobre la
   línea, corriendo y pegando (pedido de Leandro después de probarlo).
+
+## Hecho: tenis, tercera vuelta: que el ida y vuelta sea más fácil (1/10/2026)
+
+Leandro: lo mejor era pegar derecho para que la pelota no se fuera; las que salían cruzadas rebotaban
+mil veces de costado; el globo no entraba en el sistema de rebotes; los enemigos lo frenaban; y el golpe
+no se sentía (la pelota salía antes de llegar a la raqueta, y por otro lado que la línea de tiro).
+
+- **La vuelta apunta** (`homing`, 0.5): al rebotar en un enemigo o en la pared del fondo, la vuelta es
+  el rebote puro torcido hacia vos (o hacia el centro de la línea, con «la vuelta va: al centro»). Con 0
+  es el espejo de antes; con 1, derecho a vos. Es lo mismo que una pared del fondo cóncava, pero sirve
+  también para los enemigos.
+- **Rebotes de costado con límite** (`wallLimit`, 2): al segundo rebote en los alambrados, la pelota
+  salta por arte de magia a tus pies, en la línea (y si estás ahí, al bolsillo).
+- **Enemigos: «si sobrevive»** (la opción nueva, por defecto): al que mata lo atraviesa y sigue; el que
+  sobrevive la devuelve. Siguen «rebotan» y «atraviesa».
+- **El globo vuelve** (`lobBack`): después de reventar, vuelve por el aire (1.6 s, 7 m de alto) a tu
+  línea, con la misma puntería, y se lo puede devolver; si nadie lo devuelve queda en el piso.
+- **El golpe**: la pelota que atrapa la raqueta **va hasta la raqueta**, al lado del tenista, y sale de
+  ahí en el impacto, por donde marca la línea de tiro. Antes salía desde donde estaba al soltar, con
+  otra trayectoria que la que se veía.
+- **Los enemigos te atraviesan** («enemigos y vos», por defecto): no te pegan, no te atropellan y el
+  alma en pena va a la puerta. Solo cuenta la puerta.
+
+Todo en el panel, pestaña del tiro, «Modo tenis». Lo guardado se mantiene: los números nuevos entran con
+su valor por defecto, y «enemigos» queda como lo tenías (para probar «si sobrevive» hay que elegirlo).

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALL_RADIUS, type BallState } from '../core/ballistics';
-import { bounceOffEnemy, crossingX, stepTennis, TENNIS } from './bounce';
+import { bounceOffEnemy, crossingX, homeBack, stepTennis, TENNIS } from './bounce';
 
 function ball(x: number, z: number, vx: number, vz: number): BallState {
   return { pos: { x, y: BALL_RADIUS, z }, vel: { x: vx, y: 0, z: vz }, rolling: false, resting: false, bounces: 0 };
@@ -82,5 +82,29 @@ describe('dónde cruza la línea', () => {
 
   it('si no viene para la línea, no hay cruce', () => {
     expect(crossingX(0, 30, 0, 10, 9, 18)).toBeNull();
+  });
+});
+
+describe('la vuelta con puntería', () => {
+  it('sin puntería es el rebote puro', () => {
+    const v = homeBack(10, 20, 5, 40, { x: -10, z: 9 }, 13, 0);
+    const pure = bounceOffEnemy(10, 20, 13);
+    expect(v.vx).toBeCloseTo(pure.vx);
+    expect(v.vz).toBeCloseTo(pure.vz);
+  });
+
+  it('con puntería 1 va derecho al punto de la línea', () => {
+    const v = homeBack(10, 20, 5, 40, { x: -10, z: 9 }, 13, 1);
+    expect(crossingX(5, 40, v.vx, v.vz, 9, 18)).toBeCloseTo(-10);
+    expect(Math.hypot(v.vx, v.vz)).toBeCloseTo(13);
+  });
+
+  it('a mitad de camino cae entre el espejo y el punto', () => {
+    const pure = bounceOffEnemy(10, 20, 13);
+    const xPure = crossingX(5, 40, pure.vx, pure.vz, 9, 18)!;
+    const v = homeBack(10, 20, 5, 40, { x: -10, z: 9 }, 13, 0.5);
+    const x = crossingX(5, 40, v.vx, v.vz, 9, 18)!;
+    expect(x).toBeLessThan(xPure);
+    expect(x).toBeGreaterThan(-10);
   });
 });
