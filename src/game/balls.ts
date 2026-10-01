@@ -91,6 +91,8 @@ export type BallEvent =
   | { type: 'blocked'; enemy: Enemy; warded: boolean }
   /** Un tiro le pegó a alguien por primera vez. Sale apenas pega, sin esperar a que la pelota pare. */
   | { type: 'connected'; ability: boolean }
+  /** Este tiro mató a uno, y ya lleva `kills`. Sale en el acto: el doblete se ve al caer el segundo. */
+  | { type: 'kill'; kills: number; ability: boolean }
   /** Un tiro ya se jugó: a cuántos alcanzó y cuántas bajas hizo. */
   | { type: 'settled'; club: Club; hits: number; kills: number; ability: boolean }
   /** Tenis: la pelota rebotó en un enemigo y viene de vuelta, o pegó en una pared. */
@@ -199,6 +201,12 @@ export class Balls {
     this.onEvent?.({ type: 'connected', ability: ball.ability });
   }
 
+  /** Suma una baja a la pelota y lo avisa en el acto. */
+  private countKill(ball: Ball): void {
+    ball.kills++;
+    this.onEvent?.({ type: 'kill', kills: ball.kills, ability: ball.ability });
+  }
+
   /** A qué distancia del golfista pegó: es lo que decide cuánto hace el palo. */
   private metersTo(ball: Ball, pos: { x: number; z: number }): number {
     return Math.hypot(pos.x - ball.from.x, pos.z - ball.from.z);
@@ -217,9 +225,16 @@ export class Balls {
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
     this.horde.shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability };
-    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e), (e) => this.burnBlocked(ball, e));
+    // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
+    let killed = 0;
+    const onHit = (e: Enemy) => {
+      if (!e.alive) killed++;
+      this.applyElement(ball, e);
+    };
+    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, onHit, (e) => this.burnBlocked(ball, e));
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
+    for (let i = 0; i < killed; i++) this.countKill(ball);
     if (ball.element === 'wind') this.windBurst(ball, pos);
     ball.hits += hits;
     this.checkConnected(ball);
@@ -245,9 +260,9 @@ export class Balls {
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
     const landed = guard === 0 || this.horde.lastDealt > 0;
     if (landed) ball.hits++;
-    if (killed) ball.kills++;
     this.checkConnected(ball);
     if (landed) this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
+    if (killed) this.countKill(ball);
     if (landed) this.applyElement(ball, enemy);
     if (finish) ball.done = true;
     return landed;

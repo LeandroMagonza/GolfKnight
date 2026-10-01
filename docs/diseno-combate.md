@@ -1556,6 +1556,11 @@ Idea de Leandro: contar tiros que matan no le pedía nada al jugador, porque mat
 avanzar. Ahora cuenta **las bajas de más de cada tiro**: un doblete suma 1, un triplete 2, y así. Cada 5,
 la puerta +1. No es una racha, así que no se corta: se va juntando. Pasó a llamarse «El albañil».
 
+1/10: cuenta **en el acto**, no cuando la pelota se detiene: al caer el segundo suma 1, al caer el
+tercero suma otra vez. También cuentan las bajas del área (antes solo las de impacto directo). El
+tiro que mata a varios se canta siempre («¡Doblete!», «¡Triplete!», «¡Cuádruple!», «¡N de un
+tiro!»), y con el albañil se suma el avance («Albañil 3/5») o el «¡Los albañiles! La puerta +1».
+
 ### Botiquín
 
 Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación

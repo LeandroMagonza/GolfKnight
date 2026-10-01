@@ -671,21 +671,30 @@ balls.onEvent = (e) => {
       if (e.ability) break;
       setCleanStreak(cleanStreak + 1);
       break;
+    case 'kill': {
+      // el doblete se canta (y suma) en el acto, cuando cae el segundo; el tercero suma otra vez
+      if (e.ability || e.kills < 2) break;
+      const name = MULTI_KILL[e.kills] ?? `¡${e.kills} de un tiro!`;
+      // el albañil: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio; matar a
+      // varios de un tiro es lo que se le pide
+      if (!perks.masonStreak) {
+        hud.feedback(name, 'good');
+        break;
+      }
+      masonPoints++;
+      const every = PERK_NUMBERS.masonStreak;
+      if (masonPoints % every === 0 && gateHp < GATE_MAX) {
+        gateHp = Math.min(GATE_MAX, gateHp + 1);
+        hud.feedback(`${name} ¡Los albañiles! La puerta +1`, 'good');
+      } else {
+        hud.feedback(`${name} Albañil ${masonPoints % every || every}/${every}`, 'good');
+      }
+      break;
+    }
     case 'settled':
       // las rachas cuentan los tiros del puesto, no las habilidades
       if (e.ability) break;
       if (e.hits === 0) setCleanStreak(0);
-      // el albañil: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio; matar a
-      // varios de un tiro es lo que se le pide
-      if (perks.masonStreak && e.kills > 1) {
-        const before = Math.floor(masonPoints / PERK_NUMBERS.masonStreak);
-        masonPoints += e.kills - 1;
-        const heals = Math.floor(masonPoints / PERK_NUMBERS.masonStreak) - before;
-        if (heals > 0 && gateHp < GATE_MAX) {
-          gateHp = Math.min(GATE_MAX, gateHp + heals);
-          hud.feedback(`¡Los albañiles! La puerta +${heals}`, 'good');
-        }
-      }
       break;
   }
 };
@@ -770,6 +779,8 @@ const perks: Partial<Record<PerkId, number>> = {};
 let choice: Card[] | null = null;
 /** El albañil: las bajas de más de cada tiro, juntadas (un doblete suma 1, un triplete 2). */
 let masonPoints = 0;
+/** Cómo se canta un tiro que mata a varios; de 5 para arriba, «¡N de un tiro!». */
+const MULTI_KILL: Record<number, string> = { 2: '¡Doblete!', 3: '¡Triplete!', 4: '¡Cuádruple!' };
 /**
  * Tiros seguidos del puesto **sin errar** (le pegaron a alguien, maten o no): el ritmo y «En racha».
  * Suma cuando el tiro conecta y vuelve a 0 cuando uno termina sin pegarle a nadie.
