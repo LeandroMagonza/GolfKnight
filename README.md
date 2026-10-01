@@ -386,6 +386,10 @@ La carpeta `assets/` (FBX originales de Mixamo y modelos sin usar) no se sube al
 fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa el juego sí están, en
 `public/models/`.
 
+Cada commit de `main` tiene que figurar en [`PATCHNOTES.md`](PATCHNOTES.md) con su hash corto. El
+hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja configurado con
+`core.hooksPath`), y `npm run patchnotes` lista lo que falta contra el archivo del disco.
+
 ## Estructura
 
 - `src/core/`: lógica pura con tests (`ballistics`, `clubs`, `swing`, `waves`).
