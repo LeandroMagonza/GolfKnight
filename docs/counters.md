@@ -136,7 +136,7 @@ La segunda oleada de cada escenario trae uno, los tres en orden al azar, sin un 
 | Modificador | Qué cambia |
 |---|---|
 | **La estampida** | 13 goblins, 8 goblinas y 2 orcos, uno cada 1.3 s, más el cuerpo fuerte; casi un tercio de los chicos explota. Sin apoyo. En el tercer escenario vienen igual las dos almas en pena |
-| **Los gigantes** | El 60 % de los de siempre, todos un 35 % más grandes (también para las pelotas) y con +2 de vida; salen más espaciados. No son élites: no matan de una |
+| **Los gigantes** | El 60 % de los de siempre, todos ×1.7 más grandes (también para las pelotas) pero sin pasar de 2.7 m, así ninguno llega a los 3 m del élite. Con +3 de vida y un 15 % más lentos; salen más espaciados. No son élites: no matan de una |
 | **Todos con poder** | Cada uno trae un poder **de los cinco de escenario**, haya salido sorteado en la partida o no, y tiene 1 de vida menos (mínimo 1). Los apoyos del escenario, como siempre |
 
 Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).

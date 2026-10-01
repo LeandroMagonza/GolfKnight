@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, GIANTS, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, POWERED, POWERS, WAVE_MODS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, GIANTS, giantScale, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, POWERED, POWERS, WAVE_MODS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -139,17 +139,24 @@ describe('waves', () => {
     expect(orders.size).toBeGreaterThan(3);
   });
 
-  it('los gigantes: menos, más grandes y con más vida, sin ser élites', () => {
+  it('los gigantes: menos, bien más grandes pero más chicos que el élite, más lentos y con más vida', () => {
     for (const run of runs(10)) {
       const i = run.waves.findIndex((w) => w.mod === 'giants');
       const s = Math.floor(i / 3);
       const w = run.waves[i];
       const order = spawnOrder(w, seeded(3));
       for (const o of order) {
-        expect(o.mods?.giant).toBe(GIANTS.scale);
+        const giant = o.mods!.giant!;
+        expect(giant).toBe(giantScale(o.kind));
+        expect(giant).toBeGreaterThan(1);
+        // ninguno llega a la altura del élite
+        expect(ENEMIES[o.kind].height * giant).toBeLessThan(ELITE.height);
         expect(o.mods?.size).toBeUndefined();
         expect(o.mods?.hp ?? 0).toBeGreaterThanOrEqual(GIANTS.hp);
+        expect(o.mods?.speed).toBe(GIANTS.speed);
       }
+      // los chicos se notan: crecen todo lo que dice GIANTS.scale
+      expect(giantScale('goblin')).toBe(GIANTS.scale);
       // menos que una oleada común del mismo escenario (la primera, sin contar el cuerpo fuerte)
       const light = (x: Wave) => x.groups.filter((g) => !g.plain).reduce((n, g) => n + g.count, 0);
       expect(light(w)).toBeLessThan(light(run.waves[s * 3]));

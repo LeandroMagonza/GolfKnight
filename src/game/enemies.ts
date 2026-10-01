@@ -725,7 +725,7 @@ export class Enemy {
   /** Con frío encima: camina lento. Nada más: el escudo y el aura ya no se los saca el hielo. */
   /** A qué velocidad camina ahora, con el frío encima. */
   get walkSpeed(): number {
-    return this.frozen ? 0 : this.stats.speed * this.speedMul * (this.chilled ? ICE.slow : 1);
+    return this.frozen ? 0 : this.stats.speed * this.speedMul * (this.mods.speed ?? 1) * (this.chilled ? ICE.slow : 1);
   }
 
   get chilled(): boolean {

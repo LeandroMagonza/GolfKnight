@@ -61,6 +61,8 @@ export interface EnemyMods {
   size?: number;
   /** La oleada de los gigantes: más grande (y su radio para las pelotas), sin ser élite. */
   giant?: number;
+  /** Velocidad, por sobre la de su cuerpo (los gigantes van más lentos). */
+  speed?: number;
 }
 
 export interface EnemyStats {
@@ -341,8 +343,9 @@ export interface Wave {
  * los tiros de otra forma:
  * - **La estampida**: muchos más y más chicos, y casi un tercio explota (`explode`). Premia las áreas y
  *   la fila del driver.
- * - **Los gigantes**: menos enemigos (`count` de los de siempre), todos más grandes (`scale`) y con
- *   `hp` de vida de más. Fáciles de pegar, piden más golpes. Es la bandera sin abanderada.
+ * - **Los gigantes**: menos enemigos (`count` de los de siempre), todos bien más grandes (`scale`, pero
+ *   sin pasar de `maxHeight`, así ninguno llega a los 3 m del élite), con `hp` de vida de más y a
+ *   `speed` de su velocidad. Fáciles de pegar, piden más golpes. Es la bandera sin abanderada.
  * - **Todos con poder**: cada uno trae un poder, **de los cinco de escenario**, salieran sorteados en la
  *   partida o no, con `hp` de vida (de menos). Pide leer los íconos y elegir a quién primero.
  */
@@ -350,7 +353,12 @@ export const WAVE_MODS = ['stampede', 'giants', 'powered'] as const;
 export type WaveMod = (typeof WAVE_MODS)[number];
 export const MOD_TITLES: Record<WaveMod, string> = { stampede: 'La estampida', giants: 'Los gigantes', powered: 'Todos con poder' };
 export const STAMPEDE = { explode: 0.3, interval: 1.3 };
-export const GIANTS = { count: 0.6, scale: 1.35, hp: 2, interval: 1.4 };
+export const GIANTS = { count: 0.6, scale: 1.7, maxHeight: 2.7, hp: 3, speed: 0.85, interval: 1.4 };
+
+/** Cuánto crece este cuerpo en la oleada de los gigantes: `GIANTS.scale`, sin pasar de `GIANTS.maxHeight`. */
+export function giantScale(kind: EnemyKind): number {
+  return Math.max(1, Math.min(GIANTS.scale, GIANTS.maxHeight / ENEMIES[kind].height));
+}
 export const POWERED = { hp: -1 };
 
 /**
@@ -607,15 +615,19 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   const levels = shielded.map((s) => s.mods!.shield!).sort((a, b) => a - b);
   shielded.forEach((s, i) => { s.mods = { ...s.mods, shield: levels[i] }; });
   // lo que el modificador le cambia a todos (menos al jefe): no es un poder, va encima del que tengan
-  const extra: EnemyMods | null = wave.mod === 'giants' ? { giant: GIANTS.scale, hp: GIANTS.hp } : wave.mod === 'powered' ? { hp: POWERED.hp } : null;
-  if (extra) for (const s of order) if (!ENEMIES[s.kind].boss) s.mods = { ...s.mods, ...extra, hp: (s.mods?.hp ?? 0) + (extra.hp ?? 0) };
+  const extra = (kind: EnemyKind): EnemyMods | null =>
+    wave.mod === 'giants' ? { giant: giantScale(kind), hp: GIANTS.hp, speed: GIANTS.speed } : wave.mod === 'powered' ? { hp: POWERED.hp } : null;
+  for (const s of order) {
+    const add = extra(s.kind);
+    if (add && !ENEMIES[s.kind].boss) s.mods = { ...s.mods, ...add, hp: (s.mods?.hp ?? 0) + (add.hp ?? 0) };
+  }
   return order;
 }
 
-/** ¿Trae algún poder? (Lo que agrega el modificador de la oleada, el tamaño y la vida, no cuenta.) */
+/** ¿Trae algún poder? (Lo que agrega el modificador de la oleada, el tamaño, la vida y la velocidad, no cuenta.) */
 export function hasPower(mods: EnemyMods | undefined): boolean {
   if (!mods) return false;
-  return Object.keys(mods).some((k) => k !== 'giant' && k !== 'hp' && k !== 'size');
+  return Object.keys(mods).some((k) => k !== 'giant' && k !== 'hp' && k !== 'size' && k !== 'speed');
 }
 
 export type DirectorEvent =

@@ -277,7 +277,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   sale.
 - **Modificadores**: la segunda oleada de cada escenario trae uno, los tres en orden al azar.
   - **La estampida**: muchos más, chicos, y casi un tercio explota.
-  - **Los gigantes**: menos, más grandes y con 2 de vida más.
+  - **Los gigantes**: menos, bien más grandes (×1.7, sin llegar a los 3 m del élite), con 3 de vida
+    más y un 15 % más lentos.
   - **Todos con poder**: cada uno trae un poder de escenario, aunque no haya salido sorteado en la
     partida, y 1 de vida menos.
 
