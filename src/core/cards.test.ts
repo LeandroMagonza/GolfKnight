@@ -33,8 +33,8 @@ describe('cartas', () => {
   });
 
   it('una habilidad en el nivel máximo ya no sale', () => {
-    const pool = candidates(fresh({ slots: [{ id: 'grenade', level: MAX_LEVEL }] }));
-    expect(pool.some((c) => c.card.kind === 'ability' && c.card.id === 'grenade')).toBe(false);
+    const pool = candidates(fresh({ slots: [{ id: 'cart', level: MAX_LEVEL }] }));
+    expect(pool.some((c) => c.card.kind === 'ability' && c.card.id === 'cart')).toBe(false);
   });
 
   it('la maestría de un elemento sale recién con dos habilidades de ese elemento', () => {
@@ -63,12 +63,12 @@ describe('cartas', () => {
   });
 
   it('la carta de habilidad dice su recarga: la de base si es nueva, y de cuánto a cuánto si sube', () => {
-    const base = ABILITIES.grenade.cooldown;
-    expect(cooldownNote('grenade', 1)).toEqual({ text: `Recarga: ${base} s`, slower: false });
-    const up = cooldownNote('grenade', 2);
+    const base = ABILITIES.cart.cooldown;
+    expect(cooldownNote('cart', 1)).toEqual({ text: `Recarga: ${base} s`, slower: false });
+    const up = cooldownNote('cart', 2);
     expect(up.slower).toBe(true);
-    expect(up.text).toBe(`Recarga: ${base} s → ${+cooldownAt(ABILITIES.grenade, 2).toFixed(1)} s · más lenta`);
-    expect(describeCard({ kind: 'ability', id: 'grenade', level: 2 }).cool).toEqual(up);
+    expect(up.text).toBe(`Recarga: ${base} s → ${+cooldownAt(ABILITIES.cart, 2).toFixed(1)} s · más lenta`);
+    expect(describeCard({ kind: 'ability', id: 'cart', level: 2 }).cool).toEqual(up);
     expect(describeCard({ kind: 'perk', id: 'rhythm', level: 1 }).cool).toBeUndefined();
   });
 });

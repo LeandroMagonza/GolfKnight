@@ -2,7 +2,7 @@
 //
 // Dos cosas independientes: si el palo **atraviesa** (le pega a cada uno que toca en el aire y sigue: el
 // driver) y si **abre un área** (el hierro y el wedge, más grande cuanto más alto vuela). Los palos ya
-// no llevan poder: el hielo, el viento y la granada van con su propia pelota (ver game/abilities).
+// no llevan poder: las habilidades van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
 import { burnSeconds, ELEMENTS, lv, type Element } from '../core/abilities';
@@ -239,7 +239,7 @@ export class Balls {
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
     const shot = this.markShot(ball);
-    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e), (e) => this.burnBlocked(ball, e));
+    const hits = this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
@@ -267,11 +267,13 @@ export class Balls {
     const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
     const landed = guard === 0 || this.horde.lastDealt > 0;
+    // la regla del toque: si se lo comió el divino o lo paró el aura, el elemento no sale
+    const touched = landed && !this.horde.lastStopped;
     if (landed) ball.hits++;
     this.checkConnected(ball);
     if (landed) this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
     // el elemento pega con el tiro todavía marcado, como en el área: las bajas del rayo son de esta pelota
-    if (landed) this.applyElement(ball, enemy);
+    if (touched) this.applyElement(ball, enemy);
     this.horde.shot = null;
     this.countKills(ball, shot.kills);
     if (finish) ball.done = true;
@@ -292,13 +294,6 @@ export class Balls {
     // cada uno que alcanza larga su propio rayo
     else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality));
     // después del golpe: ese ya chocó con sus defensas, los que vienen no
-    else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.quality));
-  }
-
-  /** Al que el escudo le paró el golpe, el fuego lo prende igual y el silenciador lo silencia igual. */
-  private burnBlocked(ball: Ball, enemy: Enemy): void {
-    if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
-    // y el silenciador silencia igual: el escudo para la pelota, no lo que trae
     else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.quality));
   }
 
@@ -410,10 +405,10 @@ export class Balls {
       if (ball.phase !== 'back' && (e.warded || (!ghost && e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
         // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
         // número entra. El muro y el aura del chamán no dejan pasar nada
+        // lo que pasa del escudo entra, con su elemento; si el escudo se come todo, el elemento tampoco
+        // sale (la regla del toque)
         const leaked = !e.warded && !e.shieldWall && this.directHit(ball, e, false, e.shieldLevel);
         ball.hitIds.add(e.id);
-        // el fuego prende igual: el escudo para la pelota, no las llamas
-        if (!leaked) this.burnBlocked(ball, e);
         this.effects.spark(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), e.warded ? 0xb26bff : 0xcccccc);
         if (!leaked) this.onEvent?.({ type: 'blocked', enemy: e, warded: e.warded || e.shieldWall });
         // la del tenis rebota en el escudo igual que en el enemigo: vuelve

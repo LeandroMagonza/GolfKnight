@@ -1591,6 +1591,19 @@ alcanzado larga el suyo, para los dos lados), y el Gólem que no se congela.
   flojo para el fuego, granada o silenciador (uno solo), modificadores de la oleada 2, y el kamikaze
   más seguido.
 
+1/10, cuarta tanda (decisiones de Leandro):
+- **Se fue la granada**: queda el wedge silenciador.
+- **La regla del toque**: el elemento sale solo si el golpe toca. El escudo que se come todo, el
+  divino y el aura de invencible paran el fuego, el hielo, el rayo y el silencio. El blindaje y el
+  etéreo no.
+- **El kamikaze sale en todas las oleadas**: 10 % de los goblins y goblinas sin otro poder
+  (`KAMIKAZE.chance`).
+- «Apurados» descartado: es lo mismo que la estampida.
+- Pendiente, en `docs/counters.md`:
+  - el divino quedó con 6 counters (propuesta: que el golpe fantasma lo pase);
+  - tiros de elemento sin daño base, que además arreglaría la esquiva;
+  - el tercer modificador.
+
 ### Botiquín
 
 Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación

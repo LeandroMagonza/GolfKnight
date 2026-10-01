@@ -4,7 +4,7 @@
 //
 // Juega con el reparto nuevo: elige **palo** por la distancia a la que está el blanco (el driver cobra
 // de lejos, el putter de cerca, el hierro y el wedge parejo) y tira **habilidades** según la situación
-// (granada encima del que haya que abrir; las demás, al grupo más cercano) y elige cartas al azar. No busca
+// (silenciador encima del que haya que abrir; las demás, al grupo más cercano) y elige cartas al azar. No busca
 // filas ni clava el golpe, y suelta apuntando al nivel 2, así que es una cota inferior de lo que hace
 // una persona.
 
@@ -130,7 +130,7 @@ export function startBot(): BotStats {
     if (gk.clock - castAt > 1) {
       const ab = gk.abilities;
       const center = (list: any[]) => [list.reduce((t, e) => t + e.position.x, 0) / list.length, list.reduce((t, e) => t + e.position.z, 0) / list.length];
-      // la granada va encima de quien haya que abrir (chamán conjurando, escudo en alto, jefe sin
+      // el silenciador va encima de quien haya que abrir (chamán conjurando, escudo en alto, jefe sin
       // silenciar); todo lo demás, al grupo más cercano
       const open = alive.find((e) => e.casting && dist(e) < 44)
         ?? alive.filter((e) => e.shieldUp && dist(e) < 44).sort((a, b) => a.position.z - b.position.z)[0]
@@ -139,9 +139,10 @@ export function startBot(): BotStats {
       for (let i = 0; i < ab.slots.length; i++) {
         if (ab.cooldowns[i] > 0) continue;
         const id: string = ab.slots[i].id;
-        if (id === 'grenade' && !open) continue;
-        if (id !== 'grenade' && group.length < 2) continue;
-        const [x, z] = id === 'grenade' ? [open.position.x, open.position.z] : center(group);
+        const opener = id.endsWith('-silence');
+        if (opener && !open) continue;
+        if (!opener && group.length < 2) continue;
+        const [x, z] = opener ? [open.position.x, open.position.z] : center(group);
         castAt = gk.clock;
         aim(x, z);
         stats.casts[id] = (stats.casts[id] ?? 0) + 1;

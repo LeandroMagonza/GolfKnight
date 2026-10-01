@@ -1,13 +1,30 @@
 # Counters por enemigo
 
-Qué le sirve y qué no a cada poder de enemigo, sacado del código. Es la tercera versión (1/10/2026) y ya
+Qué le sirve y qué no a cada poder de enemigo, sacado del código. Es la cuarta versión (1/10/2026) y ya
 cuenta lo de esta tanda:
-- la granada es solo silencio;
-- hay golpe fantasma y golpe silenciador para los cuatro palos;
-- la lupa le pega hasta 2 al fantasma;
-- el rayo es nuevo.
+- **se fue la granada**: el silencio en área es el wedge silenciador;
+- **el efecto necesita que el golpe toque**;
+- el kamikaze sale más seguido.
 
 Los poderes de escenario son los que piden decidir cartas; los de apoyo se resuelven jugando (al final).
+
+## La regla del toque
+
+**El elemento de un tiro sale solo si el golpe toca al enemigo.** Es igual para todos: fuego, hielo,
+rayo y silencio.
+
+| Qué pasa | ¿Sale el elemento? |
+|---|---|
+| El escudo para la pelota (se come todo el daño) | **No** |
+| El escudo para una parte y el resto entra | Sí |
+| El divino se come el golpe | **No** |
+| El aura de invencible lo protege | **No** |
+| El blindaje se come el daño | Sí: tocó, solo que no le sacó vida |
+| El etéreo lo topea a 1 | Sí |
+
+El wedge cae a plomo y el escudo no lo para nunca, así que el **wedge** con cualquier elemento pasa
+escudos. El **golpe fantasma** no tiene elemento que aplicar: lo suyo es el golpe mismo, que pasa el
+escudo y el blindaje.
 
 ## Respuestas rápidas
 
@@ -15,38 +32,34 @@ Los poderes de escenario son los que piden decidir cartas; los de apoyo se resue
 - Ralentiza: el enemigo frío camina al 40 %.
 - **Congelar es solo con la Maestría del hielo**: al que ya está frío, una segunda fuente de hielo lo
   congela 2 s. Congelado queda quieto, no ataca y no esquiva.
-- El golpe que rompe el hielo pega el doble. Ese es «el golpe que rompe el hielo».
-- La zona de hielo cuenta como segunda fuente solo cuando cae, no mientras estás adentro.
+- El golpe que rompe el hielo pega el doble.
 - Al Gólem nunca lo congela: solo lo frena.
 
-**¿Silencia antes o después del golpe? ¿Hace daño?**
+**¿Silencia antes o después? ¿Hace daño?**
 
 | | Daño | Qué hace |
 |---|---|---|
-| **Granada** | Ninguno | Silencia en el acto, en un área. Ya no suma daño: solo silencio |
-| **Golpe silenciador** (palo × silencio) | El de su palo | Silencia **después** del golpe: ese golpe choca con sus defensas y los siguientes no. Silencia aunque el escudo pare la pelota |
-| **Golpe fantasma** (palo × fantasma) | El de su palo | No silencia: **ese golpe** pasa escudo y blindaje (el del driver, también lomas), y desde el nivel 2 el tope del fantasma. No deja nada para el siguiente |
-
-Así quedan con dos papeles distintos: el fantasma es **la respuesta en un golpe**, y el silenciador
-**prepara a los que vienen** (los tuyos, y también apaga apoyos: aura, cura, bandera, hechicero).
+| **Golpe silenciador** | El de su palo | Silencia **después** del golpe, si tocó: ese golpe choca con sus defensas y los siguientes no |
+| **Golpe fantasma** | El de su palo | No silencia: **ese golpe** pasa escudo y blindaje (el del driver, también lomas), y desde el nivel 2 el tope del fantasma. No deja nada |
 
 ## La tabla
 
 ✅ lo resuelve · ½ a medias · ❌ el poder es fuerte contra esto · vacío: no cambia nada.
 
 Las cartas de palo y elemento salen al instante, sin carga, así que **todas resuelven la esquiva**.
-Contra el escudo depende del palo: el wedge cae a plomo y pasa; el driver y el putter rebotan; el
-hierro, a veces le entra por arriba.
+Contra el escudo, para los elementos que necesitan tocar, depende del palo:
+- el wedge pasa;
+- el hierro a veces le entra por arriba (½);
+- el driver y el putter rebotan (❌).
 
 | Carta | Cartas | Escudo | Blindaje | Fantasma | Divino | Esquiva |
 |---|---|---|---|---|---|---|
 | Palo de **hielo** | 4 | wedge ✅, hierro ½, driver y putter ❌ | | | | ✅ |
-| Palo de **fuego** | 4 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Palo de **rayo** | 4 | wedge ✅, los otros ½ | ❌ | ✅ | ✅ | ✅ |
+| Palo de **fuego** | 4 | wedge ✅, hierro ½, driver y putter ❌ | ✅ | ✅ | ❌ | ✅ |
+| Palo de **rayo** | 4 | wedge ✅, los otros ½ | ❌ | ✅ | ½ | ✅ |
 | Palo de **viento** | 3 | wedge ✅, los otros ½ | | | | ✅ |
 | Palo **fantasma** | 4 | ✅ | ✅ | ✅ (desde nivel 2) | | ✅ |
-| Palo **silenciador** | 4 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Granada | 1 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Palo **silenciador** | 4 | wedge ✅, hierro ½, driver y putter ❌ | ✅ | ✅ | ❌ | ✅ |
 | Hoyo (no a élites) | 1 | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Carrito | 1 | ✅ | ½ | ❌ | ❌ | ✅ |
 | Pólvora | 1 | ½ | ❌ | ✅ | ✅ | ✅ |
@@ -57,141 +70,131 @@ hierro, a veces le entra por arriba.
 | Lluvia de pelotas | 1 | | | ✅ | ✅ | |
 | Caddie dorado | 1 | | | ✅ | ✅ | |
 | Palazo | 1 | ½ | | | | ½ |
-| Hielo (zona) | 1 | | | | | |
-| Bandera | 1 | | | | | |
+| Hielo (zona), Bandera | 2 | | | | | |
 | El herrero | 1 | ✅ | ✅ | ❌ | ❌ | ❌ |
 | En racha | 1 | ½ | ✅ | ❌ | | |
 | Perfecto de regalo | 1 | ½ | ✅ | ❌ | ❌ | ✅ |
 | Maestría del hielo | 1 | | ✅ | ❌ | ❌ | ✅ |
-| Maestría del fuego | 1 | | ✅ | ✅ | ✅ | |
-| Maestría del rayo | 1 | | ½ | ✅ | ✅ | |
+| Maestría del fuego | 1 | | ✅ | ✅ | ½ | |
+| Maestría del rayo | 1 | | ½ | ✅ | ½ | |
 | Punto dulce, Swing parejo | 2 | | ½ | ❌ | | |
 | Muñeca rápida | 1 | | ½ | | | |
 | Ritmo, Carcaj, Pelota extra | 3 | | | ½ | ½ | |
 | Albañil, Botiquín, Segundo aire | 3 | | | | | |
 
-Por qué cada uno:
-- **Escudo**: bloquea de frente lo que viene más rasante que 45° y resta su nivel. Lo que suma daño
-  (potencia, herrero, lupa) suma antes de que reste. El fuego prende y el silenciador silencia aunque
-  el escudo pare la pelota.
-- **Blindaje**: resta su nivel a cada golpe. El fuego y el golpe fantasma no pasan por ahí. El rayo y
-  la pólvora pegan poco y se los come.
-- **Fantasma**: nada pasa de 1 por golpe, salvo la lupa (2), el golpe fantasma de nivel 2 y el
-  silencio. Gana el que pega muchas veces y pierde todo lo que suma daño.
-- **Divino**: se come un golpe entero cada 5 s. Gana el que pega dos veces seguidas; pierde el golpe
-  grande solo, porque el +1 se gasta en la burbuja.
-- **Esquiva**: salta cuando tu carga pasa del 1 al 2. Pierde contra todo lo que no se carga. El eco y el
-  clon repiten la línea vieja, y el que esquivó ya no está ahí.
-
 ## Por poder del enemigo
 
-Sobre las 51 cartas del sorteo (36 habilidades y 15 mejoras).
+Sobre las 50 cartas del sorteo (35 habilidades y 15 mejoras).
 
 | Poder | Lo resuelven | A medias | Es fuerte contra |
 |---|---|---|---|
-| Escudo | 21 | 10 | 2 |
-| Blindaje | 21 | 5 | 5 |
-| Fantasma | 26 | 3 | 8 |
-| Divino | 21 | 3 | 6 |
-| Esquiva | **29** | 1 | 4 |
+| **Divino** | **6** | 9 | **14** |
+| Escudo | 14 | 12 | 6 |
+| Blindaje | 20 | 5 | 5 |
+| Fantasma | 25 | 3 | 8 |
+| Esquiva | **28** | 1 | 4 |
 
-- **La esquiva es el más flojo**: 29 cartas la resuelven, porque toda la familia palo y elemento sale
-  sin carga.
-- **El fantasma es el más tajante**: muchos counters y también el que más cartas deja sin valor (8).
-  Es el que más premia elegir bien.
-- **El escudo casi no castiga**: solo 2 cartas quedan inútiles en serio. Lo que tiene son 10 «a
-  medias»: se le gana con el palo correcto.
-- Los números están inflados por **10 cartas que resuelven los cinco**: fuego ×4, silenciador ×4,
-  granada y hoyo (y el fantasma ×4 resuelve cuatro de cinco). Sin ellas, la decisión pesa mucho más.
+- **El divino es el que menos counters tiene**, por lejos: lo resuelven el hoyo, la pólvora, la
+  lluvia de pelotas, el caddie, el clon y el eco. Además deja sin valor a 14 cartas.
+- Con la regla del toque perdió el fuego y el silencio, y ya no tenía la granada.
+- **La esquiva y el fantasma están sobrados.**
 
 ## Por poder del jugador
 
-Contra los 5 poderes de escenario: a cuántos resuelve (✅, con ½ como medio) y contra cuántos no le sirve
-(❌).
+Contra los 5 poderes de escenario: a cuántos resuelve y contra cuántos no le sirve.
 
 | Carta | Resuelve | No le sirve contra |
 |---|---|---|
-| Fuego, Silenciador, Granada, Hoyo | **5** | 0 |
+| Hoyo | 5 | 0 (pero no a élites) |
 | Fantasma (golpe) | 4 | 0 |
-| Maestría del fuego | 3 | 0 |
-| Lupa | 3 | 1 (divino) |
-| Rayo | 3 + ½ | 1 (blindaje) |
-| Pólvora | 3 + ½ | 1 (blindaje) |
-| Maestría del rayo | 2 + ½ | 0 |
+| Silenciador | 3 + wedge contra escudo | divino; escudo, con driver y putter |
+| Fuego | 3 + wedge contra escudo | divino; escudo, con driver y putter |
+| Rayo | 2 + ½ + wedge contra escudo | blindaje |
+| Pólvora | 3 + ½ | blindaje |
+| Lupa | 3 | divino |
+| Maestría del fuego | 2 + ½ | 0 |
+| Eco, Clon | 2 | esquiva |
 | Lluvia de pelotas, Caddie dorado | 2 | 0 |
-| Eco, Clon | 2 | 1 (esquiva) |
-| Carrito | 2 + ½ | 2 (fantasma, divino) |
-| Perfecto de regalo | 2 + ½ | 2 (fantasma, divino) |
-| Maestría del hielo | 2 | 2 (fantasma, divino) |
-| Potencia, El herrero | 2 | **3** (fantasma, divino, esquiva) |
-| En racha | 1 + ½ | 1 (fantasma) |
-| Hielo (palo) | 1 + wedge contra escudo | escudo, con driver y putter |
-| Viento (palo) | 1 + ½ | 0 |
-| Ritmo, Carcaj, Pelota extra | ½ + ½ | 0 |
-| Palazo | ½ + ½ | 0 |
-| Punto dulce, Swing parejo | ½ | 1 (fantasma) |
-| Muñeca rápida | ½ | 0 |
-| Hielo (zona), Bandera, Albañil, Botiquín, Segundo aire | 0 | 0: hacen otra cosa (tiempo, curar, apoyos, alma en pena) |
+| Carrito | 2 + ½ | fantasma, divino |
+| Perfecto de regalo, Maestría del hielo | 2 (+½) | fantasma, divino |
+| Potencia, El herrero | 2 | fantasma, divino, esquiva |
+| Hielo, Viento (palo) | 1 + wedge contra escudo | (hielo: escudo, con driver y putter) |
 
-## ¿Hay piedra, papel o tijera?
+## El fuego: el pedido y lo que dicen los números
 
-**Sí, en un eje: golpe grande contra muchos golpes.**
+Pediste dejar el fuego para los poderes con pocos counters y sacarlo de los demás. Y dijiste que el
+escudo y el divino lo paren, y que el fantasma sí lo resuelve. **Las dos cosas chocan**:
+- los que menos counters tienen son justo el **divino** (6) y el **escudo** (14);
+- los que más tienen son la **esquiva** (28) y el **fantasma** (25).
 
-| | Le gana a | Pierde contra |
+Hice lo que pediste explícitamente: el escudo y el divino paran el fuego, por la regla del toque.
+**Hoy el fuego resuelve blindaje y fantasma**, que es lo natural de su mecánica: el mordisco no pasa
+por el blindaje y cada mordisco es un golpe de 1.
+
+Para que el divino no quede casi sin respuesta, propongo **que el golpe fantasma pase también el
+divino**. Le cierra a la idea del fantasma, que es pasar las defensas, y le suma 4 counters al divino
+sin tocar el fuego.
+
+**¿El fuego contra el blindaje?** Lo dejé, porque es lo que lo diferencia. Si lo sacás, al blindaje lo
+siguen resolviendo el golpe fantasma, el silenciador y todo lo que sube el daño (20 cartas igual).
+
+## Tiros de elemento sin daño base (tu idea)
+
+Que los tiros de elemento no peguen como un golpe normal, sino que solo lleven el efecto, más fuerte, y
+que se aplique igual en todos.
+
+**Lo recomiendo**, con el fantasma como excepción, porque lo suyo es justamente el golpe.
+
+| Elemento | Sin daño base, el efecto podría ser |
+|---|---|
+| Fuego | 4, 5 y 6 mordiscos (hoy 3, 4 y 5) |
+| Hielo | Frío más largo; en el nivel 3 congela sin maestría |
+| Rayo | El tocado también recibe el rayo, y un salto más por rama |
+| Silencio | 5, 6.5 y 8 s, lo que duraba la granada |
+| Viento | Igual (ya casi no dependía del daño) |
+| Fantasma | Sigue con su daño: es lo suyo |
+
+Por qué me cierra:
+1. **El palo hace el daño y la habilidad hace el efecto**: la regla se entiende sola.
+2. **Arregla la esquiva sin que salte segura**. Hoy la resuelven 28 cartas porque cualquier tiro de
+   habilidad le pega sin carga. Sin daño base, solo la resuelven los que dañan con el efecto (fuego,
+   rayo, fantasma), el silencio y el área. Pasa a más o menos 12.
+3. El tiro de habilidad deja de ser un tiro gratis que mata: los dobletes y las rachas siguen siendo
+   cosa del palo.
+
+Lo que cuesta: hay que rebalancear las duraciones, y en el arranque las habilidades van a matar menos.
+
+## La esquiva
+
+Tenés razón: si salta al tirarle una habilidad, la esquiva es segura y no hay forma de jugarle.
+Alternativas:
+- **Lo de arriba** (sin daño base) baja de 28 a unos 12 lo que la resuelve, sin tocar la esquiva.
+- **Cebo**: que salte también ante una habilidad, pero con su misma recarga de 5 s. Ahí hay juego:
+  le tirás algo barato para que salte y le pegás con lo que querías antes de que recargue.
+
+Me inclino por la primera.
+
+## Modificadores de oleada
+
+«Apurados» queda afuera: es lo mismo que la estampida. Quedan la **estampida** y los **robustos**
+(todos +1 de vida y un 15 % más lentos, sin abanderada).
+
+Ideas para un tercero que no sea «más y más chicos»:
+
+| Idea | Qué cambia | Qué tiro premia |
 |---|---|---|
-| **Golpe grande**: Potencia, Herrero, En racha, Perfecto de regalo, Maestría del hielo, Lupa, cargar a fondo | Blindaje, Escudo | Fantasma, Divino |
-| **Muchos golpes**: Eco, Clon, Lluvia, Caddie, Rayo, Pólvora, mordiscos del fuego | Fantasma, Divino | Blindaje (el rayo y la pólvora) |
+| **Viento cruzado** | Todas las pelotas se curvan hacia un lado, con una flecha que lo marca | Apuntar compensando, muy de golf |
+| **Los gigantes** | Menos enemigos, todos más grandes y con +2 de vida | Fáciles de pegar, piden más golpes y ángulos para el doblete |
+| **Los dorados** | Algunos enemigos dorados: al morir te llenan el puesto o te dan un perfecto | Elegir a quién matar primero |
 
-La **esquiva** queda afuera de ese eje (es de puntería) y casi todo la resuelve.
+Con dos modificadores y la oleada 2 del primer escenario sin nada, ya alcanza: el escenario 2 y el 3 se
+reparten la estampida y los robustos en orden al azar.
 
-Lo que rompe el piedra-papel-tijera son las **universales**:
-- **Fuego**: resuelve las cinco; lo único que tiene es el elemento.
-- **Silenciador y granada**: resuelven las cinco, pero no matan solos. Su costo es que necesitan
-  otro tiro.
-- **Hoyo**: resuelve las cinco, pero de a uno y nunca al élite.
+## El kamikaze (hecho)
 
-## Propuestas (sin hacer)
-
-1. **Esquiva con dientes**: que salte también cuando le apuntás una habilidad, no solo con tu carga.
-   - Así pasa a ser «precisión contra área»: la resuelven el wedge, el silencio, el fuego y el rayo
-     una vez que prenden, el hoyo, el perfecto de regalo y fintar.
-   - Hoy la resuelven 29 de 51 cartas.
-2. **Fuego con un punto flojo**. Hoy resuelve todo; dos opciones:
-   - que el escudo apague el fuego (deja de prender si la pelota rebota);
-   - que el divino se coma el fuego entero, no solo el primer mordisco.
-
-   Me inclino por la del escudo: el fuego queda fuerte contra blindaje, fantasma y divino, y el escudo
-   pasa a pedir wedge o silencio.
-3. **Granada o silenciador, uno solo**. Con los dos hay 5 cartas de silencio que resuelven todo. Tu
-   idea de reemplazar la granada por el silenciador cierra bien: el **wedge silenciador ya es el
-   silencio en área**, y el driver silenciador silencia una fila. Los dejé a los dos para que los
-   compares jugando.
-
-## Modificadores de oleada (propuesta)
-
-Hoy la oleada 5 (la segunda del escenario 2) es siempre la estampida. La idea es que **la segunda
-oleada de cada escenario** traiga un modificador de toda la oleada, sin un enemigo que lo lleve:
-
-| Modificador | Qué cambia | Qué tiro premia |
-|---|---|---|
-| **La estampida** (existe) | Muchos más, y más chicos; una parte explota | Áreas, la fila del driver, dobletes |
-| **Los robustos** | Todos +1 de vida y un 15 % más lentos (la bandera sin abanderada) | Cargar a fondo, tiempo para elegir el ángulo |
-| **Los apurados** | Todos un 30 % más rápidos y 1 de vida menos (mínimo 1) | Golpes rápidos; cualquier golpe mata |
-
-- **Opción A**: los tres, en orden al azar, en la oleada 2 de cada escenario.
-- **Opción B (la recomiendo)**: la oleada 2 del primer escenario sin modificador, porque todavía estás
-  con lo básico y sin cartas; en el 2 y el 3 salen dos de los tres, al azar.
-
-## El kamikaze más seguido (propuesta)
-
-Hoy solo sale en la estampida (el 30 % de los chicos). Propuesta:
-- **Fuera de la estampida**: cada goblin o goblina sin poder tiene un **10 %** de ser kamikaze, desde
-  el primer escenario.
-- **En la estampida**: sigue en el 30 %.
-
-Va aparte del tercio con poder, así no le quita lugar a los poderes del escenario. Da lo que buscás:
-momentos para aprovechar un tiro (matarlo en el medio del grupo es daño gratis), con el riesgo de que
-llegue a la puerta.
+- Cada goblin o goblina sin otro poder tiene un **10 %** de salir kamikaze, en todas las oleadas.
+- En la estampida sigue siendo casi un tercio.
+- Silenciado, no explota.
 
 ## Cómo se arma una partida
 
@@ -208,20 +211,19 @@ llegue a la puerta.
 | 9 | **Élite 3**. Apoyo 2 en 2 enemigos |
 | 10 | **El Gólem de roca**, con los tres poderes, los dos apoyos (uno de cada uno) y **alma en pena ×1** |
 
+En todas, cada goblin o goblina sin poder puede salir kamikaze (10 %).
+
 - **Poderes de escenario** (5; cada partida sortea 3): escudo, blindaje, fantasma, divino, esquiva.
   Un tercio de cada oleada trae poder: la mitad el del escenario, la otra mitad los anteriores.
-- **Poderes de apoyo** (4; cada partida sortea 2, sin repetir y con la misma chance): hechicero, cura,
-  invencible, bandera. El primero entra en el escenario 2 y el segundo en el 3 (1, 2 y 2 enemigos),
-  y en la del Gólem van los dos. Los lleva cualquier cuerpo que camina y pega. No se anuncian (y queda
-  así).
-- **El alma en pena** es un cuerpo, no un poder: sale en todas las partidas, desde el escenario 3.
-- **La estampida** sale en todas las partidas, en la oleada 5.
+- **Poderes de apoyo** (4; cada partida sortea 2): hechicero, cura, invencible, bandera. El primero en
+  el escenario 2, el segundo en el 3, y los dos en la del Gólem. No se anuncian.
+- **El alma en pena** es un cuerpo: sale en todas las partidas, desde el escenario 3.
 
 ## Los élites
 
 | Poder | Élite |
 |---|---|
-| Escudo | Calavera (∞): de frente no entra nada. Lo pasan el wedge detrás, el fantasma, el silencio, el fuego, el rayo y el carrito |
+| Escudo | Calavera (∞): de frente no entra nada. Lo pasan el wedge, el fantasma, el silencio con wedge, el rayo y el carrito |
 | Blindaje | Blindaje 1 en el primer escenario, 2 después |
 | Fantasma | 7 a 12 de vida: 7 a 12 golpes, o menos con lupa, fantasma nivel 2 o silencio |
 | Divino | La burbuja vuelve a los 3 s |
@@ -249,24 +251,28 @@ A todos los élites el silencio les dura la mitad, y el hoyo no los traga.
 | Golpe 1 | No aturde |
 | Golpe 2 | 0.12 s |
 | Golpe 3 | 0.25 s |
-| Empujón de la granada o del viento | 0.55 s |
+| Empujón del viento | 0.55 s |
 | Palazo | 0.7, 1 y 1.3 s según el nivel |
 
-Los pesados nunca se aturden: caballero, gólem chico, Gólem y sus élites. Aturdido no camina ni ataca,
-baja el escudo y no esquiva.
+Los pesados nunca se aturden. Aturdido no camina ni ataca, baja el escudo y no esquiva.
 
 **¿El rayo afecta al blindado?** No: el blindaje se come el 1 de cada salto. Con la Maestría del rayo
 pega 2, y a un blindaje 1 le entra 1.
 
-## Historial de cambios
+## Historial
 
-**Segunda tanda del 1/10**
-- La granada silencia todo, también fantasma, divino y bomba; al élite le dura la mitad.
-- La lupa le pega hasta 2 al fantasma.
-- Rayo nuevo: cada alcanzado larga el suyo, para los dos lados.
-- El Gólem ya no se congela.
+**1/10, segunda tanda**
+- La granada silencia todo.
+- La lupa contra fantasmas.
+- Rayo nuevo.
+- El Gólem no se congela.
 
-**Tercera tanda del 1/10**
-- La granada es solo silencio: ya no suma daño.
-- Golpe fantasma y golpe silenciador para los cuatro palos.
-- Las bajas suenan en el mismo arpegio que la carga, una octava más abajo que antes.
+**1/10, tercera tanda**
+- La granada pasa a ser solo silencio.
+- Golpe fantasma y golpe silenciador.
+- Las bajas suenan en el arpegio de la carga.
+
+**1/10, cuarta tanda**
+- Se fue la granada.
+- La regla del toque: el escudo, el divino y el aura paran el elemento.
+- El kamikaze sale en todas las oleadas, al 10 %.

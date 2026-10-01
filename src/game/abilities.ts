@@ -7,7 +7,7 @@
 // pelotas, el caddie, el clon y el palazo) lo hace el juego, a través de `hooks`.
 import * as THREE from 'three';
 import {
-  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, GRENADE, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
+  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
   type AbilityId, type Element,
 } from '../core/abilities';
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
@@ -39,7 +39,6 @@ export interface AbilityHooks {
 /** Cómo vuela la pelota de cada habilidad que se tira. */
 type Flight = { loftDeg: number; gravity: number; bounce: BounceParams };
 const LOB: Flight = { loftDeg: 55, gravity: 40, bounce: { restitution: 0, bounceKeep: 0, gravity: 40 } };
-const QUICK: Flight = { loftDeg: 30, gravity: 40, bounce: { restitution: 0, bounceKeep: 0, gravity: 40 } };
 
 const TRAIL_POINTS = 14;
 const MAX_STEP = 0.3;
@@ -89,8 +88,6 @@ export type AbilityEvent =
   | { type: 'cast'; id: AbilityId }
   /** Cayó el hielo: la zona quedó armada y agarró a `hits` de entrada. */
   | { type: 'zone'; pos: THREE.Vector3; hits: number }
-  /** Cayó la granada: `hits` silenciados. */
-  | { type: 'grenade'; pos: THREE.Vector3; hits: number }
   /** Cayó una habilidad que marca o agranda: `hits` alcanzados. */
   | { type: 'mark'; id: AbilityId; pos: THREE.Vector3; hits: number }
   /** El hoyo se tragó a uno. */
@@ -186,7 +183,6 @@ export class Abilities {
     const at = new THREE.Vector3(from.x + dir.x * range, 0, from.z + dir.z * range);
     at.y = heightAt(at.x, at.z);
     switch (a.kind) {
-      case 'grenade': this.throwBall(s.id, level, QUICK, from, dir, range); break;
       case 'iceZone': case 'powder': case 'lens': this.throwBall(s.id, level, LOB, from, dir, range); break;
       case 'hole': this.makeMark('hole', at, HOLE.radius, HOLE.life, lv(HOLE.swallows, level)); break;
       case 'flag': this.makeMark('flag', at, lv(FLAG.radius, level), lv(FLAG.seconds, level), 0); break;
@@ -250,13 +246,6 @@ export class Abilities {
         hits++;
       }
       this.onEvent?.({ type: 'zone', pos, hits });
-    } else if (kind === 'grenade') {
-      const radius = lv(GRENADE.radius, level);
-      this.effects.explosion(pos, radius, ABILITIES[ball.id].color);
-      // el anillo chico marca el centro, el que no se mueve
-      this.effects.swipe(pos, radius * GRENADE.core);
-      const hits = this.horde.spread(pos, ball.dir, radius, radius * GRENADE.core, lv(GRENADE.push, level), lv(GRENADE.silence, level));
-      this.onEvent?.({ type: 'grenade', pos, hits });
     } else if (kind === 'powder') {
       const radius = lv(POWDER.radius, level);
       this.effects.explosion(pos, radius, ABILITIES[ball.id].color);

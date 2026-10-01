@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, elementOf, ELEMENTS, GRENADE, grenadeShift, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
-import { CLUBS, KNOCK_DECAY } from './clubs';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, elementOf, ELEMENTS, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
+import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
   it('van en cuatro lugares, Q, W, E y R', () => {
@@ -50,7 +50,10 @@ describe('habilidades', () => {
     expect(elementOf('ice')).toBe('ice');
     expect(elementOf('driver-ice')).toBe('ice');
     expect(elementOf('wedge-fire')).toBe('fire');
-    expect(elementOf('grenade')).toBeNull();
+    expect(elementOf('cart')).toBeNull();
+    // la granada se fue: el silencio en área es el wedge silenciador
+    expect(ABILITIES.grenade).toBeUndefined();
+    expect(ABILITIES['wedge-silence']?.element).toBe('silence');
   });
 
   it('el rayo salta pocas veces: no puede dar vueltas matando a todo', () => {
@@ -62,23 +65,6 @@ describe('habilidades', () => {
     expect(ICE.linger).toBe(0.5);
     expect(ICE.slow).toBeGreaterThan(0);
     expect(ICE.slow).toBeLessThan(1);
-  });
-
-  it('la granada deja a todos a la misma distancia de la línea, cada uno de su lado', () => {
-    const push = GRENADE.push[0];
-    for (const lateral of [-3.5, -1, -0.2, 0.2, 1, 3.5]) {
-      const end = lateral + grenadeShift(lateral, push);
-      expect(Math.abs(end)).toBeCloseTo(push);
-      expect(Math.sign(end)).toBe(Math.sign(lateral));
-    }
-    // al que ya está más lejos no lo mueve: ordena, no aleja
-    expect(grenadeShift(push + 2, push)).toBe(0);
-    expect(grenadeShift(-(push + 2), push)).toBe(0);
-    // y la fuerza los saca del área, así las dos filas quedan afuera
-    for (let level = 1; level <= MAX_LEVEL; level++) expect(lv(GRENADE.push, level)).toBeGreaterThan(lv(GRENADE.radius, level));
-    expect(GRENADE.core).toBeCloseTo(1 / 3);
-    const shift = grenadeShift(1, push);
-    expect((Math.abs(shift) * KNOCK_DECAY) / KNOCK_DECAY).toBeCloseTo(push - 1);
   });
 
   it('el panel encuentra los números de cada una, y todos existen en su tabla', () => {

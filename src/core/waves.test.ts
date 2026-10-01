@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, HEAVY, KAMIKAZE, LADDER, LIMITS, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -123,6 +123,30 @@ describe('waves', () => {
         }
       });
     }
+  });
+
+  it('el kamikaze sale en todas las oleadas, de a poco, y solo entre los chicos', () => {
+    let small = 0;
+    let boom = 0;
+    let seed = 1;
+    for (const run of runs(20)) {
+      for (const w of run.waves) {
+        // la estampida lleva su parte fija; las demás, la chance
+        expect(!!w.kamikaze, w.title).toBe(!w.explode);
+        if (!w.kamikaze) continue;
+        // una semilla por oleada: el kamikaze es lo primero que se sortea, con la misma saldrían los mismos
+        for (const o of spawnOrder(w, seeded(seed++ * 7919))) {
+          if (o.mods?.explode) expect(canTake(o.kind, o.mods), `${w.title}: ${o.kind}`).toBe(true);
+          if (o.mods?.explode) expect(ENEMIES[o.kind].hp, w.title).toBeLessThanOrEqual(2);
+          // la chance se tira antes de los poderes, entre todos los chicos que pueden explotar
+          if (ENEMIES[o.kind].hp <= 2 && canTake(o.kind, { explode: true }) && !o.plain) small++;
+          if (o.mods?.explode) boom++;
+        }
+      }
+    }
+    // alrededor del 10 % de los chicos que quedan sin otro poder
+    expect(boom / small).toBeGreaterThan(KAMIKAZE.chance * 0.5);
+    expect(boom / small).toBeLessThan(KAMIKAZE.chance * 2);
   });
 
   it('la estampida: muchos, chicos, y los que explotan son de los más chicos', () => {

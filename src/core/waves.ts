@@ -112,7 +112,7 @@ const base = { behavior: 'melee' as Behavior, runs: false, heavy: false, shield:
 
 /**
  * El escudo muro: un escudo de 10 no deja pasar nada de frente, por fuerte que sea (el mejor golpe es 4,
- * así que desde el escudo 4 ya casi nada entra de frente; la calavera lo deja claro a la vista). Obliga a resolverlo de otra forma: por detrás, de costado o con la granada. Es la calavera, y
+ * así que desde el escudo 4 ya casi nada entra de frente; la calavera lo deja claro a la vista). Obliga a resolverlo de otra forma: por detrás, de costado o silenciándolo. Es la calavera, y
  * late en violeta como los inmunes del chamán.
  */
 export const SHIELD_WALL = 10;
@@ -322,7 +322,17 @@ export interface Wave {
   supports?: { key: PowerKey; count: number }[];
   /** La estampida: qué parte de la oleada, entre los más chicos, explota. Va aparte del tercio. */
   explode?: number;
+  /** Fuera de la estampida: cada chico sin poder puede salir kamikaze (`KAMIKAZE.chance`). Aparte del tercio. */
+  kamikaze?: boolean;
 }
+
+/**
+ * El kamikaze, fuera de la estampida (pedido de Leandro, 1/10): cada goblin o goblina (1 o 2 de vida) que
+ * no trae otra cosa tiene esta chance de explotar, en todas las oleadas. En la estampida sigue siendo una
+ * parte fija y más grande (`Wave.explode`). Da momentos para aprovechar un tiro: matarlo en el medio
+ * del grupo es daño gratis.
+ */
+export const KAMIKAZE = { chance: 0.1 };
 
 /** Una partida: sus diez oleadas, los tres poderes de escenario y los dos de apoyo que salieron. */
 export interface Run {
@@ -423,6 +433,8 @@ export function buildRun(rand: () => number = Math.random): Run {
       supports: supports.map((key) => ({ key, count: 1 })),
     },
   ];
+  // el kamikaze sale en todas, de a poco; en la estampida ya va su parte fija
+  for (const w of waves) if (!w.explode) w.kamikaze = true;
   return { waves, powers, supports };
 }
 
@@ -469,7 +481,8 @@ export function arrivalOrder(order: Spawn[], interval: number): Spawn[] {
  * grande que cierra la oleada (el élite, a 1.4 m/s) llegaba medio minuto después que los goblins que
  * salieron con él, caminando solo. El jefe queda donde está. Después reparte los poderes al azar
  * (`rand`), uno por enemigo:
- * - en la estampida, primero explotan algunos de los chicos;
+ * - primero los kamikazes, entre los chicos: en la estampida una parte fija, en las demás cada uno con
+ *   su chance (`KAMIKAZE`);
  * - un tercio del resto sale con poder: los de apoyo que traiga la oleada, y de los demás, la mitad con
  *   el del escenario (el primero que aparece lo presenta, si es la primera del escenario) y la otra mitad
  *   con los de escenarios anteriores.
@@ -508,12 +521,15 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
     pick.mods = mods;
     return true;
   };
-  // la estampida: explotan los más chicos
+  // la estampida: explotan los más chicos. En las demás, cada chico tiene su chance
+  // (el alma en pena también tiene 2 de vida, pero no puede explotar)
+  const small = open().filter((s) => ENEMIES[s.kind].hp <= 2 && canTake(s.kind, { explode: true }));
   if (wave.explode) {
-    const small = open().filter((s) => ENEMIES[s.kind].hp <= 2);
     for (let n = Math.round(order.length * wave.explode); n > 0 && small.length; n--) {
       small.splice(Math.floor(rand() * small.length), 1)[0].mods = { explode: true };
     }
+  } else if (wave.kamikaze) {
+    for (const s of small) if (rand() < KAMIKAZE.chance) s.mods = { explode: true };
   }
   const total = Math.round(open().length * POWERED_SHARE);
   const supports = Math.min(total, (wave.supports ?? []).reduce((n, s) => n + s.count, 0));

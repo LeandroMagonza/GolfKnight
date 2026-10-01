@@ -96,8 +96,8 @@ igual, pero a ese golpe le resta su número y el resto entra. El del goblin guer
 lejos con el driver (8), o de cerca con el putter (8), lo mata igual de frente. Lo único que no cuenta
 como de frente es lo que cae a más de 45°, el globo del wedge. El escudo también cubre del **daño en
 área** que estalla adelante suyo, a él y a los que tiene detrás, con el mismo descuento. El ícono del escudo, antes
-de la vida, dice cuánto resta. Al del escudo se lo resuelve pegándole fuerte, con la
-granada, cayéndole detrás con el wedge, o pegándole de costado.
+de la vida, dice cuánto resta. Al del escudo se lo resuelve pegándole fuerte, silenciándolo,
+cayéndole detrás con el wedge, con el golpe fantasma, o pegándole de costado.
 
 El **escudo muro** (violeta, más grande, con el brillo de los inmunes del chamán) no deja pasar nada de
 frente, por fuerte que sea.
@@ -123,9 +123,10 @@ un tiro cargando.
 
 **Palo y elemento** (23): cualquier palo con hielo, fuego, rayo, fantasma o silencio, y el driver, el
 hierro y el wedge con viento. Es un tiro de ese palo, instantáneo, con pelota gratis y **cargado al nivel de la habilidad**, que
-además:
+además (siempre que el golpe **toque**: si el escudo para la pelota, el divino se come el golpe o el aura
+de invencible lo protege, el elemento no sale):
 - *Hielo*: enfría a cada uno que alcanza.
-- *Fuego*: lo prende; pierde 1 de vida por segundo.
+- *Fuego*: lo prende; pierde 1 de vida cada 1.5 s, y el blindaje no le resta.
 - *Rayo*: **cada uno que alcanza la pelota larga su propio rayo**, que sale para los dos lados y en
   cada rama salta al más cercano, una vez por nivel (a 6 m como mucho), sacándole 1 a cada uno. Un rayo
   **nunca toca dos veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje se come
@@ -139,15 +140,15 @@ además:
 - *Fantasma*: el golpe pasa escudos (también el de la calavera) y blindaje, y le entra entero. El del
   driver atraviesa además las lomas. Desde el nivel 2, al enemigo fantasma también le entra entero. No
   pasa el divino ni el aura de invencible.
-- *Silenciador*: silencia 4 s (5 y 6) a cada uno que alcanza, como la granada (al élite, la mitad).
-  Silencia **después** del golpe: ese choca con sus defensas, los siguientes no. Silencia aunque el
-  escudo pare la pelota.
+- *Silenciador*: silencia 4 s (5 y 6) a cada uno que toca (al élite, la mitad): se le apagan **todos**
+  los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba). Silencia
+  **después** del golpe: ese choca con sus defensas, los siguientes no. El wedge silenciador es el
+  silencio en área (la granada se fue el 1/10).
 
-**Las demás** (12):
+**Las demás** (11):
 
 | Habilidad | Qué hace |
 | --- | --- |
-| Granada | silencia a los que agarra: se les apagan **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba); solo silencia, no hace ni suma daño. Al élite le dura la mitad. A los del borde los tira a los costados |
 | Hielo | zona fría que dura: el que está adentro camina lento |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
 | Hoyo | el primero que lo pisa cae y no vuelve (los jefes no) |
@@ -234,7 +235,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | Poder | Qué hace |
 | --- | --- |
 | **Escudo 1 a 5** | blindaje de frente: a lo que le llega de frente le resta su número. Cada nivel es un escudo distinto: madera, tablones, hueso, escudo rojo, redondo |
-| **Escudo calavera (10)** | de frente no entra nada: por detrás, de costado o con la granada |
+| **Escudo calavera (10)** | de frente no entra nada: por detrás, de costado, silenciado o con el golpe fantasma |
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
 | **Divino** | el primer golpe no le entra; se le recarga a los 5 s |
@@ -254,7 +255,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   etéreo (fantasma blanco con ojos), divino (aureola amarilla), esquiva (flecha doble turquesa),
   invencible (estrella violeta), cura (cruz verde), hechizo (llama rosa), bandera (roja), bomba (negra)
   y loma (marrón, con pasto). El divino y la
-  esquiva se apagan mientras recargan. La granada silencia todos los poderes (escudo, blindaje,
+  esquiva se apagan mientras recargan. El silenciador apaga todos los poderes (escudo, blindaje,
   fantasma, divino, auras, bandera, loma, hechizo, esquiva, bomba): se tachan con un prohibido rojo
   mientras dura. La calavera no: el élite sigue matando de una.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
@@ -270,8 +271,9 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 - **Se acumulan**: un tercio de cada oleada sale con poder; la mitad con el del escenario, la otra mitad
   con los de escenarios anteriores. Uno solo por enemigo.
 - **Apoyo**: la partida sortea también dos poderes de apoyo (hechicero, cura, invencible, bandera), uno
-  para el segundo escenario y otro para el tercero, de a uno o dos por oleada. **Explotar** va con la
-  **estampida**, la oleada del medio del segundo escenario: muchos, chicos, y casi un tercio explota.
+  para el segundo escenario y otro para el tercero, de a uno o dos por oleada. **Explotar**: en la
+  **estampida** (la oleada del medio del segundo escenario: muchos, chicos) explota casi un tercio; en
+  las demás, cada goblin o goblina sin otro poder tiene un 10 % de salir kamikaze.
   **Cavar**, por ahora, no sale.
 - **Los cuerpos** suben con los escenarios: del goblin al esqueleto y el jefe goblin en el primero;
   entran el caballero y el chamán en el segundo; el gólem chico y el alma en pena en el tercero.

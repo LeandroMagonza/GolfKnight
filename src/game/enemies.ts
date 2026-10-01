@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { burnSeconds, ELEMENTS, GRENADE, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
+import { burnSeconds, ELEMENTS, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { chainJumps } from '../core/chain';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
@@ -162,7 +162,7 @@ interface Badge {
   icon: BadgeIcon;
   /** El número que va encima (cuánto resta el escudo o el blindaje). */
   value?: number;
-  /** La granada lo apaga: mientras dura el silencio va tachado. */
+  /** El silencio lo apaga: mientras dura el silencio va tachado. */
   mutes?: boolean;
   /** Gastado por ahora (el escudo divino recargándose): se ve apagado. */
   off?: boolean;
@@ -366,7 +366,7 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
     if (b.icon === 'ethereal') ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.fillText(mark, cx, 17);
   }
-  // silenciado: un prohibido rojo encima mientras dura la granada
+  // silenciado: un prohibido rojo encima mientras dura el silencio
   if (muted) {
     ctx.globalAlpha = 1;
     ctx.lineWidth = 3.5;
@@ -413,7 +413,7 @@ export class Enemy {
   /** Frío de la zona de hielo: segundos que le quedan y de cuántos. Solo lo hace caminar lento. */
   chillTimer = 0;
   chillMax = 1;
-  /** Silencio de la granada: sin escudo, sin aura, sin inmunidad, y vulnerable. Segundos que le quedan. */
+  /** Silencio: todos los poderes apagados. Segundos que le quedan. */
   silenceTimer = 0;
   silenceMax = 1;
   /** Congelado (maestría del hielo): no se mueve ni ataca, y el golpe que lo rompe pega el doble. */
@@ -671,7 +671,7 @@ export class Enemy {
     return this.mods.armor ?? this.stats.armor ?? 0;
   }
 
-  /** Lo que la armadura le resta a cada golpe ahora: el silencio de la granada se la saca mientras dura. */
+  /** Lo que la armadura le resta a cada golpe ahora: el silencio se la saca mientras dura. */
   get armor(): number {
     return this.silenced ? 0 : this.armorLevel;
   }
@@ -733,7 +733,7 @@ export class Enemy {
   }
 
   /**
-   * Silenciado por la granada: **se le apagan todos los poderes**. Sin escudo ni blindaje, deja de ser
+   * Silenciado: **se le apagan todos los poderes**. Sin escudo ni blindaje, deja de ser
    * fantasma, el divino no se come nada, no esquiva, no conjura, no tira hechizos, la bandera no da
    * vida, la bomba no explota, ningún aura lo protege, y cada pelotazo le saca uno más (ver
    * `Horde.damage`). Lo que no se apaga es lo del cuerpo: el élite sigue matando de una.
@@ -762,7 +762,7 @@ export class Enemy {
     return this.frozenTimer > 0;
   }
 
-  /** Vulnerable: cada pelotazo le saca uno más (la lupa). El silencio de la granada ya no: solo silencia. */
+  /** Vulnerable: cada pelotazo le saca uno más (la lupa). El silencio ya no suma: solo silencia. */
   get vulnerable(): boolean {
     return this.growTimer > 0;
   }
@@ -807,7 +807,7 @@ export class Enemy {
   }
 
   /**
-   * Los poderes que trae, en íconos, para ponerlos antes de la vida. Los que la granada silencia llevan
+   * Los poderes que trae, en íconos, para ponerlos antes de la vida. Los que el silencio apaga llevan
    * `mutes` y, mientras dura el silencio, una cruz encima.
    */
   private badges(): Badge[] {
@@ -829,7 +829,7 @@ export class Enemy {
 
   /**
    * Arriba de cada uno: primero sus poderes en íconos (el escudo y el blindaje con su número), después la
-   * vida, siempre a la vista para decidir cuánto cargar. Lo que la granada silencia se tacha mientras dura.
+   * vida, siempre a la vista para decidir cuánto cargar. Lo que el silencio apaga se tacha mientras dura.
    * - **Hasta 10 de vida**, un cuadradito por punto. El punto de más de la abanderada va en dorado.
    * - **Más de 10**, diez cuadraditos en capas de color: la primera decena en verde, la segunda en
    *   amarillo encima, la tercera en naranja. Con 11 se ven 1 amarillo y 9 verdes; con un golpe, 10
@@ -999,7 +999,7 @@ export class Enemy {
     }
   }
 
-  /** Silencio de la granada durante `seconds`: sin escudo, sin aura, sin inmunidad y vulnerable. */
+  /** Silencio durante `seconds`: todos los poderes apagados. */
   silence(seconds: number): void {
     if (!this.alive || seconds <= 0) return;
     if (seconds >= this.silenceTimer) {
@@ -1481,7 +1481,7 @@ export class Enemy {
     return false;
   }
 
-  /** ¿Tiene el escudo en alto? Silenciado por la granada lo baja hasta que se le pasa. */
+  /** ¿Tiene el escudo en alto? Silenciado lo baja hasta que se le pasa. */
   get shieldUp(): boolean {
     return this.hasShield && this.alive && !this.silenced && !this.passed;
   }
@@ -1628,6 +1628,11 @@ export class Horde {
    */
   /** Lo que sacó de verdad el último golpe (después de blindaje, escudo y etéreo). */
   lastDealt = 0;
+  /**
+   * El último golpe no tocó: se lo comió el divino o lo paró el aura de invencible. Entonces tampoco sale
+   * el elemento del tiro (la regla del toque, ver core/abilities).
+   */
+  lastStopped = false;
 
   /**
    * El tiro de palo que está pegando ahora: lo marca `Balls` mientras reparte su daño. `kills` cuenta los
@@ -1648,13 +1653,16 @@ export class Horde {
    */
   damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number, dot = false, guard = 0): boolean {
     this.lastDealt = 0;
+    this.lastStopped = false;
     if (!enemy.alive || enemy.passed) return false;
     if (enemy.warded) {
+      this.lastStopped = true;
       this.emit({ type: 'immune', enemy });
       return false;
     }
-    // el escudo divino se come el primer golpe entero, sea lo que sea
+    // el escudo divino se come el primer golpe entero, sea lo que sea, con su elemento
     if (enemy.spendDivine()) {
+      this.lastStopped = true;
       this.emit({ type: 'divine', enemy });
       return false;
     }
@@ -1669,7 +1677,7 @@ export class Horde {
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
-    // la armadura (hasta 3): el silencio de la granada se la saca mientras dura. Al fuego y al golpe
+    // la armadura (hasta 3): el silencio se la saca mientras dura. Al fuego y al golpe
     // fantasma no les resta
     const ghost = this.shot?.ghost ?? 0;
     const armor = dot || ghost ? 0 : enemy.armor;
@@ -1718,6 +1726,9 @@ export class Horde {
         }
       }
     }
+    // la explosión de la pólvora pasa por acá con otros enemigos: lo que se lee después es de este golpe
+    this.lastDealt = dealt;
+    this.lastStopped = false;
     return killed;
   }
 
@@ -1785,8 +1796,8 @@ export class Horde {
    * daño entero, esté en el centro o en el borde. Antes caía hasta un 60 % hacia el borde, y el número
    * del panel no era el que se cobraba.
    */
-  /** @param onBlocked al que el escudo le paró todo el golpe (para el fuego, que prende igual) */
-  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>, onHit?: (e: Enemy) => void, onBlocked?: (e: Enemy) => void): number {
+  /** @param onHit al que el área tocó de verdad: ahí sale el elemento del tiro (la regla del toque) */
+  blast(pos: THREE.Vector3, radius: number, damage: number, knockback: number, except: Enemy | null = null, skip?: Set<number>, onHit?: (e: Enemy) => void): number {
     let count = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -1801,18 +1812,16 @@ export class Horde {
       if (guard >= SHIELD_WALL) {
         this.emit({ type: 'shielded', enemy: e });
         skip?.add(e.id);
-        onBlocked?.(e);
         continue;
       }
       if (dir.lengthSq() < 0.001) dir.set(0, 0, 1);
       this.damage(e, damage, dir.normalize(), knockback, false, guard);
       skip?.add(e.id);
-      // si el escudo se comió todo, no cuenta como alcanzado (para las rachas es como errar)
-      if (guard > 0 && this.lastDealt === 0) {
-        onBlocked?.(e);
-        continue;
-      }
-      onHit?.(e);
+      // si el escudo se comió todo, no cuenta como alcanzado (para las rachas es como errar), y el
+      // elemento no sale
+      if (guard > 0 && this.lastDealt === 0) continue;
+      // el divino o el aura de invencible: cuenta como alcanzado, pero el elemento no sale
+      if (!this.lastStopped) onHit?.(e);
       count++;
     }
     return count;
@@ -1840,10 +1849,10 @@ export class Horde {
    * Protege al que lo lleva, si la explosión le queda de frente, y **a los que tiene detrás**: el
    * escudo hace sombra, así que una fila parapetada atrás de un guerrero se cubre con él. De ahí sale
    * la respuesta: al del escudo no lo resolvés tirándole un globo a los pies, lo resolvés
-   * silenciándolo con la granada, o metiendo el globo **detrás** de él, que es de donde el escudo no
+   * silenciándolo, o metiendo el globo **detrás** de él, que es de donde el escudo no
    * lo tapa.
    *
-   * Las habilidades pasan igual: la granada es justamente la forma de sacarle el escudo, y si el
+   * Las habilidades pasan igual: el silencio es justamente una forma de sacarle el escudo, y si el
    * escudo lo parara no habría con qué empezar.
    */
   /**
@@ -1909,41 +1918,11 @@ export class Horde {
   }
 
   /**
-   * Silencia a uno `seconds` (la granada, el golpe silenciador). Al élite le dura menos: es el que más se
-   * aprovecha de que se le apague todo.
+   * Silencia a uno `seconds` (el golpe silenciador). Al élite le dura menos: es el que más se aprovecha
+   * de que se le apague todo.
    */
   silence(e: Enemy, seconds: number): void {
-    e.silence(e.size > 1 ? seconds * GRENADE.eliteSilence : seconds);
-  }
-
-  /**
-   * Granada: agarra a todos los que estén a `radius` de `pos`, los **silencia** `silence` segundos, y
-   * a los que no están en el centro los tira **a los costados de la línea del tiro** (`along`,
-   * unitario), hasta dejarlos a `push` metros de ella: dos filas paralelas al tiro, que apuntan hacia el
-   * golfista. Los del centro (a menos de `core` metros) se quedan quietos. No hace daño. El que cae
-   * justo sobre la línea sale para un lado al azar. Devuelve a cuántos agarró.
-   */
-  spread(pos: THREE.Vector3, along: THREE.Vector3, radius: number, core: number, push: number, silence: number): number {
-    let count = 0;
-    const side = new THREE.Vector3(along.z, 0, -along.x);
-    const dir = new THREE.Vector3();
-    for (const e of this.enemies) {
-      if (!e.alive || e.passed) continue;
-      const rx = e.position.x - pos.x;
-      const rz = e.position.z - pos.z;
-      const d = Math.hypot(rx, rz);
-      if (d - e.radius > radius) continue;
-      this.silence(e, silence);
-      count++;
-      // el centro no se mueve: tirándola encima de un grupo, los dejás silenciados donde están
-      if (d <= core) continue;
-      let lateral = rx * side.x + rz * side.z;
-      if (Math.abs(lateral) < 0.05) lateral = Math.random() < 0.5 ? -0.05 : 0.05;
-      const shift = grenadeShift(lateral, push);
-      // la velocidad es lo que tiene que recorrer por KNOCK_DECAY: el empujón se apaga justo ahí
-      if (shift !== 0) e.shove(dir.copy(side).multiplyScalar(Math.sign(shift)), Math.abs(shift) * KNOCK_DECAY);
-    }
-    return count;
+    e.silence(e.size > 1 ? seconds * ELEMENTS.silenceElite : seconds);
   }
 
   /**
@@ -1967,7 +1946,7 @@ export class Horde {
   /**
    * Aura de los chamanes: todo enemigo dentro del radio de un chamán que está conjurando es inmune.
    * Un chamán nunca queda protegido, ni por su propia aura ni por la de otro: si no, dos chamanes
-   * juntos serían imposibles de matar. Y el silenciado por la granada tampoco: el silencio le saca
+   * juntos serían imposibles de matar. Y el silenciado tampoco: el silencio le saca
    * cualquier inmunidad.
    */
   private updateWards(): void {

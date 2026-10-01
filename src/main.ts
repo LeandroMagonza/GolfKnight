@@ -719,12 +719,6 @@ abilities.onEvent = (e) => {
     case 'bump':
       audio.thud();
       break;
-    case 'grenade':
-      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
-      audio.explosion();
-      if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.15);
-      if (e.hits) hud.feedback(e.hits > 2 ? `¡Silenciados ×${e.hits}!` : `Silenciados ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
-      break;
   }
 };
 
