@@ -650,8 +650,9 @@ export class Player {
       this.animator.setLocomotion('Idle', 1.6);
     } else if (this.mode === 'charging') {
       stance = true;
-      // el tenista se acomoda a la pelota mientras carga, más despacio
+      // el tenista se acomoda a la pelota mientras se prepara, más despacio, con las piernas corriendo
       if (this.freeMove && this.moveDir) this.walk(this.moveDir * this.freeMove.speed * this.freeMove.charging * dt);
+      this.animator.legs = this.freeMove && this.moveDir ? { name: 'Running', timeScale: THREE.MathUtils.clamp((this.freeMove.speed * this.freeMove.charging) / 7, 0.8, 2.2) } : null;
       this.yaw = lerpAngle(this.yaw, this.stanceYaw(), 1 - Math.exp(-16 * dt));
       this.backswing += (this.meter.power - this.backswing) * (1 - Math.exp(-18 * dt));
       const clip = this.swingClip;

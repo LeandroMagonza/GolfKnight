@@ -53,10 +53,13 @@ export class Pocket {
     return k;
   }
 
-  /** Un alcanzapelotas le tira una al tenista, desde el guardia más cercano. */
-  toss(to: THREE.Vector3, golden = false): void {
-    let from = new THREE.Vector3(to.x, 1.5, 0.5);
-    let best = Infinity;
+  /**
+   * Un alcanzapelotas le tira una al tenista, desde el guardia más cercano. Con `start`, la pelota sale
+   * de ahí (la que no devolviste vuelve sola a vos).
+   */
+  toss(to: THREE.Vector3, golden = false, start?: THREE.Vector3): void {
+    let from = start ? start.clone() : new THREE.Vector3(to.x, 1.5, 0.5);
+    let best = start ? -Infinity : Infinity;
     for (const g of this.guards) {
       const d = Math.abs(g.x - to.x);
       if (d < best) {

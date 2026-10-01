@@ -14,7 +14,7 @@ import type { Traps } from './traps';
 import { heightAt, terrainOn } from '../core/terrain';
 import { FIELD_HALF_WIDTH, GATE_Z, TEE_LINE_Z } from './world';
 import { SHIELD_TOP } from '../core/shield';
-import { MAX_BALL_SPEED, mirrorLanding, returnHeight, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
+import { MAX_BALL_SPEED, mirrorLanding, returnHeight, returnTime, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
 
 const TRAIL_POINTS = 18;
 const MAX_STEP = 0.3;
@@ -129,6 +129,8 @@ export class Balls {
   hotDamage: ((base: number) => number) | null = null;
   /** Modo tenis: las pelotas del golpe plano rebotan y vuelven, y el globo también vuelve (ver src/tennis). */
   tennis = false;
+  /** Modo tenis: dónde está el tenista (x), para que la vuelta le dé tiempo de llegar. */
+  tennisX: () => number = () => 0;
   /** Tótems: en pausa (ver core/clubs). El módulo sigue vivo para poder volver a prenderlo. */
   traps: Traps | null = null;
 
@@ -306,8 +308,8 @@ export class Balls {
     // empuja para atrás (si no, la vuelta te los traía hacia la puerta)
     if (ball.phase === 'out') {
       this.directHit(ball, enemy, false);
-      // el primero que toca la devuelve, aunque lo mate: como el ladrillo del rompeladrillos
-      this.sendBack(ball, enemy);
+      // al que mata lo atraviesa y sigue (poner a los enemigos en fila rinde); el que sobrevive la devuelve
+      if (enemy.alive) this.sendBack(ball, enemy);
       return;
     }
     if (ball.phase === 'back') {
@@ -346,7 +348,7 @@ export class Balls {
     const s = ball.state;
     const at = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
     const x = mirrorLanding(at.x, at.z, s.vel.x, s.vel.z, TEE_LINE_Z, FIELD_HALF_WIDTH - 1.5);
-    this.arcBack(ball, at, x, TENNIS.returnTime, returnHeight(Math.abs(at.z - TEE_LINE_Z)));
+    this.arcTo(ball, at, x);
     if (enemy) ball.hitIds.add(enemy.id);
   }
 
@@ -468,7 +470,14 @@ export class Balls {
   /** Tenis: el globo que reventó vuelve por el aire hasta la línea, con la misma regla que las demás. */
   private lobBack(ball: Ball, at: THREE.Vector3): void {
     const x = mirrorLanding(at.x, at.z, at.x - ball.from.x, at.z - ball.from.z, TEE_LINE_Z, FIELD_HALF_WIDTH - 1.5);
-    this.arcBack(ball, at, x, TENNIS.returnTime, returnHeight(Math.abs(at.z - TEE_LINE_Z)));
+    this.arcTo(ball, at, x);
+  }
+
+  /** Tenis: vuelve hasta `x` en tu línea, en el tiempo que corresponde (ver `returnTime`). */
+  private arcTo(ball: Ball, at: THREE.Vector3, x: number): void {
+    const run = Math.abs(x - this.tennisX()) - TENNIS.reach;
+    const time = returnTime(Math.abs(at.z - TEE_LINE_Z), run);
+    this.arcBack(ball, at, x, time, returnHeight(time));
   }
 
   /** Tenis: vuelve por el aire, en `time` s y `height` m de alto, hasta la línea en `x`, donde se la puede devolver. */

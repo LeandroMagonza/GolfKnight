@@ -2441,3 +2441,20 @@ pelota es legible y predecible, y lo que hace el jugador es ubicarse. Todo en `s
   que los enemigos te atraviesen, y la racha de daño (para revisar).
 - El panel subió a la versión 14: se reinicia lo guardado del tenis (la ida quedó por defecto en lo que
   usaba Leandro: 50, 60 y 70).
+
+## Hecho: tenis, ajustes después de probarlo desde cero (1/10/2026)
+
+- **La vuelta ya no tarda siempre lo mismo**: 0.8 s si rebotó encima tuyo, 1.4 s si rebotó a 40 m o
+  más, parejo en el medio (con el enemigo cerca, esperar a que bajara se hacía lento). Y **nunca menos de
+  lo que tardás en llegar corriendo** hasta donde cae, más 0.3 s (`reachMargin`): la que sale muy
+  cruzada tarda más, para que se la pueda ir a buscar. La altura sale del tiempo (`arcGravity`).
+- **El espejo rebota en los costados**: si cae afuera, se dobla contra la pared lateral. La que tirabas
+  desde la izquierda a la esquina derecha del fondo volvía a la otra punta; ahora vuelve más o menos por
+  donde vino, como en una cancha de verdad.
+- **Al que mata, la atraviesa** y sigue; el que sobrevive la devuelve. Poner enemigos en fila rinde.
+- **La que no devolviste vuelve sola a vos**, al bolsillo, como en un rompeladrillos: no hay que ir a
+  buscarla.
+- **Preparándote corriendo, las piernas corren**: el swing va solo de la cintura para arriba
+  (`LayeredAnimator.legs`).
+- Arreglado: soltar en la última décima antes del impacto (que es el momento justo) daba el golpe 1.
+  Medido: golpe 3 entre −0.05 y +0.05 s, golpe 2 hasta ±0.15 s.

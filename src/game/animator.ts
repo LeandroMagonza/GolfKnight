@@ -35,7 +35,12 @@ export class LayeredAnimator {
   private locomotion = '';
   private locoScale = 1;
   private override: string | null = null;
-  private oneShot: { action: THREE.AnimationAction; until: number; freezeAt: number | null } | null = null;
+  private oneShot: { action: THREE.AnimationAction; until: number; freezeAt: number | null; upper?: boolean } | null = null;
+  /**
+   * Las piernas, aparte del clip posado con `poseOneShot`: con un clip de locomoción acá, ese clip mueve
+   * solo de la cintura para arriba y las piernas siguen corriendo (el tenista que se prepara corriendo).
+   */
+  legs: { name: string; timeScale: number } | null = null;
   private time = 0;
 
   constructor(root: THREE.Object3D, clips: THREE.AnimationClip[]) {
@@ -116,7 +121,8 @@ export class LayeredAnimator {
    * cada cuadro con otro instante se recorre el clip a mano (el backswing sigue al medidor).
    */
   poseOneShot(name: string, time: number): void {
-    const a = this.action(name, 'full');
+    const upper = !!this.legs && this.upper.size > 0;
+    const a = this.action(name, upper ? 'upper' : 'full');
     if (this.oneShot?.action !== a) {
       a.reset();
       a.setLoop(THREE.LoopOnce, 1);
@@ -125,7 +131,7 @@ export class LayeredAnimator {
     }
     a.paused = true;
     a.time = time;
-    this.oneShot = { action: a, until: Infinity, freezeAt: null };
+    this.oneShot = { action: a, until: Infinity, freezeAt: null, upper };
   }
 
   /** Suelta el clip que estaba posado con poseOneShot: sigue desde `from` a la velocidad dada. */
@@ -156,6 +162,12 @@ export class LayeredAnimator {
 
     if (this.oneShot) {
       this.targets.set(this.oneShot.action, 1);
+      // el clip va solo arriba: las piernas, con su locomoción (o quietas, si ya no corre)
+      if (this.oneShot.upper) {
+        const legs = this.action(this.legs?.name ?? 'Idle', 'lower');
+        legs.timeScale = this.legs?.timeScale ?? 1;
+        this.targets.set(legs, 1);
+      }
     } else if (this.locomotion) {
       if (!this.upper.size) {
         const full = this.action(this.locomotion, 'full');

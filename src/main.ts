@@ -69,6 +69,8 @@ balls.traps = traps;
 const pocket = TENNIS_ON ? new Pocket(scene) : null;
 const court = TENNIS_ON ? new Court(scene) : null;
 balls.tennis = TENNIS_ON;
+// la vuelta tarda lo que haga falta para que llegues corriendo (ver returnTime)
+balls.tennisX = () => player?.anchor.x ?? 0;
 if (TENNIS_ON) tees.setVisible(false);
 
 // ---------- estado ----------

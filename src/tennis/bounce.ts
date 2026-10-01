@@ -3,10 +3,11 @@
 //
 // - **De ida** sale rasante, con piques, a la velocidad del golpe. Las paredes de los costados la
 //   rebotan (tiros con banda), pocas veces.
-// - **De vuelta** (del primer enemigo que toca, de la pared mágica del fondo o del globo que reventó)
-//   vuelve por el aire y tarda **siempre lo mismo** en llegar a tu línea: del enemigo que está encima,
-//   en un globo alto; del de lejos, más tenso. Cae **en espejo**: si le tiraste cruzado, sigue para el
-//   otro lado; de frente, vuelve a donde estabas. Nunca se sale de la cancha.
+// - **De vuelta** (del primer enemigo que toca y sobrevive, de la pared mágica del fondo o del globo que
+//   reventó) vuelve por el aire. Tarda más cuanto más lejos rebotó, y **nunca menos de lo que tardás en
+//   llegar corriendo**. Cae **en espejo**: si le tiraste cruzado, sigue para el otro lado; de frente,
+//   vuelve a donde estabas. Nunca se sale de la cancha. La que no devolvés vuelve sola a vos.
+// - Al que mata, la pelota lo atraviesa y sigue: poner a los enemigos en fila rinde.
 // - **El golpe** se decide por timing: soltar cuando la pelota llega es el golpe 3, cerca es el 2; si
 //   estás ahí y no soltás, la devolvés igual con el 1.
 import { BALL_RADIUS, GRAVITY, type BallState } from '../core/ballistics';
@@ -15,12 +16,20 @@ import { BALL_RADIUS, GRAVITY, type BallState } from '../core/ballistics';
 export const TENNIS = {
   /** Velocidad de salida del golpe, por nivel de golpe, en m/s. */
   outSpeed: [50, 60, 70],
-  /** Lo que tarda en llegar a tu línea la pelota que vuelve, en s, venga de donde venga. */
+  /**
+   * Lo que tarda en llegar a tu línea la pelota que vuelve, en s: `returnNear` si rebotó encima tuyo,
+   * `returnTime` si rebotó a `arcSpan` m o más, y en el medio, parejo.
+   */
+  returnNear: 0.8,
   returnTime: 1.4,
-  /** Altura de ese globo: tanto si el rebote fue encima tuyo, tanto si fue a `arcSpan` m o más. */
-  arcNear: 6,
-  arcFar: 1.5,
   arcSpan: 40,
+  /**
+   * Pero nunca menos de lo que tardás en llegar corriendo hasta donde cae, más esto (s): la que sale muy
+   * cruzada tarda más en volver, para que se la pueda ir a buscar.
+   */
+  reachMargin: 0.3,
+  /** Qué tan alto va la vuelta: la gravedad de su globo, en m/s² (con más, más alto en el mismo tiempo). */
+  arcGravity: 20,
   /** La pared mágica del fondo: a cuántos metros de la línea del tenista. Devuelve todo lo que llega. */
   backWall: 50,
   /** Lo que conserva de ida al rebotar contra una pared de los costados: de 0 a 1. */
@@ -58,17 +67,32 @@ export const MAX_BALL_SPEED = 150;
 
 /**
  * Dónde cae en tu línea la pelota que rebota en (`bx`, `bz`) viniendo con velocidad (`vx`, `vz`): en
- * espejo, como en un ladrillo, sin salirse de ±`edge`.
+ * espejo, como en un ladrillo. Si el espejo cae afuera, **rebota en la pared del costado** (se dobla
+ * contra ±`edge`): la que pega en una esquina vuelve más o menos por donde vino, como en una cancha de
+ * verdad. Antes se quedaba en el borde, y la que tirabas a la esquina volvía a la otra punta.
  */
 export function mirrorLanding(bx: number, bz: number, vx: number, vz: number, lineZ: number, edge: number): number {
   const x = vz > 1e-6 ? bx + (vx / vz) * (bz - lineZ) : bx;
-  return Math.min(edge, Math.max(-edge, x));
+  const w = 2 * edge;
+  let u = (((x + edge) % (2 * w)) + 2 * w) % (2 * w);
+  if (u > w) u = 2 * w - u;
+  return u - edge;
 }
 
-/** Qué tan alto va el globo de vuelta, según a cuántos metros de tu línea rebotó: más cerca, más alto. */
-export function returnHeight(dist: number): number {
-  const k = Math.max(0, 1 - dist / Math.max(1, TENNIS.arcSpan));
-  return TENNIS.arcFar + (TENNIS.arcNear - TENNIS.arcFar) * k;
+/**
+ * Cuánto tarda en volver la pelota que rebotó a `dist` m de tu línea y cae a `run` m de tu alcance:
+ * más cuanto más lejos rebotó, y nunca menos de lo que tardás en llegar corriendo, más un margen.
+ */
+export function returnTime(dist: number, run: number): number {
+  const k = Math.min(1, Math.max(0, dist / Math.max(1, TENNIS.arcSpan)));
+  const byDistance = TENNIS.returnNear + (TENNIS.returnTime - TENNIS.returnNear) * k;
+  const byRun = Math.max(0, run) / Math.max(1, TENNIS.runSpeed) + TENNIS.reachMargin;
+  return Math.max(byDistance, byRun);
+}
+
+/** Qué tan alto sube un globo que tarda `time` s, con la gravedad de la vuelta. */
+export function returnHeight(time: number): number {
+  return (TENNIS.arcGravity * time * time) / 8;
 }
 
 /** El nivel del golpe según a cuántos segundos del momento justo se soltó. */

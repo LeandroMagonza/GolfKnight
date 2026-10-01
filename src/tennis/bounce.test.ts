@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALL_RADIUS, type BallState } from '../core/ballistics';
-import { mirrorLanding, returnHeight, stepTennis, TENNIS, timingQuality } from './bounce';
+import { mirrorLanding, returnHeight, returnTime, stepTennis, TENNIS, timingQuality } from './bounce';
 
 function ball(x: number, z: number, vx: number, vz: number): BallState {
   return { pos: { x, y: BALL_RADIUS, z }, vel: { x: vx, y: 0, z: vz }, rolling: false, resting: false, bounces: 0 };
@@ -16,17 +16,36 @@ describe('dónde cae la vuelta', () => {
     expect(mirrorLanding(4, 29, 4, 20, 9, 16)).toBeCloseTo(8);
   });
 
-  it('nunca se sale de la cancha', () => {
-    expect(mirrorLanding(12, 29, 10, 20, 9, 16)).toBe(16);
-    expect(mirrorLanding(-12, 29, -10, 20, 9, 16)).toBe(-16);
+  it('si el espejo cae afuera, rebota en la pared del costado', () => {
+    // el espejo daría 22: la pared en 16 la devuelve 6 m
+    expect(mirrorLanding(12, 29, 10, 20, 9, 16)).toBeCloseTo(10);
+    expect(mirrorLanding(-12, 29, -10, 20, 9, 16)).toBeCloseTo(-10);
+  });
+
+  it('la que pega en una esquina vuelve más o menos por donde vino', () => {
+    // tirada desde x = -10 (z = 9) a la esquina derecha del fondo (16.5, 59)
+    const vx = 16.5 + 10;
+    const vz = 59 - 9;
+    const x = mirrorLanding(16.5, 59, vx, vz, 9, 16.5);
+    expect(x).toBeLessThan(0);
+    expect(Math.abs(x - -10)).toBeLessThan(1);
   });
 });
 
-describe('el globo de vuelta', () => {
-  it('más alto cuanto más cerca rebotó', () => {
-    expect(returnHeight(0)).toBeCloseTo(TENNIS.arcNear);
-    expect(returnHeight(TENNIS.arcSpan)).toBeCloseTo(TENNIS.arcFar);
-    expect(returnHeight(10)).toBeGreaterThan(returnHeight(30));
+describe('el tiempo de vuelta', () => {
+  it('más rápida si rebotó cerca, más lenta si rebotó lejos', () => {
+    expect(returnTime(0, 0)).toBeCloseTo(TENNIS.returnNear);
+    expect(returnTime(TENNIS.arcSpan, 0)).toBeCloseTo(TENNIS.returnTime);
+    expect(returnTime(10, 0)).toBeLessThan(returnTime(30, 0));
+  });
+
+  it('nunca menos de lo que tardás en llegar corriendo', () => {
+    const run = 20;
+    expect(returnTime(5, run)).toBeCloseTo(run / TENNIS.runSpeed + TENNIS.reachMargin);
+  });
+
+  it('el globo más largo sube más', () => {
+    expect(returnHeight(1.4)).toBeGreaterThan(returnHeight(0.8));
   });
 });
 

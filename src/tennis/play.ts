@@ -63,7 +63,7 @@ export class TennisPlay {
   /** El nivel del golpe que está saliendo. */
   private quality = 1;
   /** El momento justo del último golpe que salió sin soltar: soltando un toque tarde, todavía mejora. */
-  private late: { perfectAt: number; ball: Ball | null } | null = null;
+  private late: { perfectAt: number; ball: Ball | null; releasedAt: number | null } | null = null;
   private commitAt = 0;
   /** Segundos entre decidir el golpe y el impacto del swing: se mide en cada golpe. */
   private lead = 0.15;
@@ -123,8 +123,12 @@ export class TennisPlay {
     if (!prep) {
       // soltó un toque tarde, con el golpe ya saliendo: todavía mejora
       const late = this.late;
-      if (late?.ball && now - late.perfectAt <= TENNIS.good) this.upgrade(late.ball, timingQuality(now - late.perfectAt));
-      this.late = null;
+      // soltó con el swing bajando, antes del impacto: se anota y cuenta cuando sale la pelota
+      if (late && !late.ball) late.releasedAt ??= now;
+      else {
+        if (late?.ball && now - late.perfectAt <= TENNIS.good) this.upgrade(late.ball, timingQuality(now - late.perfectAt));
+        this.late = null;
+      }
       return true;
     }
     if (prep.kind === 'serve') {
@@ -163,7 +167,13 @@ export class TennisPlay {
 
   /** Salió la pelota: si el golpe salió sin soltar, soltando un toque tarde todavía mejora. */
   fired(ball: Ball): void {
-    if (this.late) this.late.ball = ball;
+    const late = this.late;
+    if (!late) return;
+    late.ball = ball;
+    if (late.releasedAt !== null) {
+      this.upgrade(ball, timingQuality(late.releasedAt - late.perfectAt));
+      this.late = null;
+    }
   }
 
   /** Decide el golpe: el nivel ya está, y el swing baja para que el impacto caiga cuando llega la pelota. */
@@ -172,7 +182,7 @@ export class TennisPlay {
     this.quality = quality;
     this.rehit = ball;
     this.serving = !ball;
-    this.late = lateOk ? { perfectAt, ball: null } : null;
+    this.late = lateOk ? { perfectAt, ball: null, releasedAt: null } : null;
     this.prep = null;
     if (ball) {
       // sigue derecho hasta la raqueta, y sale de ahí: por donde marca la línea de tiro
@@ -265,13 +275,11 @@ export class TennisPlay {
     }
     this.drawRing(ringAt, ringEta, ringErr);
 
-    // levantar: pasarle por encima a una que quedó en el piso
+    // la que no devolviste vuelve sola a vos, al bolsillo, como en un rompeladrillos (si entra)
     for (const b of host.balls.onFloor) {
-      if (Math.abs(b.state.pos.x - p.anchor.x) > TENNIS.pickReach || pocket.count >= pocket.max) continue;
+      if (pocket.count + pocket.incoming >= pocket.max) break;
       host.balls.retire(b);
-      pocket.add(1);
-      host.bounce();
-      host.feedback('+1 pelota', 'neutral');
+      pocket.toss(at, false, b.mesh.position);
     }
     // sin pelota en ningún lado (ni en el bolsillo, ni en el piso, ni en juego): el alcanzapelotas te tira una
     const inPlay = host.balls.list.some((b) => !b.done && b.phase !== null) || this.prep?.kind === 'serve' || this.serving;

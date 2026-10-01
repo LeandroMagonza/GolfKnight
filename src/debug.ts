@@ -650,10 +650,11 @@ export class DebugPanel {
     type Row = [string, () => number, (v: number) => void, number, string];
     const rows: Row[] = [
       ...[0, 1, 2].map((q): Row => [`ida, golpe ${q + 1}`, () => t.outSpeed[q], (v) => { t.outSpeed[q] = Math.min(150, Math.max(1, v)); }, 1, 'm/s']),
-      ['vuelta', ...num('returnTime', 0.3, 5), 0.1, 's en llegar a tu línea, venga de donde venga'],
-      ['globo cerca', ...num('arcNear', 0, 20), 0.5, 'm de alto si rebotó encima tuyo'],
-      ['globo lejos', ...num('arcFar', 0, 20), 0.5, 'm de alto si rebotó a la distancia de abajo o más'],
+      ['vuelta de cerca', ...num('returnNear', 0.2, 5), 0.05, 's en llegar a tu línea si rebotó encima tuyo'],
+      ['vuelta de lejos', ...num('returnTime', 0.2, 5), 0.05, 's si rebotó a la distancia de abajo o más'],
       ['lejos es', ...num('arcSpan', 1, 80), 1, 'm de tu línea'],
+      ['margen para llegar', ...num('reachMargin', 0, 3), 0.05, 's de más sobre lo que tardás en llegar corriendo'],
+      ['altura de la vuelta', ...num('arcGravity', 1, 80), 1, 'gravedad del globo: más, más alto'],
       ['pared del fondo', ...num('backWall', 5, 80), 1, 'm desde tu línea'],
       ['paredes laterales', ...num('wallKeep', 0, 1), 0.05, 'de la velocidad que conserva (0 a 1)'],
       ['rebotes de costado', ...num('wallLimit', 0, 20), 1, 'y vuelve (0: sin límite)'],
