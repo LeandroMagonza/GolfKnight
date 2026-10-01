@@ -2412,3 +2412,32 @@ jugador los últimos metros, y el timing cambia la dirección o la calidad, no s
 - **La raqueta la trae sin saltos**: la atrapada sigue a la velocidad que traía, derecho hasta la
   raqueta, en vez de pegar un salto.
 - La pelota no puede pasarte por arriba: para devolverla no cuenta la altura, solo que esté a tu alcance.
+
+## Hecho: tenis desde cero (1/10/2026)
+
+Las vueltas anteriores fueron sumando ayudas (devolver solo, imán, puntería de la vuelta hacia vos, la
+raqueta que atrapa) para compensar velocidades de 50 a 90 m/s que nadie puede seguir. Cada ayuda le
+sacaba control al jugador y se sentía artificial. Se rehízo con las reglas de un rompeladrillos: la
+pelota es legible y predecible, y lo que hace el jugador es ubicarse. Todo en `src/tennis/`.
+
+- **La ida**: rasante, a 50, 60 o 70 m/s según el golpe. Las paredes de los costados la rebotan; a los
+  dos rebotes (`wallLimit`) vuelve, como si hubiera llegado al fondo.
+- **La vuelta** (del primer enemigo que toca, aunque lo mate, como un ladrillo; de la pared mágica del
+  fondo; o del globo que reventó): por el aire, y tarda **siempre `returnTime` (1.4 s)** en llegar a tu
+  línea. Del rebote encima tuyo, en un globo alto (6 m); del de lejos, más tenso (1.5 m). Cae **en
+  espejo**: si le tiraste cruzado, sigue para el otro lado; de frente, vuelve a donde estabas. Nunca se
+  sale de la cancha. La marca en tu línea aparece en el instante del rebote.
+- **El golpe, por timing** (sin la barra del golf): apretás para prepararte y soltás cuando la pelota
+  llega. Un círculo que se cierra sobre la pelota marca el momento: justo (±0.07 s) es el golpe 3, cerca
+  (±0.18 s) el 2. Si estás ahí y no soltás, la devolvés con el 1 (y si soltás un toque tarde, todavía
+  mejora). Si no llegaste, cae en la línea y la levantás. **Ubicarte mantiene viva la pelota; el timing
+  da el daño.** El swing se decide un instante antes de que llegue (lo que tarda en bajar, medido en
+  cada golpe) para que el impacto caiga justo.
+- **El saque, también por timing**: apretás y la pelota sube; soltás cuando llega arriba (0.6 s). Si no
+  soltás, sale al caer, con el golpe 1.
+- **Se fueron**: el imán, la puntería hacia vos o al centro, devolver solo, el golpe guardado, la barra
+  del golf en el tenis, enemigos que atraviesan o no, y los rebotes rasantes de vuelta.
+- **Quedan**: el bolsillo, el alcanzapelotas, la pared del fondo, la cancha, correr de costado (14 m/s),
+  que los enemigos te atraviesen, y la racha de daño (para revisar).
+- El panel subió a la versión 14: se reinicia lo guardado del tenis (la ida quedó por defecto en lo que
+  usaba Leandro: 50, 60 y 70).

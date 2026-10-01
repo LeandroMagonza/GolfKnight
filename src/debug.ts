@@ -89,7 +89,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 13;
+const VERSION = 14;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -116,6 +116,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   12: ['elementos'],
   // el tenis pasó a las velocidades que probó Leandro (70/80/90 y 50), con pared del fondo y topes
   13: ['tenis'],
+  // el tenis desde cero: vuelta en espejo con tiempo fijo y golpe por timing
+  14: ['tenis'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -638,58 +640,37 @@ export class DebugPanel {
   }
 
 
-  /** Los números del modo tenis (?tenis): cómo rebota la pelota, la ventana para devolverla y el bolsillo. */
+  /** Los números del modo tenis (?tenis): la ida, la vuelta, el timing del golpe y el bolsillo. */
   private buildTennis(el: HTMLElement): void {
     el.append(heading('Modo tenis'));
     const t = TENNIS;
-    type Key = 'backSpeed' | 'backWall' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'runSpeed' | 'chargeMove' | 'pocketMax' | 'homing' | 'wallLimit' | 'lobTime' | 'lobHeight' | 'wallHoming' | 'minReturn' | 'assist' | 'buffer';
+    type Key = Exclude<keyof typeof TENNIS, 'outSpeed'>;
     const num = (key: Key, min = 0, max = Infinity) =>
       [() => t[key], (v: number) => { t[key] = Math.min(max, Math.max(min, v)); }] as const;
     type Row = [string, () => number, (v: number) => void, number, string];
     const rows: Row[] = [
-      ...[0, 1, 2].map((q): Row => [`plano, golpe ${q + 1}`, () => t.outSpeed[q], (v) => { t.outSpeed[q] = Math.min(150, Math.max(1, v)); }, 1, 'm/s de ida']),
-      ['vuelta', ...num('backSpeed', 1, 150), 1, 'm/s después de rebotar (enemigo o pared del fondo)'],
+      ...[0, 1, 2].map((q): Row => [`ida, golpe ${q + 1}`, () => t.outSpeed[q], (v) => { t.outSpeed[q] = Math.min(150, Math.max(1, v)); }, 1, 'm/s']),
+      ['vuelta', ...num('returnTime', 0.3, 5), 0.1, 's en llegar a tu línea, venga de donde venga'],
+      ['globo cerca', ...num('arcNear', 0, 20), 0.5, 'm de alto si rebotó encima tuyo'],
+      ['globo lejos', ...num('arcFar', 0, 20), 0.5, 'm de alto si rebotó a la distancia de abajo o más'],
+      ['lejos es', ...num('arcSpan', 1, 80), 1, 'm de tu línea'],
       ['pared del fondo', ...num('backWall', 5, 80), 1, 'm desde tu línea'],
-      ['paredes laterales', () => t.wallKeep, (v) => { t.wallKeep = Math.min(1, Math.max(0, v)); }, 0.05, 'de la velocidad que conserva (0 a 1)'],
-      ['vuelta del enemigo', ...num('minReturn', 0.2, 5), 0.1, 's como mínimo: vuelve en globo, más alto cuanto más cerca'],
-      ['puntería de la vuelta', ...num('homing', 0, 1), 0.05, '0 rebote puro, 1 derecho a vos (o al centro)'],
-      ['puntería de la pared', ...num('wallHoming', 0, 1), 0.05, 'la del fondo: 1 la manda derecho a vos'],
-      ['imán', ...num('assist', 0, 10), 0.25, 'm: si viene una a esto de tu alcance, te corrés solo (0 lo apaga)'],
-      ['golpe guardado', ...num('buffer', 0, 2), 0.05, 's: soltando antes, espera a la pelota que llega en menos de esto'],
-      ['rebotes en los costados', ...num('wallLimit', 0, 20), 1, 'y salta a tus pies (0: sin límite)'],
-      ['globo de vuelta', ...num('lobTime', 0.3, 6), 0.1, 's en llegar a tu línea'],
-      ['altura del globo', ...num('lobHeight', 0, 20), 0.5, 'm'],
-      ['mínimo de vuelta', ...num('minBack', 0, 1), 0.05, 'de la velocidad va hacia vos, como mínimo'],
-      ['piques', ...num('hop', 0, 6), 0.1, 'm de alto'],
+      ['paredes laterales', ...num('wallKeep', 0, 1), 0.05, 'de la velocidad que conserva (0 a 1)'],
+      ['rebotes de costado', ...num('wallLimit', 0, 20), 1, 'y vuelve (0: sin límite)'],
+      ['piques', ...num('hop', 0, 6), 0.1, 'm de alto, de ida'],
       ['alcance', ...num('reach', 0.2, 6), 0.1, 'm de x a cada lado para devolverla'],
-      ['ventana adelante', ...num('ahead', 0, 15), 0.1, 'm delante de la línea'],
-      ['ventana atrás', ...num('behind', 0, 8), 0.1, 'm detrás de la línea'],
+      ['golpe 3', ...num('perfect', 0.01, 1), 0.01, 's del momento justo, antes o después'],
+      ['golpe 2', ...num('good', 0.02, 1), 0.01, 's del momento justo, antes o después'],
+      ['saque', ...num('tossTime', 0.2, 3), 0.05, 's en subir la pelota (arriba es el momento justo)'],
       ['racha', ...num('rallyStep', 1), 1, 'devoluciones por cada +1 de daño'],
       ['correr', ...num('runSpeed', 1, 60), 1, 'm/s de costado'],
-      ['cargando', ...num('chargeMove', 0, 1), 0.05, 'de esa velocidad mientras carga'],
+      ['preparado', ...num('chargeMove', 0, 1), 0.05, 'de esa velocidad mientras te preparás'],
       ['bolsillo', ...num('pocketMax', 1, 20), 1, 'pelotas como máximo'],
     ];
     el.append(
-      this.choiceRow('enemigos', ['rebotan', 'atraviesa', 'si sobrevive'] as const, () => (['atraviesa', 'rebotan', 'si sobrevive'] as const)[t.enemyBounce] ?? 'rebotan', (v) => { t.enemyBounce = v === 'atraviesa' ? 0 : v === 'rebotan' ? 1 : 2; }, {
-        rebotan: 'El primer enemigo que toca la devuelve',
-        atraviesa: 'Los atraviesa a todos y la devuelve la pared del fondo (los escudos igual la rebotan)',
-        'si sobrevive': 'Al que mata lo atraviesa y sigue; el que sobrevive la devuelve',
-      }),
-      this.choiceRow('la vuelta va', ['a vos', 'al centro'] as const, () => (t.homeTo ? 'al centro' : 'a vos'), (v) => { t.homeTo = v === 'al centro' ? 1 : 0; }, {
-        'a vos': 'La puntería de la vuelta tira hacia donde estás parado',
-        'al centro': 'La puntería de la vuelta tira hacia el centro de la línea',
-      }),
-      this.choiceRow('globo', ['vuelve', 'se pierde'] as const, () => (t.lobBack ? 'vuelve' : 'se pierde'), (v) => { t.lobBack = v === 'vuelve' ? 1 : 0; }, {
-        vuelve: 'Después de reventar, vuelve por el aire a tu línea y se lo puede devolver',
-        'se pierde': 'Revienta y esa pelota se pierde',
-      }),
       this.choiceRow('enemigos y vos', ['te atraviesan', 'te pegan'] as const, () => (t.hurtPlayer ? 'te pegan' : 'te atraviesan'), (v) => { t.hurtPlayer = v === 'te pegan' ? 1 : 0; }, {
         'te atraviesan': 'No te pegan ni te frenan: solo cuenta la puerta',
         'te pegan': 'Te pegan y te atropellan como en el golf',
-      }),
-      this.choiceRow('devolver', ['solo', 'a mano'] as const, () => (t.autoSwing ? 'solo' : 'a mano'), (v) => { t.autoSwing = v === 'solo' ? 1 : 0; }, {
-        solo: 'Cargando, el golpe sale solo apenas una pelota entra al alcance',
-        'a mano': 'Hay que soltar justo cuando la pelota está al alcance',
       }),
       this.numbers(rows).table,
       note('Solo cuentan en el modo tenis (?tenis en la dirección, o el botón de la intro). Todo cambia en el acto.'),
