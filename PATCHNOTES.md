@@ -10,6 +10,16 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 1 de octubre
 
 **Golf**
+- Habilidades nuevas, para los cuatro palos:
+  - **Golpe fantasma**: pasa escudos y blindaje (el del driver también atraviesa lomas) y desde el
+    nivel 2 le pega entero al enemigo fantasma.
+  - **Golpe silenciador**: pega y deja silenciado al que alcanza; el golpe mismo choca con sus
+    defensas, los siguientes no.
+
+  `c6073d5`
+- La granada ahora es solo silencio: ya no suma daño. `c6073d5`
+- Las bajas suenan siguiendo la nota del golpe: si cargaste hasta el 2, la primera baja suena una nota
+  más arriba, la segunda otra más. Todo una octava más grave que antes. `c6073d5`
 - La granada silencia todos los poderes: ahora también al fantasma, al divino y a la bomba (el
   kamikaze silenciado muere sin explotar). Al élite le dura la mitad. `352e808`
 - La lupa sirve contra fantasmas: al agrandado le entran hasta 2 por golpe. La lupa y la granada dicen
