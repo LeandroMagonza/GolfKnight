@@ -96,7 +96,8 @@ export class TennisPlay {
 
   /** ¿Se puede apretar? Con una pelota que viene, o con una en el bolsillo para sacar. */
   canStart(): boolean {
-    return this.host.pocket.count > 0 || this.incoming().length > 0;
+    // con el golpe ya preparado, sí: la del saque ya salió del bolsillo (con una sola, quedaba vacío)
+    return !!this.prep || this.host.pocket.count > 0 || this.incoming().length > 0;
   }
 
   /**
