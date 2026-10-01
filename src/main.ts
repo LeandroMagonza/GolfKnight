@@ -949,17 +949,77 @@ function hittableBall(): Ball | null {
  */
 function catchBall(): void {
   if (!pocket || rehit) return;
+  releaseAt = null;
   const b = hittableBall();
   if (!b) return;
   rehit = b;
-  // va hasta la raqueta, al lado del tenista, y sale de ahí: por donde marca la línea de tiro
-  balls.hold(b, new THREE.Vector3(player.anchor.x, 0.9, TEE_Z));
+  // va hasta la raqueta, al lado del tenista, y sale de ahí: por donde marca la línea de tiro. Sigue a la
+  // velocidad que traía (con un mínimo, para que llegue antes del impacto) y no pega un salto
+  const racket = new THREE.Vector3(player.anchor.x, 0.9, TEE_Z);
+  const arc = b.arc;
+  const speed = arc ? Math.hypot(arc.to.x - arc.from.x, arc.to.z - arc.from.z) / arc.time : Math.hypot(b.state.vel.x, b.state.vel.z);
+  balls.hold(b, racket, Math.max(speed, b.mesh.position.distanceTo(racket) / 0.12));
+}
+
+/** Una pelota que viene de vuelta: dónde va a cruzar tu línea y en cuántos segundos. */
+interface Incoming {
+  ball: Ball;
+  x: number;
+  eta: number;
+}
+
+function incoming(): Incoming[] {
+  const out: Incoming[] = [];
+  for (const b of balls.returning) {
+    const s = b.state;
+    if (b.arc) {
+      out.push({ ball: b, x: b.arc.to.x, eta: (1 - b.arc.t) * b.arc.time });
+      continue;
+    }
+    const x = crossingX(s.pos.x, s.pos.z, s.vel.x, s.vel.z, TEE_Z, FIELD_HALF_WIDTH);
+    if (x !== null) out.push({ ball: b, x, eta: (s.pos.z - TEE_Z) / -s.vel.z });
+  }
+  return out;
+}
+
+/**
+ * Golpe guardado: si soltás antes de tiempo y viene una pelota a tu alcance que llega enseguida, el golpe
+ * espera (con la carga clavada) a que llegue, en lugar de sacar del bolsillo. Devuelve true si lo guardó.
+ */
+let releaseAt: number | null = null;
+function bufferRelease(): boolean {
+  if (hittableBall()) return false;
+  const near = incoming().filter((c) => Math.abs(c.x - player.anchor.x) <= TENNIS.reach + 0.5 && c.eta <= TENNIS.buffer);
+  if (!near.length) return false;
+  const eta = Math.min(...near.map((c) => c.eta));
+  if (!player.meter.locked) player.meter.lock();
+  releaseAt = gameClock + eta + 0.3;
+  return true;
 }
 
 /** El golpe del tenista llegó al impacto: devuelve la que atrapó, o saca una del bolsillo. */
 function tennisFire(): boolean {
   if (rehit) return true;
   return !!pocket?.take();
+}
+
+/** Los colores de la pelota que viene: le llegás, estás cerca, no llegás. */
+const REACH_COLORS = { ok: 0x5be07a, near: 0xffd21f, far: 0xff3b3b };
+
+/**
+ * Imán: sin tocar A ni D, si viene una pelota que va a pasar cerca de tu alcance, el tenista se corre solo
+ * hasta ahí (la más próxima en llegar). Devuelve hacia dónde moverse, de -1 a 1, o 0.
+ */
+function assistMove(): number {
+  if (TENNIS.assist <= 0) return 0;
+  let best: Incoming | null = null;
+  for (const c of incoming()) {
+    if (Math.abs(c.x - player.anchor.x) > TENNIS.reach + TENNIS.assist || c.eta > 2.5) continue;
+    if (!best || c.eta < best.eta) best = c;
+  }
+  if (!best) return 0;
+  const diff = best.x - player.anchor.x;
+  return Math.abs(diff) < 0.25 ? 0 : THREE.MathUtils.clamp(diff / 0.8, -1, 1);
 }
 
 /** Las marcas en la línea: dónde va a llegar cada pelota que viene de vuelta. */
@@ -991,8 +1051,10 @@ function updateTennis(dt: number): void {
   const at = new THREE.Vector3(player.anchor.x, 1.1, TEE_Z);
   pocket.update(dt, at);
   court?.update(dt);
-  // cargando, el golpe sale solo apenas una pelota entra al alcance (ver TENNIS.autoSwing)
-  if (TENNIS.autoSwing && player.mode === 'charging' && !ended && hittableBall()) {
+  // cargando, el golpe sale solo apenas una pelota entra al alcance (ver TENNIS.autoSwing); y el golpe
+  // guardado, cuando llega la pelota o se le pasa el tiempo
+  if (player.mode !== 'charging') releaseAt = null;
+  if (player.mode === 'charging' && !ended && ((TENNIS.autoSwing || releaseAt !== null) && hittableBall() || (releaseAt !== null && gameClock > releaseAt))) {
     audio.whoosh(player.meter.power);
     player.releaseSwing();
   }
@@ -1016,15 +1078,19 @@ function updateTennis(dt: number): void {
   let n = 0;
   // los enemigos te pegan o te atraviesan, según el panel
   player.ghost = !TENNIS.hurtPlayer;
-  for (const b of balls.returning) {
-    const s = b.state;
-    // el globo que vuelve por el aire ya sabe dónde cae
-    const x = b.arc ? b.arc.to.x : crossingX(s.pos.x, s.pos.z, s.vel.x, s.vel.z, TEE_Z, FIELD_HALF_WIDTH);
-    if (x === null) continue;
+  // Cada pelota que viene: verde si le llegás, amarilla si estás cerca, roja si no. La marca en la línea
+  // se achica a medida que te acercás, y la pelota misma (y su estela) toma el color: el jugador mira la
+  // pelota, no el piso
+  for (const c of incoming()) {
+    const dx = Math.abs(c.x - player.anchor.x);
+    const color = dx <= TENNIS.reach ? REACH_COLORS.ok : dx <= TENNIS.reach + Math.max(2, TENNIS.assist) ? REACH_COLORS.near : REACH_COLORS.far;
     const m = crossMark(n++);
     m.visible = true;
-    m.position.set(x, 0.04, TEE_Z);
-    (m.material as THREE.MeshBasicMaterial).color.setHex(Math.abs(x - player.anchor.x) <= TENNIS.reach ? 0x5be07a : 0xffd66b);
+    m.position.set(c.x, 0.04, TEE_Z);
+    m.scale.setScalar(dx <= TENNIS.reach ? 1 : Math.min(3.2, 1 + (dx - TENNIS.reach) * 0.3));
+    (m.material as THREE.MeshBasicMaterial).color.setHex(color);
+    (c.ball.mesh.material as THREE.MeshStandardMaterial).emissive.setHex(color);
+    (c.ball.trail.material as THREE.LineBasicMaterial).color.setHex(color);
   }
   for (let i = n; i < crossMarks.length; i++) crossMarks[i].visible = false;
   const target = hittableBall();
@@ -1342,6 +1408,8 @@ const input = new Input({
   },
   swingRelease() {
     if (started && !paused && !ended && player.mode === 'charging') {
+      // tenis: soltaste temprano y viene una a tu alcance: el golpe la espera
+      if (pocket && bufferRelease()) return;
       audio.whoosh(player.meter.power);
       player.releaseSwing();
     }
@@ -1793,7 +1861,8 @@ function frame(): void {
     // Y el efecto: mantener A o D curva el tiro (continuo), y con «al soltar» vuelve a cero apenas no
     // hay ninguna de las dos apretada
     // el tenista camina con las teclas apretadas, cargando o no. El derecho de la pantalla es -x
-    if (pocket) player.moveDir = started && !ended && !cardOpen ? -heldRight() : 0;
+    // y si no tocás nada y viene una pelota cerca, el imán te lleva
+    if (pocket) player.moveDir = started && !ended && !cardOpen ? -heldRight() || assistMove() : 0;
     if (!pocket && started && !ended && player.mode === 'charging' && (!tutorial || tutorial.canMove)) {
       const right = (input.keys.has('KeyD') || input.keys.has('ArrowRight') ? 1 : 0) - (input.keys.has('KeyA') || input.keys.has('ArrowLeft') ? 1 : 0);
       if (SHIFT.mode === 'continuo' && right) player.shiftStance(-right * SHIFT.speed * dt);

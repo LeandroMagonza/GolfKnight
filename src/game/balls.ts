@@ -76,6 +76,8 @@ export interface Ball {
   arc?: { from: THREE.Vector3; to: THREE.Vector3; t: number; time: number; height: number };
   /** Modo tenis: la que atrapó la raqueta va hasta acá, al lado del tenista, y sale de ahí en el impacto. */
   holdAt?: THREE.Vector3;
+  /** Y a qué velocidad va, en m/s: la que traía, para que no pegue un salto. */
+  pull?: number;
   /** Modo tenis: rebotes en las paredes de los costados. */
   walls: number;
 }
@@ -339,18 +341,27 @@ export class Balls {
   }
 
   /**
-   * Tenis: rebota como en un ladrillo (un enemigo, o la pared del fondo) y viene de vuelta hacia el
-   * tenista, a la velocidad de vuelta.
+   * Tenis: viene de vuelta hacia el tenista. Del enemigo vuelve **en globo**, que tarda por lo menos
+   * `minReturn` en llegar (así da tiempo aunque el enemigo esté encima); de la pared del fondo, rasante, a
+   * la velocidad de vuelta y apuntada a vos.
    */
   private sendBack(ball: Ball, enemy: Enemy | null): void {
     const s = ball.state;
+    if (enemy) {
+      const at = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
+      const d = Math.abs(at.z - TEE_LINE_Z);
+      const time = Math.max(TENNIS.minReturn, d / Math.max(1, TENNIS.backSpeed));
+      // más cerca, más globo: el tiempo es el mismo y la distancia menos
+      this.arcBack(ball, at, time, 1.2 * time * time);
+      ball.hitIds.add(enemy.id);
+      return;
+    }
     const target = this.tennisTarget?.() ?? { x: s.pos.x, z: TEE_LINE_Z };
-    const v = homeBack(s.vel.x, s.vel.z, s.pos.x, s.pos.z, target, Math.min(MAX_BALL_SPEED, TENNIS.backSpeed));
+    const v = homeBack(s.vel.x, s.vel.z, s.pos.x, s.pos.z, target, Math.min(MAX_BALL_SPEED, TENNIS.backSpeed), TENNIS.wallHoming);
     s.vel.x = v.vx;
     s.vel.z = v.vz;
     // que no lo vuelva a tocar al salir, pero sí a los demás, aunque ya les haya pegado de ida
     ball.hitIds.clear();
-    if (enemy) ball.hitIds.add(enemy.id);
     ball.phase = 'back';
     this.onEvent?.({ type: 'returned', ball });
   }
@@ -441,10 +452,11 @@ export class Balls {
    * en el impacto: así se ve el golpe aunque hayas soltado temprano, y el tiro sale por donde marca la
    * línea de tiro (ver main, `catchBall`).
    */
-  hold(ball: Ball, at: THREE.Vector3): void {
+  hold(ball: Ball, at: THREE.Vector3, speed: number): void {
     ball.phase = 'held';
     ball.arc = undefined;
     ball.holdAt = at.clone();
+    ball.pull = speed;
     ball.state.vel.x = 0;
     ball.state.vel.y = 0;
     ball.state.vel.z = 0;
@@ -471,6 +483,11 @@ export class Balls {
 
   /** Tenis: el globo que reventó vuelve por el aire hasta la línea, donde se lo puede devolver. */
   private lobBack(ball: Ball, at: THREE.Vector3): void {
+    this.arcBack(ball, at, Math.max(0.3, TENNIS.lobTime), TENNIS.lobHeight);
+  }
+
+  /** Tenis: vuelve por el aire, en `time` s y `height` m de alto, hasta la línea, donde se la puede devolver. */
+  private arcBack(ball: Ball, at: THREE.Vector3, time: number, height: number): void {
     const target = this.tennisTarget?.() ?? { x: at.x, z: TEE_LINE_Z };
     // como cualquier vuelta: entre la x donde reventó y la del tenista, según la puntería
     const h = Math.min(1, Math.max(0, TENNIS.homing));
@@ -479,7 +496,7 @@ export class Balls {
     ball.phase = 'back';
     ball.burst = false;
     ball.hitIds.clear();
-    ball.arc = { from: new THREE.Vector3(at.x, Math.max(BALL_RADIUS, at.y), at.z), to: new THREE.Vector3(x, 0.9, TEE_LINE_Z), t: 0, time: Math.max(0.3, TENNIS.lobTime), height: TENNIS.lobHeight };
+    ball.arc = { from: new THREE.Vector3(at.x, Math.max(BALL_RADIUS, at.y), at.z), to: new THREE.Vector3(x, 0.9, TEE_LINE_Z), t: 0, time, height };
     const s = ball.state;
     s.vel.x = 0;
     s.vel.y = 0;
@@ -492,13 +509,18 @@ export class Balls {
   private updateTennis(ball: Ball, dt: number): void {
     const s = ball.state;
     if (ball.phase === 'held') {
-      // va rápido hasta la raqueta y espera ahí el impacto
+      // sigue a la velocidad que traía, derecho hasta la raqueta, y espera ahí el impacto
       const at = ball.holdAt;
       if (at) {
-        const k = 1 - Math.exp(-28 * dt);
-        s.pos.x += (at.x - s.pos.x) * k;
-        s.pos.y += (at.y - s.pos.y) * k;
-        s.pos.z += (at.z - s.pos.z) * k;
+        const dx = at.x - s.pos.x;
+        const dy = at.y - s.pos.y;
+        const dz = at.z - s.pos.z;
+        const d = Math.hypot(dx, dy, dz);
+        const step = (ball.pull ?? 20) * dt;
+        const k = d <= step ? 1 : step / d;
+        s.pos.x += dx * k;
+        s.pos.y += dy * k;
+        s.pos.z += dz * k;
       }
       return;
     }

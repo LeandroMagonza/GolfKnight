@@ -2392,3 +2392,23 @@ no se sentía (la pelota salía antes de llegar a la raqueta, y por otro lado qu
 
 Todo en el panel, pestaña del tiro, «Modo tenis». Lo guardado se mantiene: los números nuevos entran con
 su valor por defecto, y «enemigos» queda como lo tenías (para probar «si sobrevive» hay que elegirlo).
+
+## Hecho: tenis, cuarta vuelta: el golpe que se siente (1/10/2026)
+
+Lo que hacen los juegos de tenis (Mario Tennis, Virtua Tennis, Wii Sports) para que pegarle se sienta
+bien: el golpe se **guarda** (apretás antes y sale cuando llega la pelota), un **imán** acomoda al
+jugador los últimos metros, y el timing cambia la dirección o la calidad, no si conectás. Aplicado:
+
+- **Del enemigo vuelve en globo** que tarda por lo menos `minReturn` (1.2 s) en llegar a tu línea; cuanto
+  más cerca el enemigo, más alto. Ya no es imposible devolver el rebote de uno que está encima.
+- **La pared del fondo apunta derecho a vos** (`wallHoming`, 1): la que pegaba cerca de una esquina volvía
+  recta (mitad espejo, mitad hacia vos) y quedaba lejos, en el costado.
+- **Golpe guardado** (`buffer`, 0.7 s): si soltás antes y viene una pelota a tu alcance que llega en
+  menos de eso, el golpe la espera con la carga clavada, en vez de sacar una del bolsillo.
+- **Imán** (`assist`, 2 m): sin tocar A ni D, si viene una que pasa cerca de tu alcance, te corrés solo.
+- **Le llegás o no, en la pelota**: verde si le llegás, amarilla si estás cerca, roja si no. Se pinta la
+  pelota y su estela (el jugador mira la pelota, no el piso), y la marca en la línea, que además es más
+  grande cuanto más lejos estás.
+- **La raqueta la trae sin saltos**: la atrapada sigue a la velocidad que traía, derecho hasta la
+  raqueta, en vez de pegar un salto.
+- La pelota no puede pasarte por arriba: para devolverla no cuenta la altura, solo que esté a tu alcance.

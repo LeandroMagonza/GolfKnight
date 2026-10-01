@@ -31,6 +31,26 @@ export const TENNIS = {
   /** Hacia dónde tira la vuelta: 0, hacia el tenista; 1, hacia el centro de la línea. */
   homeTo: 0,
   /**
+   * La puntería de la pared del fondo, aparte: 1 la manda derecho a vos. Con menos, la que pegaba cerca de
+   * una esquina volvía recta (mitad espejo hacia afuera, mitad hacia vos) y quedaba lejos, en el costado.
+   */
+  wallHoming: 1,
+  /**
+   * La que rebota en un enemigo vuelve **en globo**, y tarda por lo menos esto en llegar a tu línea, en s:
+   * así, aunque el enemigo esté encima, hay tiempo de acomodarse. Cuanto más cerca, más alto el globo.
+   */
+  minReturn: 1.2,
+  /**
+   * Imán: si viene una pelota y va a pasar a menos de esto de tu alcance, sin tocar A ni D el tenista se
+   * corre solo hasta donde va a llegar. En m; 0 lo apaga.
+   */
+  assist: 2,
+  /**
+   * El golpe guardado: si soltás antes de tiempo y viene una pelota a tu alcance que llega en menos de
+   * esto (s), el golpe espera a que llegue en lugar de sacar del bolsillo.
+   */
+  buffer: 0.7,
+  /**
    * Cuántos rebotes en las paredes de los costados aguanta: al llegar a ese número la pelota salta por
    * arte de magia a tus pies, en la línea. 0: sin límite.
    */

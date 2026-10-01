@@ -642,7 +642,7 @@ export class DebugPanel {
   private buildTennis(el: HTMLElement): void {
     el.append(heading('Modo tenis'));
     const t = TENNIS;
-    type Key = 'backSpeed' | 'backWall' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'runSpeed' | 'chargeMove' | 'pocketMax' | 'homing' | 'wallLimit' | 'lobTime' | 'lobHeight';
+    type Key = 'backSpeed' | 'backWall' | 'minBack' | 'hop' | 'reach' | 'ahead' | 'behind' | 'rallyStep' | 'runSpeed' | 'chargeMove' | 'pocketMax' | 'homing' | 'wallLimit' | 'lobTime' | 'lobHeight' | 'wallHoming' | 'minReturn' | 'assist' | 'buffer';
     const num = (key: Key, min = 0, max = Infinity) =>
       [() => t[key], (v: number) => { t[key] = Math.min(max, Math.max(min, v)); }] as const;
     type Row = [string, () => number, (v: number) => void, number, string];
@@ -651,7 +651,11 @@ export class DebugPanel {
       ['vuelta', ...num('backSpeed', 1, 150), 1, 'm/s después de rebotar (enemigo o pared del fondo)'],
       ['pared del fondo', ...num('backWall', 5, 80), 1, 'm desde tu línea'],
       ['paredes laterales', () => t.wallKeep, (v) => { t.wallKeep = Math.min(1, Math.max(0, v)); }, 0.05, 'de la velocidad que conserva (0 a 1)'],
+      ['vuelta del enemigo', ...num('minReturn', 0.2, 5), 0.1, 's como mínimo: vuelve en globo, más alto cuanto más cerca'],
       ['puntería de la vuelta', ...num('homing', 0, 1), 0.05, '0 rebote puro, 1 derecho a vos (o al centro)'],
+      ['puntería de la pared', ...num('wallHoming', 0, 1), 0.05, 'la del fondo: 1 la manda derecho a vos'],
+      ['imán', ...num('assist', 0, 10), 0.25, 'm: si viene una a esto de tu alcance, te corrés solo (0 lo apaga)'],
+      ['golpe guardado', ...num('buffer', 0, 2), 0.05, 's: soltando antes, espera a la pelota que llega en menos de esto'],
       ['rebotes en los costados', ...num('wallLimit', 0, 20), 1, 'y salta a tus pies (0: sin límite)'],
       ['globo de vuelta', ...num('lobTime', 0.3, 6), 0.1, 's en llegar a tu línea'],
       ['altura del globo', ...num('lobHeight', 0, 20), 0.5, 'm'],
