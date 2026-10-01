@@ -10,6 +10,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 1 de octubre
 
 **Golf**
+- Se fue la granada: el silencio en área ahora es el wedge silenciador. `24f7283`
+- Los efectos de las habilidades salen solo si el golpe toca: si el escudo para la pelota, el divino se
+  come el golpe o el aura de invencible lo protege, no hay fuego, hielo, rayo ni silencio. El wedge,
+  que cae a plomo, pasa los escudos. `24f7283`
+- Los kamikazes salen en todas las oleadas: cualquier goblin sin otro poder puede ser uno. En la
+  estampida siguen siendo muchos más. `24f7283`
 - Habilidad nueva para los cuatro palos, el **golpe fantasma**: pasa escudos y blindaje (el del driver
   también atraviesa lomas) y desde el nivel 2 le pega entero al enemigo fantasma. `c6073d5`
 - Habilidad nueva para los cuatro palos, el **golpe silenciador**: pega y deja silenciado al que
