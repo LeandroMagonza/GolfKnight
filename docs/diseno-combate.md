@@ -1574,6 +1574,9 @@ tiro!»), y con el albañil se suma el avance («Albañil 3/5») o el «¡Los al
 - **La carta de habilidad dice su recarga**: la de base si es nueva, y «9 s → 11.7 s · más lenta» si
   sube de nivel (hoy subir siempre la alarga un 30 % de la base por nivel).
 
+Análisis de counters por enemigo y propuesta de un draft que mire lo que viene (incluida la lupa contra
+fantasmas): `docs/counters.md`. Sin implementar, espera decisión.
+
 ### Botiquín
 
 Mejora nueva, hasta 3 niveles: al terminar cada oleada, la puerta +1 y vos +1 por nivel. Es la curación
