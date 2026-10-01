@@ -390,6 +390,11 @@ export class Hud {
     this.range.textContent = charging ? label : '';
   }
 
+  /** Tenis: si la pelota del arco te llega o no (sin llegar, el arco se ve apagado). */
+  setMeterReach(inReach: boolean): void {
+    this.meter.classList.toggle('far', !inReach);
+  }
+
   showBanner(big: string, small: string, seconds = 3): void {
     (this.banner.querySelector('.big') as HTMLElement).textContent = big;
     (this.banner.querySelector('.small') as HTMLElement).textContent = small;

@@ -33,12 +33,12 @@ const SLIDES: Slide[] = [
 const TENNIS_SLIDE: Slide = {
   art: '',
   html: `<p class="controls">
-      <em>Modo tenis</em> (prototipo): la pelota rebota en el primer enemigo y vuelve. Andá a buscarla y devolvésela a otro<br />
-      Caminá de costado con <kbd>A</kbd> y <kbd>D</kbd> · la marca en tu línea dice dónde va a llegar cada pelota<br />
-      Mantené <kbd>click</kbd> para cargar y soltá para pegar: si hay una pelota al alcance, la devolvés; si no, sacás del bolsillo<br />
-      <kbd>1</kbd> plano: rebota y vuelve · <kbd>2</kbd> globo: revienta en área y esa pelota se pierde<br />
-      Cuantas más veces devolvés la misma pelota, más pega. Las que se quedan en el fondo se levantan pasándoles por encima<br />
-      <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> habilidades · <kbd>Espacio</kbd> clava el golpe · pausa <kbd>Esc</kbd>
+      <em>Modo tenis</em> (prototipo): la pelota rebota en el enemigo y vuelve en espejo. Al que matás, lo atraviesa<br />
+      Caminá de costado con <kbd>A</kbd> y <kbd>D</kbd> · la marca en tu línea dice dónde va a caer cada pelota<br />
+      <kbd>Click</kbd> para prepararte y soltá cuando la pelota llega: el arco marca el momento justo (y si estás a tiro)<br />
+      Sin pelota que venga, sacás: tirás la pelota para arriba y soltás cuando llega arriba<br />
+      Cuantas más veces devolvés la misma pelota, más pega. La que no devolvés vuelve sola al bolsillo<br />
+      <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> habilidades · pausa <kbd>Esc</kbd>
     </p>`,
 };
 

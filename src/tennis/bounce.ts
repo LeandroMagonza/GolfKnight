@@ -66,17 +66,31 @@ export type TennisPhase = 'out' | 'back' | 'floor' | 'held';
 export const MAX_BALL_SPEED = 150;
 
 /**
- * Dónde cae en tu línea la pelota que rebota en (`bx`, `bz`) viniendo con velocidad (`vx`, `vz`): en
- * espejo, como en un ladrillo. Si el espejo cae afuera, **rebota en la pared del costado** (se dobla
- * contra ±`edge`): la que pega en una esquina vuelve más o menos por donde vino, como en una cancha de
- * verdad. Antes se quedaba en el borde, y la que tirabas a la esquina volvía a la otra punta.
+ * Dónde caería en tu línea la pelota que rebota en (`bx`, `bz`) viniendo con velocidad (`vx`, `vz`), en
+ * espejo, **sin contar las paredes de los costados**: puede caer afuera. Con `foldX` se le suman los
+ * rebotes en los costados.
  */
-export function mirrorLanding(bx: number, bz: number, vx: number, vz: number, lineZ: number, edge: number): number {
-  const x = vz > 1e-6 ? bx + (vx / vz) * (bz - lineZ) : bx;
+export function mirrorRaw(bx: number, bz: number, vx: number, vz: number, lineZ: number): number {
+  return vz > 1e-6 ? bx + (vx / vz) * (bz - lineZ) : bx;
+}
+
+/**
+ * Una x que cae afuera de ±`edge`, rebotada en las paredes de los costados (se dobla como en un espejo,
+ * las veces que haga falta).
+ */
+export function foldX(x: number, edge: number): number {
   const w = 2 * edge;
   let u = (((x + edge) % (2 * w)) + 2 * w) % (2 * w);
   if (u > w) u = 2 * w - u;
   return u - edge;
+}
+
+/**
+ * Dónde cae en tu línea la pelota que rebota: en espejo, como en un ladrillo, y si el espejo cae afuera,
+ * **rebota en la pared del costado**. La que pega en una esquina vuelve más o menos por donde vino.
+ */
+export function mirrorLanding(bx: number, bz: number, vx: number, vz: number, lineZ: number, edge: number): number {
+  return foldX(mirrorRaw(bx, bz, vx, vz, lineZ), edge);
 }
 
 /**

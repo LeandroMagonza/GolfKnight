@@ -14,7 +14,7 @@ import type { Traps } from './traps';
 import { heightAt, terrainOn } from '../core/terrain';
 import { FIELD_HALF_WIDTH, GATE_Z, TEE_LINE_Z } from './world';
 import { SHIELD_TOP } from '../core/shield';
-import { MAX_BALL_SPEED, mirrorLanding, returnHeight, returnTime, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
+import { foldX, MAX_BALL_SPEED, mirrorRaw, returnHeight, returnTime, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
 
 const TRAIL_POINTS = 18;
 const MAX_STEP = 0.3;
@@ -73,7 +73,7 @@ export interface Ball {
   /** Modo tenis: la que pasó de largo vuelve a la línea por el aire, como tirada por un alcanzapelotas. */
   toss?: { from: THREE.Vector3; to: THREE.Vector3; t: number };
   /** Modo tenis: el globo que vuelve por el aire a la línea (se puede devolver al llegar). */
-  arc?: { from: THREE.Vector3; to: THREE.Vector3; t: number; time: number; height: number };
+  arc?: { from: THREE.Vector3; to: THREE.Vector3; t: number; time: number; height: number; rawX: number };
   /** Modo tenis: la que atrapó la raqueta va hasta acá, al lado del tenista, y sale de ahí en el impacto. */
   holdAt?: THREE.Vector3;
   /** Y a qué velocidad va, en m/s: la que traía, para que no pegue un salto. */
@@ -105,6 +105,8 @@ const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
 const AWAY = new THREE.Vector3(0, 0, 1);
 /** Tenis: tope de pasos por cuadro, cuánto tarda en volver a la línea la que pasó de largo, y el color de la pared del fondo. */
 const MAX_TENNIS_STEPS = 60;
+/** Tenis: dónde rebota la vuelta contra los costados (un poco antes del alambrado, para que se llegue). */
+const RETURN_EDGE = FIELD_HALF_WIDTH - 0.6;
 const TOSS_TIME = 0.6;
 export const MAGIC_WALL_COLOR = 0x9d7bff;
 
@@ -347,8 +349,7 @@ export class Balls {
   private sendBack(ball: Ball, enemy: Enemy | null): void {
     const s = ball.state;
     const at = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
-    const x = mirrorLanding(at.x, at.z, s.vel.x, s.vel.z, TEE_LINE_Z, FIELD_HALF_WIDTH - 1.5);
-    this.arcTo(ball, at, x);
+    this.arcTo(ball, at, mirrorRaw(at.x, at.z, s.vel.x, s.vel.z, TEE_LINE_Z));
     if (enemy) ball.hitIds.add(enemy.id);
   }
 
@@ -469,23 +470,30 @@ export class Balls {
 
   /** Tenis: el globo que reventó vuelve por el aire hasta la línea, con la misma regla que las demás. */
   private lobBack(ball: Ball, at: THREE.Vector3): void {
-    const x = mirrorLanding(at.x, at.z, at.x - ball.from.x, at.z - ball.from.z, TEE_LINE_Z, FIELD_HALF_WIDTH - 1.5);
-    this.arcTo(ball, at, x);
+    this.arcTo(ball, at, mirrorRaw(at.x, at.z, at.x - ball.from.x, at.z - ball.from.z, TEE_LINE_Z));
   }
 
-  /** Tenis: vuelve hasta `x` en tu línea, en el tiempo que corresponde (ver `returnTime`). */
-  private arcTo(ball: Ball, at: THREE.Vector3, x: number): void {
+  /**
+   * Tenis: vuelve hacia `rawX` en tu línea (el espejo sin contar los costados), rebotando en las paredes
+   * de los costados por el camino, en el tiempo que corresponde (ver `returnTime`).
+   */
+  private arcTo(ball: Ball, at: THREE.Vector3, rawX: number): void {
+    const x = foldX(rawX, RETURN_EDGE);
     const run = Math.abs(x - this.tennisX()) - TENNIS.reach;
     const time = returnTime(Math.abs(at.z - TEE_LINE_Z), run);
-    this.arcBack(ball, at, x, time, returnHeight(time));
+    this.arcBack(ball, at, rawX, time, returnHeight(time));
   }
 
-  /** Tenis: vuelve por el aire, en `time` s y `height` m de alto, hasta la línea en `x`, donde se la puede devolver. */
-  private arcBack(ball: Ball, at: THREE.Vector3, x: number, time: number, height: number): void {
+  /**
+   * Tenis: vuelve por el aire, en `time` s y `height` m de alto, hasta la línea. `rawX` es adónde iría sin
+   * paredes: en el camino rebota en los costados, y cae en `foldX(rawX)`.
+   */
+  private arcBack(ball: Ball, at: THREE.Vector3, rawX: number, time: number, height: number): void {
+    const x = foldX(rawX, RETURN_EDGE);
     ball.phase = 'back';
     ball.burst = false;
     ball.hitIds.clear();
-    ball.arc = { from: new THREE.Vector3(at.x, Math.max(BALL_RADIUS, at.y), at.z), to: new THREE.Vector3(x, 0.9, TEE_LINE_Z), t: 0, time: Math.max(0.3, time), height };
+    ball.arc = { from: new THREE.Vector3(at.x, Math.max(BALL_RADIUS, at.y), at.z), to: new THREE.Vector3(x, 0.9, TEE_LINE_Z), t: 0, time: Math.max(0.3, time), height, rawX };
     const s = ball.state;
     s.vel.x = 0;
     s.vel.y = 0;
@@ -531,7 +539,8 @@ export class Balls {
       // el globo de vuelta: una parábola hasta la línea. Si llega y nadie lo devolvió, queda en el piso
       const a = ball.arc;
       a.t = Math.min(1, a.t + dt / a.time);
-      s.pos.x = a.from.x + (a.to.x - a.from.x) * a.t;
+      // en línea recta hacia donde iría sin paredes, doblada contra los costados: se la ve rebotar
+      s.pos.x = foldX(a.from.x + (a.rawX - a.from.x) * a.t, RETURN_EDGE);
       s.pos.z = a.from.z + (a.to.z - a.from.z) * a.t;
       s.pos.y = a.from.y + (a.to.y - a.from.y) * a.t + Math.sin(a.t * Math.PI) * a.height;
       if (a.t >= 1) {

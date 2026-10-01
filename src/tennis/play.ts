@@ -33,6 +33,37 @@ export interface TennisHost {
   whoosh(power: number): void;
   bounce(): void;
   feedback(text: string, tone: 'good' | 'bad' | 'neutral'): void;
+  /** Un destello (la pelota que desaparece al volver a sacar). */
+  blink(pos: THREE.Vector3): void;
+}
+
+/** El arco del timing: a cuánto del momento justo está (o quedó, si ya soltaste) y si estás a tiro. */
+export interface Gauge {
+  /** Segundos desde el momento justo: negativo, todavía no llegó. */
+  err: number;
+  locked: boolean;
+  inReach: boolean;
+}
+
+/** El arco aparece cuando falta esto para el momento justo, en s. */
+export const GAUGE_TIME = 0.9;
+
+/**
+ * Dónde va la aguja del arco para un timing: arriba en el momento justo, en los bordes a `GAUGE_TIME`.
+ * Cada tramo (golpe 1, 2 y 3) ocupa en la barra lo que dura. `marks` son los umbrales del medio y del
+ * fuerte, como en el golf.
+ */
+export function gaugePower(err: number, marks: readonly [number, number]): number {
+  const e = Math.abs(err);
+  const [a, b] = marks;
+  if (e <= TENNIS.perfect) return b + (1 - e / TENNIS.perfect) * (1 - b);
+  if (e <= TENNIS.good) return a + (1 - (e - TENNIS.perfect) / (TENNIS.good - TENNIS.perfect)) * (b - a);
+  return Math.max(0, 1 - (e - TENNIS.good) / Math.max(0.01, GAUGE_TIME - TENNIS.good)) * a;
+}
+
+/** Los tiempos del arco del tenis, para dibujar sus tramos. */
+export function gaugeTimes(): { weak: number; mid: number; strong: number; rebound: number } {
+  return { weak: Math.max(0.01, GAUGE_TIME - TENNIS.good), mid: Math.max(0.01, TENNIS.good - TENNIS.perfect), strong: 2 * TENNIS.perfect, rebound: 0.3 };
 }
 
 /** Una pelota que viene de vuelta: dónde cae en tu línea y en cuántos segundos. */
@@ -57,6 +88,8 @@ type Prep =
 
 export class TennisPlay {
   private prep: Prep | null = null;
+  /** El arco del timing de ahora, o null si no hay pelota cerca. */
+  gauge: Gauge | null = null;
   /** La que se devuelve en este golpe (ya va a la raqueta), y si el golpe es un saque. */
   private rehit: Ball | null = null;
   private serving = false;
@@ -68,6 +101,8 @@ export class TennisPlay {
   /** Segundos entre decidir el golpe y el impacto del swing: se mide en cada golpe. */
   private lead = 0.15;
   private readonly tossMesh: THREE.Mesh;
+  /** La pelota del arco está a tiro (el saque siempre). */
+  private ringReach = true;
   private readonly ring: THREE.Mesh;
   private readonly marks: THREE.Mesh[] = [];
   private readonly markGeo = new THREE.RingGeometry(0.35, 0.55, 24);
@@ -115,7 +150,13 @@ export class TennisPlay {
       this.prep = { kind: 'return', ball: null, releasedAt: null };
       return true;
     }
-    if (!this.host.pocket.take()) return false;
+    if (!this.host.pocket.take()) {
+      // sin pelotas en el bolsillo, la que tiraste y todavía no volvió (le erraste) desaparece y sacás de nuevo
+      const old = this.host.balls.list.find((b) => !b.done && !b.ability && (b.phase === 'out' || b.phase === 'back'));
+      if (!old) return false;
+      this.host.blink(old.mesh.position.clone());
+      this.host.balls.retire(old);
+    }
     this.prep = { kind: 'serve', startAt: this.host.clock() };
     this.tossMesh.visible = true;
     return true;
@@ -239,6 +280,7 @@ export class TennisPlay {
       this.tossMesh.position.set(p.anchor.x + 0.25, 1.1 + TOSS_HEIGHT * Math.max(0, 1 - u * u), TEE_LINE_Z + 0.2);
       ringAt = this.tossMesh.position;
       ringEta = TENNIS.tossTime - t;
+      this.ringReach = true;
       if (t >= TENNIS.tossTime * 1.6) this.commit(1, null);
     } else if (prep?.kind === 'return') {
       if (prep.ball && (prep.ball.done || prep.ball.phase !== 'back')) prep.ball = null;
@@ -253,6 +295,7 @@ export class TennisPlay {
         prep.ball = target.ball;
         ringAt = target.ball.mesh.position;
         ringEta = target.eta;
+        this.ringReach = Math.abs(target.x - p.anchor.x) <= TENNIS.reach;
         if (prep.releasedAt !== null) ringErr = prep.releasedAt - (now + target.eta);
         if (target.eta <= this.lead) {
           const arriveAt = now + target.eta;
@@ -272,13 +315,19 @@ export class TennisPlay {
     }
     // sin preparar, el círculo igual avisa de la próxima que viene a tu alcance
     if (!ringAt) {
-      const next = incoming.find((c) => c.eta < 1.2 && Math.abs(c.x - p.anchor.x) <= TENNIS.reach + 3);
+      // (la que no te llega también: el arco sale apagado y dice que no llegás)
+      const next = incoming.find((c) => c.eta < 1.2);
       if (next) {
         ringAt = next.ball.mesh.position;
         ringEta = next.eta;
+        this.ringReach = Math.abs(next.x - p.anchor.x) <= TENNIS.reach;
       }
     }
-    this.drawRing(ringAt, ringEta, ringErr);
+    // el arco del timing (el círculo sobre la pelota quedó apagado: el arco lo reemplaza)
+    this.gauge = ringAt && ringEta < GAUGE_TIME && ringEta > -TENNIS.good
+      ? { err: ringErr ?? -ringEta, locked: ringErr !== null, inReach: this.ringReach }
+      : null;
+    this.drawRing(null, 0, null);
 
     // la que no devolviste vuelve sola a vos, al bolsillo, como en un rompeladrillos (si entra)
     for (const b of host.balls.onFloor) {

@@ -2,10 +2,10 @@
 // de la intro, que recarga la página con eso. Todo lo demás (enemigos, oleadas, cartas, habilidades,
 // la barra de carga) es el mismo juego.
 //
-// Los golpes son dos de los palos de siempre, con otro nombre, para que las habilidades de palo y
-// elemento sigan andando: el **plano** es el driver (sale rasante, rebota en el primer enemigo y
-// vuelve) y el **globo** es el wedge (cae donde apuntás, revienta en área y esa pelota se pierde). El
-// hierro y el putter no están.
+// Hay un solo golpe, el **plano**, que es el driver con otro nombre (así sus habilidades de elemento
+// siguen andando): sale rasante, rebota y vuelve. El **globo** (el wedge) quedó solo como habilidad: como
+// golpe no entraba en el ida y vuelta, y con el timing casi siempre salía el golpe 1, que en el wedge es
+// 0 de daño. El hierro y el putter no están.
 import { ABILITIES, ABILITY_LIST } from '../core/abilities';
 import { CLUB_ORDER, CLUBS } from '../core/clubs';
 
@@ -14,12 +14,13 @@ export const TENNIS_ON = new URLSearchParams(location.search).has('tenis');
 /** Arma los golpes y las cartas del tenis. Va antes de armar el HUD, que dibuja los palos. */
 export function applyTennis(): void {
   Object.assign(CLUBS.driver, { name: 'Plano', title: 'Rasante', hint: 'Rebota y vuelve', returns: true });
-  Object.assign(CLUBS.wedge, { name: 'Globo', title: 'Globo', hint: 'Área, no vuelve' });
-  CLUB_ORDER.splice(0, CLUB_ORDER.length, 'driver', 'wedge');
+  Object.assign(CLUBS.wedge, { name: 'Globo', title: 'Globo', hint: 'Área' });
+  CLUB_ORDER.splice(0, CLUB_ORDER.length, 'driver');
   // las habilidades del hierro y del putter no tienen golpe que las tire
   for (let i = ABILITY_LIST.length - 1; i >= 0; i--) {
     const a = ABILITIES[ABILITY_LIST[i]];
-    if (a.club === 'iron' || a.club === 'putter') ABILITY_LIST.splice(i, 1);
+    // el boomerang tira el palo de la mano y pasa al otro: con una sola raqueta no hay otro
+    if (a.club === 'iron' || a.club === 'putter' || a.id === 'boomerang') ABILITY_LIST.splice(i, 1);
     else if (a.club === 'driver') {
       a.name = a.name.replace('Driver', 'Plano');
       a.hint = a.hint.replace('Un tiro de driver', 'Un plano');

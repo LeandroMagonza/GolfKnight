@@ -2460,3 +2460,20 @@ pelota es legible y predecible, y lo que hace el jugador es ubicarse. Todo en `s
   Medido: golpe 3 entre −0.05 y +0.05 s, golpe 2 hasta ±0.15 s.
 - **El saque se hace parado**: mientras la pelota está en el aire y hasta que sale el golpe, A y D no
   mueven.
+
+## Hecho: tenis: sin globo, el arco del timing y volver a sacar (1/10/2026)
+
+- **El globo ya no es un golpe**, solo habilidad (globo de fuego, de hielo...). Como golpe no entraba en
+  el ida y vuelta, se veía raro que volviera, y con el timing casi siempre salía el golpe 1, que en el
+  wedge es 0 de daño: no hacía nada. Queda un solo golpe, el plano (tecla 1). El boomerang tampoco está:
+  tira el palo de la mano y pasa al otro, y con una sola raqueta no hay otro.
+- **El arco del timing**: el mismo arco del golf, pero aparece solo cuando se acerca una pelota (0.9 s
+  antes) o en el saque. La aguja sube desde el borde y llega arriba en el momento justo; después baja por
+  el otro lado. Cada tramo dura lo que dura su ventana (golpe 3, ±0.07 s; golpe 2, ±0.18 s) y lleva su
+  daño escrito. Si la pelota no te llega, el arco se ve apagado y dice «no llegás». Reemplaza al círculo
+  sobre la pelota.
+- **Volver a sacar**: si le erraste y no te quedan pelotas en el bolsillo, al apretar la que tiraste
+  desaparece y sacás de nuevo, en vez de esperar a que vuelva de la pared del fondo.
+- **La vuelta se ve rebotar en los costados**: va en línea recta hacia donde caería sin paredes y se
+  dobla contra el costado, así se entiende para dónde va después de un rebote de costado y otro en el
+  fondo (antes cruzaba la cancha en diagonal derecho al punto final).

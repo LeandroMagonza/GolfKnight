@@ -95,6 +95,8 @@
       #meter .zone { stroke: rgba(0,0,0,0.75); stroke-width: 1.5; }
       #meter .needle { visibility: hidden; }
       #meter.on { opacity: 1; }
+      /* tenis: la pelota que viene no te llega: el arco se apaga */
+      #meter.on.far { opacity: 0.45; filter: grayscale(1); }
       #meter.on .needle { visibility: visible; }
       /* palos a la izquierda, poderes a la derecha: una sola fila, sin nada que empuje el medidor */
       #rows { display: flex; align-items: flex-start; gap: 22px; }

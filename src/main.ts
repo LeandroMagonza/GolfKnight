@@ -29,8 +29,8 @@ import { Input } from './input';
 import { Intro } from './intro';
 import { Tutorial } from './tutorial';
 import { applyTennis, POCKET_RAIN, switchMode, TENNIS_ON } from './tennis/mode';
-import { TENNIS } from './tennis/bounce';
-import { TennisPlay } from './tennis/play';
+import { TENNIS, timingQuality } from './tennis/bounce';
+import { gaugePower, gaugeTimes, TennisPlay } from './tennis/play';
 import { Pocket } from './tennis/pocket';
 import { Court } from './tennis/court';
 import type { Ball } from './game/balls';
@@ -378,11 +378,22 @@ function updatePreview(): void {
   const dmgLabel = (damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`) + echo;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
   const duff = damageFor(club, hitAt, 1) <= 0 && areaDamageFor(club, hitAt, 1) <= 0;
+  // tenis: el arco es el del timing, y aparece solo cuando se acerca la pelota (o en el saque)
+  if (tennis) {
+    const g = tennis.gauge;
+    const times = gaugeTimes();
+    hud.setMarks(arcLayout(times, times), qualityMarks(), false, [1, 2, 3].map((q) => plus(damageFor(club, hitAt, q))));
+    hud.setMeter(!!g && !ended, g ? gaugePower(g.err, qualityMarks()) : 0, !!g?.locked, g ? (g.inReach ? `a tiro · ${plus(damageFor(club, hitAt, timingQuality(g.err)))} de daño` : 'no llegás') : '', g && g.err > 0 ? 1 : -1);
+    hud.setMeterReach(!g || g.inReach);
+    if (g) placeMeter();
+  }
   // mientras carga, los tiempos con los que arrancó la carga; si no, los de ahora
-  hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, [1, 2, 3].map((q) => plus(damageFor(club, hitAt, q))));
-  // en el tenis no hay barra: el golpe lo da el timing (el círculo sobre la pelota)
-  hud.setMeter(charging && !tennis, player.meter.power, player.meter.locked, `${hitAt.toFixed(0)} m · ${BAND_NAMES[bandOf(hitAt)]} · ${dmgLabel}`, player.meter.side);
-  if (charging) placeMeter();
+  if (!tennis) hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, [1, 2, 3].map((q) => plus(damageFor(club, hitAt, q))));
+  // en el tenis, el arco es el del timing (arriba)
+  if (!tennis) {
+    hud.setMeter(charging, player.meter.power, player.meter.locked, `${hitAt.toFixed(0)} m · ${BAND_NAMES[bandOf(hitAt)]} · ${dmgLabel}`, player.meter.side);
+    if (charging) placeMeter();
+  }
   if (!show) return;
   player.teePosition(tee);
   // con relieve la línea se corta donde el tiro toca el terreno: así se ve cuándo una loma tapa
@@ -926,6 +937,7 @@ const tennis = pocket && court ? new TennisPlay({
   whoosh: (power) => audio.whoosh(power),
   bounce: () => audio.bounce(),
   feedback: (text, tone) => hud.feedback(text, tone),
+  blink: (pos) => effects.blink(pos, 0xe8ff6a),
 }) : null;
 
 /** -1, 0 o +1: A/izquierda o D/derecha apretadas, en pantalla. */
