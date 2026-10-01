@@ -10,6 +10,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 1 de octubre
 
 **Golf**
+- Los gigantes se notan: bien más grandes (sin llegar al tamaño del élite), con 1 de vida más que antes
+  y un poco más lentos. `892b973`
 - El palo pega y la habilidad pone el efecto: los tiros de fuego, hielo, rayo, viento y silencio ya no
   pegan, solo dejan el efecto, y el efecto es más grande (más fuego, más frío y congela en el nivel 3,
   más saltos de rayo y le cae también al que toca, más silencio). El golpe fantasma sigue pegando. `871a8a5`
