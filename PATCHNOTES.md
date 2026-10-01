@@ -21,6 +21,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   también cuentan las bajas del área. El tiro que mata a varios se canta (¡Doblete!, ¡Triplete!)
   junto con el avance del albañil. `1adc8fb`
 
+**Pantalla**
+- Una libreta junto a la versión, en la pantalla de entrada, abre estas patch notes. Un puntito rojo
+  avisa cuando hay notas nuevas que todavía no leíste. `dc0b938`
+
 **Modo tenis (prototipo)**
 - Tenis rehecho desde cero: el golpe y el saque se deciden por timing, con un círculo sobre la
   pelota que aparece cuando se acerca (y se apaga si no llegás). Mantener apretado es golpe 1; soltar
