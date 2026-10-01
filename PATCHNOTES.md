@@ -10,13 +10,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 1 de octubre
 
 **Golf**
-- Habilidades nuevas, para los cuatro palos:
-  - **Golpe fantasma**: pasa escudos y blindaje (el del driver también atraviesa lomas) y desde el
-    nivel 2 le pega entero al enemigo fantasma.
-  - **Golpe silenciador**: pega y deja silenciado al que alcanza; el golpe mismo choca con sus
-    defensas, los siguientes no.
-
-  `c6073d5`
+- Habilidad nueva para los cuatro palos, el **golpe fantasma**: pasa escudos y blindaje (el del driver
+  también atraviesa lomas) y desde el nivel 2 le pega entero al enemigo fantasma. `c6073d5`
+- Habilidad nueva para los cuatro palos, el **golpe silenciador**: pega y deja silenciado al que
+  alcanza; el golpe mismo choca con sus defensas, los siguientes no. `c6073d5`
 - La granada ahora es solo silencio: ya no suma daño. `c6073d5`
 - Las bajas suenan siguiendo la nota del golpe: si cargaste hasta el 2, la primera baja suena una nota
   más arriba, la segunda otra más. Todo una octava más grave que antes. `c6073d5`
