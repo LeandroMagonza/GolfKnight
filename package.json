@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy": "node tools/deploy.mjs"
+    "deploy": "node tools/deploy.mjs",
+    "patchnotes": "node tools/patchnotes.mjs",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "three": "^0.186.0",

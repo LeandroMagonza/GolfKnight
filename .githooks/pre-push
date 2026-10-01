@@ -1,0 +1,3 @@
+#!/bin/sh
+# Antes de subir main, PATCHNOTES.md tiene que nombrar todos sus commits (ver tools/patchnotes.mjs).
+exec node tools/patchnotes.mjs --pre-push
