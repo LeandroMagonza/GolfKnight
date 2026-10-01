@@ -64,12 +64,13 @@ export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5,
 /** Vendaval: el pasillo de viento que va detrás de la pelota, `halfWidth` a cada lado de la línea. */
 
 /**
- * Granada: agarra a todos los que estén a `radius` de donde cae y los **silencia** `silence` segundos
- * (sin escudo, sin aura, sin inmunidad, y vulnerables). Los del **centro** (hasta `core` del radio) se
- * quedan quietos; los de afuera salen hacia los costados de la línea del tiro, hasta quedar a `push`
- * metros de ella.
+ * Granada: agarra a todos los que estén a `radius` de donde cae y los **silencia** `silence` segundos:
+ * se les apagan todos los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizos,
+ * bomba) y quedan vulnerables. Al élite le dura `eliteSilence` de eso. Los del **centro** (hasta `core`
+ * del radio) se quedan quietos; los de afuera salen hacia los costados de la línea del tiro, hasta
+ * quedar a `push` metros de ella.
  */
-export const GRENADE = { radius: [5, 5.75, 6.5], push: [6, 6.75, 7.5], core: 1 / 3, silence: [5, 6.5, 8] };
+export const GRENADE = { radius: [5, 5.75, 6.5], push: [6, 6.75, 7.5], core: 1 / 3, silence: [5, 6.5, 8], eliteSilence: 0.5 };
 
 /**
  * Los elementos de los tiros de palo y elemento.
@@ -80,9 +81,11 @@ export const GRENADE = { radius: [5, 5.75, 6.5], push: [6, 6.75, 7.5], core: 1 /
  *   es la respuesta al blindado, y también al fantasma (muchos golpes de 1) y al divino (el primer
  *   mordisco se come el escudo). Con la maestría, el que muere prendido contagia a los que tiene a
  *   `spreadRadius`.
- * - **Rayo**: del que alcanza salta a `chainJumps` más, a `chainRange` como mucho, sacándole `chainDamage`
- *   a cada uno. **Nunca salta a uno que ya tocó**, así que no puede dar vueltas matando a todo. Con la
- *   maestría salta una vez más y cada salto pega el doble.
+ * - **Rayo**: **cada uno que alcanza la pelota larga su propio rayo**, que sale para los dos lados y
+ *   en cada rama salta `chainJumps` veces, a `chainRange` como mucho, sacándole `chainDamage` a cada uno
+ *   (ver core/chain). Un rayo nunca toca dos veces al mismo ni vuelve al que lo largó; el de otro sí
+ *   puede. El blindaje se lo come (es un golpe, no fuego). Con la maestría salta una vez más por rama y
+ *   cada salto pega el doble.
  */
 export const ELEMENTS = {
   iceSeconds: [3, 4, 5], freezeSeconds: 2,
@@ -112,8 +115,11 @@ export const FLAG = { radius: [10, 12, 14], seconds: [4, 5, 6] };
 export const POWDER = { radius: [3, 3.5, 4], blast: 2.5, damage: [2, 2, 3], life: 8 };
 /** Caddie dorado: durante `seconds`, tu puesto nunca se queda sin pelota, y las pelotas son doradas. */
 export const CADDIE = { seconds: [4, 6, 8] };
-/** Lupa: los que están a `radius` crecen `scale` veces durante `seconds`: más fáciles de pegar, y vulnerables. */
-export const LENS = { radius: [3.5, 4, 4.5], seconds: [5, 6, 7], scale: 1.6 };
+/**
+ * Lupa: los que están a `radius` crecen `scale` veces durante `seconds`: más fáciles de pegar, y
+ * vulnerables. Al fantasma agrandado le entran hasta `ghostHit` por golpe, en vez de 1.
+ */
+export const LENS = { radius: [3.5, 4, 4.5], seconds: [5, 6, 7], scale: 1.6, ghostHit: 2 };
 /** Clon: deja una copia tuya donde estás; tus próximos `shots` tiros salen también desde ahí, hacia el mismo lado. */
 export const CLONE = { shots: [1, 2, 3], life: 20 };
 /**
@@ -141,7 +147,7 @@ export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> =
 const BASE: Ability[] = [
   {
     id: 'grenade', kind: 'grenade', name: 'Granada', title: 'los silencia', cooldown: 6, range: 45, color: 0xffc94a,
-    hint: 'Cae donde apuntás y silencia a todos los que agarra: sin escudo, sin blindaje, sin aura, sin inmunidad, y vulnerables. A los del borde los tira a los costados; a los del centro los deja quietos. No hace daño',
+    hint: 'Cae donde apuntás y silencia a todos los que agarra: se les apagan todos los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bomba) y reciben 1 de daño extra por golpe. Al élite le dura la mitad. A los del borde los tira a los costados; a los del centro los deja quietos. No hace daño',
   },
   {
     id: 'ice', kind: 'iceZone', name: 'Hielo', title: 'zona fría', cooldown: 10, range: 55, color: 0x7fd4ff,
@@ -173,7 +179,7 @@ const BASE: Ability[] = [
   },
   {
     id: 'lens', kind: 'lens', name: 'Lupa', title: 'los agranda', cooldown: 12, range: 50, color: 0xa8e063,
-    hint: 'Los que agarra crecen un rato: son más fáciles de pegar, y cada pelotazo les saca uno más',
+    hint: 'Los que agarra crecen un rato: son más fáciles de pegar y reciben 1 de daño extra por golpe. Al fantasma agrandado le entran hasta 2 por golpe, en vez de 1',
   },
   {
     id: 'clone', kind: 'clone', name: 'Clon', title: 'dos tiros', cooldown: 15, range: 0, color: 0xc9b8ff,
@@ -199,7 +205,7 @@ const CLUB_RANGE: Record<ClubId, number> = { driver: 55, iron: 55, wedge: 55, pu
 export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: number; hint: string }> = {
   ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: 'enfría a cada uno que alcanza' },
   fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a cada uno que alcanza, que va perdiendo vida' },
-  lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'de cada uno que alcanza salta un rayo al que tenga más cerca' },
+  lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'de cada uno que alcanza sale un rayo para los dos lados, que salta de enemigo en enemigo sin repetir y le saca 1 a cada uno' },
   wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los que agarra' },
 };
 export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning', 'wind'];

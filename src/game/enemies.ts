@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { burnSeconds, ELEMENTS, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
+import { burnSeconds, ELEMENTS, GRENADE, grenadeShift, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
+import { chainJumps } from '../core/chain';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
@@ -732,11 +733,23 @@ export class Enemy {
   }
 
   /**
-   * Silenciado por la granada: no se cubre con el escudo, si es chamán no conjura, ningún aura lo
-   * protege, y cada pelotazo le saca uno más (ver `Horde.damage`).
+   * Silenciado por la granada: **se le apagan todos los poderes**. Sin escudo ni blindaje, deja de ser
+   * fantasma, el divino no se come nada, no esquiva, no conjura, no tira hechizos, la bandera no da
+   * vida, la bomba no explota, ningún aura lo protege, y cada pelotazo le saca uno más (ver
+   * `Horde.damage`). Lo que no se apaga es lo del cuerpo: el élite sigue matando de una.
    */
   get silenced(): boolean {
     return this.silenceTimer > 0;
+  }
+
+  /** La bomba del kamikaze, si no está silenciada: explota al morir, al atropellarte y en la puerta. */
+  get bombLive(): boolean {
+    return this.behavior === 'kamikaze' && !this.silenced;
+  }
+
+  /** Agrandado por la lupa. */
+  get enlarged(): boolean {
+    return this.growTimer > 0;
   }
 
   /** Con el aura activa: la del chamán o la del curandero, venga del tipo o de un modificador. */
@@ -805,11 +818,11 @@ export class Enemy {
     if (this.armorLevel > 0) out.push({ icon: 'armor', value: this.armorLevel, mutes: true });
     if (this.auraKind) out.push({ icon: this.auraKind, mutes: true });
     if (this.behavior === 'banner') out.push({ icon: 'banner', mutes: true });
-    if (this.behavior === 'kamikaze') out.push({ icon: 'bomb' });
+    if (this.behavior === 'kamikaze') out.push({ icon: 'bomb', mutes: true });
     if (this.behavior === 'geomancer') out.push({ icon: 'dig', mutes: true });
     if (this.behavior === 'ranged') out.push({ icon: 'spell', mutes: true });
-    if (this.ethereal) out.push({ icon: 'ethereal' });
-    if (this.divineEvery) out.push({ icon: 'divine', off: !this.divineReady });
+    if (this.ethereal) out.push({ icon: 'ethereal', mutes: true });
+    if (this.divineEvery) out.push({ icon: 'divine', off: !this.divineReady, mutes: true });
     if (this.mods.dodge) out.push({ icon: 'dodge', off: this.dodgeLeft > 0, mutes: true });
     return out;
   }
@@ -950,6 +963,8 @@ export class Enemy {
     this.flashTimer = 0.12;
     if (knockDir) this.knock.addScaledVector(knockDir, (knockback * (this.stats.heavy ? 0.12 : 1)) / this.size);
     if (this.hp <= 0) {
+      // se lee antes de borrar el silencio: el kamikaze silenciado muere sin explotar
+      const bomb = this.bombLive;
       this.state = 'dying';
       this.dyingTime = 0;
       this.grabbing = false;
@@ -962,7 +977,7 @@ export class Enemy {
       this.refreshChill();
       if (this.aura) this.aura.visible = false;
       if (this.bubble) this.bubble.visible = false;
-      if (this.behavior === 'kamikaze') this.fuse = 0.12;
+      if (bomb) this.fuse = 0.12;
       else this.animator.playOneShot('Hard Landing', 1.3, true, 0.42);
       return true;
     }
@@ -1030,7 +1045,8 @@ export class Enemy {
    * Devuelve true si el golpe se lo comió el escudo.
    */
   spendDivine(): boolean {
-    if (!this.divineReady) return false;
+    // silenciado, el escudo divino no se come nada (y no se gasta)
+    if (!this.divineReady || this.silenced) return false;
     this.divineReady = false;
     this.divineTimer = this.divineEvery || 5;
     return true;
@@ -1174,14 +1190,15 @@ export class Enemy {
     // Pero si en el camino le pasan por encima, lo atropellan: le sacan vida y mueren ahí mismo, así que
     // ese enemigo ya no llega a la puerta. Durante el respiro de invulnerabilidad pasan de largo.
     if (player.alive && this.state === 'walk' && toPlayer < this.radius + TRAMPLE_REACH) {
-      if (behavior === 'kamikaze') {
+      if (this.bombLive) {
         this.hp = 0;
         this.state = 'gone';
         horde.explode(this, player);
         return;
       }
-      // el que cura o hace inmune y siguió de largo a la puerta atropella como cualquiera
-      if ((behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer' || (behavior === 'shaman' && this.forsaken)) && !player.invulnerable) {
+      // el que cura o hace inmune y siguió de largo a la puerta atropella como cualquiera, y el kamikaze
+      // silenciado también
+      if ((behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer' || behavior === 'kamikaze' || (behavior === 'shaman' && this.forsaken)) && !player.invulnerable) {
         player.hit(this.hitDamage, this.position);
         horde.emit({ type: 'playerHit', enemy: this, amount: this.hitDamage });
         horde.emit({ type: 'trample', enemy: this });
@@ -1283,7 +1300,7 @@ export class Enemy {
           horde.emit({ type: 'playerHit', enemy: this, amount: GRAB.damage });
         }
         this.animator.setLocomotion('Idle', 1);
-      } else if (this.target === 'gate' && (behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer' || behavior === 'shaman')) {
+      } else if (this.target === 'gate' && (behavior === 'melee' || behavior === 'banner' || behavior === 'geomancer' || behavior === 'shaman' || (behavior === 'kamikaze' && !this.bombLive))) {
         // Llegó a la puerta: le hace su daño de una sola vez y se pierde adentro. Pegarle a un enemigo
         // pegado a la muralla era incómodo (la cámara mira para el otro lado), y no sumaba nada.
         horde.emit({ type: 'gateHit', enemy: this, amount: this.gateDamage });
@@ -1442,7 +1459,7 @@ export class Enemy {
   /** Resuelve el impacto del ataque. Devuelve true si el enemigo dejó de existir (kamikaze). */
   private resolveAttack(player: Player, horde: Horde, toPlayer: number): boolean {
     const behavior = this.behavior;
-    if (behavior === 'kamikaze') {
+    if (this.bombLive) {
       this.hp = 0;
       this.state = 'gone';
       horde.explode(this, player);
@@ -1484,7 +1501,8 @@ export class Enemy {
     const flame = this.burning ? 0.55 + 0.45 * Math.sin(this.age * 23) * Math.sin(this.age * 7) : 0;
     const powder = this.powderTimer > 0 ? 0.5 + 0.5 * Math.sin(this.age * 5) : 0;
     if (this.bubble) {
-      this.bubble.visible = this.divineReady && this.alive && !this.passed;
+      // silenciado, la burbuja no protege: tampoco se ve
+      this.bubble.visible = this.divineReady && this.alive && !this.passed && !this.silenced;
       (this.bubble.material as THREE.MeshBasicMaterial).opacity = 0.16 + 0.08 * Math.sin(this.age * 4);
     }
     for (const { mat, color } of this.materials) {
@@ -1661,8 +1679,9 @@ export class Horde {
       dealt = Math.max(0, dealt - guard);
       if (dealt === 0) this.emit({ type: 'shielded', enemy });
     }
-    // el etéreo es el revés: ningún golpe le saca más de 1, por fuerte que sea
-    if (enemy.ethereal && dealt > 1) dealt = 1;
+    // el etéreo es el revés: ningún golpe le saca más de 1, por fuerte que sea. Agrandado por la lupa,
+    // hasta `LENS.ghostHit`; silenciado deja de ser fantasma
+    if (enemy.ethereal && !enemy.silenced) dealt = Math.min(dealt, enemy.enlarged ? LENS.ghostHit : 1);
     // el tutorial: con un tiro que no es el que se está enseñando, no lo mata
     if (this.mayKill && dealt >= enemy.hp && !this.mayKill(enemy, this.shot)) {
       dealt = Math.max(0, enemy.hp - 1);
@@ -1727,7 +1746,8 @@ export class Horde {
    */
   applyIce(e: Enemy, seconds: number): void {
     if (!e.alive || e.passed) return;
-    if (this.mastery.ice && e.chilled && !e.frozen) {
+    // al jefe el hielo lo frena pero nunca lo congela
+    if (this.mastery.ice && e.chilled && !e.frozen && !e.stats.boss) {
       e.freeze(ELEMENTS.freezeSeconds);
       this.emit({ type: 'frozen', enemy: e });
     }
@@ -1735,28 +1755,21 @@ export class Horde {
   }
 
   /**
-   * Rayo: salta de `from` al más cercano que no haya tocado todavía este mismo tiro (`seen`), y de ahí
-   * al siguiente, `jumps` veces. Nunca vuelve a uno que ya tocó: no puede dar vueltas matando a todo.
+   * Rayo: el que largó `from` (al que le pegó la pelota). Sale para los dos lados y cada rama salta
+   * `jumps` veces al más cercano que este rayo todavía no tocó (ver core/chain). Cada enemigo al que le
+   * pega la pelota larga el suyo, así que el rayo de otro sí le puede pegar.
    */
-  chain(from: Enemy, jumps: number, seen: Set<number>): void {
+  chain(from: Enemy, jumps: number): void {
     const damage = ELEMENTS.chainDamage * (this.mastery.lightning ? 2 : 1);
     const total = jumps + (this.mastery.lightning ? 1 : 0);
-    seen.add(from.id);
-    let at = from.position.clone();
-    for (let j = 0; j < total; j++) {
-      let next: Enemy | null = null;
-      let best = ELEMENTS.chainRange;
-      for (const e of this.enemies) {
-        if (!e.alive || e.passed || seen.has(e.id)) continue;
-        const d = Math.hypot(e.position.x - at.x, e.position.z - at.z);
-        if (d < best) { best = d; next = e; }
-      }
-      if (!next) return;
-      seen.add(next.id);
-      const to = next.position.clone();
-      this.emit({ type: 'zap', from: at.clone().setY(at.y + 1), to: to.clone().setY(to.y + next.height * 0.6) });
-      this.damage(next, damage, null, 0);
-      at = to;
+    const point = (e: Enemy) => ({ id: e.id, x: e.position.x, z: e.position.z, enemy: e });
+    const targets = this.enemies.filter((e) => e !== from && e.alive && !e.passed).map(point);
+    for (const { from: { enemy: src }, to: { enemy: dst } } of chainJumps(point(from), targets, total, ELEMENTS.chainRange)) {
+      // el rayo no lo vuelve a tocar, pero una explosión de pólvora en el medio de la cadena sí pudo
+      // haberlo matado
+      if (!dst.alive) continue;
+      this.emit({ type: 'zap', from: src.position.clone().setY(src.position.y + src.height * 0.6), to: dst.position.clone().setY(dst.position.y + dst.height * 0.6) });
+      this.damage(dst, damage, null, 0);
     }
   }
 
@@ -1908,7 +1921,8 @@ export class Horde {
       const rz = e.position.z - pos.z;
       const d = Math.hypot(rx, rz);
       if (d - e.radius > radius) continue;
-      e.silence(silence);
+      // al élite le dura menos: es el que más se aprovecha de que se le apague todo
+      e.silence(e.size > 1 ? silence * GRENADE.eliteSilence : silence);
       count++;
       // el centro no se mueve: tirándola encima de un grupo, los dejás silenciados donde están
       if (d <= core) continue;

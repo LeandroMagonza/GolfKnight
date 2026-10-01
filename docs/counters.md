@@ -1,132 +1,212 @@
-# Counters por enemigo, y un draft más táctico
+# Counters por enemigo
 
-Análisis del 1/10/2026, pedido por Leandro. Todo sale de leer el código tal como está publicado (versión
-1/10 14:24), no de la intención de diseño: donde el código y los comentarios no coinciden, está anotado.
-Nada de esto está implementado; las propuestas del final esperan su decisión.
+Qué le sirve y qué no a cada poder de enemigo, sacado del código. La primera versión es del 1/10/2026;
+esta la reordenó después de la respuesta de Leandro, y ya cuenta los cambios de ese mismo día (ver
+«Lo que cambió con esta revisión», al final).
 
-## Lo corto
+**Débil contra** = lo que lo resuelve. **Fuerte contra** = lo que con él no sirve. Los nombres son los
+de las cartas.
 
-- Los counters existen, y varios son claros: el **wedge** contra el escudo, el **fuego** contra el
-  blindaje, el **eco** contra el divino, la **granada** contra casi todo lo que se puede silenciar.
-- Pero **el draft no ayuda a usarlos**: el sorteo de cartas no mira qué enemigos vienen, los poderes de
-  apoyo nunca se anuncian, y una habilidad puntual sale entre las tres cartas más o menos 1 de cada 16
-  veces. Hoy elegir carta es elegir lo que suena mejor, no lo que te sirve contra lo que viene.
-- **Contra los fantasmas, todo lo que suma daño no sirve** (lupa, potencia, herrero, en racha, crítico
-  de hielo), porque el tope de 1 por golpe se aplica al final. Lo único que sirve es pegar más veces.
+## Cómo se arma una partida
 
-## Cómo se calcula un golpe (y por qué importa para los counters)
+Diez oleadas: tres escenarios de tres oleadas y la del Gólem.
 
-`Horde.damage`, en este orden:
+| Oleada | Qué trae |
+|---|---|
+| 1 | **Escenario 1**: presenta su poder. Jefe goblin ×1, sin poder |
+| 2 | Refuerzos. Jefe goblin ×3 |
+| 3 | **Élite 1**, con la versión dura del poder |
+| 4 | **Escenario 2**: presenta su poder. Caballero ×1. **Apoyo 1** en 1 enemigo |
+| 5 | **La estampida** (siempre): 13 goblins, 8 goblinas, 2 orcos y 3 caballeros, uno cada 1.3 s; el 30 % de los chicos explota |
+| 6 | **Élite 2**. Chamán ×2 (el cuerpo; el aura es un apoyo aparte). Apoyo 1 en 2 enemigos |
+| 7 | **Escenario 3**: presenta su poder. Gólem chico ×1. **Alma en pena ×1**. **Apoyo 2** en 1 enemigo |
+| 8 | Refuerzos. **Alma en pena ×2**. Apoyo 2 en 2 enemigos |
+| 9 | **Élite 3**. Apoyo 2 en 2 enemigos |
+| 10 | **El Gólem de roca**, con los tres poderes, los dos apoyos (uno de cada uno) y **alma en pena ×1** |
 
-1. **Inmune** (aura «invencible» cerca): no pasa nada.
-2. **Divino**: se come el golpe entero, sea cual sea, y recarga.
-3. **Vulnerable** (granada o lupa): +1, salvo al fuego.
-4. **Congelado**: ×2, salvo al fuego (y lo descongela).
-5. Redondeo, mínimo 1.
-6. **Blindaje**: resta su nivel (al fuego no).
-7. **Escudo**: resta su nivel, si el golpe le llegó de frente.
-8. **Etéreo**: nada pasa de 1.
+- **Poderes de escenario** (5; cada partida sortea 3, uno por escenario): **escudo, blindaje,
+  fantasma, divino, esquiva**. Son los que se defienden de los golpes, y los que piden decidir cartas.
+  En cada oleada, un tercio de los enemigos trae poder: la mitad el del escenario, la otra mitad los de
+  escenarios anteriores, y los apoyos salen de ese tercio.
+- **Poderes de apoyo** (4; cada partida sortea 2, sin repetir y con la misma chance): **hechicero,
+  cura, invencible, bandera**. El primero entra en el escenario 2 y el segundo en el 3, de a pocos
+  (1, 2, 2 enemigos; en la estampida no hay), y en la del Gólem van los dos. Los lleva cualquier cuerpo
+  que camina y pega (nunca el alma en pena ni el Gólem). **Hoy no se anuncian en ningún lado.**
+- **El alma en pena** no es un poder, es un cuerpo: sale **en todas las partidas**, desde el tercer
+  escenario (oleadas 7, 8 y 10). Puede traer un poder de defensa.
+- **La estampida** sale **en todas las partidas**, siempre en la oleada 5. Explotar no sale en
+  ninguna otra.
 
-Consecuencia: todo lo que suma (vulnerable, crítico, potencia, herrero) sirve contra blindaje y escudo,
-porque suma antes de que resten; y no sirve contra el etéreo, porque el tope va después de todo.
+Propuesta (sin hacer): en la barra del recorrido de arriba, un ícono chico en la esquina de los
+escenarios 2 y 3 con el apoyo que traen, y los dos en el del Gólem.
 
-## Los poderes, uno por uno
+## Escudo (1 a 3)
 
-| Poder | Qué hace | Lo rompe | Ayuda | No sirve |
-|---|---|---|---|---|
-| **Escudo 1–3** | Bloquea la pelota que le llega de frente más rasante que 45° y le resta su nivel al daño. También tapa el área que explota delante suyo, y a los que tiene atrás | **Wedge**: cae a más de 45°, nunca lo bloquea; y si revienta detrás del escudo, pasa entero. **Granada** (lo baja). **Fuego**: prende aunque el escudo pare la pelota. **Rayo**: los saltos no miran el escudo. **Carrito**. Hoyo | Hierro que le pega arriba (más del 62 % de su altura). Golpe de nivel 2+ o empujón (palazo, viento): lo aturde y baja el escudo un rato, salvo a los pesados. Lupa, potencia, herrero, crítico de hielo (suman antes de que reste). Bandera: los da vuelta | Driver y putter de frente |
-| **Muro** (solo élite) | Escudo total: de frente no pasa nada, ni pelota ni área, y cubre a los de atrás | Granada, wedge reventando detrás, fuego, rayo, carrito | — | Todo de frente. El hoyo no traga élites |
-| **Blindaje 1–3** | Le resta su nivel a cada golpe | **Fuego** (no le resta: es la respuesta pensada). **Granada**: se lo saca y además lo deja vulnerable | Golpes de 4. Lupa, potencia, herrero, en racha, crítico de hielo. Carrito (3–4). Hoyo | Rayo sin maestría (pega 1). Wedge (pega hasta 2: contra blindaje 2 o 3, nada). Pólvora a blindaje 2+ |
-| **Etéreo** (fantasma) | Nada le saca más de 1 por golpe | Pegarle muchas veces: **fuego** (cada mordisco es 1), **rayo** (1 por salto), **eco**, **clon**, **lluvia de pelotas** y **caddie** (más tiros), el driver que atraviesa una fila, las áreas. Hoyo (no a élites) | — | **Lupa, potencia, herrero, en racha, crítico de hielo, maestría del rayo ×2**. La **granada no lo apaga** |
-| **Divino** | Se come el primer golpe de lo que sea (hasta un mordisco de fuego o un salto de rayo) y recarga en 5 s (élite: 3 s) | **Eco** (pensado para eso). **Fuego**: el primer mordisco se lo come, el resto pega. **Rayo**. El hierro o el wedge, que pegan impacto y área en el mismo tiro. Clon. Hoyo (lo traga sin pasar por el divino; no a élites) | — | La **granada no lo saca**. Un golpe grande solo |
-| **Esquiva** | Cuando tu carga pasa del nivel 1 al 2, los que están cerca de la línea del tiro saltan 3.2 m de costado. Recarga 5 s | **Todo lo que no es tu carga**: los tiros de habilidad (salen al instante), granada, hielo, pólvora, hoyo, carrito, rayo, fuego. **Silenciado, congelado o aturdido no esquiva**. **Fintar**: cargar hasta el 2 para que salte, cancelar, y tirar antes de los 5 s | Áreas grandes del wedge (radio 3.5–5: casi siempre alcanzan el salto). Perfecto de regalo (arranca clavado arriba y no pasa por el 1→2; accidental) | Eco y clon: siguen la línea vieja, el que esquivó ya no está ahí |
-| **Invencible** (apoyo) | Todos los que están a 8 m del que la lleva son inmunes a todo | **Granada**: silencia al que la lleva y los silenciados no pueden quedar protegidos. **Matar al que la lleva** (a él no lo protege nadie). Sacarlos del radio: palazo, viento del hierro, bandera | — | Fuego, rayo y pólvora mientras dura |
-| **Cura** (apoyo) | +1 de vida cada 3 s a los que están a 6 m | Granada. Matar de un golpe. Separarlos | — | Daño de a poco (fuego, rayo) |
-| **Bandera** (apoyo) | Mientras vive, todos tienen +1 de vida. Se queda al fondo, a 51 m | Granada. Driver largo (la banda lejana pega 2/3/4) | — | — |
-| **Hechicero** (apoyo) | Se planta a 34 m y te tira a tu puesto cada 4.5 s | Cambiarte de puesto. Granada. Bandera: el atraído no conjura (accidental) | — | — |
-| **Kamikaze** (estampida) | Explota (4 de daño, 3.6 m) al morir, al tocarte o en la puerta, y lastima también a los otros enemigos | **Hoyo**: lo desactiva. Matarlo en medio del grupo: el área gratis es tuya | — | La granada no lo desactiva |
+Bloquea la pelota que le llega de frente más rasante que 45°, y le resta su nivel al daño que pasa.
+También tapa el área que revienta adelante suyo, y cubre a los que tiene detrás.
 
-### Los cuerpos
+**Débil contra**
+- **Wedge** (cualquiera, también los de elemento): cae a más de 45° y nunca lo bloquea; si revienta
+  detrás del escudo, el área entra entera.
+- **Granada**: le baja el escudo.
+- **Fuego** (cualquier palo de fuego): prende aunque el escudo pare la pelota.
+- **Rayo**: los saltos no miran el escudo.
+- **Carrito**. **Hoyo** (no al élite).
+- **Potencia**, **El herrero**, **Lupa**: suman antes de que el escudo reste. Contra un escudo 1, el +1
+  lo empata.
 
-- **Alma en pena**: 2 de vida, rápida, va por vos (no a la puerta). Te agarra: −1 y 1.5 s sin poder
-  hacer nada. **No tiene counter salvo matarla en el camino**: la bandera no la engaña y agarrado no
-  podés usar nada.
-- **Gólem** (jefe): 80 de vida, se planta a 22 m y le tira piedras a la puerta cada 4 s. Sin poderes,
-  el hoyo no lo traga y el viento no lo mueve. Es una carrera de daño sostenido.
-- **Élites**: el cuerpo fuerte con la versión dura del poder, y +2 a +4 de vida. Los pesados (caballero,
-  gólem chico) no se aturden, y **el hoyo no traga élites**. El élite etéreo tiene 11–12 de vida, así
-  que hay que pegarle 11–12 veces.
+**Fuerte contra**
+- **Driver** y **putter** de frente: el escudo les resta su nivel. Si se come todo el daño, tampoco
+  salen el hielo ni el rayo del tiro (el fuego sí prende).
+- Repetir el mismo tiro de frente: **Eco**, **Lluvia de pelotas**, **Caddie dorado**, **Carcaj**,
+  **Pelota extra**.
+- **Pólvora**, cuando el marcado muere adelante del escudo.
 
-## La pregunta puntual: ¿qué le sube el daño a los fantasmas?
+**Élite: escudo calavera (∞)**. De frente no entra nada, ni el +1 de nada. Débil contra **Granada**
+(la mitad del tiempo), **wedge** reventando detrás, **fuego**, **rayo** y **carrito**. El hoyo no lo
+traga.
 
-Hoy, **nada le sube el daño por golpe**: el tope de 1 va último. Lo que funciona es multiplicar los
-golpes: fuego, rayo, eco, clon, lluvia de pelotas y caddie, y el hoyo para los que no son élite.
+## Blindaje (1 a 3)
 
-Tu idea de la lupa encaja bien: **el agrandado recibe hasta 2 por golpe en vez de 1**. Le da a la lupa un
-rol que hoy no tiene (hoy es un +1 que compite con la granada, y la granada además silencia), y no
-rompe la regla del fantasma: sigue siendo un enemigo de muchos golpes, nada más que la mitad.
+Le resta su nivel a cada golpe, venga de donde venga. Al fuego no.
 
-Para decidir:
+**Débil contra**
+- **Fuego** (cualquier palo de fuego): el blindaje no le resta. Es la respuesta pensada.
+- **Granada**: se lo saca, y encima recibe 1 de daño extra por golpe.
+- Lo que sube el daño de cada golpe: **Potencia**, **El herrero**, **Lupa**, **En racha** (el golpe de
+  1 pasa a 2), **Maestría del hielo** (el golpe que rompe el hielo pega el doble).
+- Cargar a fondo: **Perfecto de regalo**, **Punto dulce**, **Swing parejo**, **Muñeca rápida**.
+- **Carrito** (2 a 4). **Hoyo** (no al élite).
 
-| Opción | Qué pasa | Mi opinión |
+**Fuerte contra**
+- **Rayo**: cada salto pega 1 y **el blindaje se lo come entero**. Con la **Maestría del rayo** pega 2,
+  y a un blindaje 1 le entra 1.
+- **Wedge**: pega 1 o 2; a un blindaje 2 o 3, nada.
+- **Pólvora**: 2 (3 en el nivel 3).
+- Muchos tiros débiles: **Eco** con un golpe flojo, **Lluvia de pelotas**, **Caddie dorado**,
+  **Carcaj**, **Pelota extra**, **Ritmo**. Muchos golpes de 1 no le hacen nada.
+
+**Élite**: blindaje 1 en el primer escenario, 2 después.
+
+## Fantasma (etéreo)
+
+Ningún golpe le saca más de 1. Solo va en cuerpos de 2 a 8 de vida.
+
+**Débil contra**
+- **Granada**: silenciado deja de ser fantasma; le entra el golpe entero y 1 de daño extra.
+- **Lupa**: agrandado, le entran hasta 2 por golpe.
+- **Fuego**: cada mordisco es un golpe de 1.
+- **Rayo**: cada salto es un golpe de 1, y cada enemigo que alcanza la pelota larga su propio rayo.
+- Pegar más veces: **Eco**, **Clon**, **Lluvia de pelotas**, **Caddie dorado**, **Carcaj**, **Pelota
+  extra**, **Ritmo**.
+- Pegarle a varios por tiro: el **driver** que atraviesa una fila, el **hierro**, el área del **wedge**.
+- **Pólvora**: cada explosión es un golpe. **Hoyo** (no al élite).
+
+**Fuerte contra**
+- Lo que suma daño: **Potencia**, **El herrero**, **En racha**. Se lo come el tope.
+- **Maestría del hielo** (el ×2) y el ×2 de la **Maestría del rayo** (el salto de más sí sirve).
+- Cargar a fondo: **Perfecto de regalo**, **Punto dulce**, **Swing parejo**. Contra el fantasma, solo
+  importa pegarle.
+- **Carrito**: un golpe de 1.
+
+**Élite**: jefe goblin de 7 de vida o caballero de 11–12. Son 7 a 12 golpes.
+
+## Divino
+
+El primer golpe de lo que sea se lo come la burbuja, hasta un mordisco de fuego o un salto de rayo. Se
+recarga a los 5 s.
+
+**Débil contra**
+- **Granada**: silenciado, la burbuja no protege.
+- **Eco**: el segundo tiro llega un cuarto de segundo después, con la burbuja gastada. Es la respuesta
+  pensada.
+- **Fuego**: el primer mordisco se lo come la burbuja; el resto pega.
+- **Rayo**: un salto se gasta en la burbuja, y el rayo de otro enemigo alcanzado pega.
+- Dos golpes antes de que recargue: **Clon**, **Lluvia de pelotas**, **Caddie dorado**, **Pelota
+  extra**, **Ritmo**.
+- **Pólvora**. **Hoyo** (no al élite).
+
+**Fuerte contra**
+- Un golpe grande solo: **Potencia** y **El herrero** se gastan en la burbuja, igual que un **Perfecto
+  de regalo** o el doble de la **Maestría del hielo**.
+- **Lupa**: el +1 también se lo come la burbuja.
+
+**Élite**: la burbuja se recarga a los 3 s.
+
+## Esquiva
+
+Cuando tu carga pasa del golpe 1 al 2, el que está cerca de la línea del tiro salta 3 m al costado. Se
+recarga a los 5 s.
+
+**Débil contra**
+- **Granada**: silenciado no esquiva.
+- **Todas las habilidades de palo y elemento**: salen al instante, sin carga, y no hay paso del 1 al 2.
+- Lo que no es un tiro: **Hielo**, **Hoyo**, **Carrito**, **Pólvora**, **Lupa**, **Bandera**.
+- **Rayo** y **fuego**: una vez prendido, sigue ardiendo aunque salte.
+- Áreas grandes, como el **wedge** y el **hierro**: el salto de 3 m casi siempre queda adentro.
+- **Maestría del hielo** (congelado no esquiva). **Palazo** y viento (aturdido no esquiva, salvo los
+  pesados).
+- **Perfecto de regalo**: el tiro arranca clavado arriba y nunca pasa del 1 al 2.
+- Jugando: **fintar**. Cargás apuntándole hasta el 2 para que salte, cancelás, y le tirás antes de que
+  se le recargue.
+
+**Fuerte contra**
+- **Driver** y **putter** a uno solo: el tiro de precisión es justo el que esquiva.
+- **Eco** y **Clon**: repiten la línea del tiro, y el que esquivó ya no está ahí.
+- **Potencia** y **El herrero**: se gastan en un tiro que puede errar.
+
+## Los apoyos
+
+Se resuelven más jugando que eligiendo cartas.
+
+| Apoyo | Qué hace | Lo resuelve |
 |---|---|---|
-| **Solo la lupa** sube el tope a 2 | La lupa pasa a ser *el* counter del fantasma; la granada sigue siendo el de escudo, blindaje y auras | **Recomendada**: cada habilidad con su enemigo |
-| Todo lo vulnerable (lupa y granada) | La granada se vuelve counter de casi todo | No: le quita sentido a la lupa y le suma a la granada, que ya es la mejor carta |
-| La lupa le saca el etéreo del todo | El fantasma agrandado recibe el golpe entero | Demasiado: con un crítico de 4 se va de un golpe y el élite deja de ser un problema |
+| **Invencible** | Los que están a 8 m del que la lleva son inmunes a todo | Granada al que la lleva. Matarlo: a él nadie lo protege. Sacarlos del radio con Palazo, viento o Bandera |
+| **Cura** | +1 de vida cada 3 s a los que están a 6 m | Granada. Matar de un golpe. Separarlos |
+| **Bandera** | Se queda al fondo, a unos 42 m; mientras vive, todos tienen +1 de vida | Granada. Driver largo, que en la banda lejana pega 2 a 4 |
+| **Hechicero** | Se planta a unos 25 m y te tira un hechizo al puesto cada 4.5 s | Cambiarte de puesto. Granada. Bandera: el atraído no conjura |
 
-Ojo, de paso: el **herrero** nuevo tampoco sirve contra fantasmas. Está bien así (sirve contra
-blindaje y escudo), pero que se sepa.
+## Los cuerpos con mecánica propia
 
-## Lo accidental y lo que no coincide
+- **Alma en pena**: va por vos, rápida y con 2 de vida. Te agarra: −1 y 1.5 s sin poder hacer nada. La
+  resuelve el **hielo**: un tiro sin cargar la frena y te da tiempo. Si no, hay que matarla en el
+  camino.
+- **Gólem de roca**: 80 de vida; se planta a 22 m y le tira piedras a la puerta. El hielo lo frena pero
+  **no lo congela**. El hoyo no lo traga y el viento no lo mueve.
 
-Counters que existen sin que nadie los haya pensado:
+## Respuestas puntuales
 
-- El rayo pasa el muro del élite.
-- Un golpe de nivel 2+ aturde y eso baja el escudo un rato.
-- La bandera da vuelta a los de escudo y no deja conjurar al hechicero.
-- El perfecto de regalo no dispara la esquiva.
+**¿Qué golpe aturde?**
 
-Código y comentarios que dicen otra cosa (para corregir uno de los dos):
+| Qué | Cuánto |
+|---|---|
+| Golpe 1 | No aturde |
+| Golpe 2 | 0.12 s |
+| Golpe 3 | 0.25 s |
+| Empujón de la granada (a los del borde) o del viento | 0.55 s |
+| Palazo | 0.7, 1 y 1.3 s según el nivel |
 
-- `core/shield.ts` dice que **congelar baja el escudo**; el código no lo hace.
-- `core/waves.ts` dice que **al jefe no se lo congela**; el código sí lo congela.
-- Bandera + granada: si silenciás la bandera y se termina el silencio, **los que quedaron en 1 vuelven
-  a 2**.
+Los pesados nunca se aturden: caballero, gólem chico, Gólem, y los élites de esos cuerpos. Aturdido no
+camina ni ataca, baja el escudo y no esquiva.
 
-Huecos:
+**¿El rayo afecta al blindado?** No: el blindaje se come el 1 de cada salto. Con la Maestría del rayo
+cada salto pega 2, y a un blindaje 1 le entra 1. Contra blindaje, el rayo es de lo peor.
 
-- Nada saca el divino directamente: la respuesta es siempre "pegarle más veces".
-- Contra el élite etéreo y el élite divino solo sirve lo de muchos golpes (el hoyo no los traga).
-- El alma en pena no tiene counter (ver arriba).
+## Lo que cambió con esta revisión (1/10)
 
-## Por qué el draft hoy no es táctico
+- **La granada silencia todo**: también al fantasma, al divino y a la bomba del kamikaze. El kamikaze
+  silenciado muere sin explotar, y en la puerta o al atropellarte pega como cualquiera. **Al élite le
+  dura la mitad** (`GRENADE.eliteSilence`). La calavera no se apaga: el élite sigue matando de una.
+- **La lupa contra fantasmas**: al agrandado le entran hasta 2 por golpe (`LENS.ghostHit`).
+- **Las cartas dicen «daño extra»**: lupa y granada dicen «reciben 1 de daño extra por golpe».
+- **El rayo nuevo**: cada enemigo que alcanza la pelota larga su propio rayo. El rayo sale para los dos
+  lados y cada rama salta tantas veces como el nivel (1, 2, 3; la maestría suma una). Un rayo nunca
+  toca dos veces al mismo; el de otro enemigo sí. Los ejemplos de Leandro son el nivel 2: tres en fila
+  con la pelota en la punta, y cinco con la pelota en el medio (probados en `core/chain.test.ts`). Se
+  ve como un tubo brillante, porque antes era una línea de un píxel y desde la cámara casi no se veía.
+  - El alcance sigue en 6 m (panel B, Habilidades, `chainRange`).
+  - **Ojo con el hierro y el wedge de rayo**: ahí cada enemigo del área larga el suyo, así que contra un
+    grupo apretado son muchos rayos.
+- **El Gólem no se congela**: el hielo solo lo frena, como decía su descripción.
 
-- Al empezar se ven arriba los **3 íconos de los escenarios y la calavera**; el nombre del poder, solo
-  al pasar el mouse.
-- Los **2 poderes de apoyo** de la partida (invencible, cura, bandera, hechicero) **no se anuncian
-  nunca**.
-- La primera carta llega después de la primera oleada, así que **el primer escenario se juega con lo
-  básico**.
-- En la pantalla de cartas dice «Próxima oleada: …», que nombra el poder solo en la primera oleada de
-  cada escenario; las demás dicen «Refuerzos» o «Élite».
-- **El sorteo no mira el recorrido**: pesa 3 subir una habilidad que tenés, 1 una nueva (de 28), 2 una
-  mejora y 4 una maestría. Una habilidad puntual (la granada, por ejemplo) sale entre las tres cartas
-  más o menos un 6 % de las veces.
-
-## Propuesta: que el draft mire lo que viene
-
-De menor a mayor esfuerzo; las tres primeras van juntas.
-
-1. **Ver el recorrido entero**, apoyos incluidos, con nombre (no solo en el tooltip). Y en la pantalla
-   de cartas, grande: «Se viene: **Fantasmas**», con el ícono que llevan los enemigos.
-2. **Cada carta dice contra qué sirve**, con los mismos íconos que llevan los enemigos encima: «Sirve
-   contra: 🛡 ⛨». La tabla de arriba se pasa a datos (`COUNTERS` en `core/cards.ts`) y de ahí salen
-   las etiquetas. Es lo que hace que una carta se lea como una respuesta y no como un número.
-3. **Una de las tres cartas siempre sirve contra el próximo escenario**, igual que hoy el botiquín sale
-   sí o sí cuando la partida viene mal. Las otras dos, como siempre. Así hay decisión: ¿tomo el
-   counter de lo que viene, o subo lo que ya tengo y me las arreglo?
-4. (Más grande, opcional) **Una carta antes de la primera oleada**, mirando el recorrido, para que el
-   primer escenario también se elija.
-
-Mi recomendación: **1 + 2 + 3**, y la lupa contra fantasmas en la misma tanda, porque sin la etiqueta
-«sirve contra fantasmas» nadie va a descubrir que la lupa ahora sirve para eso.
+Queda para decidir si los poderes de apoyo se anuncian con un ícono chico en la barra del recorrido.

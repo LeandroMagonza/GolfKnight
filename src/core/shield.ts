@@ -5,8 +5,8 @@
 // congelar no hacía falta nunca. Ahora el escudo también tapa el daño en área que sale de adelante, y
 // **tapa a los que tiene detrás**: una fila parapetada atrás de un guerrero se cubre con su escudo.
 //
-// De ahí salen dos respuestas en vez de ninguna: congelarlo, que le saca el escudo, o meter el globo
-// **detrás** de él, donde el escudo no cubre.
+// De ahí salen las respuestas: silenciarlo con la granada, que le baja el escudo, o meter el globo
+// **detrás** de él, donde el escudo no cubre. (Congelar ya no baja el escudo: el hielo solo frena.)
 
 export interface Point {
   x: number;

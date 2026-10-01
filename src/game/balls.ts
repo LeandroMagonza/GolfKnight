@@ -34,8 +34,6 @@ export interface Ball {
   element: Element | null;
   /** Es de una habilidad, no del puesto: no cuenta para las rachas. */
   ability: boolean;
-  /** A quiénes ya tocó el rayo de esta pelota: nunca salta dos veces al mismo. */
-  zapped: Set<number>;
   /** Driver de viento: hacia dónde sale, cuántos metros ya barrió el viento y a quiénes ya acomodó. */
   dir: THREE.Vector3;
   windSwept: number;
@@ -174,7 +172,7 @@ export class Balls {
     const ball: Ball = {
       state, club: shot.club, bounce, quality: shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
-      element: shot.element ?? null, ability: !!shot.ability, zapped: new Set(),
+      element: shot.element ?? null, ability: !!shot.ability,
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
       hitIds: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
       phase: tennis ? 'out' : null, rally: 0, walls: 0,
@@ -260,14 +258,15 @@ export class Balls {
     const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
     const shot = this.markShot(ball);
     const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
-    this.horde.shot = null;
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
     const landed = guard === 0 || this.horde.lastDealt > 0;
     if (landed) ball.hits++;
     this.checkConnected(ball);
     if (landed) this.onEvent?.({ type: 'hit', club: ball.club, enemy, pos, damage, quality: ball.quality, killed });
-    this.countKills(ball, shot.kills);
+    // el elemento pega con el tiro todavía marcado, como en el área: las bajas del rayo son de esta pelota
     if (landed) this.applyElement(ball, enemy);
+    this.horde.shot = null;
+    this.countKills(ball, shot.kills);
     if (finish) ball.done = true;
     return landed;
   }
@@ -282,7 +281,8 @@ export class Balls {
     if (!ball.element || ball.element === 'wind') return;
     if (ball.element === 'ice') this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
     else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
-    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality), ball.zapped);
+    // cada uno que alcanza larga su propio rayo
+    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality));
   }
 
   /** Al que el escudo le paró el golpe, el fuego lo prende igual. */

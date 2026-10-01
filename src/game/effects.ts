@@ -90,19 +90,25 @@ export class Effects {
     });
   }
 
-  /** Rayo quebrado entre dos puntos. */
+  /**
+   * Rayo quebrado entre dos puntos. Va como un tubo y no como una línea: las líneas de WebGL miden
+   * siempre un píxel, y desde la cámara alta el rayo no se veía.
+   */
   lightning(from: THREE.Vector3, to: THREE.Vector3): void {
-    const points: THREE.Vector3[] = [];
+    const path = new THREE.CurvePath<THREE.Vector3>();
     const segments = 8;
-    for (let i = 0; i <= segments; i++) {
+    let prev = from.clone();
+    for (let i = 1; i <= segments; i++) {
       const p = new THREE.Vector3().lerpVectors(from, to, i / segments);
-      if (i > 0 && i < segments) p.add(new THREE.Vector3((Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.9));
-      points.push(p);
+      if (i < segments) p.add(new THREE.Vector3((Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.9));
+      path.add(new THREE.LineCurve3(prev, p));
+      prev = p;
     }
-    const mat = new THREE.LineBasicMaterial({ color: 0xcfeeff, transparent: true });
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), mat);
-    this.add(line, 0.22, (u) => {
-      mat.opacity = 1 - u;
+    const mat = new THREE.MeshBasicMaterial({ color: 0xdff4ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const bolt = new THREE.Mesh(new THREE.TubeGeometry(path, segments * 2, 0.07, 5, false), mat);
+    this.add(bolt, 0.35, (u) => {
+      // titila un poco antes de apagarse
+      mat.opacity = (1 - u) * (0.75 + 0.25 * Math.sin(u * 60));
     });
     this.spark(to, 0x7fd4ff);
   }

@@ -1574,8 +1574,11 @@ tiro!»), y con el albañil se suma el avance («Albañil 3/5») o el «¡Los al
 - **La carta de habilidad dice su recarga**: la de base si es nueva, y «9 s → 11.7 s · más lenta» si
   sube de nivel (hoy subir siempre la alarga un 30 % de la base por nivel).
 
-Análisis de counters por enemigo y propuesta de un draft que mire lo que viene (incluida la lupa contra
-fantasmas): `docs/counters.md`. Sin implementar, espera decisión.
+Análisis de counters por enemigo: `docs/counters.md`. Leandro no compró que el draft no fuera táctico
+(el ícono ya avisa qué viene y elegir 1 de 3 es la decisión; el sorteo queda al azar), y pidió lo que
+está en «Lo que cambió con esta revisión» de ese doc: la granada silencia todo (también fantasma,
+divino y bomba) y al élite la mitad del tiempo, la lupa le pega hasta 2 al fantasma, el rayo nuevo (cada
+alcanzado larga el suyo, para los dos lados), y el Gólem que no se congela.
 
 ### Botiquín
 

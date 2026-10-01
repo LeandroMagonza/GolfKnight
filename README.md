@@ -126,8 +126,10 @@ viento. Es un tiro de ese palo, instantáneo, con pelota gratis y **cargado al n
 además:
 - *Hielo*: enfría a cada uno que alcanza.
 - *Fuego*: lo prende; pierde 1 de vida por segundo.
-- *Rayo*: salta al enemigo más cercano, una vez por nivel. **Nunca salta a uno que ya tocó**, así que
-  no puede dar vueltas matando a todo.
+- *Rayo*: **cada uno que alcanza la pelota larga su propio rayo**, que sale para los dos lados y en
+  cada rama salta al más cercano, una vez por nivel (a 6 m como mucho), sacándole 1 a cada uno. Un rayo
+  **nunca toca dos veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje se come
+  ese 1.
 - *Viento* (antes era el vendaval, solo rasante), distinto con cada palo:
   - driver: el viento va detrás de la pelota y **junta sobre la línea** a los que pasa (3 m de cada
     lado; 3.75 y 4.5 en los niveles 2 y 3), para el próximo tiro;
@@ -139,7 +141,7 @@ además:
 
 | Habilidad | Qué hace |
 | --- | --- |
-| Granada | silencia a los que agarra (sin escudo, sin aura, sin inmunidad, vulnerables); a los del borde los tira a los costados |
+| Granada | silencia a los que agarra: se les apagan **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba) y reciben 1 de daño extra por golpe; al élite le dura la mitad. A los del borde los tira a los costados |
 | Hielo | zona fría que dura: el que está adentro camina lento |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
 | Hoyo | el primero que lo pisa cae y no vuelve (los jefes no) |
@@ -230,7 +232,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
 | **Divino** | el primer golpe no le entra; se le recarga a los 5 s |
-| **Etéreo** | ningún golpe le saca más de 1: hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
+| **Etéreo** | ningún golpe le saca más de 1 (agrandado por la lupa, hasta 2): hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
 | **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |
@@ -246,8 +248,9 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   etéreo (fantasma blanco con ojos), divino (aureola amarilla), esquiva (flecha doble turquesa),
   invencible (estrella violeta), cura (cruz verde), hechizo (llama rosa), bandera (roja), bomba (negra)
   y loma (marrón, con pasto). El divino y la
-  esquiva se apagan mientras recargan. Lo que la granada silencia
-  (escudo, blindaje, auras, bandera, loma, hechizo, esquiva) se tacha con un prohibido rojo mientras dura.
+  esquiva se apagan mientras recargan. La granada silencia todos los poderes (escudo, blindaje,
+  fantasma, divino, auras, bandera, loma, hechizo, esquiva, bomba): se tachan con un prohibido rojo
+  mientras dura. La calavera no: el élite sigue matando de una.
 - Ningún enemigo con aura queda protegido ni curado por otra aura.
 - **La partida: tres escenarios y el jefe.** Cada partida sortea **tres poderes de escenario** entre
   escudo, blindaje, fantasma, divino y esquiva. Cada escenario son tres oleadas: la primera presenta su
