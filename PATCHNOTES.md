@@ -10,6 +10,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 1 de octubre
 
 **Golf**
+- La granada silencia todos los poderes: ahora también al fantasma, al divino y a la bomba (el
+  kamikaze silenciado muere sin explotar). Al élite le dura la mitad. `352e808`
+- La lupa sirve contra fantasmas: al agrandado le entran hasta 2 por golpe. La lupa y la granada dicen
+  ahora que los afectados reciben 1 de daño extra por golpe. `352e808`
+- Rayo nuevo: cada enemigo que alcanza la pelota larga su propio rayo, que sale para los dos lados y
+  salta de enemigo en enemigo sin repetir. Y ahora se ve. `352e808`
+- El Gólem de roca ya no se congela: el hielo solo lo frena. `352e808`
 - Cada baja suena, y cada baja más del mismo tiro suena más aguda: un triplete arma un acorde. Las que
   caen juntas en un área salen como un rasgueo rápido. `18cf55d`
 - Mejora nueva, El herrero: cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 5, tu próxima
