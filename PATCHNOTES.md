@@ -10,6 +10,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 1 de octubre
 
 **Golf**
+- Cada baja suena, y cada baja más del mismo tiro suena más aguda: un triplete arma un acorde. Las que
+  caen juntas en un área salen como un rasgueo rápido. `18cf55d`
+- Mejora nueva, El herrero: cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 5, tu próxima
+  pelota pega 1 más, aunque canceles, cambies de palo o pifies. `18cf55d`
+- Las cartas de habilidad dicen su recarga: la de base si es nueva, y de cuánto a cuánto pasa si la
+  subís de nivel. `18cf55d`
+- Se fue la habilidad Boomerang. `18cf55d`
 - El albañil cuenta en el acto: el doblete suma al caer el segundo y el tercero vuelve a sumar, y
   también cuentan las bajas del área. El tiro que mata a varios se canta (¡Doblete!, ¡Triplete!)
   junto con el avance del albañil. `1adc8fb`
@@ -33,6 +40,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 **Detrás de escena**
 - Estas patch notes, y el push a `main` se frena si falta anotar algún commit. `8b526f6`
+- Una prueba del freno de las patch notes (un commit vacío). `8e5f2ef`
 
 ## 30 de septiembre
 
