@@ -7,6 +7,12 @@ de entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 2 de octubre
+
+**Detrás de escena**
+- Idea escrita para un multijugador de a dos: el segundo jugador mira desde arriba y ayuda con empujones,
+  zonas lentas y muros, en `docs/multijugador.md`. Todavía no está en el juego. `12642ae`
+
 ## 1 de octubre
 
 **Golf**
