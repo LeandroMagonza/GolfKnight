@@ -11,7 +11,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 **Golf**
 - Las cartas se explican más corto: dicen qué hace cada habilidad y cada mejora, sin cada detalle.
-  `98c30f8`
+  Las que suben de nivel dicen lo de ese nivel: la Potencia de nivel 2 dice que pega 2 más.
+  `98c30f8` `1190c76`
 - Los gigantes se notan: bien más grandes (sin llegar al tamaño del élite), con 1 de vida más que antes
   y un poco más lentos. `892b973`
 - El palo pega y la habilidad pone el efecto: los tiros de fuego, hielo, rayo, viento y silencio ya no
