@@ -62,13 +62,13 @@ export const PERK_NUMBERS = {
    * El albañil: cada tiro de palo que mata a dos suma 1, a tres suma 2, y así (las bajas menos una).
    * Al juntar tantos, la puerta +1. No se corta: se va juntando.
    */
-  masonStreak: 5,
+  masonStreak: 3,
   /**
    * El herrero: cuenta igual que el albañil, y al juntar `smithStreak` la próxima pelota de palo pega
    * `smithBonus` más. No se pierde al cancelar, cambiar de palo ni pifiar: espera a que salga una pelota.
    * Si se juntan dos antes de pegar, se suman.
    */
-  smithStreak: 5,
+  smithStreak: 2,
   smithBonus: 1,
   /** Botiquín: al terminar cada oleada, la puerta y vos se curan esto, por cada vez que lo tomás. */
   medkitGate: 1,
@@ -87,8 +87,8 @@ export const PERKS: Record<PerkId, Perk> = {
   evenSwing: { id: 'evenSwing', name: 'Swing parejo', title: 'tramos iguales', max: 3, color: 0xffa3d1, hint: 'Los tramos de la barra se emparejan' },
   rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada acierto seguido te hace cargar un 10 % más rápido, hasta 3 veces' },
   hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Con 4 aciertos seguidos, los golpes que pegan 1 pasan a pegar 2' },
-  masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'La puerta se regenera cada 5 disparos que maten a más de un enemigo' },
-  smithStreak: { id: 'smithStreak', name: 'El herrero', title: 'dobletes que forjan', max: 1, color: 0x9fb4c8, hint: 'Cada 5 disparos que maten a más de un enemigo, tu próxima pelota pega 1 más' },
+  masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'La puerta se regenera cada 3 disparos que maten a más de un enemigo' },
+  smithStreak: { id: 'smithStreak', name: 'El herrero', title: 'dobletes que forjan', max: 1, color: 0x9fb4c8, hint: 'Cada 2 disparos que maten a más de un enemigo, tu próxima pelota pega 1 más' },
   medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al empezar cada oleada, la puerta +1 y vos +1' },
   giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'cada 8 bajas', max: 1, color: 0xff2d3c, hint: 'Cada 8 bajas, el próximo tiro arranca en el golpe perfecto' },
   quiver: { id: 'quiver', name: 'Carcaj', title: 'pelota a mano', max: 1, color: 0xfff1b8, hint: 'Si vas a pegar sin pelota, te aparece una' },

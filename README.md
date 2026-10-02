@@ -174,8 +174,8 @@ llega más tarde), Swing parejo (hasta 3 niveles: cada uno acerca un tercio los 
 partes iguales, y al tercero débil, medio y fuerte duran lo mismo; las otras mejoras de la barra van
 encima, así que el fuerte puede terminar durando más que el débil), Ritmo (cada tiro seguido **sin errar** te hace llegar antes
 al golpe 3, hasta tres, y ahí se queda hasta que errás), En racha (después de 4 tiros seguidos sin errar,
-los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 5, la puerta +1; no se corta),
-El herrero (cuenta igual; cada 5, la próxima pelota pega +1, y no se pierde al cancelar, cambiar de palo ni pifiar),
+los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 3, la puerta +1; no se corta),
+El herrero (cuenta igual; cada 2, la próxima pelota pega +1, y no se pierde al cancelar, cambiar de palo ni pifiar),
 Botiquín (hasta 3 niveles: al empezar cada oleada, la puerta +1 y vos +1 por nivel), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
 Carcaj (si vas a pegar sin pelota, te aparece una; una cada 12 s), Pelota extra (los guardias mantienen
 una más), Segundo aire (apretar una habilidad que recarga la tira igual, y recarga él 30 s).

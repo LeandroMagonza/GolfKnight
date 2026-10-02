@@ -90,7 +90,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 15;
+const VERSION = 16;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -122,6 +122,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el hoyo recarga en 20 s (se traga entero a cualquiera), y los tiros de elemento dejaron de hacer
   // daño: el efecto se agrandó (más fuego, más frío, más saltos de rayo, más silencio)
   15: ['hole.cooldown', 'elementos'],
+  // el albañil pasó a curar cada 3 dobletes y el herrero a forjar cada 2 (eran 5 y 5)
+  16: ['mejoras.masonStreak', 'mejoras.smithStreak'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -197,6 +199,7 @@ export function loadBalance(): SavedExtras {
     const from = saved.configs?.[name];
     if (!from || outdated(version, name)) continue;
     for (const k of Object.keys(into)) {
+      if (outdated(version, `${name}.${k}`)) continue;
       const v = from[k];
       if (Array.isArray(into[k]) && Array.isArray(v) && v.length === (into[k] as number[]).length) into[k] = [...v];
       else if (typeof into[k] === 'number' && typeof v === 'number') into[k] = v;
