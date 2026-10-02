@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES, ABILITY_LIST, cooldownAt, MAX_LEVEL, SLOTS } from './abilities';
-import { candidates, cooldownNote, describe as describeCard, drawCards, needsHeal, PERKS, type Build } from './cards';
+import { candidates, cooldownNote, describe as describeCard, drawCards, needsHeal, PERK_NUMBERS, PERKS, type Build } from './cards';
 
 const fresh = (over: Partial<Build> = {}): Build => ({ slots: [], perks: {}, hp: 3, hpMax: 3, gate: 10, gateMax: 10, ...over });
 
@@ -70,5 +70,11 @@ describe('cartas', () => {
     expect(up.text).toBe(`Recarga: ${base} s → ${+cooldownAt(ABILITIES.cart, 2).toFixed(1)} s · más lenta`);
     expect(describeCard({ kind: 'ability', id: 'cart', level: 2 }).cool).toEqual(up);
     expect(describeCard({ kind: 'perk', id: 'rhythm', level: 1 }).cool).toBeUndefined();
+  });
+
+  it('las mejoras que recargan dicen su recarga abajo, no en el texto', () => {
+    expect(describeCard({ kind: 'perk', id: 'secondWind', level: 1 }).cool?.text).toBe(`Recarga: ${PERK_NUMBERS.secondWindCooldown} s`);
+    expect(describeCard({ kind: 'perk', id: 'quiver', level: 1 }).cool?.text).toBe(`Recarga: ${PERK_NUMBERS.quiverCooldown} s`);
+    expect(PERKS.secondWind.hint).not.toContain('segundos');
   });
 });
