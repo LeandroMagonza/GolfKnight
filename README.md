@@ -99,10 +99,10 @@ como de frente es lo que cae a más de 45°, el globo del wedge. El escudo tambi
 de la vida, dice cuánto resta. Al del escudo se lo resuelve pegándole fuerte, silenciándolo,
 cayéndole detrás con el wedge, con el golpe fantasma, o pegándole de costado.
 
-**La pelota que rebota en un escudo vuelve hacia vos** (desde el 2/10): sale roja, en arco, hacia el
-puesto donde estabas, y el piso marca dónde va a caer, como el hechizo. Si cuando cae seguís adentro de
-la marca, te saca 1, venga como venga. Tarda entre 1 y 1.8 s según la distancia: alcanza para correrse
-un puesto. Los números están en `RICOCHET` (core/shield) y en el panel B, pestaña Enemigos. El aura
+**La pelota que rebota en un escudo vuelve hacia vos** (desde el 2/10): sale roja, en arco, y el piso
+marca dónde va a caer, como el hechizo. La marca **te sigue** mientras vuela (te moviste a buscar otra
+pelota: va para ahí), y en los últimos 0.6 s se queda quieta: ese es el momento de correrse. Si cuando
+cae seguís adentro de la marca, te saca 1, venga como venga. Tarda entre 1 y 1.8 s según la distancia. Los números están en `RICOCHET` (core/shield) y en el panel B, pestaña Enemigos. El aura
 del chamán no la devuelve: la frena y listo.
 
 El **escudo muro** (violeta, más grande, con el brillo de los inmunes del chamán) no deja pasar nada de

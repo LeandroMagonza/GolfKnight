@@ -53,15 +53,18 @@ export function behindShield(from: Point, shield: Point, shieldRadius: number, t
 }
 
 /**
- * **El rebote (2/10).** La pelota que para un escudo no se queda ahí: vuelve por el aire hacia el puesto
- * donde estabas al pegarle, con una marca roja en el piso, y si te agarra adentro de la marca te saca
- * `damage`, venga como venga (no importa cuánto la cargaste). Tirarle de frente a un escudo deja de ser
- * gratis: o lo rodeás, o te corrés un puesto.
+ * **El rebote (2/10).** La pelota que para un escudo no se queda ahí: vuelve por el aire hacia vos, con
+ * una marca roja en el piso, y si te agarra adentro de la marca te saca `damage`, venga como venga (no
+ * importa cuánto la cargaste). Tirarle de frente a un escudo deja de ser gratis: o lo rodeás, o te corrés.
  *
- * Vuela a `speed` m/s, pero nunca menos de `minFlight` segundos (para que haya tiempo de correrse) ni
- * más de `maxFlight`. Sube `height` metros sobre la línea recta: se la ve venir en arco.
+ * **Te sigue mientras vuela**: el rebote llega enseguida después de pegar, cuando todavía estás en el
+ * puesto del tiro, y lo normal es moverse después (a buscar la pelota que tiró el caddie). Los últimos
+ * `lock` segundos deja de seguirte y la marca queda fija: ese es el momento de correrse.
+ *
+ * Vuela a `speed` m/s, pero nunca menos de `minFlight` segundos ni más de `maxFlight`. Sube `height`
+ * metros sobre la línea recta: se la ve venir en arco.
  */
-export const RICOCHET = { speed: 24, minFlight: 1, maxFlight: 1.8, height: 3, radius: 1.4, damage: 1 };
+export const RICOCHET = { speed: 24, minFlight: 1, maxFlight: 1.8, lock: 0.6, height: 3, radius: 1.4, damage: 1 };
 
 /** Cuánto tarda en volver la pelota que devolvió un escudo, según los metros que tiene que hacer. */
 export function ricochetTime(distance: number): number {

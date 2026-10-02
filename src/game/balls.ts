@@ -79,8 +79,8 @@ export interface Ball {
   /** Modo tenis: rebotes en las paredes de los costados. */
   walls: number;
   /**
-   * La que paró un escudo: vuelve por el aire hasta `to`, el puesto donde estabas, en `time` segundos,
-   * con la marca roja en el piso (ver RICOCHET).
+   * La que paró un escudo: vuelve por el aire hasta `to`, donde estás vos, en `time` segundos, con la
+   * marca roja en el piso. `to` te sigue hasta los últimos `RICOCHET.lock` segundos (ver RICOCHET).
    */
   ricochet?: { from: THREE.Vector3; to: THREE.Vector3; t: number; time: number; marker: THREE.Mesh };
 }
@@ -150,7 +150,7 @@ export class Balls {
   tennisX: () => number = () => 0;
   /** Tótems: en pausa (ver core/clubs). El módulo sigue vivo para poder volver a prenderlo. */
   traps: Traps | null = null;
-  /** Dónde está parado el golfista: hacia ahí vuelve la pelota que para un escudo. Null = no hay. */
+  /** Dónde está el golfista: hacia ahí vuelve la pelota que para un escudo, siguiéndolo. Null = no hay. */
   playerAt: () => { x: number; z: number } | null = () => null;
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
@@ -463,8 +463,8 @@ export class Balls {
   }
 
   /**
-   * El escudo la devuelve: sale por el aire hacia el puesto donde estás ahora, roja, y el piso marca
-   * dónde va a caer. Devuelve false si no hay golfista al que volver.
+   * El escudo la devuelve: sale por el aire hacia vos, roja, y el piso marca dónde va a caer. Devuelve
+   * false si no hay golfista al que volver.
    */
   private ricochet(ball: Ball): boolean {
     const at = this.playerAt();
@@ -490,10 +490,19 @@ export class Balls {
     return true;
   }
 
-  /** La que devolvió un escudo: un arco hasta el puesto. Al caer avisa dónde, y ahí termina. */
+  /**
+   * La que devolvió un escudo: un arco hasta vos. Te sigue (a vos y a la marca) hasta que le quedan
+   * `RICOCHET.lock` segundos; ahí la marca se queda quieta. Al caer avisa dónde, y ahí termina.
+   */
   private updateRicochet(ball: Ball, dt: number): void {
     const r = ball.ricochet!;
     r.t = Math.min(1, r.t + dt / r.time);
+    const at = (1 - r.t) * r.time > RICOCHET.lock ? this.playerAt() : null;
+    if (at) {
+      const ground = heightAt(at.x, at.z);
+      r.to.set(at.x, ground + BALL_RADIUS, at.z);
+      r.marker.position.set(at.x, ground + 0.06, at.z);
+    }
     const s = ball.state;
     s.pos.x = r.from.x + (r.to.x - r.from.x) * r.t;
     s.pos.z = r.from.z + (r.to.z - r.from.z) * r.t;

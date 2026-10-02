@@ -43,5 +43,8 @@ describe('la sombra del escudo', () => {
     expect(ricochetTime(mid)).toBeCloseTo(mid / RICOCHET.speed);
     // te pega 1, sin importar cómo venía
     expect(RICOCHET.damage).toBe(1);
+    // te sigue un rato y deja quieta la marca antes de caer: siempre hay un momento para correrse
+    expect(RICOCHET.lock).toBeGreaterThan(0);
+    expect(RICOCHET.lock).toBeLessThan(RICOCHET.minFlight);
   });
 });

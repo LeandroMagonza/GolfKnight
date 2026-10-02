@@ -984,11 +984,12 @@ export class DebugPanel {
       ['velocidad', () => RICOCHET.speed, (v) => { RICOCHET.speed = Math.max(1, v); }, 1, 'm/s'],
       ['tarda al menos', () => RICOCHET.minFlight, (v) => { RICOCHET.minFlight = Math.max(0.2, v); }, 0.1, 's'],
       ['tarda como mucho', () => RICOCHET.maxFlight, (v) => { RICOCHET.maxFlight = Math.max(RICOCHET.minFlight, v); }, 0.1, 's'],
+      ['deja de seguirte', () => RICOCHET.lock, (v) => { RICOCHET.lock = Math.max(0, v); }, 0.1, 's antes de caer'],
       ['sube', () => RICOCHET.height, (v) => { RICOCHET.height = Math.max(0, v); }, 0.5, 'm sobre la recta'],
       ['radio de la marca', () => RICOCHET.radius, (v) => { RICOCHET.radius = Math.max(0.3, v); }, 0.1, 'm'],
       ['daño', () => RICOCHET.damage, (v) => { RICOCHET.damage = Math.max(0, Math.round(v)); }, 1, 'de vida'],
     ]);
-    el.append(ricochet.table, note('La pelota que para un escudo vuelve por el aire al puesto donde estabas, con una marca roja. Si seguís adentro cuando cae, te pega.'));
+    el.append(ricochet.table, note('La pelota que para un escudo vuelve por el aire hacia vos, con una marca roja que te sigue hasta poco antes de caer: ahí se queda quieta. Si seguís adentro cuando cae, te pega.'));
   }
 
   // ---- campo y cámara ----
