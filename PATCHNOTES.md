@@ -17,6 +17,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   el segundo jugador. `32a62b7`
 
 **Golf**
+- La carta para subir de nivel una habilidad dice qué mejora, de cuánto a cuánto (por ejemplo, el
+  wedge de rayo: saltos por lado 2 → 3 y área 3.5 → 4.2 m). La lluvia de pelotas, que es igual en
+  todos los niveles, ya no sale para subir. `5dcf88a`
 - Ojo con los escudos: la pelota que rebota en uno vuelve hacia vos, roja y en arco, y el piso marca
   dónde va a caer. La marca te sigue mientras vuela y se queda quieta justo antes de caer: si te agarra
   adentro te saca 1 de vida, así que en ese momento corrétele. `6b382e5` `efee247`
