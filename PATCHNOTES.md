@@ -18,6 +18,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - En pausa o mientras elegís carta, el que mira ve todo quieto como vos: ya no quedan los enemigos
   caminando en el lugar ni el último de la oleada repitiendo un pedazo de su caída. Si el enlace no
   encuentra la partida, se lo dice. `f4d43c2`
+- Se puede invitar a mirar con la partida empezada: en la pausa está el botón, con el enlace para
+  copiar y cuántos están mirando. `ea0d4ca`
+
+**Pantalla**
+- La pausa queda arriba de la elección de carta (antes las cartas le quedaban encima), y en pausa no se
+  elige carta sin querer con 1, 2 o 3. `ea0d4ca`
 
 **Sonido**
 - N (o el botón de arriba a la derecha) apaga todo el sonido, música y efectos, y queda así hasta que lo
