@@ -205,11 +205,11 @@ const BASE: Ability[] = [
   },
   {
     id: 'echo', kind: 'echo', name: 'Eco', title: 'el tiro, otra vez', cooldown: 12, range: 0, color: 0x7ff0e0,
-    hint: 'Tu próximo tiro se repite, una vez por nivel',
+    hint: 'Tu próximo tiro se repite',
   },
   {
     id: 'boost', kind: 'boost', name: 'Potencia', title: 'el próximo pega más', cooldown: 8, range: 0, color: 0xff9a3c,
-    hint: 'Tu próximo tiro pega 1 más por nivel',
+    hint: 'Tu próximo tiro pega 1 más',
   },
 ];
 
@@ -217,7 +217,7 @@ const CLUB_LABEL: Record<ClubId, string> = { driver: 'Driver', iron: 'Hierro', w
 const CLUB_COOLDOWN: Record<ClubId, number> = { driver: 7, iron: 7, wedge: 8, putter: 6 };
 const CLUB_RANGE: Record<ClubId, number> = { driver: 55, iron: 55, wedge: 55, putter: 20 };
 export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: number; hint: string }> = {
-  ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: `enfría a los enemigos. A nivel ${ELEMENTS.iceFreezeFrom}, los congela` },
+  ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: 'enfría a los enemigos' },
   fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a los enemigos' },
   lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'electrocuta a los enemigos, y el rayo salta a los de al lado' },
   wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los enemigos' },
@@ -258,10 +258,25 @@ const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).fla
   .map((element): Ability => ({
     id: `${club}-${element}`, kind: 'shot', club, element,
     name: `${CLUB_LABEL[club]} ${ELEMENT_INFO[element].adj}`, title: ELEMENT_INFO[element].name.toLowerCase(),
-    hint: `Un disparo de ${CLUB_LABEL[club].toLowerCase()} instantáneo que ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`
-      + (element === 'ghost' ? `. A nivel ${ELEMENTS.ghostFullFrom}, también le pega entero al fantasma` : ''),
+    hint: `Un disparo de ${CLUB_LABEL[club].toLowerCase()} instantáneo que ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
     cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
   })));
+
+/**
+ * Lo que dice la carta de una habilidad en un nivel. `hint` es el del nivel 1; las que cambian al subir
+ * dicen lo de ese nivel, sin anunciar los de después: la potencia de nivel 2 pega 2 más, el hielo de
+ * nivel 3 ya congela.
+ */
+export function hintAt(a: Ability, level: number): string {
+  if (a.kind === 'boost') return `Tu próximo tiro pega ${lv(BOOST.bonus, level)} más`;
+  if (a.kind === 'echo') {
+    const n = lv(ECHO.shots, level);
+    return n > 1 ? `Tu próximo tiro se repite ${n} veces` : a.hint;
+  }
+  if (a.element === 'ice' && level >= ELEMENTS.iceFreezeFrom) return a.hint.replace('enfría', 'enfría y congela');
+  if (a.element === 'ghost' && level >= ELEMENTS.ghostFullFrom) return `${a.hint}, y le pega entero al fantasma`;
+  return a.hint;
+}
 
 export const ABILITIES: Record<AbilityId, Ability> = Object.fromEntries([...BASE, ...SHOTS].map((a) => [a.id, a]));
 export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);

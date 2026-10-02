@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, hintAt, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
 import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
@@ -67,7 +67,17 @@ describe('habilidades', () => {
     expect(effectOnly('ghost')).toBe(false);
     expect(effectOnly(null)).toBe(false);
     expect(ABILITIES['wedge-wind'].hint).toBe('Un disparo de wedge instantáneo que atrae a los enemigos');
-    expect(ABILITIES['iron-ghost'].hint).toContain('fantasma');
+  });
+
+  it('la carta de cada nivel dice lo de ese nivel, sin anunciar los de después', () => {
+    expect(hintAt(ABILITIES.boost, 1)).toBe('Tu próximo tiro pega 1 más');
+    expect(hintAt(ABILITIES.boost, 2)).toBe('Tu próximo tiro pega 2 más');
+    expect(hintAt(ABILITIES.echo, 1)).toBe('Tu próximo tiro se repite');
+    expect(hintAt(ABILITIES.echo, 3)).toBe('Tu próximo tiro se repite 3 veces');
+    expect(hintAt(ABILITIES['wedge-ice'], 1)).not.toContain('congela');
+    expect(hintAt(ABILITIES['wedge-ice'], ELEMENTS.iceFreezeFrom)).toContain('enfría y congela');
+    expect(hintAt(ABILITIES['iron-ghost'], 1)).not.toContain('fantasma');
+    expect(hintAt(ABILITIES['iron-ghost'], ELEMENTS.ghostFullFrom)).toContain('le pega entero al fantasma');
   });
 
   it('la zona de hielo frena y al salir se va enseguida', () => {

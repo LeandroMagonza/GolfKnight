@@ -8,7 +8,7 @@
 // poco al terminar cada oleada. Si la partida viene mal, el que sale sí o sí es el Botiquín.
 //
 // Todo acá es lógica pura, sin Three.js, para poder probar el sorteo.
-import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, MAX_LEVEL, SLOTS, type AbilityId, type Element } from './abilities';
+import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, hintAt, MAX_LEVEL, SLOTS, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
   | 'quickWrist' | 'sweetSpot' | 'evenSwing' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'smithStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
@@ -84,7 +84,7 @@ export const PERK_NUMBERS = {
 export const PERKS: Record<PerkId, Perk> = {
   quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'Cargás un 15 % más rápido' },
   sweetSpot: { id: 'sweetSpot', name: 'Punto dulce', title: 'perfecto más largo', max: 2, color: 0xff6b6b, hint: 'El golpe perfecto dura un 35 % más' },
-  evenSwing: { id: 'evenSwing', name: 'Swing parejo', title: 'tramos iguales', max: 3, color: 0xffa3d1, hint: 'Los tramos de la barra se emparejan: a nivel 3 duran lo mismo' },
+  evenSwing: { id: 'evenSwing', name: 'Swing parejo', title: 'tramos iguales', max: 3, color: 0xffa3d1, hint: 'Los tramos de la barra se emparejan' },
   rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada acierto seguido te hace cargar un 10 % más rápido, hasta 3 veces' },
   hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Con 4 aciertos seguidos, los golpes que pegan 1 pasan a pegar 2' },
   masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada baja de más en un mismo tiro suma 1. Cada 5, la puerta +1' },
@@ -194,7 +194,7 @@ export function cooldownNote(id: AbilityId, level: number): { text: string; slow
 export function describe(card: Card): { name: string; title: string; hint: string; color: number; tag: string; cool?: { text: string; slower: boolean } } {
   if (card.kind === 'ability') {
     const a = ABILITIES[card.id];
-    return { name: a.name, title: a.title, hint: a.hint, color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA', cool: cooldownNote(card.id, card.level) };
+    return { name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA', cool: cooldownNote(card.id, card.level) };
   }
   if (card.kind === 'perk') {
     const p = PERKS[card.id];
