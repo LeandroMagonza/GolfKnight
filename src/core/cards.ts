@@ -8,7 +8,7 @@
 // poco al terminar cada oleada. Si la partida viene mal, el que sale sí o sí es el Botiquín.
 //
 // Todo acá es lógica pura, sin Three.js, para poder probar el sorteo.
-import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, hintAt, MAX_LEVEL, SLOTS, type AbilityId, type Element } from './abilities';
+import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, hintAt, maxLevelOf, SLOTS, upgradeNote, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
   | 'quickWrist' | 'sweetSpot' | 'evenSwing' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'smithStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
@@ -132,7 +132,7 @@ export function candidates(build: Build): { card: Card; weight: number }[] {
     const level = owned.get(id);
     // subir una que ya tenés pesa más que una nueva cualquiera: son pocas y son tuyas
     if (level !== undefined) {
-      if (level < MAX_LEVEL) out.push({ card: { kind: 'ability', id, level: level + 1 }, weight: 3 });
+      if (level < maxLevelOf(id)) out.push({ card: { kind: 'ability', id, level: level + 1 }, weight: 3 });
     } else if (build.slots.length < SLOTS) {
       out.push({ card: { kind: 'ability', id, level: 1 }, weight: 1 });
     }
@@ -201,10 +201,13 @@ export function perkCooldown(id: PerkId): number | null {
  * Nombre, título, texto y color de una carta, para mostrarla. Las de habilidad, y las mejoras que
  * recargan, dicen también su recarga.
  */
-export function describe(card: Card): { name: string; title: string; hint: string; color: number; tag: string; cool?: { text: string; slower: boolean } } {
+export function describe(card: Card): { name: string; title: string; hint: string; color: number; tag: string; up?: string; cool?: { text: string; slower: boolean } } {
   if (card.kind === 'ability') {
     const a = ABILITIES[card.id];
-    return { name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA', cool: cooldownNote(card.id, card.level) };
+    return {
+      name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA',
+      up: upgradeNote(card.id, card.level) ?? undefined, cool: cooldownNote(card.id, card.level),
+    };
   }
   if (card.kind === 'perk') {
     const p = PERKS[card.id];

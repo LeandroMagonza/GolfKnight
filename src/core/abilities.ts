@@ -13,7 +13,7 @@
 // - **Las demás**, cada una con su mecánica propia: hielo, carrito, hoyo, bandera, pólvora, lluvia de
 //   pelotas, caddie dorado, lupa, clon, palazo, eco y potencia. (El 1/10 se fueron el boomerang, que
 //   tiraba el palo de la mano, y la granada: el silencio en área es el wedge silenciador.)
-import type { ClubId } from './clubs';
+import { CLUBS, spreadFor, type ClubId } from './clubs';
 
 export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning' | 'wind' | 'ghost' | 'silence';
@@ -276,6 +276,68 @@ export function hintAt(a: Ability, level: number): string {
   if (a.element === 'ice' && level >= ELEMENTS.iceFreezeFrom) return a.hint.replace('enfría', 'enfría y congela');
   if (a.element === 'ghost' && level >= ELEMENTS.ghostFullFrom) return `${a.hint}, y le pega entero al fantasma`;
   return a.hint;
+}
+
+/** Las que no tienen nada que mejorar al subir de nivel: la carta para subirlas no sale. */
+const NO_LEVELS: AbilityKind[] = ['rain'];
+
+/** Hasta qué nivel sube una habilidad. La lluvia de pelotas es igual en todos: se queda en 1. */
+export function maxLevelOf(id: AbilityId): number {
+  const a = ABILITIES[id];
+  return a && NO_LEVELS.includes(a.kind) ? 1 : MAX_LEVEL;
+}
+
+/**
+ * Qué mejora al pasar de `level - 1` a `level`, para la carta de subir de nivel: cada número que cambia,
+ * de cuánto a cuánto («Saltos por lado: 2 → 3»), separados por « · ». Null en el nivel 1. Sale de las
+ * tablas, así que sigue a lo que se toque en el panel de balance.
+ */
+export function upgradeNote(id: AbilityId, level: number): string | null {
+  const a = ABILITIES[id];
+  if (!a || level <= 1) return null;
+  const num = (n: number) => `${+n.toFixed(2)}`;
+  const parts: string[] = [];
+  const stat = (label: string, at: (level: number) => number, unit = '') => {
+    const from = at(level - 1);
+    const to = at(level);
+    if (from !== to) parts.push(`${label}: ${num(from)} → ${num(to)}${unit}`);
+  };
+  const table = (label: string, values: number[], unit = '') => stat(label, (l) => lv(values, l), unit);
+  // lo que pasa de no tenerlo a tenerlo, sin números
+  const gains = (label: string, from: number) => { if (level >= from && level - 1 < from) parts.push(label); };
+  switch (a.kind) {
+    case 'iceZone': table('Radio', ICE.radius, ' m'); table('Dura', ICE.duration, ' s'); break;
+    case 'cart': table('Daño', CART.damage); break;
+    case 'hole': table('Se traga a', HOLE.swallows); break;
+    case 'flag': table('Radio', FLAG.radius, ' m'); table('Dura', FLAG.seconds, ' s'); break;
+    case 'powder': table('Radio', POWDER.radius, ' m'); table('Daño de la explosión', POWDER.damage); break;
+    case 'caddie': table('Dura', CADDIE.seconds, ' s'); break;
+    case 'lens': table('Radio', LENS.radius, ' m'); table('Dura', LENS.seconds, ' s'); break;
+    case 'clone': table('Tiros', CLONE.shots); break;
+    case 'melee': table('Alcance', PALAZO.radius, ' m'); table('Les corta el ataque', PALAZO.stagger, ' s'); break;
+    case 'echo': table('Repeticiones', ECHO.shots); break;
+    case 'boost': table('Daño extra', BOOST.bonus); break;
+    case 'shot': {
+      const club = CLUBS[a.club!];
+      switch (a.element) {
+        case 'ice': table('Enfría', ELEMENTS.iceSeconds, ' s'); gains('Congela', ELEMENTS.iceFreezeFrom); break;
+        case 'fire': stat('Daño del fuego', (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage); break;
+        case 'lightning': table('Saltos por lado', ELEMENTS.chainJumps); break;
+        case 'wind':
+          if (a.club === 'driver') table('Junta desde', ELEMENTS.windLine, ' m');
+          else if (a.club === 'iron') table('Empuja', ELEMENTS.windPush, ' m');
+          else table('Atrae desde', ELEMENTS.windPull, ' m');
+          break;
+        case 'ghost': stat('Golpe', (l) => l); gains('Pega entero al fantasma', ELEMENTS.ghostFullFrom); break;
+        case 'silence': table('Silencia', ELEMENTS.silenceSeconds, ' s'); break;
+      }
+      // el tiro sale cargado al nivel: el área del hierro y del wedge crece con él (el viento no: el
+      // remolino y la ráfaga tienen su propio radio, que ya dice arriba)
+      if (a.element !== 'wind') stat('Área', (l) => spreadFor(club, l), ' m');
+      break;
+    }
+  }
+  return parts.length ? parts.join(' · ') : null;
 }
 
 export const ABILITIES: Record<AbilityId, Ability> = Object.fromEntries([...BASE, ...SHOTS].map((a) => [a.id, a]));

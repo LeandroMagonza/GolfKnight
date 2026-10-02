@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_LIST, cooldownAt, MAX_LEVEL, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_LIST, cooldownAt, MAX_LEVEL, maxLevelOf, SLOTS, upgradeNote } from './abilities';
 import { candidates, cooldownNote, describe as describeCard, drawCards, needsHeal, PERK_NUMBERS, PERKS, type Build } from './cards';
 
 const fresh = (over: Partial<Build> = {}): Build => ({ slots: [], perks: {}, hp: 3, hpMax: 3, gate: 10, gateMax: 10, ...over });
@@ -70,6 +70,21 @@ describe('cartas', () => {
     expect(up.text).toBe(`Recarga: ${base} s → ${+cooldownAt(ABILITIES.cart, 2).toFixed(1)} s · más lenta`);
     expect(describeCard({ kind: 'ability', id: 'cart', level: 2 }).cool).toEqual(up);
     expect(describeCard({ kind: 'perk', id: 'rhythm', level: 1 }).cool).toBeUndefined();
+  });
+
+  it('la carta de subir de nivel dice qué mejora; la que no mejora nada no sale', () => {
+    for (const id of ABILITY_LIST) {
+      expect(describeCard({ kind: 'ability', id, level: 1 }).up, id).toBeUndefined();
+      for (let level = 2; level <= maxLevelOf(id); level++) expect(describeCard({ kind: 'ability', id, level }).up, `${id} ${level}`).toBeTruthy();
+    }
+    expect(upgradeNote('wedge-lightning', 2)).toBe('Saltos por lado: 2 → 3 · Área: 3.5 → 4.2 m');
+    expect(upgradeNote('driver-ghost', 2)).toBe('Golpe: 1 → 2 · Pega entero al fantasma');
+    expect(upgradeNote('iron-ice', 3)).toContain('Congela');
+    expect(upgradeNote('iron-ice', 2)).not.toContain('Congela');
+    // la lluvia de pelotas es igual en todos los niveles: no se ofrece subirla
+    expect(maxLevelOf('rain')).toBe(1);
+    const pool = candidates(fresh({ slots: [{ id: 'rain', level: 1 }] }));
+    expect(pool.some((c) => c.card.kind === 'ability' && c.card.id === 'rain')).toBe(false);
   });
 
   it('las mejoras que recargan dicen su recarga abajo, no en el texto', () => {

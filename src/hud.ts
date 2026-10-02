@@ -86,13 +86,15 @@ export class Hud {
   onPick: ((i: number) => void) | null = null;
 
   /** Las tres cartas entre oleadas. Se elige con click o con 1, 2 y 3. */
-  showChoice(cards: { tag: string; name: string; title: string; hint: string; color: number; cool?: { text: string; slower: boolean } }[], next: string): void {
+  showChoice(cards: { tag: string; name: string; title: string; hint: string; color: number; up?: string; cool?: { text: string; slower: boolean } }[], next: string): void {
     const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
     (this.choiceEl.querySelector('.cards') as HTMLElement).innerHTML = cards.map((c, i) => {
       const color = '#' + c.color.toString(16).padStart(6, '0');
       // las de habilidad dicen su recarga; si subir de nivel la alarga, en otro color
       const cool = c.cool ? `<div class="cool${c.cool.slower ? ' slower' : ''}">⟳ ${esc(c.cool.text)}</div>` : '';
-      return `<div class="choice" data-i="${i}" style="--c:${color}"><kbd>${i + 1}</kbd><div class="tag">${esc(c.tag)}</div><div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div><div class="hint">${esc(c.hint)}</div>${cool}</div>`;
+      // las que suben de nivel dicen qué mejora, en verde, arriba de la recarga
+      const up = c.up ? `<div class="cool up" style="color:#8fe3b0">▲ ${esc(c.up)}</div>` : '';
+      return `<div class="choice" data-i="${i}" style="--c:${color}"><kbd>${i + 1}</kbd><div class="tag">${esc(c.tag)}</div><div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div><div class="hint">${esc(c.hint)}</div>${up}${cool}</div>`;
     }).join('');
     (this.choiceEl.querySelector('.next') as HTMLElement).textContent = next ? `Próxima oleada: ${next}` : '';
     this.choiceEl.hidden = false;
