@@ -15,6 +15,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   la oleada) con su propia cámara: arrastrando gira, con la rueda acerca. Puede entrar con la partida
   empezada, y si reiniciás se reengancha solo. Vos ves cuántos te están mirando. Es el primer paso para
   el segundo jugador. `32a62b7`
+- En pausa o mientras elegís carta, el que mira ve todo quieto como vos: ya no quedan los enemigos
+  caminando en el lugar ni el último de la oleada repitiendo un pedazo de su caída. Si el enlace no
+  encuentra la partida, se lo dice. `f4d43c2`
+
+**Sonido**
+- N (o el botón de arriba a la derecha) apaga todo el sonido, música y efectos, y queda así hasta que lo
+  vuelvas a prender. Anda también mirando. La M sigue apagando solo la música. `f4d43c2`
 
 **Golf**
 - La carta para subir de nivel una habilidad dice qué mejora, de cuánto a cuánto (por ejemplo, el
