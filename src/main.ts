@@ -882,6 +882,8 @@ function offerChoice(): boolean {
 }
 
 function pickCard(i: number): void {
+  // en pausa las cartas quedan debajo: ni con el número ni con un click se elige
+  if (paused) return;
   const card = choice?.[i];
   if (!card) return;
   choice = null;
@@ -1634,7 +1636,11 @@ const intro = new Intro((withTutorial) => {
 }, tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON), !!WATCH);
 // el espectador no tiene intro: entra directo a mirar
 if (WATCH) overlay.hidden = true;
-intro.onInvite = invite;
+intro.onInvite = async () => {
+  const link = await invite();
+  showPauseInvite(link);
+  return link;
+};
 loadModels().then(() => {
   intro.setReady();
   if (WATCH) void startWatching(WATCH);
@@ -1711,6 +1717,7 @@ async function startHosting(code: string): Promise<string> {
       watchersEl.hidden = n === 0;
       watchersEl.textContent = n === 1 ? '👁 1 mirando' : `👁 ${n} mirando`;
       intro.setWatchers(n);
+      setPauseWatchers(n);
     };
   }
   const url = new URL(location.href);
@@ -1731,7 +1738,47 @@ async function invite(): Promise<string> {
   return startHosting(params.get('transmitir') ?? new URL(location.href).searchParams.get('transmitir') ?? roomCode());
 }
 // reiniciando con la sala abierta (o desde una prueba): vuelve a transmitir solo
-if (params.get('transmitir') && !WATCH) void invite().then((link) => intro.showInvite(link));
+if (params.get('transmitir') && !WATCH) {
+  void invite().then((link) => {
+    intro.showInvite(link);
+    showPauseInvite(link);
+  });
+}
+
+// también se invita con la partida empezada: desde la pausa
+const pauseInvite = document.querySelector('#pause .invite') as HTMLElement;
+const pauseInviteOpen = pauseInvite.querySelector('.open') as HTMLButtonElement;
+function showPauseInvite(link: string): void {
+  pauseInviteOpen.hidden = true;
+  (pauseInvite.querySelector('.box') as HTMLElement).hidden = false;
+  (pauseInvite.querySelector('input') as HTMLInputElement).value = link;
+}
+function setPauseWatchers(n: number): void {
+  (pauseInvite.querySelector('.who') as HTMLElement).textContent = n === 0 ? 'Todavía no entró nadie: puede entrar ahora, con la partida empezada.' : n === 1 ? '👁 Ya está mirando' : `👁 Están mirando ${n}`;
+}
+setPauseWatchers(0);
+pauseInviteOpen.addEventListener('click', () => {
+  pauseInviteOpen.disabled = true;
+  invite().then((link) => {
+    showPauseInvite(link);
+    intro.showInvite(link);
+  }).catch((e) => {
+    console.error(e);
+    pauseInviteOpen.disabled = false;
+    pauseInviteOpen.textContent = 'No se pudo abrir la sala. Probar de nuevo';
+  });
+});
+pauseInvite.querySelector('.copy')!.addEventListener('click', (e) => {
+  const input = pauseInvite.querySelector('input') as HTMLInputElement;
+  void navigator.clipboard?.writeText(input.value).catch(() => {
+    input.select();
+    document.execCommand('copy');
+  });
+  const btn = e.currentTarget as HTMLButtonElement;
+  btn.textContent = '¡Copiado!';
+  // el foco fuera del botón: así Esc vuelve a sacar la pausa
+  btn.blur();
+});
 
 async function startWatching(code: string): Promise<void> {
   const link = await connect(code, NET_LOCAL);

@@ -217,13 +217,13 @@
 
       /* panel de balance y pruebas: columna a la derecha, con el juego corriendo detrás */
       /* por encima de la pausa y del final: el panel tiene que poder usarse con el juego frenado */
-      #balancebtn { position: absolute; top: 118px; right: 14px; z-index: 6; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #balancebtn { position: absolute; top: 118px; right: 14px; z-index: 7; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
       #balancebtn:hover { background: rgba(0,0,0,0.75); }
       /* todo el sonido (N): en el que mira va donde estaría el skin, que ahí no está */
-      #muteall { position: absolute; top: 148px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #muteall { position: absolute; top: 148px; right: 14px; z-index: 7; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
       #muteall:hover { background: rgba(0,0,0,0.75); }
       body.watching #muteall { top: 88px; }
-      #balance { position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); box-sizing: border-box; z-index: 6; overflow-y: auto; background: rgba(8, 12, 18, 0.93); border-left: 2px solid #4a5666; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
+      #balance { position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); box-sizing: border-box; z-index: 7; overflow-y: auto; background: rgba(8, 12, 18, 0.93); border-left: 2px solid #4a5666; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
       #balance[hidden] { display: none; }
       #balance h3 { margin: 0 0 4px; font-size: 20px; color: #ffd66b; }
       #balance h4 { margin: 16px 0 6px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #9aa4b2; border-bottom: 1px solid #2c3644; padding-bottom: 4px; }
@@ -272,6 +272,15 @@
       .balmodal button.wide { flex: 1; }
       #pause, #end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(8, 12, 18, 0.78); text-align: center; }
       #pause[hidden], #end[hidden] { display: none; }
+      /* la pausa va arriba de las cartas (y debajo del panel de balance, que se abre desde ahí) */
+      #pause { z-index: 6; pointer-events: auto; background: rgba(8, 12, 18, 0.93); }
+      #pause .invite { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: min(560px, calc(100vw - 32px)); }
+      #pause .invite button { font-size: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #pause .invite button:hover { background: rgba(0,0,0,0.75); }
+      #pause .invite .row { display: flex; gap: 6px; width: 100%; }
+      #pause .invite input { flex: 1; min-width: 0; font: 13px ui-monospace, monospace; padding: 6px 8px; border-radius: 6px; border: 1px solid #3a4452; background: #0e141c; color: #e4e9f0; }
+      #pause .invite .who { font-size: 13px; color: #9aa4b2; }
+      #pause .invite [hidden] { display: none; }
       #pause h2, #end h2 { margin: 0 0 12px; font-size: 44px; color: #ffd66b; }
       #pause p, #end p { margin: 4px 0; color: #e4e9f0; font-size: 17px; }
     </style>
@@ -343,7 +352,15 @@
       <div id="perks"></div>
       <div id="card" hidden><div class="box"><div class="tag">HABILIDAD NUEVA</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>
       <div id="choice" hidden><h2>Elegí una</h2><div class="cards"></div><div class="next"></div><div class="go">click, o 1 · 2 · 3</div></div>
-      <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música · N todo el sonido</p></div>
+      <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música · N todo el sonido</p>
+        <div class="invite">
+          <button type="button" class="open" tabindex="-1">Invitar a alguien a mirar tu partida</button>
+          <div class="box" hidden>
+            <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy" tabindex="-1">Copiar</button></div>
+            <div class="who"></div>
+          </div>
+        </div>
+      </div>
       <div id="end" hidden><h2></h2><p class="detail"></p><p>R para jugar de nuevo</p></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
