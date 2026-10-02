@@ -11,7 +11,8 @@ import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMo
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
 import { arcLayout, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
-import { Balls } from './game/balls';
+import { Balls, RICOCHET_COLOR } from './game/balls';
+import { RICOCHET } from './core/shield';
 import { MoundView } from './game/mounds';
 import { Effects } from './game/effects';
 import { badgeImage, Horde, SCENARIO_ICONS, shadowMat, SHIELD_MODELS, SHIELD_PROPS } from './game/enemies';
@@ -71,6 +72,8 @@ const court = TENNIS_ON ? new Court(scene) : null;
 balls.tennis = TENNIS_ON;
 // la vuelta tarda lo que haga falta para que llegues corriendo (ver returnTime)
 balls.tennisX = () => player?.anchor.x ?? 0;
+// la que para un escudo vuelve al puesto donde estás parado
+balls.playerAt = () => player?.anchor ?? null;
 if (TENNIS_ON) tees.setVisible(false);
 
 // ---------- estado ----------
@@ -664,6 +667,17 @@ balls.onEvent = (e) => {
       audio.bounce();
       const s = toScreen(e.enemy.position, e.enemy.height);
       hud.float(s.x, s.y, e.warded ? 'inmune' : '¡Bloqueado!', 'hurt');
+      break;
+    }
+    case 'ricochet': {
+      // la que devolvió un escudo cayó: si seguías adentro de la marca, te pega 1, venga como venga
+      effects.explosion(e.pos, RICOCHET.radius, RICOCHET_COLOR);
+      audio.bounce();
+      const hit = player.alive && !player.invulnerable && Math.hypot(player.anchor.x - e.pos.x, player.anchor.z - e.pos.z) <= RICOCHET.radius;
+      if (hit) {
+        player.hit(RICOCHET.damage, e.pos);
+        horde.emit({ type: 'playerHit', enemy: null, amount: RICOCHET.damage });
+      }
       break;
     }
     case 'connected':

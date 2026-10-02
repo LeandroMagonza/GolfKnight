@@ -51,3 +51,19 @@ export function behindShield(from: Point, shield: Point, shieldRadius: number, t
   // y dentro de la sombra: lo que se aparta de esa línea
   return Math.abs((ex * sz - ez * sx) / ds) <= shieldRadius + targetRadius;
 }
+
+/**
+ * **El rebote (2/10).** La pelota que para un escudo no se queda ahí: vuelve por el aire hacia el puesto
+ * donde estabas al pegarle, con una marca roja en el piso, y si te agarra adentro de la marca te saca
+ * `damage`, venga como venga (no importa cuánto la cargaste). Tirarle de frente a un escudo deja de ser
+ * gratis: o lo rodeás, o te corrés un puesto.
+ *
+ * Vuela a `speed` m/s, pero nunca menos de `minFlight` segundos (para que haya tiempo de correrse) ni
+ * más de `maxFlight`. Sube `height` metros sobre la línea recta: se la ve venir en arco.
+ */
+export const RICOCHET = { speed: 24, minFlight: 1, maxFlight: 1.8, height: 3, radius: 1.4, damage: 1 };
+
+/** Cuánto tarda en volver la pelota que devolvió un escudo, según los metros que tiene que hacer. */
+export function ricochetTime(distance: number): number {
+  return Math.min(RICOCHET.maxFlight, Math.max(RICOCHET.minFlight, distance / Math.max(0.1, RICOCHET.speed)));
+}

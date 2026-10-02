@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { behindShield, shieldFaces } from './shield';
+import { behindShield, RICOCHET, ricochetTime, shieldFaces } from './shield';
 
 // El guerrero viene hacia la puerta, así que mira hacia -Z: el golfista le queda de frente.
 const facing = { x: 0, z: -1 };
@@ -32,5 +32,16 @@ describe('la sombra del escudo', () => {
     const from = { x: -10, z: 20 };
     expect(behindShield(from, guard, 0.5, { x: 3, z: 20 }, 0.5)).toBe(true);
     expect(behindShield(from, guard, 0.5, { x: 0, z: 24 }, 0.5)).toBe(false);
+  });
+
+  it('la pelota que devuelve el escudo tarda según la distancia, con piso y techo', () => {
+    // de cerca, igual da tiempo de correrse un puesto
+    expect(ricochetTime(2)).toBe(RICOCHET.minFlight);
+    // de lejos, no tarda una eternidad
+    expect(ricochetTime(500)).toBe(RICOCHET.maxFlight);
+    const mid = (RICOCHET.minFlight + RICOCHET.maxFlight) / 2 * RICOCHET.speed;
+    expect(ricochetTime(mid)).toBeCloseTo(mid / RICOCHET.speed);
+    // te pega 1, sin importar cómo venía
+    expect(RICOCHET.damage).toBe(1);
   });
 });

@@ -14,6 +14,7 @@ import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldo
 import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from './core/cards';
 import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
+import { RICOCHET } from './core/shield';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ENEMIES, GEOMANCER, HEAL_AURA, type EnemyKind, type WaveDirector } from './core/waves';
@@ -33,7 +34,7 @@ export interface DebugFlags {
 const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
   carga: CHARGE as unknown as Record<string, number>,
-  curandero: HEAL_AURA, geomante: GEOMANCER,
+  curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
 };
 
@@ -977,6 +978,17 @@ export class DebugPanel {
       else cell(row, this.field(() => s.attackEvery ?? 0, (v) => { s.attackEvery = Math.max(0.2, v); }, 0.5)).title = 'segundos entre ataques';
     }
     el.append(enemies, note('«sale» lo saca de todas las oleadas sin cambiar el resto. La vida y la velocidad se les pasan también a los que ya están en el campo.'));
+
+    el.append(heading('Rebote del escudo'));
+    const ricochet = this.numbers([
+      ['velocidad', () => RICOCHET.speed, (v) => { RICOCHET.speed = Math.max(1, v); }, 1, 'm/s'],
+      ['tarda al menos', () => RICOCHET.minFlight, (v) => { RICOCHET.minFlight = Math.max(0.2, v); }, 0.1, 's'],
+      ['tarda como mucho', () => RICOCHET.maxFlight, (v) => { RICOCHET.maxFlight = Math.max(RICOCHET.minFlight, v); }, 0.1, 's'],
+      ['sube', () => RICOCHET.height, (v) => { RICOCHET.height = Math.max(0, v); }, 0.5, 'm sobre la recta'],
+      ['radio de la marca', () => RICOCHET.radius, (v) => { RICOCHET.radius = Math.max(0.3, v); }, 0.1, 'm'],
+      ['daño', () => RICOCHET.damage, (v) => { RICOCHET.damage = Math.max(0, Math.round(v)); }, 1, 'de vida'],
+    ]);
+    el.append(ricochet.table, note('La pelota que para un escudo vuelve por el aire al puesto donde estabas, con una marca roja. Si seguís adentro cuando cae, te pega.'));
   }
 
   // ---- campo y cámara ----

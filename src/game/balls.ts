@@ -13,7 +13,7 @@ import type { Shot } from './player';
 import type { Traps } from './traps';
 import { heightAt, terrainOn } from '../core/terrain';
 import { FIELD_HALF_WIDTH, GATE_Z, TEE_LINE_Z } from './world';
-import { SHIELD_TOP } from '../core/shield';
+import { RICOCHET, ricochetTime, SHIELD_TOP } from '../core/shield';
 import { foldX, MAX_BALL_SPEED, mirrorRaw, returnHeight, returnTime, stepTennis, TENNIS, type TennisPhase } from '../tennis/bounce';
 
 const TRAIL_POINTS = 18;
@@ -78,6 +78,11 @@ export interface Ball {
   pull?: number;
   /** Modo tenis: rebotes en las paredes de los costados. */
   walls: number;
+  /**
+   * La que paró un escudo: vuelve por el aire hasta `to`, el puesto donde estabas, en `time` segundos,
+   * con la marca roja en el piso (ver RICOCHET).
+   */
+  ricochet?: { from: THREE.Vector3; to: THREE.Vector3; t: number; time: number; marker: THREE.Mesh };
 }
 
 export type BallEvent =
@@ -87,6 +92,8 @@ export type BallEvent =
   | { type: 'land'; pos: THREE.Vector3; hits: number; quality: number }
   | { type: 'bounce'; pos: THREE.Vector3 }
   | { type: 'blocked'; enemy: Enemy; warded: boolean }
+  /** La que devolvió un escudo cayó en `pos`: si el golfista está adentro de la marca, le pega. */
+  | { type: 'ricochet'; pos: THREE.Vector3 }
   /** Un tiro le pegó a alguien por primera vez. Sale apenas pega, sin esperar a que la pelota pare. */
   | { type: 'connected'; ability: boolean }
   /**
@@ -114,6 +121,9 @@ const TOSS_TIME = 0.6;
 /** El piso para el driver fantasma: sin las lomas (lo que sube), con los valles (lo que baja). */
 const underHills = (x: number, z: number) => Math.min(0, heightAt(x, z));
 export const MAGIC_WALL_COLOR = 0x9d7bff;
+/** La pelota que devuelve un escudo se pone de este color, y su marca en el piso también: viene a pegarte. */
+export const RICOCHET_COLOR = 0xff3b30;
+const ricochetMarkGeo = new THREE.RingGeometry(0.7, 1, 32);
 
 /** Tenis: el golpe plano sale de la altura de la raqueta, rasante y a la velocidad del nivel del golpe. */
 function tennisLaunch(shot: Shot): BallState {
@@ -140,6 +150,8 @@ export class Balls {
   tennisX: () => number = () => 0;
   /** Tótems: en pausa (ver core/clubs). El módulo sigue vivo para poder volver a prenderlo. */
   traps: Traps | null = null;
+  /** Dónde está parado el golfista: hacia ahí vuelve la pelota que para un escudo. Null = no hay. */
+  playerAt: () => { x: number; z: number } | null = () => null;
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
@@ -436,6 +448,9 @@ export class Balls {
           this.sendBack(ball, e);
           continue;
         }
+        // la que para un escudo vuelve hacia vos, y si te agarra te pega (el aura del chamán no la
+        // devuelve: la frena y listo)
+        if (!e.warded && this.ricochet(ball)) return;
         const n = Math.hypot(dx, dz) || 1;
         const dot = (s.vel.x * dx + s.vel.z * dz) / n;
         s.vel.x = (s.vel.x - (2 * dot * dx) / n) * 0.4;
@@ -445,6 +460,49 @@ export class Balls {
       this.hitEnemy(ball, e);
       if (ball.done) return;
     }
+  }
+
+  /**
+   * El escudo la devuelve: sale por el aire hacia el puesto donde estás ahora, roja, y el piso marca
+   * dónde va a caer. Devuelve false si no hay golfista al que volver.
+   */
+  private ricochet(ball: Ball): boolean {
+    const at = this.playerAt();
+    if (!at) return false;
+    const s = ball.state;
+    const from = new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z);
+    const ground = heightAt(at.x, at.z);
+    const to = new THREE.Vector3(at.x, ground + BALL_RADIUS, at.z);
+    const marker = new THREE.Mesh(ricochetMarkGeo, new THREE.MeshBasicMaterial({ color: RICOCHET_COLOR, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.set(to.x, ground + 0.06, to.z);
+    marker.scale.setScalar(RICOCHET.radius);
+    this.scene.add(marker);
+    ball.ricochet = { from, to, t: 0, time: ricochetTime(from.distanceTo(to)), marker };
+    s.vel.x = 0;
+    s.vel.y = 0;
+    s.vel.z = 0;
+    s.resting = false;
+    const mat = ball.mesh.material as THREE.MeshStandardMaterial;
+    mat.emissive.setHex(RICOCHET_COLOR);
+    mat.emissiveIntensity = 1.6;
+    (ball.trail.material as THREE.LineBasicMaterial).color.setHex(RICOCHET_COLOR);
+    return true;
+  }
+
+  /** La que devolvió un escudo: un arco hasta el puesto. Al caer avisa dónde, y ahí termina. */
+  private updateRicochet(ball: Ball, dt: number): void {
+    const r = ball.ricochet!;
+    r.t = Math.min(1, r.t + dt / r.time);
+    const s = ball.state;
+    s.pos.x = r.from.x + (r.to.x - r.from.x) * r.t;
+    s.pos.z = r.from.z + (r.to.z - r.from.z) * r.t;
+    s.pos.y = r.from.y + (r.to.y - r.from.y) * r.t + Math.sin(r.t * Math.PI) * RICOCHET.height;
+    // la marca late más rápido cuanto más cerca está de caer, como la del hechicero
+    (r.marker.material as THREE.MeshBasicMaterial).opacity = 0.35 + 0.3 * Math.abs(Math.sin(r.t * r.time * (6 + 14 * r.t)));
+    if (r.t < 1) return;
+    this.onEvent?.({ type: 'ricochet', pos: r.to.clone() });
+    ball.done = true;
   }
 
   private drawBall(ball: Ball): void {
@@ -641,6 +699,12 @@ export class Balls {
     for (const ball of this.list) {
       const s = ball.state;
       ball.age += dt;
+      if (ball.ricochet) {
+        if (!ball.done) this.updateRicochet(ball, dt);
+        if (ball.done || ball.age >= SETTLE_AFTER) this.settle(ball);
+        this.drawBall(ball);
+        continue;
+      }
       if (ball.phase) {
         this.updateTennis(ball, dt);
         if (ball.age >= SETTLE_AFTER) this.settle(ball);
@@ -652,7 +716,7 @@ export class Balls {
       // el driver fantasma atraviesa las lomas: para él, el piso no sube nunca (los valles sí bajan)
       const ground = !terrainOn() ? undefined : ball.element === 'ghost' && ball.club.id === 'driver' ? underHills : heightAt;
       // (el globo del tenis que reventó pasa a volver por el aire: desde ahí lo mueve updateTennis)
-      for (let i = 0; i < steps && !ball.done && !s.resting && !ball.phase; i++) {
+      for (let i = 0; i < steps && !ball.done && !s.resting && !ball.phase && !ball.ricochet; i++) {
         applySpin(s, ball.spin, ball.spinTime, dt / steps);
         ball.spinTime += dt / steps;
         const landed = stepBall(s, dt / steps, ball.bounce, ground);
@@ -671,7 +735,7 @@ export class Balls {
         }
         this.collide(ball);
       }
-      if (ball.phase) {
+      if (ball.phase || ball.ricochet) {
         this.drawBall(ball);
         continue;
       }
@@ -687,6 +751,10 @@ export class Balls {
       const ball = this.list[i];
       if (!ball.done) continue;
       this.scene.remove(ball.mesh, ball.trail);
+      if (ball.ricochet) {
+        this.scene.remove(ball.ricochet.marker);
+        (ball.ricochet.marker.material as THREE.Material).dispose();
+      }
       (ball.mesh.material as THREE.Material).dispose();
       ball.trail.geometry.dispose();
       (ball.trail.material as THREE.Material).dispose();
