@@ -11,6 +11,7 @@ import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
 import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { EF, r2, r3, type EnemySnap, type ProjSnap } from '../net/snapshot';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
@@ -388,7 +389,8 @@ const SILENCE_EMISSIVE = new THREE.Color(0x4a1a08);
 const smooth = (u: number) => u * u * (3 - 2 * u);
 
 export class Enemy {
-  readonly id = nextId++;
+  /** Único en la partida. El espectador usa el del que juega (ver net/). */
+  readonly id: number;
   readonly group = new THREE.Group();
   readonly position: THREE.Vector3;
   readonly animator: LayeredAnimator;
@@ -515,7 +517,8 @@ export class Enemy {
 
   // stats y maxHp no son de solo lectura: el panel de balance (tecla B) los toca en vivo. Los
   // modificadores (blindaje, escudo, aura...) van aparte, así el tipo sigue siendo el objeto compartido
-  constructor(readonly stats: EnemyStats, template: Template, readonly mods: EnemyMods = {}) {
+  constructor(readonly stats: EnemyStats, template: Template, readonly mods: EnemyMods = {}, id?: number) {
+    this.id = id ?? nextId++;
     this.behavior = behaviorOf(stats, mods);
     this.position = this.group.position;
     this.maxHp = this.hp = Math.max(1, stats.hp + (mods.hp ?? 0));
@@ -1228,12 +1231,7 @@ export class Enemy {
       this.powderTimer = 0;
       this.stunTimer = 0;
       this.knock.set(0, 0, 0);
-      for (const { mat } of this.materials) {
-        mat.transparent = true;
-        // el que ya pasó se desvanece; el fantasma ya era más traslúcido que eso
-        mat.opacity = Math.min(mat.opacity, 0.4);
-        mat.needsUpdate = true;
-      }
+      this.fadePassed();
       this.refreshBar();
       this.refreshChill();
     }
@@ -1338,6 +1336,88 @@ export class Enemy {
     }
     this.clampToField();
     this.finishFrame(dt, this.state === 'attack' ? 1 : castGesture);
+  }
+
+  /** El que ya pasó se desvanece; el fantasma ya era más traslúcido que eso. */
+  private fadePassed(): void {
+    for (const { mat } of this.materials) {
+      mat.transparent = true;
+      mat.opacity = Math.min(mat.opacity, 0.4);
+      mat.needsUpdate = true;
+    }
+  }
+
+  // ---- el espectador (ver net/): lo que se ve, de ida y de vuelta ----
+
+  /** Cómo está y cómo se ve, para mandárselo al que mira. */
+  snapshot(): EnemySnap {
+    const f = (this.frozen ? EF.frozen : 0) | (this.burning ? EF.burning : 0) | (this.powderTimer > 0 ? EF.powder : 0)
+      | (this.warded ? EF.warded : 0) | (this.divineReady ? EF.divine : 0) | (this.dodgeLeft > 0 ? EF.dodgeCooling : 0)
+      | (this.passed ? EF.passed : 0) | (this.flashTimer > 0 ? EF.flash : 0) | (this.bannered ? EF.bannered : 0);
+    return {
+      id: this.id,
+      x: r2(this.position.x),
+      y: r2(this.position.y),
+      z: r2(this.position.z),
+      yaw: r3(this.yaw),
+      st: this.state === 'walk' ? 0 : this.state === 'attack' ? 1 : 2,
+      hp: this.hp,
+      mhp: this.maxHp,
+      f,
+      ch: this.chillTimer > 0 ? [r2(this.chillTimer), r2(this.chillMax)] : 0,
+      si: this.silenceTimer > 0 ? [r2(this.silenceTimer), r2(this.silenceMax)] : 0,
+      sc: r3(this.group.scale.x),
+      hop: r2(this.model.position.y),
+      g: r3(this.gesture),
+      u: r3(this.attackHitAt > 0 ? this.attackTime / this.attackHitAt : 1),
+      a: this.animator.state,
+    };
+  }
+
+  /** El que mira: se pone como está en el del que juega (la posición y hacia dónde mira, ya suavizadas). */
+  applyRemote(s: EnemySnap, x: number, y: number, z: number, yaw: number): void {
+    this.position.set(x, y, z);
+    this.yaw = yaw;
+    this.state = s.st === 0 ? 'walk' : s.st === 1 ? 'attack' : 'dying';
+    this.hp = s.hp;
+    this.maxHp = s.mhp;
+    this.frozenTimer = s.f & EF.frozen ? 1 : 0;
+    this.burnTimer = s.f & EF.burning ? 1 : 0;
+    this.powderTimer = s.f & EF.powder ? 1 : 0;
+    this.warded = !!(s.f & EF.warded);
+    this.divineReady = !!(s.f & EF.divine);
+    this.dodgeLeft = s.f & EF.dodgeCooling ? 1 : 0;
+    this.bannered = !!(s.f & EF.bannered);
+    if (s.f & EF.flash) this.flashTimer = Math.max(this.flashTimer, 0.05);
+    if (s.f & EF.passed && !this.passed) {
+      this.passed = true;
+      this.fadePassed();
+    }
+    [this.chillTimer, this.chillMax] = s.ch || [0, 1];
+    [this.silenceTimer, this.silenceMax] = s.si || [0, 1];
+    this.group.scale.setScalar(s.sc);
+    this.model.position.y = s.hop;
+    this.gesture = s.g;
+    this.attackHitAt = 1;
+    this.attackTime = s.u;
+    this.animator.applyState(s.a);
+  }
+
+  /** El que mira: solo lo que se dibuja (colores, barras, aura, animación), sin pensar ni moverse. */
+  updateRemote(dt: number): void {
+    this.age += dt;
+    this.updateLook(dt);
+    this.refreshChill();
+    this.refreshPipsIfChanged();
+    if (this.aura) {
+      this.aura.visible = this.casting;
+      this.aura.scale.setScalar(this.auraRadius);
+      this.aura.rotation.z += dt * 0.4;
+      (this.aura.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.2 * Math.sin(this.age * 3);
+    }
+    this.model.rotation.y = this.yaw;
+    this.animator.update(dt);
+    if (this.gesture > 0.01) this.applyGesture();
   }
 
   /** El tutorial: camina hasta `hold` y ahí se queda, mirando hacia los puestos. */
@@ -1607,14 +1687,81 @@ export class Horde {
     return n;
   }
 
-  private add(kind: EnemyKind, x: number, z: number, mods?: EnemyMods): Enemy {
+  private add(kind: EnemyKind, x: number, z: number, mods?: EnemyMods, id?: number): Enemy {
     const template = this.templates.get(kind);
     if (!template) throw new Error(`falta el modelo de ${kind}`);
-    const enemy = new Enemy(ENEMIES[kind], template, mods ?? {});
+    const enemy = new Enemy(ENEMIES[kind], template, mods ?? {}, id);
     enemy.position.set(x, 0, z);
     this.scene.add(enemy.group);
     this.enemies.push(enemy);
     return enemy;
+  }
+
+  // ---- el espectador (ver net/) ----
+
+  /** El que mira: arma un enemigo como el del que juega, con su mismo id. */
+  spawnRemote(id: number, kind: EnemyKind, mods: EnemyMods, x: number, z: number): Enemy | null {
+    if (!this.templates.has(kind)) return null;
+    return this.add(kind, x, z, mods, id);
+  }
+
+  /** El que mira: este ya no está en el del que juega. */
+  removeRemote(enemy: Enemy): void {
+    const i = this.enemies.indexOf(enemy);
+    if (i < 0) return;
+    this.scene.remove(enemy.group);
+    enemy.dispose();
+    this.enemies.splice(i, 1);
+  }
+
+  /** Lo que vuela ahora (piedras y hechizos), para mandárselo al que mira. `key` es para darle un id. */
+  get flying(): { key: object; k: 'rock' | 'spell'; mesh: THREE.Mesh; marker?: THREE.Mesh }[] {
+    return [
+      ...this.rocks.map((r) => ({ key: r, k: 'rock' as const, mesh: r.mesh })),
+      ...this.spells.map((s) => ({ key: s, k: 'spell' as const, mesh: s.mesh, marker: s.marker })),
+    ];
+  }
+
+  private readonly remoteFlying = new Map<number, { mesh: THREE.Mesh; marker: THREE.Mesh | null }>();
+
+  /** El que mira: las piedras y los hechizos donde están en el del que juega. */
+  applyRemoteFlying(list: ProjSnap[], dt: number): void {
+    const seen = new Set<number>();
+    for (const p of list) {
+      seen.add(p.id);
+      let v = this.remoteFlying.get(p.id);
+      if (!v) {
+        const mesh = new THREE.Mesh(p.k === 'rock' ? rockGeo : spellGeo, p.k === 'rock' ? rockMat : spellMat);
+        let marker: THREE.Mesh | null = null;
+        if (p.m) {
+          marker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+          marker.rotation.x = -Math.PI / 2;
+          marker.scale.setScalar(RANGED.radius);
+          this.scene.add(marker);
+        }
+        this.scene.add(mesh);
+        v = { mesh, marker };
+        this.remoteFlying.set(p.id, v);
+      }
+      v.mesh.position.set(p.x, p.y, p.z);
+      if (p.k === 'rock') {
+        v.mesh.rotation.x += dt * 5;
+        v.mesh.rotation.z += dt * 3;
+      }
+      if (v.marker && p.m) {
+        v.marker.position.set(p.m[0], p.m[1], p.m[2]);
+        (v.marker.material as THREE.MeshBasicMaterial).opacity = p.m[3];
+      }
+    }
+    for (const [id, v] of this.remoteFlying) {
+      if (seen.has(id)) continue;
+      this.scene.remove(v.mesh);
+      if (v.marker) {
+        this.scene.remove(v.marker);
+        (v.marker.material as THREE.Material).dispose();
+      }
+      this.remoteFlying.delete(id);
+    }
   }
 
   /** Aparición de una oleada: suelto, en el fondo del campo. */

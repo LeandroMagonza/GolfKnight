@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "three": "^0.186.0",
-    "tone": "^15.1.22"
+    "tone": "^15.1.22",
+    "trystero": "^0.25.4"
   },
   "devDependencies": {
     "@types/three": "^0.186.0",

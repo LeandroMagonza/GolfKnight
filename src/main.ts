@@ -35,6 +35,10 @@ import { gaugePower, gaugeTimes, TennisPlay } from './tennis/play';
 import { Pocket } from './tennis/pocket';
 import { Court } from './tennis/court';
 import type { Ball } from './game/balls';
+import { connect, roomCode } from './net/link';
+import { MIRRORED, mirror, NetHost } from './net/host';
+import { NetSpectator } from './net/spectator';
+import type { GameSnap, Hello } from './net/snapshot';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -74,7 +78,9 @@ balls.tennis = TENNIS_ON;
 balls.tennisX = () => player?.anchor.x ?? 0;
 // la que para un escudo vuelve al puesto donde estás parado
 balls.playerAt = () => player?.anchor ?? null;
-if (TENNIS_ON) tees.setVisible(false);
+// el espectador todavía no ve las pelotas de los puestos (ver docs/multijugador.md): mejor ninguna que
+// unas quietas que no son
+if (TENNIS_ON || params.has('mirar')) tees.setVisible(false);
 
 // ---------- estado ----------
 const GATE_MAX = 10;
@@ -117,6 +123,17 @@ let gameClock = 0;
 const ALL_CLUBS = params.has('palos');
 /** Con ?bot en la URL juega solo (src/bot.ts), para mirarlo o para chequear el balance. */
 const BOT = params.has('bot');
+/**
+ * El espectador (src/net): con ?mirar=CÓDIGO no se juega, se mira la partida de otro con cámara propia.
+ * ?transmitir=CÓDIGO es el que juega, transmitiendo (lo pone el botón de invitar). Con &local van entre
+ * pestañas del mismo navegador, sin red: para probar.
+ */
+const WATCH = params.get('mirar');
+const NET_LOCAL = params.has('local');
+if (WATCH) {
+  abilities.remote = true;
+  document.body.classList.add('watching');
+}
 /**
  * El tutorial, mientras dura (ver src/tutorial.ts). La primera vez es lo que empieza el botón grande de la
  * intro; ?tutorial lo fuerza. En las pruebas automáticas no, salvo con ?tutorial.
@@ -1319,7 +1336,7 @@ const input = new Input({
   tiltCamera,
   raiseCamera,
   debugPanel() {
-    debugPanel?.toggle();
+    if (!WATCH) debugPanel?.toggle();
   },
   space() {
     if (!started) intro.advance();
@@ -1343,7 +1360,7 @@ const input = new Input({
     if (audio.ready) audio.toggleMute();
   },
   skin() {
-    if (!paused) void cycleSkin();
+    if (!paused && !WATCH) void cycleSkin();
   },
 }, renderer.domElement);
 
@@ -1534,7 +1551,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
 let swappingSkin = false;
 
 /** Cambia el modelo del golfista sin tocar la partida: misma posición, vida y palo. */
-async function cycleSkin(delta = 1): Promise<void> {
+async function cycleSkin(delta = 1, save = true): Promise<void> {
   if (!player || swappingSkin || player.mode !== 'free' || player.grabbedBy || !player.alive) return;
   swappingSkin = true;
   try {
@@ -1554,7 +1571,7 @@ async function cycleSkin(delta = 1): Promise<void> {
     player.dispose(scene);
     player = fresh;
     skinIndex = next;
-    localStorage.setItem(SKIN_KEY, SKINS[next].id);
+    if (save) localStorage.setItem(SKIN_KEY, SKINS[next].id);
     hud.setSkin(SKINS[next].name);
     player.update(0);
   } catch (e) {
@@ -1596,11 +1613,168 @@ async function loadModels(): Promise<void> {
 
 // ---------- inicio ----------
 const overlay = document.getElementById('overlay')!;
-const intro = new Intro((withTutorial) => void startGame(withTutorial), tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON));
-loadModels().then(() => intro.setReady()).catch((e) => {
+const intro = new Intro((withTutorial) => {
+  if (!WATCH) void startGame(withTutorial);
+}, tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON), !!WATCH);
+// el espectador no tiene intro: entra directo a mirar
+if (WATCH) overlay.hidden = true;
+intro.onInvite = invite;
+loadModels().then(() => {
+  intro.setReady();
+  if (WATCH) void startWatching(WATCH);
+}).catch((e) => {
   console.error(e);
   intro.setError('Error cargando modelos');
 });
+
+// ---------- espectador (src/net) ----------
+const netNote = document.getElementById('netnote')!;
+const watchersEl = document.getElementById('watchers')!;
+let netHost: NetHost | null = null;
+let spectator: NetSpectator | null = null;
+
+/** El campo de esta partida, como va en la URL: 0 liso, 1..N con relieve. */
+function courseNumber(): number {
+  return relief.on ? relief.index + 1 : 0;
+}
+
+/** El enlace para mirar esta partida. */
+function watchLink(code: string): string {
+  const url = new URL(location.origin + location.pathname);
+  url.searchParams.set('mirar', code);
+  const c = courseNumber();
+  if (c) url.searchParams.set('campo', String(c));
+  else url.searchParams.set('plano', '');
+  if (TENNIS_ON) url.searchParams.set('tenis', '');
+  if (NET_LOCAL) url.searchParams.set('local', '');
+  return url.toString().replace(/=(&|$)/g, '$1');
+}
+
+/**
+ * Empieza a transmitir con el código `code`. La sala y el campo quedan en la URL: reiniciar (R) recarga
+ * la página, y así vuelve a la misma sala y a la misma cancha, y el que mira sigue sin hacer nada.
+ */
+async function startHosting(code: string): Promise<string> {
+  if (!netHost) {
+    const link = await connect(code, NET_LOCAL);
+    netHost = new NetHost(link, {
+      hello: (): Omit<Hello, 'k'> => ({
+        v: __BUILD__,
+        course: courseNumber(),
+        tenis: TENNIS_ON,
+        skin: SKINS[skinIndex].id,
+        powers: run.powers,
+        day: director.waveCount > 1 ? Math.max(0, director.index) / (director.waveCount - 1) : 0,
+      }),
+      game: (): GameSnap => ({
+        st: started,
+        pa: paused,
+        cd: cardOpen,
+        en: ended,
+        gate: gateHp,
+        gmax: GATE_MAX,
+        hp: player?.hp ?? 0,
+        mhp: player?.maxHp ?? 3,
+        w: tutorial ? null : [director.index, director.waveCount, horde.aliveCount, director.pending, Math.round(director.restLeft * 10) / 10],
+        sc: director.list[director.index]?.scenario ?? -1,
+        score,
+        kills,
+        pk: pocket ? [pocket.count, pocket.max] : undefined,
+      }),
+      player: () => player ?? null,
+      horde,
+      balls,
+      abilities,
+    });
+    const host = netHost;
+    mirror(effects, MIRRORED.fx, (f, a) => host.record('fx', f, a));
+    mirror(audio, MIRRORED.au, (f, a) => host.record('au', f, a));
+    mirror(hud, MIRRORED.hud, (f, a) => host.record('hud', f, a));
+    mirror(visuals, MIRRORED.vis, (f, a) => host.record('vis', f, a));
+    host.onWatchers = (n) => {
+      watchersEl.hidden = n === 0;
+      watchersEl.textContent = n === 1 ? '👁 1 mirando' : `👁 ${n} mirando`;
+      intro.setWatchers(n);
+    };
+  }
+  const url = new URL(location.href);
+  url.searchParams.set('transmitir', code);
+  const c = courseNumber();
+  if (!TENNIS_ON) {
+    url.searchParams.delete('plano');
+    url.searchParams.delete('campo');
+    if (c) url.searchParams.set('campo', String(c));
+    else url.searchParams.set('plano', '');
+  }
+  history.replaceState(null, '', url.toString().replace(/=(&|$)/g, '$1'));
+  return watchLink(code);
+}
+
+/** El botón de invitar: abre una sala (o usa la que ya hay) y devuelve el enlace. */
+async function invite(): Promise<string> {
+  return startHosting(params.get('transmitir') ?? new URL(location.href).searchParams.get('transmitir') ?? roomCode());
+}
+// reiniciando con la sala abierta (o desde una prueba): vuelve a transmitir solo
+if (params.get('transmitir') && !WATCH) void invite().then((link) => intro.showInvite(link));
+
+async function startWatching(code: string): Promise<void> {
+  const link = await connect(code, NET_LOCAL);
+  spectator = new NetSpectator(link, {
+    scene,
+    camera,
+    dom: renderer.domElement,
+    horde,
+    abilities,
+    player: () => player,
+    targets: { fx: effects, au: () => (audio.ready ? audio : null), hud, vis: visuals },
+    showGame(g) {
+      hud.setBars(g.gate, g.gmax, g.hp, g.mhp);
+      if (g.w) hud.setWave(...g.w);
+      hud.setScenario(g.sc);
+      hud.setScore(g.score, g.kills);
+      if (g.pk) hud.setPocket(g.pk[0], g.pk[1]);
+    },
+    onHello(h) {
+      // la cancha se arma una sola vez al cargar: si no es la del que juega, se vuelve a entrar con la suya
+      if (h.course !== courseNumber() || h.tenis !== TENNIS_ON) {
+        const url = new URL(location.href);
+        url.searchParams.delete('campo');
+        url.searchParams.delete('plano');
+        url.searchParams.delete('tenis');
+        if (h.course) url.searchParams.set('campo', String(h.course));
+        else url.searchParams.set('plano', '');
+        if (h.tenis) url.searchParams.set('tenis', '');
+        location.replace(url.toString().replace(/=(&|$)/g, '$1'));
+        return;
+      }
+      const powers = h.powers.filter((p): p is ScenarioPower => p in POWER_NAMES);
+      hud.setRun([
+        ...powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),
+        { src: badgeImage('skull'), title: 'El jefe' },
+      ]);
+      visuals.setDayProgress(h.day, true);
+      const skin = SKINS.findIndex((s) => s.id === h.skin);
+      if (skin >= 0 && skin !== skinIndex) void cycleSkin(skin - skinIndex, false);
+      if (h.v !== __BUILD__) hud.feedback('El que juega tiene otra versión: recarguen los dos', 'bad');
+    },
+    note(text) {
+      netNote.hidden = !text;
+      if (text) netNote.textContent = text;
+    },
+  });
+}
+
+// el sonido del que mira arranca con su primer click (el navegador no deja antes)
+if (WATCH) {
+  const sound = document.getElementById('netsound')!;
+  sound.hidden = false;
+  const unlock = () => {
+    void audio.start().then(() => audio.startMusic());
+    sound.hidden = true;
+    removeEventListener('pointerdown', unlock);
+  };
+  addEventListener('pointerdown', unlock);
+}
 
 // ---------- bucle ----------
 const timer = new THREE.Timer();
@@ -1636,14 +1810,16 @@ const hudBottom = document.getElementById('rows')!;
 const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
 
 function tiltCamera(delta: number): void {
-  // en pausa la rueda no es del juego: se está leyendo el panel de balance, que está por encima
-  if (paused) return;
+  // en pausa la rueda no es del juego: se está leyendo el panel de balance, que está por encima. Y el
+  // espectador acerca con la rueda su propia cámara
+  if (paused || WATCH) return;
   cam.pitch = THREE.MathUtils.clamp(cam.pitch + delta * 2.5, CAM_LIMITS.pitch[0], CAM_LIMITS.pitch[1]);
   hud.feedback(`Cámara: ${cam.pitch.toFixed(0)}° de inclinación`, 'neutral');
   debugPanel?.save();
 }
 
 function raiseCamera(delta: number): void {
+  if (WATCH) return;
   cam.rise = THREE.MathUtils.clamp(cam.rise + delta * 0.6, CAM_LIMITS.rise[0], CAM_LIMITS.rise[1]);
   hud.feedback(`Cámara: ${cam.rise >= 0 ? '+' : ''}${cam.rise.toFixed(1)} m de altura`, 'neutral');
   debugPanel?.save();
@@ -1749,6 +1925,16 @@ function frame(): void {
   const nowMs = performance.now();
   frameTimes.push(nowMs);
   if (frameTimes.length > 240) frameTimes = frameTimes.filter((t) => nowMs - t < 1000);
+  // el espectador no simula nada: pone todo donde dicen las fotos del que juega, y dibuja
+  if (WATCH) {
+    spectator?.update(dt);
+    moundView.update();
+    effects.update(dt);
+    world.update(dt);
+    visuals.updateDay(dt);
+    visuals.render();
+    return;
+  }
   if (player && cardOpen && !paused) director.wait(dt);
   if (player && !paused && !cardOpen) {
 
@@ -1821,6 +2007,7 @@ function frame(): void {
   }
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos
   debugPanel?.tick();
+  netHost?.tick(nowMs);
   visuals.updateDay(dt);
   visuals.render();
 }
@@ -1835,6 +2022,12 @@ addEventListener('resize', () => {
 
 // Para inspección automática (Playwright) y debugging en consola.
 (window as any).__gk = {
+  /** El espectador: el que transmite (y cuántos miran) o el que mira. */
+  net: {
+    get host() { return netHost; },
+    get spectator() { return spectator; },
+    invite,
+  },
   get player() { return player; },
   get horde() { return horde; },
   get balls() { return balls; },

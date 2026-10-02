@@ -1,0 +1,169 @@
+// El que juega, transmitiendo (ver docs/multijugador.md). Mientras haya alguien mirando, cada tanto le manda
+// una foto de todo lo que se ve (snapshot.ts), y le reenvía en el momento cada efecto, sonido y cartel:
+// esos métodos se envuelven (`mirror`) y cada llamada sale también por la red. El juego no se entera.
+import * as THREE from 'three';
+import { BALL_RADIUS } from '../core/ballistics';
+import { mounds } from '../core/terrain';
+import { ENEMIES } from '../core/waves';
+import type { Abilities } from '../game/abilities';
+import type { Balls } from '../game/balls';
+import type { Enemy, Horde } from '../game/enemies';
+import type { Player } from '../game/player';
+import type { Link, NetMsg } from './link';
+import { encodeArgs, r2, SNAP_HZ, type BallSnap, type EnemySnap, type GameSnap, type Hello, type NetEvent, type Snap } from './snapshot';
+
+/** Lo que se reenvía tal cual: el que mira llama al mismo método. Solo estos (el que mira no acepta otros). */
+export const MIRRORED = {
+  fx: ['explosion', 'frost', 'swipe', 'blink', 'spark', 'lightning'],
+  au: ['chargeTick', 'whoosh', 'duff', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'],
+  hud: ['showBanner', 'feedback', 'showEnd', 'hideEnd', 'gateAlert'],
+  vis: ['setDayProgress'],
+} as const;
+
+/** Envuelve métodos de `obj`: cada llamada avisa a `on` (con sus argumentos) y después hace lo suyo. */
+export function mirror(obj: object, methods: readonly string[], on: (f: string, args: unknown[]) => void): void {
+  const o = obj as Record<string, unknown>;
+  for (const f of methods) {
+    const orig = o[f];
+    if (typeof orig !== 'function') continue;
+    o[f] = function (this: unknown, ...args: unknown[]) {
+      on(f, args);
+      return (orig as (...a: unknown[]) => unknown).apply(this, args);
+    };
+  }
+}
+
+/** De dónde saca el que transmite lo que manda. */
+export interface HostSource {
+  hello(): Omit<Hello, 'k'>;
+  game(): GameSnap;
+  player(): Player | null;
+  horde: Horde;
+  balls: Balls;
+  abilities: Abilities;
+}
+
+export class NetHost {
+  /** Los que están mirando. */
+  readonly watchers = new Set<string>();
+  /** Cambió cuántos miran. */
+  onWatchers: ((n: number) => void) | null = null;
+  /** Enemigos que el que mira ya sabe cómo armar. Se vacía cuando entra alguien. */
+  private readonly announced = new Set<number>();
+  /** Ids para lo que no tiene (pelotas, piedras), sin tocar esas clases. */
+  private readonly ids = new WeakMap<object, number>();
+  private nextId = 1;
+  private last = -Infinity;
+  private readonly kinds = new WeakMap<object, string>();
+
+  constructor(private readonly link: Link, private readonly src: HostSource) {
+    link.onMessage = (m, from) => {
+      if (m.k === 'watch') this.join(from);
+    };
+    link.onPeer = (id, joined) => {
+      if (!joined && this.watchers.delete(id)) this.onWatchers?.(this.watchers.size);
+    };
+    // al cerrar o recargar (R) se avisa: WebRTC solo, tarda bastante en darse cuenta
+    addEventListener('pagehide', () => {
+      if (this.watchers.size) this.link.send({ k: 'bye' });
+    });
+  }
+
+  private join(id: string): void {
+    this.watchers.add(id);
+    this.announced.clear();
+    this.link.send({ k: 'hello', ...this.src.hello() }, id);
+    this.last = -Infinity;
+    this.onWatchers?.(this.watchers.size);
+  }
+
+  /** Un efecto, sonido o cartel que acaba de pasar. */
+  record(o: NetEvent['o'], f: string, args: unknown[]): void {
+    if (!this.watchers.size) return;
+    const ev: NetEvent = { k: 'ev', t: performance.now(), o, f, a: encodeArgs(args) };
+    this.link.send(ev as unknown as NetMsg);
+  }
+
+  /** En cada cuadro: si toca, manda la foto. */
+  tick(now: number): void {
+    if (!this.watchers.size || now - this.last < 1000 / SNAP_HZ) return;
+    this.last = now;
+    this.link.send(this.snap(now) as unknown as NetMsg);
+  }
+
+  close(): void {
+    this.link.close();
+  }
+
+  private idOf(o: object): number {
+    let id = this.ids.get(o);
+    if (id === undefined) {
+      id = this.nextId++;
+      this.ids.set(o, id);
+    }
+    return id;
+  }
+
+  private kindOf(e: Enemy): string {
+    let k = this.kinds.get(e.stats);
+    if (!k) {
+      k = Object.keys(ENEMIES).find((key) => ENEMIES[key as keyof typeof ENEMIES] === e.stats) ?? '';
+      this.kinds.set(e.stats, k);
+    }
+    return k;
+  }
+
+  private snap(now: number): Snap {
+    const { horde, balls, abilities } = this.src;
+    const enemies: EnemySnap[] = [];
+    for (const e of horde.enemies) {
+      if (e.state === 'gone') continue;
+      const s = e.snapshot();
+      if (!this.announced.has(e.id)) {
+        this.announced.add(e.id);
+        s.spawn = { kind: this.kindOf(e), mods: { ...e.mods } };
+      }
+      enemies.push(s);
+    }
+    const view = abilities.view;
+    const ballList: BallSnap[] = [];
+    for (const b of balls.list) if (!b.done) ballList.push(this.ball(b, b.mesh, b.trail, b.ricochet?.marker));
+    for (const b of view.balls) ballList.push(this.ball(b, b.mesh, b.trail));
+    return {
+      k: 'snap',
+      t: now,
+      g: this.src.game(),
+      p: this.src.player()?.snapshot() ?? null,
+      e: enemies,
+      b: ballList,
+      r: horde.flying.map((f) => {
+        const marker = f.marker;
+        return {
+          id: this.idOf(f.key), k: f.k, x: r2(f.mesh.position.x), y: r2(f.mesh.position.y), z: r2(f.mesh.position.z),
+          m: marker ? [r2(marker.position.x), r2(marker.position.y), r2(marker.position.z), r2((marker.material as THREE.MeshBasicMaterial).opacity)] : undefined,
+        };
+      }),
+      mk: view.marks,
+      ca: view.carts,
+      mo: mounds.map((m) => [r2(m.x), r2(m.z), r2(m.height), r2(m.rx), r2(m.rz), r2(m.target)]),
+    };
+  }
+
+  private ball(key: object, mesh: THREE.Mesh, trail: THREE.Line, marker?: THREE.Mesh): BallSnap {
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    const radius = (mesh.geometry as THREE.SphereGeometry).parameters?.radius ?? BALL_RADIUS;
+    const out: BallSnap = {
+      id: this.idOf(key),
+      x: r2(mesh.position.x), y: r2(mesh.position.y), z: r2(mesh.position.z),
+      s: r2(radius / BALL_RADIUS),
+      c: mat.emissive.getHex(),
+      i: r2(mat.emissiveIntensity),
+      o: mat.transparent ? r2(mat.opacity) : 1,
+      tc: (trail.material as THREE.LineBasicMaterial).color.getHex(),
+      tv: trail.visible,
+      v: mesh.visible,
+    };
+    if (marker) out.m = [r2(marker.position.x), r2(marker.position.y), r2(marker.position.z), r2((marker.material as THREE.MeshBasicMaterial).opacity), r2(marker.scale.x)];
+    return out;
+  }
+}

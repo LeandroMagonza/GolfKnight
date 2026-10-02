@@ -3,6 +3,7 @@ import type { Element } from '../core/abilities';
 import { CHARGE, CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, qualityMarks, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
 import type { ChargeTimes } from '../core/swing';
 import { SwingMeter } from '../core/swing';
+import { r2, r3, type PlayerSnap } from '../net/snapshot';
 import { LayeredAnimator } from './animator';
 import type { Enemy } from './enemies';
 import { analyzeSwing, downswingTimeFor, type SwingClip } from './golfClips';
@@ -593,8 +594,7 @@ export class Player {
   update(dt: number): void {
     if (this.flashTimer > 0) {
       this.flashTimer -= dt;
-      const on = this.flashTimer > 0 && Math.floor(this.flashTimer * 20) % 2 === 0;
-      for (const m of this.materials) m.emissive.setHex(on ? 0x8a1a1a : 0x000000);
+      this.setFlash(this.flashTimer > 0 && Math.floor(this.flashTimer * 20) % 2 === 0);
     }
     this.meter.update(dt);
     if (this.blinkTimer > 0) this.blinkTimer -= dt;
@@ -714,6 +714,48 @@ export class Player {
     // mientras es invulnerable, titila
     this.root.visible = !(this.alive && this.blinkTimer > 0 && Math.floor(this.blinkTimer * 14) % 2 === 1);
     this.root.rotation.y = this.yaw;
+    this.animator.update(dt);
+    this.rig.apply();
+  }
+
+  /** El parpadeo rojo del golpe recibido, prendido o apagado. */
+  private flashOn = false;
+  private setFlash(on: boolean): void {
+    if (on === this.flashOn) return;
+    this.flashOn = on;
+    for (const m of this.materials) m.emissive.setHex(on ? 0x8a1a1a : 0x000000);
+  }
+
+  // ---- el espectador (ver net/) ----
+
+  /** Cómo está y cómo se ve, para mandárselo al que mira. */
+  snapshot(): PlayerSnap {
+    return {
+      x: r2(this.position.x),
+      y: r2(this.position.y),
+      z: r2(this.position.z),
+      yaw: r3(this.yaw),
+      v: this.root.visible,
+      c: this.club.id,
+      fl: this.flashOn,
+      rw: r3(this.rig.weight),
+      rp: r3(this.rig.phi),
+      a: this.animator.state,
+    };
+  }
+
+  /** El que mira: se pone como el del que juega (posición, giro y swing ya suavizados) y se dibuja. */
+  applyRemote(s: PlayerSnap, dt: number): void {
+    this.position.set(s.x, s.y, s.z);
+    this.yaw = s.yaw;
+    this.root.rotation.y = s.yaw;
+    this.root.visible = s.v;
+    const club = CLUBS[s.c as ClubId];
+    if (club && club !== this.club) this.applyClub(club);
+    this.setFlash(s.fl);
+    this.animator.applyState(s.a);
+    this.rig.weight = s.rw;
+    this.rig.phi = s.rp;
     this.animator.update(dt);
     this.rig.apply();
   }

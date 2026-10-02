@@ -56,14 +56,33 @@ export class Intro {
   private cine: HTMLIFrameElement | null = null;
   private readonly alt = document.getElementById('alt') as HTMLButtonElement;
   private readonly mode = document.getElementById('mode') as HTMLButtonElement;
+  private readonly inviteBtn = document.getElementById('invite') as HTMLButtonElement;
+  private readonly inviteBox = document.getElementById('invitebox')!;
+  /** Invitar a alguien a mirar: abre la sala y devuelve el enlace (ver src/net). */
+  onInvite: (() => Promise<string>) | null = null;
 
   /**
    * @param tutorialFirst el botón grande empieza el tutorial (la primera vez)
    * @param tennis se está en el modo tenis; `onMode` pasa al otro modo
+   * @param watching es el espectador: no hay cinemática ni nada que empezar
    */
-  constructor(private readonly onStart: (tutorial: boolean) => void, private readonly tutorialFirst: boolean, private readonly tennis = false, onMode?: () => void) {
+  constructor(private readonly onStart: (tutorial: boolean) => void, private readonly tutorialFirst: boolean, private readonly tennis = false, onMode?: () => void, private readonly watching = false) {
     if (tennis) SLIDES.splice(0, SLIDES.length, TENNIS_SLIDE);
     this.mode.addEventListener('click', () => onMode?.());
+    this.inviteBtn.addEventListener('click', () => {
+      this.inviteBtn.disabled = true;
+      this.onInvite?.().then((link) => this.showInvite(link)).catch((e) => {
+        console.error(e);
+        this.inviteBtn.disabled = false;
+        this.inviteBtn.textContent = 'No se pudo abrir la sala. Probar de nuevo';
+      });
+    });
+    this.inviteBox.querySelector('.copy')?.addEventListener('click', (e) => {
+      const input = this.inviteBox.querySelector('input') as HTMLInputElement;
+      input.select();
+      void navigator.clipboard?.writeText(input.value).catch(() => document.execCommand('copy'));
+      (e.currentTarget as HTMLButtonElement).textContent = '¡Copiado!';
+    });
     const version = document.getElementById('version');
     if (version) version.textContent = `versión ${__BUILD__}`;
     setupPatchNotes();
@@ -83,7 +102,20 @@ export class Intro {
       seen = !!sessionStorage.getItem(SEEN_KEY);
     } catch { /* sin sessionStorage: se ve */ }
     const params = new URLSearchParams(location.search);
-    if (params.has('cine') || (!seen && !params.has('sincine') && !navigator.webdriver)) this.playCine();
+    if (!watching && (params.has('cine') || (!seen && !params.has('sincine') && !navigator.webdriver))) this.playCine();
+  }
+
+  /** La sala está abierta: el enlace para pasarle al que va a mirar. */
+  showInvite(link: string): void {
+    this.inviteBtn.hidden = true;
+    this.inviteBox.hidden = false;
+    (this.inviteBox.querySelector('input') as HTMLInputElement).value = link;
+  }
+
+  /** Cuántos están mirando, abajo del enlace. */
+  setWatchers(n: number): void {
+    const el = this.inviteBox.querySelector('.who') as HTMLElement;
+    el.textContent = n === 0 ? 'Todavía no entró nadie. Puede entrar ahora o con la partida empezada.' : n === 1 ? '👁 Ya está mirando' : `👁 Están mirando ${n}`;
   }
 
   /** La cinemática, a pantalla completa arriba del juego. Cuando termina o se salta, avisa con un mensaje. */
@@ -149,6 +181,7 @@ export class Intro {
     // en el tenis no hay tutorial
     this.alt.hidden = !this.last || !this.ready || this.tennis;
     this.mode.hidden = !this.ready;
+    this.inviteBtn.hidden = !this.ready || !this.inviteBox.hidden || this.watching;
     this.mode.textContent = this.tennis ? 'Volver al golf' : 'Probar el modo tenis (nuevo)';
     this.alt.textContent = this.tutorialFirst ? 'Saltar el tutorial' : 'Hacer el tutorial';
   }

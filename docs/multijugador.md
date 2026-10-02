@@ -3,7 +3,8 @@
 Un segundo jugador que no es otro golfista: mira la cancha desde arriba y ayuda con habilidades de
 utilidad (empujar, frenar, juntar). Poco daño, mucho control. La gracia es que tengan que coordinar.
 
-Estado: **idea, nada implementado.**
+Estado: **hecho el primer paso, el espectador** (ver abajo, «Hecho: el espectador»). Las habilidades del
+jugador 2 todavía no.
 
 ## El jugador 2: "el de la torre"
 
@@ -118,3 +119,46 @@ Primero en JSON. Si las fotos pesan mucho (oleadas grandes), se pasan a binario 
    hace falta.
 
 Lo más incierto es el diseño, no la red: por eso se arranca por la tanda 1.
+
+## Hecho: el espectador (2/10/2026)
+
+El primer paso: otro mira tu partida en vivo, desde su navegador, con su propia cámara. Todavía no hace
+nada: es la base de red y de dibujo sobre la que se suman después las habilidades del jugador 2.
+
+**Cómo se usa**
+- En la intro, **«Invitar a alguien a mirar tu partida»** abre una sala y muestra el enlace para copiar
+  (`?mirar=CÓDIGO&campo=N`). El otro lo abre y listo: puede entrar antes de empezar o con la partida
+  empezada.
+- El que juega ve «👁 1 mirando» arriba a la izquierda.
+- El que mira arranca con la cámara alta, mirando toda la cancha: arrastrar gira, la rueda acerca, el
+  botón derecho desplaza. El sonido arranca con su primer click (el navegador no deja antes).
+- Reiniciar con R no corta nada: la sala y la cancha quedan en la URL del que juega (`?transmitir=CÓDIGO`),
+  y el que mira se reengancha solo con la partida nueva.
+
+**Cómo está hecho** (`src/net/`)
+- `link.ts`: la conexión. Trystero (WebRTC directo; se encuentran por relays públicos de Nostr) o, con
+  `&local` en la URL, un BroadcastChannel entre pestañas, para probar sin red. Trystero se baja recién
+  cuando se invita o se mira.
+- `host.ts`: el que juega manda 15 fotos por segundo con lo que se ve (enemigos con su animación y sus
+  estados, el golfista, las pelotas, las piedras y hechizos, las marcas de las habilidades, los carritos,
+  las lomas, el HUD de arriba), solo mientras alguien mira. Los efectos, sonidos y carteles se reenvían
+  envolviendo esos métodos (`mirror`): el juego no se entera.
+- `spectator.ts`: el que mira no simula nada. Arma los mismos enemigos (con el id del que juega), los pone
+  donde dicen las fotos y dibuja 130 ms atrasado, suavizando entre la foto de antes y la de después. Los
+  eventos esperan a su hora para salir junto con lo que se ve. Solo acepta los métodos de la lista
+  (`MIRRORED`).
+- `snapshot.ts`: los tipos y las cuentas (reloj, suavizado, cola de eventos), con tests.
+- En el juego: `Enemy`, `Player` y `LayeredAnimator` saben sacarse una foto y ponerse como dice una
+  (`snapshot` / `applyRemote` / `applyState`); `Abilities` muestra marcas y carritos sin que hagan nada
+  (`remote`).
+
+**Probado**: dos pestañas (`logs/check-mirar.mjs`) y dos navegadores por la red de verdad
+(`check-mirar.mjs red`), en golf y en tenis (`tenis`): los mismos enemigos con la misma vida, a menos de
+medio metro caminando (es el atraso a propósito), las pelotas, el HUD, la pausa, el reinicio y el que se va.
+
+**Falta** (para más adelante)
+- Las pelotas apoyadas en los puestos y los guardias tirándolas (el que mira no ve los puestos), las
+  trampas, la pelota que tira el alcanzapelotas del tenis y sus marcas de dónde cae, los números de daño
+  que flotan, y qué cartas se ofrecen (se ve que se está eligiendo).
+- Algunas redes no dejan la conexión directa: si pasa, hay que sumar un servidor TURN.
+- El jugador 2 de verdad: sus habilidades (tanda 1 de «Por tandas»).

@@ -27,6 +27,21 @@
       #overlay button#replaycine, #overlay button.link { background: transparent; color: #9aa4b2; font-size: 14px; font-weight: 400; padding: 4px 10px; text-decoration: underline; }
       #overlay button#replaycine:hover, #overlay button.link:hover { color: #ffd66b; }
       #overlay button.link { font-size: 15px; margin-top: -10px; }
+      /* invitar a mirar (src/net): el enlace para pasarle al otro */
+      #invitebox { margin-top: 2px; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: min(560px, calc(100vw - 32px)); }
+      #invitebox[hidden] { display: none; }
+      #invitebox .row { display: flex; gap: 6px; width: 100%; }
+      #invitebox input { flex: 1; min-width: 0; font: 13px ui-monospace, monospace; padding: 6px 8px; border-radius: 6px; border: 1px solid #3a4452; background: #0e141c; color: #e4e9f0; }
+      #overlay #invitebox button.copy { font-size: 14px; padding: 6px 12px; }
+      #invitebox .who { font-size: 13px; color: #9aa4b2; }
+      /* el que mira: estado de la conexión, el aviso del sonido y quiénes miran (en el que juega) */
+      #netnote { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #e4e9f0; font-size: 15px; white-space: nowrap; }
+      #netnote[hidden], #netsound[hidden], #watchers[hidden] { display: none; }
+      #netsound { position: absolute; bottom: 14px; left: 14px; padding: 6px 12px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #cfd6e0; font-size: 14px; }
+      #watchers { position: absolute; top: 62px; left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
+      body.watching #meter, body.watching #bottom, body.watching #perks, body.watching #skin, body.watching #balancebtn,
+      body.watching #balance, body.watching #card, body.watching #choice, body.watching #tutorial, body.watching #pause,
+      body.watching #end p:last-child { display: none !important; }
       /* la cinemática de la intro, arriba de todo mientras el juego carga por debajo */
       #cine { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 100; background: #000; }
 
@@ -267,6 +282,11 @@
       </div>
       <button id="alt" type="button" class="link" hidden></button>
       <button id="mode" type="button" class="link" hidden></button>
+      <button id="invite" type="button" class="link" hidden>Invitar a alguien a mirar tu partida</button>
+      <div id="invitebox" hidden>
+        <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy">Copiar</button></div>
+        <div class="who">Pasale este enlace. Puede entrar ahora o con la partida empezada.</div>
+      </div>
       <button id="replaycine" type="button">Ver la intro de nuevo</button>
       <div id="corner">
         <button id="notesbtn" type="button" title="Patch notes" aria-label="Patch notes">
@@ -299,6 +319,9 @@
       <div id="wave"><div class="n"></div><div class="sub"></div><div id="run"></div></div>
       <div id="score"></div>
       <div id="pocket" hidden></div>
+      <div id="watchers" hidden></div>
+      <div id="netnote" hidden></div>
+      <div id="netsound" hidden>🔈 Click para activar el sonido</div>
       <button id="skin" type="button" tabindex="-1"></button>
       <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>
       <div id="balance" hidden></div>

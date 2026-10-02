@@ -3,6 +3,7 @@
 // distintos, partiendo las pistas de cada clip por hueso. Así el personaje camina con un clip y
 // toca la flauta con otro. Un "one shot" (roll, ataque) toma el cuerpo entero mientras dura.
 import * as THREE from 'three';
+import type { AnimState } from '../net/snapshot';
 
 type Layer = 'lower' | 'upper' | 'full';
 
@@ -35,7 +36,7 @@ export class LayeredAnimator {
   private locomotion = '';
   private locoScale = 1;
   private override: string | null = null;
-  private oneShot: { action: THREE.AnimationAction; until: number; freezeAt: number | null; upper?: boolean } | null = null;
+  private oneShot: { action: THREE.AnimationAction; until: number; freezeAt: number | null; upper?: boolean; name: string } | null = null;
   /**
    * Las piernas, aparte del clip posado con `poseOneShot`: con un clip de locomoción acá, ese clip mueve
    * solo de la cintura para arriba y las piernas siguen corriendo (el tenista que se prepara corriendo).
@@ -108,7 +109,7 @@ export class LayeredAnimator {
     a.timeScale = timeScale;
     a.play();
     const duration = a.getClip().duration / timeScale;
-    this.oneShot = { action: a, until: hold ? Infinity : this.time + duration, freezeAt: hold ? freezeAt : null };
+    this.oneShot = { action: a, until: hold ? Infinity : this.time + duration, freezeAt: hold ? freezeAt : null, name };
     return duration;
   }
 
@@ -131,7 +132,45 @@ export class LayeredAnimator {
     }
     a.paused = true;
     a.time = time;
-    this.oneShot = { action: a, until: Infinity, freezeAt: null, upper };
+    this.oneShot = { action: a, until: Infinity, freezeAt: null, upper, name };
+  }
+
+  /** Lo que está mostrando, para el espectador (ver net/). */
+  get state(): AnimState {
+    const o = this.oneShot;
+    return {
+      l: this.locomotion,
+      ls: Math.round(this.locoScale * 100) / 100,
+      legs: this.legs ? [this.legs.name, Math.round(this.legs.timeScale * 100) / 100] : null,
+      s: o ? [o.name, Math.round(o.action.time * 1000) / 1000, o.action.paused ? 0 : o.action.timeScale, !!o.upper] : null,
+    };
+  }
+
+  /**
+   * El espectador: muestra lo que mostraba el del que juega. El clip de cuerpo entero sigue solo a su
+   * velocidad, y se corrige si se fue de tiempo; el que está quieto en un instante se pone en ese instante.
+   */
+  applyState(s: AnimState): void {
+    if (s.l && this.clips.has(s.l)) this.setLocomotion(s.l, s.ls);
+    this.legs = s.legs && this.clips.has(s.legs[0]) ? { name: s.legs[0], timeScale: s.legs[1] } : null;
+    if (!s.s || !this.clips.has(s.s[0])) {
+      this.oneShot = null;
+      return;
+    }
+    const [name, time, speed, upper] = s.s;
+    const a = this.action(name, upper && this.upper.size ? 'upper' : 'full');
+    if (this.oneShot?.action !== a) {
+      a.reset();
+      a.setLoop(THREE.LoopOnce, 1);
+      a.clampWhenFinished = true;
+      a.play();
+      a.time = time;
+      this.oneShot = { action: a, until: Infinity, freezeAt: null, upper: upper && this.upper.size > 0, name };
+    } else if (speed === 0 || Math.abs(a.time - time) > 0.15) {
+      a.time = time;
+    }
+    a.paused = speed === 0;
+    if (speed) a.timeScale = speed;
   }
 
   /** Suelta el clip que estaba posado con poseOneShot: sigue desde `from` a la velocidad dada. */

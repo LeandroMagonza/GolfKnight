@@ -14,6 +14,7 @@ import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type Bo
 import { PERK_NUMBERS } from '../core/cards';
 import type { ClubId } from '../core/clubs';
 import { heightAt, relief, terrainOn } from '../core/terrain';
+import { r2, type CartSnap, type MarkSnap } from '../net/snapshot';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import { FIELD_HALF_WIDTH, GATE_Z } from './world';
@@ -63,6 +64,8 @@ interface AbilityBall {
 
 /** Algo que queda en el campo un rato: zona de hielo, hoyo o bandera. */
 interface Mark {
+  /** Para el espectador (ver net/). */
+  id: number;
   kind: 'ice' | 'hole' | 'flag';
   pos: THREE.Vector3;
   radius: number;
@@ -76,6 +79,7 @@ interface Mark {
 }
 
 interface Cart {
+  id: number;
   x: number;
   z: number;
   dir: number;
@@ -109,6 +113,12 @@ export class Abilities {
   private readonly balls: AbilityBall[] = [];
   private readonly marks: Mark[] = [];
   private readonly carts: Cart[] = [];
+  private nextId = 1;
+  /**
+   * El espectador (ver net/): las marcas y los carritos solo se ven. No se llama a `update`, y se arman
+   * con el id del que juega.
+   */
+  remote = false;
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
@@ -268,7 +278,7 @@ export class Abilities {
   }
 
   /** Zona de hielo, hoyo o bandera: queda en el campo un rato. */
-  private makeMark(kind: Mark['kind'], pos: THREE.Vector3, radius: number, life: number, swallows: number): Mark {
+  private makeMark(kind: Mark['kind'], pos: THREE.Vector3, radius: number, life: number, swallows: number, id = this.nextId++): Mark {
     const group = new THREE.Group();
     const mats: THREE.Material[] = [];
     if (kind === 'ice') {
@@ -316,14 +326,15 @@ export class Abilities {
     if (relief.on) for (const m of mats) if (m instanceof THREE.MeshBasicMaterial) m.depthTest = false;
     group.position.set(pos.x, pos.y + 0.06, pos.z);
     this.scene.add(group);
-    const mark: Mark = { kind, pos: pos.clone(), radius, left: life, total: life, swallows, seen: new Set(), group, mats };
+    const mark: Mark = { id, kind, pos: pos.clone(), radius, left: life, total: life, swallows, seen: new Set(), group, mats };
     this.marks.push(mark);
-    if (kind !== 'ice') this.effects.blink(pos, kind === 'hole' ? 0x9aa4b2 : ABILITIES.flag.color);
+    // el destello del que mira ya llega como efecto
+    if (kind !== 'ice' && !this.remote) this.effects.blink(pos, kind === 'hole' ? 0x9aa4b2 : ABILITIES.flag.color);
     return mark;
   }
 
   /** El carrito sale del costado donde estás y cruza todo el campo a la altura `z`. */
-  private sendCart(z: number, fromX: number, level: number): void {
+  private sendCart(z: number, fromX: number, level: number, id = this.nextId++): Cart {
     const dir = fromX <= 0 ? 1 : -1;
     const x = -dir * (FIELD_HALF_WIDTH + 3);
     const mesh = new THREE.Group();
@@ -348,7 +359,42 @@ export class Abilities {
     }
     mesh.rotation.y = dir > 0 ? 0 : Math.PI;
     this.scene.add(mesh);
-    this.carts.push({ x, z, dir, level, hit: new Set(), mesh });
+    const cart: Cart = { id, x, z, dir, level, hit: new Set(), mesh };
+    this.carts.push(cart);
+    return cart;
+  }
+
+  // ---- el espectador (ver net/) ----
+
+  /** Lo que se ve de las habilidades, para mandárselo al que mira. */
+  get view(): { balls: { mesh: THREE.Mesh; trail: THREE.Line }[]; marks: MarkSnap[]; carts: CartSnap[] } {
+    return {
+      balls: this.balls,
+      marks: this.marks.map((m) => ({ id: m.id, k: m.kind, x: r2(m.pos.x), y: r2(m.pos.y), z: r2(m.pos.z), r: r2(m.radius), l: r2(m.left) })),
+      carts: this.carts.map((c) => ({ id: c.id, x: r2(c.x), z: r2(c.z), dir: c.dir })),
+    };
+  }
+
+  /** El que mira: las marcas y los carritos como están en el del que juega. */
+  applyRemote(marks: MarkSnap[], carts: CartSnap[]): void {
+    const markIds = new Set(marks.map((m) => m.id));
+    for (const s of marks) {
+      const m = this.marks.find((x) => x.id === s.id) ?? this.makeMark(s.k, new THREE.Vector3(s.x, s.y, s.z), s.r, s.l, 0, s.id);
+      m.left = s.l;
+      this.fadeMark(m);
+    }
+    for (let i = this.marks.length - 1; i >= 0; i--) if (!markIds.has(this.marks[i].id)) this.removeMark(i);
+    const cartIds = new Set(carts.map((c) => c.id));
+    for (const s of carts) {
+      const c = this.carts.find((x) => x.id === s.id) ?? this.sendCart(s.z, -s.dir, 1, s.id);
+      c.x = s.x;
+      c.mesh.position.set(c.x, heightAt(c.x, c.z), c.z);
+    }
+    for (let i = this.carts.length - 1; i >= 0; i--) {
+      if (cartIds.has(this.carts[i].id)) continue;
+      this.scene.remove(this.carts[i].mesh);
+      this.carts.splice(i, 1);
+    }
   }
 
   update(dt: number): void {
@@ -420,17 +466,26 @@ export class Abilities {
           if (m.swallows <= 0) m.left = Math.min(m.left, 0.4);
         }
       }
-      // se apaga en el último medio segundo, para que se vea que se termina
-      const fade = Math.min(1, Math.max(0, m.left / 0.5));
-      for (const mat of m.mats) {
-        mat.transparent = true;
-        mat.opacity = (mat.userData.base ??= mat.opacity) * fade;
-      }
+      this.fadeMark(m);
       if (m.left > 0) continue;
-      this.scene.remove(m.group);
-      for (const mat of m.mats) mat.dispose();
-      this.marks.splice(i, 1);
+      this.removeMark(i);
     }
+  }
+
+  /** Se apaga en el último medio segundo, para que se vea que se termina. */
+  private fadeMark(m: Mark): void {
+    const fade = Math.min(1, Math.max(0, m.left / 0.5));
+    for (const mat of m.mats) {
+      mat.transparent = true;
+      mat.opacity = (mat.userData.base ??= mat.opacity) * fade;
+    }
+  }
+
+  private removeMark(i: number): void {
+    const m = this.marks[i];
+    this.scene.remove(m.group);
+    for (const mat of m.mats) mat.dispose();
+    this.marks.splice(i, 1);
   }
 
   private updateCarts(dt: number): void {
