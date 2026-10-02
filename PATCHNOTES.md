@@ -9,6 +9,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 2 de octubre
 
+**Espectador (nuevo)**
+- Otro puede mirar tu partida en vivo desde su navegador: en la intro, «Invitar a alguien a mirar tu
+  partida» te da un enlace para pasarle. Ve todo lo mismo (enemigos, tiros, efectos, sonidos, la vida y
+  la oleada) con su propia cámara: arrastrando gira, con la rueda acerca. Puede entrar con la partida
+  empezada, y si reiniciás se reengancha solo. Vos ves cuántos te están mirando. Es el primer paso para
+  el segundo jugador. `32a62b7`
+
 **Golf**
 - Ojo con los escudos: la pelota que rebota en uno vuelve hacia vos, roja y en arco, y el piso marca
   dónde va a caer. La marca te sigue mientras vuela y se queda quieta justo antes de caer: si te agarra
