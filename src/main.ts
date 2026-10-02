@@ -1288,6 +1288,21 @@ function makeDebugPanel(): DebugPanel {
   });
 }
 
+/** El botón (y la N) de todo el sonido: música y efectos, en el que juega y en el que mira. */
+const muteBtn = document.getElementById('muteall') as HTMLButtonElement;
+function showAllSound(): void {
+  muteBtn.textContent = audio.allMuted ? '🔇 Sin sonido (N)' : '🔊 Sonido (N)';
+}
+function toggleAllSound(): void {
+  audio.toggleAll();
+  showAllSound();
+}
+showAllSound();
+muteBtn.addEventListener('click', (e) => {
+  (e.currentTarget as HTMLElement).blur();
+  toggleAllSound();
+});
+
 function togglePause(): void {
   if (!started || ended) return;
   paused = !paused;
@@ -1359,6 +1374,7 @@ const input = new Input({
   muteToggle() {
     if (audio.ready) audio.toggleMute();
   },
+  muteAll: toggleAllSound,
   skin() {
     if (!paused && !WATCH) void cycleSkin();
   },
@@ -1929,8 +1945,10 @@ function frame(): void {
   if (WATCH) {
     spectator?.update(dt);
     moundView.update();
-    effects.update(dt);
-    world.update(dt);
+    // en pausa o eligiendo carta, quieto como en el del que juega
+    const step = spectator?.frozen ? 0 : dt;
+    effects.update(step);
+    world.update(step);
     visuals.updateDay(dt);
     visuals.render();
     return;
@@ -2029,6 +2047,7 @@ addEventListener('resize', () => {
     invite,
   },
   get player() { return player; },
+  get audio() { return audio; },
   get horde() { return horde; },
   get balls() { return balls; },
   get director() { return director; },

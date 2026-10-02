@@ -13,7 +13,7 @@ import type { Link } from './link';
 import { MIRRORED } from './host';
 import {
   byId, EventQueue, HostClock, lerp, lerpAngle, Timeline,
-  type BallSnap, type GameSnap, type Hello, type HostMsg, type NetEvent, type PlayerSnap, type ProjSnap, type Snap,
+  type AnimState, type BallSnap, type GameSnap, type Hello, type HostMsg, type NetEvent, type PlayerSnap, type ProjSnap, type Snap,
 } from './snapshot';
 
 const TRAIL_POINTS = 18;
@@ -21,6 +21,8 @@ const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 12, 10);
 const markGeo = new THREE.RingGeometry(0.7, 1, 32);
 /** Sin noticias del que juega por este tiempo (ms), se avisa que se cortó. */
 const STALE_MS = 4000;
+/** Sin encontrar al que juega en este tiempo (ms), se avisa. */
+const LOST_MS = 15000;
 
 /** Con qué dibuja el que mira: las mismas piezas del juego. */
 export interface SpectatorDeps {
@@ -57,7 +59,12 @@ export class NetSpectator {
   private host: string | null = null;
   /** Cuándo llegó lo último del que juega. */
   private heard = 0;
+  /** Cuándo se empezó a buscar la partida, y si alguna vez apareció el que juega. */
+  private readonly born = performance.now();
+  private everHost = false;
   private paused = false;
+  /** El juego del que juega está frenado (pausa o carta): acá todo quieto, también los efectos. */
+  frozen = false;
   readonly controls: OrbitControls;
 
   constructor(private readonly link: Link, private readonly d: SpectatorDeps) {
@@ -93,6 +100,7 @@ export class NetSpectator {
   private receive(m: HostMsg, from: string): void {
     if (m.k === 'hello') {
       this.host = from;
+      this.everHost = true;
       this.heard = performance.now();
       this.reset();
       this.d.onHello(m);
@@ -136,8 +144,12 @@ export class NetSpectator {
     // el centro de la cámara no se va del campo
     const t = this.controls.target;
     t.set(THREE.MathUtils.clamp(t.x, -25, 25), 0, THREE.MathUtils.clamp(t.z, -5, 80));
-    if (!this.host || !this.clock.ready) return;
     const now = performance.now();
+    if (!this.everHost && now - this.born > LOST_MS) {
+      this.everHost = true;
+      this.d.note('No encuentro la partida. ¿El que juega sigue con la página abierta? ¿Es el enlace de ahora?');
+    }
+    if (!this.host || !this.clock.ready) return;
     if (now - this.heard > STALE_MS) {
       this.d.note('Se cortó la conexión con el que juega. Esperando…');
       return;
@@ -148,11 +160,19 @@ export class NetSpectator {
     if (!s) return;
     const { a, b, u } = s;
     this.game(b.g);
+    // en pausa o eligiendo carta el juego del que juega no avanza: acá tampoco. Las animaciones se quedan
+    // en el instante exacto de la foto, sin correr solas (si no, caminaban en el lugar, y el que estaba
+    // cayéndose muerto volvía para atrás con cada foto)
+    this.frozen = b.g.pa || b.g.cd;
+    const step = this.frozen ? 0 : dt;
     const player = this.d.player();
-    if (player && b.p) player.applyRemote(lerpPlayer(a.p ?? b.p, b.p, u), dt);
-    this.updateEnemies(a, b, u, dt);
+    if (player && b.p) {
+      const p = lerpPlayer(a.p ?? b.p, b.p, u);
+      player.applyRemote(this.frozen ? { ...p, a: still(p.a) } : p, step);
+    }
+    this.updateEnemies(a, b, u, step);
     this.updateBalls(a.b, b.b, u);
-    this.d.horde.applyRemoteFlying(lerpProj(a.r, b.r, u), dt);
+    this.d.horde.applyRemoteFlying(lerpProj(a.r, b.r, u), step);
     const carts = byId(a.ca);
     this.d.abilities.applyRemote(b.mk, b.ca.map((c) => ({ ...c, x: lerp(carts.get(c.id)?.x ?? c.x, c.x, u) })));
     this.updateMounds(b.mo);
@@ -206,7 +226,7 @@ export class NetSpectator {
         this.enemies.set(s.id, enemy);
       }
       const p = prev.get(s.id) ?? s;
-      enemy.applyRemote(s, lerp(p.x, s.x, u), lerp(p.y, s.y, u), lerp(p.z, s.z, u), lerpAngle(p.yaw, s.yaw, u));
+      enemy.applyRemote(this.frozen ? { ...s, a: still(s.a) } : s, lerp(p.x, s.x, u), lerp(p.y, s.y, u), lerp(p.z, s.z, u), lerpAngle(p.yaw, s.yaw, u));
       enemy.updateRemote(dt);
     }
     for (const [id, enemy] of this.enemies) {
@@ -319,6 +339,11 @@ function lerpPlayer(a: PlayerSnap, b: PlayerSnap, u: number): PlayerSnap {
     rp: lerp(a.rp, b.rp, u),
     a: { ...b.a, s: shot },
   };
+}
+
+/** La animación quieta en el instante de la foto: el clip de cuerpo entero, con velocidad 0. */
+function still(a: AnimState): AnimState {
+  return a.s ? { ...a, s: [a.s[0], a.s[1], 0, a.s[3]] } : a;
 }
 
 function lerpProj(a: ProjSnap[], b: ProjSnap[], u: number): ProjSnap[] {

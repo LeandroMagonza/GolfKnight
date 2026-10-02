@@ -6,7 +6,7 @@
 // cartas en pantalla); **Q, W, E y R tiran la habilidad** de ese lugar hacia donde está el mouse, en el
 // acto y con su propia pelota. La rueda del mouse inclina la cámara y las flechas arriba y abajo la
 // suben y bajan, para probar ángulos. B abre el panel de balance, Escape
-// pausa, R en pausa o al terminar reinicia, C cambia el skin, M silencia la música.
+// pausa, R en pausa o al terminar reinicia, C cambia el skin, M silencia la música y N todo el sonido.
 
 export interface InputEvents {
   swingStart(): void;
@@ -26,6 +26,8 @@ export interface InputEvents {
   restart(): void;
   pause(): void;
   muteToggle(): void;
+  /** Todo el sonido, música y efectos. */
+  muteAll(): void;
   skin(): void;
   /** Un toque de movimiento lateral: +1 hacia la derecha de la pantalla, -1 hacia la izquierda. */
   step(right: number): void;
@@ -100,6 +102,7 @@ export class Input {
       case 'KeyR': this.ev.restart(); break;
       case 'Escape': this.ev.pause(); break;
       case 'KeyM': this.ev.muteToggle(); break;
+      case 'KeyN': this.ev.muteAll(); break;
       case 'KeyC': this.ev.skin(); break;
       case 'KeyD': case 'ArrowRight': this.ev.step(1); break;
       case 'KeyA': case 'ArrowLeft': this.ev.step(-1); break;

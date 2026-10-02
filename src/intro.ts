@@ -25,7 +25,7 @@ const SLIDES: Slide[] = [
       <kbd>1</kbd> driver · <kbd>2</kbd> hierro 7 · <kbd>3</kbd> wedge · <kbd>4</kbd> putter: cada palo cobra mejor a su distancia<br />
       <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd>: las habilidades que elegís entre oleadas, al instante hacia el mouse<br />
       Se pega donde hay <em>pelota</em>: de puesto en puesto con <kbd>A</kbd> y <kbd>D</kbd> (cargando, te corren de costado)<br />
-      <kbd>Espacio</kbd> clava el golpe · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd><br />
+      <kbd>Espacio</kbd> clava el golpe · cancelar <kbd>click der.</kbd> · pausa <kbd>Esc</kbd> · sin sonido <kbd>N</kbd><br />
       Que no lleguen a la puerta.
     </p>`,
   },

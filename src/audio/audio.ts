@@ -20,9 +20,11 @@ const arpeggioNote = (step: number) => BASE_NOTE + ARPEGGIO[Math.min(ARPEGGIO.le
 const KILL_STRUM = 0.06;
 
 const MUTE_KEY = 'gk-music-muted';
-function loadMuted(): boolean {
+/** Todo el sonido apagado (N): música y efectos. */
+const ALL_KEY = 'gk-all-muted';
+function loadMuted(key = MUTE_KEY): boolean {
   try {
-    return localStorage.getItem(MUTE_KEY) === '1';
+    return localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
@@ -50,6 +52,8 @@ export class GameAudio {
   ready = false;
   /** La música silenciada con M. Se guarda en el navegador: reiniciar recarga la página y no la tiene que volver a prender. */
   muted = loadMuted();
+  /** Todo silenciado con N (música y efectos), en el que juega y en el que mira. También se guarda. */
+  allMuted = loadMuted(ALL_KEY);
   private readonly lastPlayed = new Map<string, number>();
 
   private readonly lastTime = new Map<object, number>();
@@ -91,6 +95,7 @@ export class GameAudio {
 
   async start(): Promise<void> {
     await Tone.start();
+    Tone.getDestination().mute = this.allMuted;
     this.master = new Tone.Limiter(-1).toDestination();
     const verb = new Tone.Freeverb({ roomSize: 0.7, dampening: 2500, wet: 0.25 }).connect(this.master);
     this.musicBus = new Tone.Gain(this.muted ? 0 : 0.8).connect(verb);
@@ -158,6 +163,16 @@ export class GameAudio {
       localStorage.setItem(MUTE_KEY, this.muted ? '1' : '0');
     } catch { /* sin localStorage: vale hasta recargar */ }
     return this.muted;
+  }
+
+  /** Apaga o prende todo el sonido. Devuelve si quedó apagado. */
+  toggleAll(): boolean {
+    this.allMuted = !this.allMuted;
+    if (this.ready) Tone.getDestination().mute = this.allMuted;
+    try {
+      localStorage.setItem(ALL_KEY, this.allMuted ? '1' : '0');
+    } catch { /* sin localStorage: vale hasta recargar */ }
+    return this.allMuted;
   }
 
   pause(): void {
