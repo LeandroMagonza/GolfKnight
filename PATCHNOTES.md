@@ -9,6 +9,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 2 de octubre
 
+**Golf**
+- Ojo con los escudos: la pelota que rebota en uno vuelve hacia vos, roja y en arco, y el piso marca
+  dónde va a caer. Si te agarra adentro de la marca te saca 1 de vida: corrétele un puesto. `6b382e5`
+
 **Detrás de escena**
 - Idea escrita para un multijugador de a dos: el segundo jugador mira desde arriba y ayuda con empujones,
   zonas lentas y muros, en `docs/multijugador.md`. Todavía no está en el juego. `12642ae`
