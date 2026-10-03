@@ -970,9 +970,10 @@ export class Enemy {
   /**
    * Aplica daño. Devuelve true si murió con este golpe. El empujón se divide por el tamaño (el élite casi
    * no se mueve) y los pesados se llevan un poco nomás; `stun` es cuánto trastabillea (los pesados, nada).
+   * `pierce`: le entra aunque esté inmune (el golpe fantasma).
    */
-  damage(amount: number, knockDir: THREE.Vector3 | null, knockback: number, stun = 0.35): boolean {
-    if (!this.alive || this.warded) return false;
+  damage(amount: number, knockDir: THREE.Vector3 | null, knockback: number, stun = 0.35, pierce = false): boolean {
+    if (!this.alive || (this.warded && !pierce)) return false;
     this.hp -= amount;
     this.flashTimer = 0.12;
     if (knockDir) this.knock.addScaledVector(knockDir, (knockback * (this.stats.heavy ? 0.12 : 1)) / this.size);
@@ -1796,8 +1797,8 @@ export class Horde {
   /**
    * El tiro de palo que está pegando ahora: lo marca `Balls` mientras reparte su daño. `kills` cuenta los
    * que mueren mientras tanto, también los de una cadena (la pólvora que explota al morir). `ghost` es el
-   * nivel del golpe fantasma (0 si no lo es): pasa blindaje y escudos, y desde `ELEMENTS.ghostFullFrom`
-   * también el tope del enemigo fantasma.
+   * nivel del golpe fantasma (0 si no lo es): le entra entero a cualquiera (blindaje, escudos, el tope del
+   * fantasma, el aura de invencible y el divino).
    */
   shot: { club: ClubId; quality: number; ability: boolean; kills: number; ghost: number } | null = null;
 
@@ -1809,17 +1810,19 @@ export class Horde {
 
   /**
    * @param guard lo que resta un escudo por el que pasó el golpe (lo que le llegó de frente): 0 si no
+   * @param armorless el blindaje no le resta (el rayo)
    */
-  damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number, dot = false, guard = 0): boolean {
+  damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number, dot = false, guard = 0, armorless = false): boolean {
     this.lastDealt = 0;
     this.lastStopped = false;
     if (!enemy.alive || enemy.passed) return false;
-    if (enemy.warded) {
+    const ghost = this.shot?.ghost ?? 0;
+    // el aura de invencible para todo, menos el golpe fantasma
+    if (enemy.warded && !ghost) {
       this.lastStopped = true;
       this.emit({ type: 'immune', enemy });
       return false;
     }
-    const ghost = this.shot?.ghost ?? 0;
     // el escudo divino se come el primer golpe entero, sea lo que sea, con su elemento. El golpe fantasma
     // lo pasa sin gastarlo: es lo suyo, pasar las defensas
     if (!ghost && enemy.spendDivine()) {
@@ -1838,9 +1841,9 @@ export class Horde {
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
-    // la armadura (hasta 3): el silencio se la saca mientras dura. Al fuego y al golpe
+    // la armadura (hasta 3): el silencio se la saca mientras dura. Al fuego, al rayo y al golpe
     // fantasma no les resta
-    const armor = dot || ghost ? 0 : enemy.armor;
+    const armor = dot || armorless || ghost ? 0 : enemy.armor;
     if (armor > 0 && dealt > 0) {
       dealt = Math.max(0, dealt - armor);
       if (dealt === 0) this.emit({ type: 'armored', enemy });
@@ -1851,8 +1854,8 @@ export class Horde {
       if (dealt === 0) this.emit({ type: 'shielded', enemy });
     }
     // el etéreo es el revés: ningún golpe le saca más de 1, por fuerte que sea. Agrandado por la lupa,
-    // hasta `LENS.ghostHit`; silenciado deja de ser fantasma, y el golpe fantasma de nivel alto lo pasa
-    if (enemy.ethereal && !enemy.silenced && ghost < ELEMENTS.ghostFullFrom) dealt = Math.min(dealt, enemy.enlarged ? LENS.ghostHit : 1);
+    // hasta `LENS.ghostHit`; silenciado deja de ser fantasma, y el golpe fantasma le entra entero
+    if (enemy.ethereal && !enemy.silenced && !ghost) dealt = Math.min(dealt, enemy.enlarged ? LENS.ghostHit : 1);
     // el tutorial: con un tiro que no es el que se está enseñando, no lo mata
     if (this.mayKill && dealt >= enemy.hp && !this.mayKill(enemy, this.shot)) {
       dealt = Math.max(0, enemy.hp - 1);
@@ -1864,7 +1867,7 @@ export class Horde {
     // el pelotazo empuja y hace trastabillar según qué tan bien se le pegó (ver `KNOCK`); lo demás (el
     // carrito, las explosiones) empuja como siempre
     const q = this.shot ? Math.min(KNOCK.quality.length, Math.max(1, this.shot.quality)) - 1 : -1;
-    const killed = enemy.damage(dealt, knockDir, q >= 0 ? knockback * KNOCK.quality[q] : knockback, q >= 0 ? KNOCK.stun[q] : undefined);
+    const killed = enemy.damage(dealt, knockDir, q >= 0 ? knockback * KNOCK.quality[q] : knockback, q >= 0 ? KNOCK.stun[q] : undefined, !!ghost);
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });
@@ -1984,7 +1987,7 @@ export class Horde {
     if (strike) {
       const at = from.position;
       this.emit({ type: 'zap', from: at.clone().setY(at.y + 7), to: at.clone().setY(at.y + from.height * 0.6) });
-      this.damage(from, damage, null, 0);
+      this.damage(from, damage, null, 0, false, 0, true);
     }
     const point = (e: Enemy) => ({ id: e.id, x: e.position.x, z: e.position.z, enemy: e });
     const targets = this.enemies.filter((e) => e !== from && e.alive && !e.passed).map(point);
@@ -1993,7 +1996,7 @@ export class Horde {
       // haberlo matado
       if (!dst.alive) continue;
       this.emit({ type: 'zap', from: src.position.clone().setY(src.position.y + src.height * 0.6), to: dst.position.clone().setY(dst.position.y + dst.height * 0.6) });
-      this.damage(dst, damage, null, 0);
+      this.damage(dst, damage, null, 0, false, 0, true);
     }
   }
 

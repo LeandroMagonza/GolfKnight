@@ -81,8 +81,9 @@ describe('habilidades', () => {
     expect(hintAt(ABILITIES.echo, 3)).toBe('Tu próximo tiro se repite 3 veces');
     expect(hintAt(ABILITIES['wedge-ice'], 1)).not.toContain('congela');
     expect(hintAt(ABILITIES['wedge-ice'], ELEMENTS.iceFreezeFrom)).toContain('enfría y congela');
-    expect(hintAt(ABILITIES['iron-ghost'], 1)).not.toContain('fantasma');
-    expect(hintAt(ABILITIES['iron-ghost'], ELEMENTS.ghostFullFrom)).toContain('le pega entero al fantasma');
+    // el fantasma pasa todo desde el nivel 1: la carta lo dice igual en todos
+    expect(hintAt(ABILITIES['iron-ghost'], 1)).toBe('Un disparo de hierro instantáneo que atraviesa escudos, blindaje, fantasmas e inmunes');
+    expect(hintAt(ABILITIES['iron-ghost'], 3)).toBe(hintAt(ABILITIES['iron-ghost'], 1));
   });
 
   it('la zona de hielo frena y al salir se va enseguida', () => {
@@ -101,6 +102,11 @@ describe('habilidades', () => {
       const c = configOf(id);
       if (ABILITIES[id].kind === 'rain') {
         expect(c).toBeNull();
+        continue;
+      }
+      // el fantasma no tiene números propios: pasa todo
+      if (ABILITIES[id].element === 'ghost') {
+        expect(c!.keys).toEqual([]);
         continue;
       }
       expect(c, id).not.toBeNull();

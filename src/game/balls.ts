@@ -432,9 +432,9 @@ export class Balls {
         continue;
       }
       // de vuelta le llega por la espalda: el escudo de frente no la para. Al golpe fantasma no lo para
-      // ningún escudo (el aura del chamán sí)
+      // ningún escudo, ni el aura del chamán
       const ghost = ball.element === 'ghost';
-      if (ball.phase !== 'back' && (e.warded || (!ghost && e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
+      if (ball.phase !== 'back' && !ghost && (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
         // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
         // número entra. El muro y el aura del chamán no dejan pasar nada
         // lo que pasa del escudo entra, con su elemento; si el escudo se come todo, el elemento tampoco

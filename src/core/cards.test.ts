@@ -82,7 +82,7 @@ describe('cartas', () => {
       for (let level = 2; level <= maxLevelOf(id); level++) expect(describeCard({ kind: 'ability', id, level }).up, `${id} ${level}`).toBeTruthy();
     }
     expect(upgradeNote('wedge-lightning', 2)).toBe('Saltos por lado: 2 → 3 · Área: 3.5 → 4.2 m');
-    expect(upgradeNote('driver-ghost', 2)).toBe('Golpe: 1 → 2 · Pega entero al fantasma');
+    expect(upgradeNote('driver-ghost', 2)).toBe('Golpe: 1 → 2');
     expect(upgradeNote('iron-ice', 3)).toContain('Congela');
     expect(upgradeNote('iron-ice', 2)).not.toContain('Congela');
     // la lluvia de pelotas es igual en todos los niveles: no se ofrece subirla

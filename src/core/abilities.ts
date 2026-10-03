@@ -101,12 +101,12 @@ export function chilledSpeed(speed: number): number {
  * - **Rayo**: a **cada uno que toca la pelota le cae un rayo** (`chainDamage`), y de ahí sale para los
  *   dos lados: en cada rama salta `chainJumps` veces, a `chainRange` como mucho, sacándole `chainDamage` a
  *   cada uno (ver core/chain). Un rayo nunca toca dos veces al mismo ni vuelve al que lo largó; el de otro
- *   sí puede. El blindaje se lo come (es un golpe, no fuego). Con la maestría salta una vez más por rama
- *   y cada salto pega el doble.
- * - **Fantasma**: el golpe pasa escudos (también el muro) y blindaje: le entra entero a cualquiera. El
- *   del driver atraviesa además las lomas. Desde el nivel `ghostFullFrom`, al enemigo fantasma también
- *   le entra el golpe entero. **Pasa también el divino**, sin gastarle la burbuja. No pasa la
- *   inmunidad del aura de invencible.
+ *   sí puede. **El blindaje no le resta** (desde el 3/10; antes se lo comía). Con la maestría salta una
+ *   vez más por rama y cada salto pega el doble.
+ * - **Fantasma**: el golpe le entra entero a cualquiera: pasa escudos (también el muro), blindaje, el
+ *   tope del enemigo fantasma, la inmunidad del aura de invencible y el divino (sin gastarle la
+ *   burbuja). El del driver atraviesa además las lomas. Hasta el 3/10 al fantasma le pegaba 1 hasta el
+ *   nivel 2, y el aura lo paraba.
  * - **Silenciador**: silencia `silenceSeconds` a cada uno que toca (al élite, `silenceElite` de eso): se
  *   le apagan todos los poderes. No hace daño: prepara a los que vienen. Por eso es distinto del
  *   fantasma, que pasa las defensas en ese golpe y no deja nada. El wedge silenciador es el silencio en
@@ -120,9 +120,6 @@ export const ELEMENTS = {
   // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a
   // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`
   windLine: [3, 3.75, 4.5], windPush: [6, 8, 10], windPushRadius: 3.5, windPull: [4.5, 5.25, 6],
-  // el golpe fantasma pasa escudos y blindaje (el driver, además, lomas); desde este nivel, al fantasma
-  // también le entra entero
-  ghostFullFrom: 2,
   silenceSeconds: [5, 6.5, 8], silenceElite: 0.5,
 };
 
@@ -239,7 +236,7 @@ export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: n
   wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los enemigos' },
   ghost: {
     name: 'Fantasma', adj: 'fantasma', color: 0xd8e6ff,
-    hint: 'atraviesa escudos y blindaje',
+    hint: 'atraviesa escudos, blindaje, fantasmas e inmunes',
   },
   silence: {
     name: 'Silencio', adj: 'silenciador', color: 0xff6b4a,
@@ -258,7 +255,7 @@ const WIND_HINT: Partial<Record<ClubId, string>> = {
 /** Lo que cambia de un elemento según el palo. El fantasma del driver, además, atraviesa lomas. */
 const CLUB_HINT: Partial<Record<Element, Partial<Record<ClubId, string>>>> = {
   wind: WIND_HINT,
-  ghost: { driver: 'atraviesa escudos, blindaje y lomas' },
+  ghost: { driver: 'atraviesa escudos, blindaje, fantasmas, inmunes y lomas' },
 };
 
 /**
@@ -290,7 +287,6 @@ export function hintAt(a: Ability, level: number): string {
     return n > 1 ? `Tu próximo tiro se repite ${n} veces` : a.hint;
   }
   if (a.element === 'ice' && level >= ELEMENTS.iceFreezeFrom) return a.hint.replace('enfría', 'enfría y congela');
-  if (a.element === 'ghost' && level >= ELEMENTS.ghostFullFrom) return `${a.hint}, y le pega entero al fantasma`;
   return a.hint;
 }
 
@@ -344,7 +340,7 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
           else if (a.club === 'iron') table('Empuja', ELEMENTS.windPush, ' m');
           else table('Atrae desde', ELEMENTS.windPull, ' m');
           break;
-        case 'ghost': stat('Golpe', (l) => l); gains('Pega entero al fantasma', ELEMENTS.ghostFullFrom); break;
+        case 'ghost': stat('Golpe', (l) => l); break;
         case 'silence': table('Silencia', ELEMENTS.silenceSeconds, ' s'); break;
       }
       // el tiro sale cargado al nivel: el área del hierro y del wedge crece con él (el viento no: el
@@ -365,7 +361,8 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
   fire: ['burnTicks', 'burnTick', 'burnDamage', 'spreadRadius'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
   wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],
-  ghost: ['ghostFullFrom'],
+  // el fantasma no tiene números propios: pasa todo
+  ghost: [],
   silence: ['silenceSeconds', 'silenceElite'],
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {

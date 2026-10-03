@@ -137,17 +137,16 @@ protege, no hace nada). Lo que hace cada una, por nivel:
 - *Fuego*: lo prende; pierde 1 de vida en el acto y después cada 2 s: 2 en total (3 y 4), y el blindaje no le resta. Volver a prenderlo no suma: le alarga el fuego.
 - *Rayo*: **a cada uno que toca le cae un rayo**, y de ahí sale para los dos lados: en cada rama salta
   al más cercano 2 veces (3 y 4), a 6 m como mucho, sacándole 1 a cada uno. Un rayo **nunca toca dos
-  veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje se come ese 1.
+  veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje no le resta.
 - *Viento* (antes era el vendaval, solo rasante), distinto con cada palo:
   - driver: el viento va detrás de la pelota y **junta sobre la línea** a los que pasa (3 m de cada
     lado; 3.75 y 4.5 en los niveles 2 y 3), para el próximo tiro;
   - hierro: donde revienta, una ráfaga **manda para atrás** 6 m (8 y 10) a los que están a 3.5 m;
   - wedge: donde cae, un remolino **los amontona** hacia el centro, desde 4.5 m (5.25 y 6).
   Con el putter no hay.
-- *Fantasma* (el único que pega: un golpe cargado al nivel de la habilidad): pasa escudos (también el de
-  la calavera) y blindaje, y le entra entero. El del driver atraviesa además las lomas. Desde el nivel 2,
-  al enemigo fantasma también le entra entero. Pasa también la burbuja divina, sin gastarla. No pasa el
-  aura de invencible.
+- *Fantasma* (el único que pega: un golpe cargado al nivel de la habilidad): le entra entero a
+  cualquiera. Pasa escudos (también el de la calavera), blindaje, el tope del enemigo fantasma, el aura de
+  invencible y la burbuja divina (sin gastarla). El del driver atraviesa además las lomas.
 - *Silenciador*: silencia 5 s (6.5 y 8) a cada uno que toca (al élite, la mitad): se le apagan
   **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba),
   para que lo que venga después le entre. El wedge silenciador es el silencio en área (la granada se
