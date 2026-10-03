@@ -276,19 +276,22 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 - **El cuerpo fuerte viene desde el arranque del escenario**: uno en la primera oleada, tres en la
   segunda y tres en la tercera, **siempre sin poder**: de ese cuerpo, el único con poder es el élite. La décima es la
   del Gólem de roca, con todo lo anterior mezclado.
-- **Se acumulan**: un tercio de cada oleada sale con poder; la mitad con el del escenario, la otra mitad
-  con los de escenarios anteriores. Uno solo por enemigo.
-- **Apoyo**: la partida sortea también dos poderes de apoyo (hechicero, cura, invencible, bandera), uno
-  para el segundo escenario y otro para el tercero, de a uno o dos por oleada. **Cavar**, por ahora, no
-  sale.
-- **Modificadores**: la segunda oleada de cada escenario trae uno, los tres en orden al azar.
-  - **La estampida**: muchos más, chicos, y casi un tercio explota.
+- **La dificultad decide cuánto de lo que sigue sale** (ver más abajo). Sin puntos, cada oleada trae solo
+  el poder de su escenario, sin olas especiales, apoyos ni kamikazes, y el jefe viene con enemigos comunes.
+- **Con poder**: un cuarto de cada oleada (un tercio con el talento). Si los poderes **se acumulan**, la
+  mitad trae el del escenario y la otra mitad los de escenarios anteriores. Uno solo por enemigo.
+- **Apoyo**: la partida sortea poderes de apoyo (hechicero, cura, invencible, bandera): con un punto, uno
+  en el último escenario; con dos, uno en el segundo y otro en el tercero, de a uno o dos por oleada.
+  **Cavar**, por ahora, no sale.
+- **Olas especiales**: con un punto, la segunda oleada de la partida es una; con dos, también la segunda
+  del segundo o del tercer escenario (otra distinta). **Cada una deja su marca en las oleadas que siguen**:
+  - **La estampida**: muchos más, chicos, y casi un tercio explota. Después, cada oleada trae 10 chicos
+    de más, y cada goblin o goblina sin otro poder tiene un 10 % de salir kamikaze. Sin estampida no
+    hay kamikazes.
   - **Los gigantes**: menos, bien más grandes (×1.7, sin llegar a los 3 m del élite), con 3 de vida
-    más y un 15 % más lentos.
+    más y un 15 % más lentos. Después, 3 gigantes por oleada.
   - **Todos con poder**: cada uno trae un poder de escenario, aunque no haya salido sorteado en la
-    partida, y 1 de vida menos.
-
-  En las demás oleadas, cada goblin o goblina sin otro poder tiene un 10 % de salir kamikaze.
+    partida, y 1 de vida menos. Después, 2 por oleada con los poderes que no salieron.
 - **Los cuerpos** suben con los escenarios: del goblin al esqueleto y el jefe goblin en el primero;
   entran el caballero y el chamán en el segundo; el gólem chico y el alma en pena en el tercero.
 - **Arriba, debajo del número de oleada**, van los íconos de los tres poderes de la partida y la
@@ -302,6 +305,39 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 - En el código: `buildRun` arma la partida y `spawnOrder` reparte los poderes (`src/core/waves.ts`).
   `node --experimental-transform-types tools/oleadas.mts` mide qué tan difícil es cada oleada,
   promediando muchas partidas.
+
+### La dificultad: talentos al revés
+
+Cada partida ganada **con todos los puntos puestos** da un punto de dificultad, y cada punto puesto hace
+la partida más difícil. Se reparten como uno quiera en un menú entre partidas (en la pantalla de inicio,
+con el primer punto, y en el cartel del final), y se pueden mover cuando se quiera: vale para la próxima
+partida. Se guarda en el navegador. Son 13 puntos en 9 talentos:
+
+| Talento | Niveles |
+| --- | --- |
+| Poderes acumulados | los poderes de los escenarios anteriores siguen viniendo |
+| Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
+| Apoyos | 1: en el último escenario; 2: desde el segundo |
+| Poderes más duros | 1: escudos y blindajes de hasta 3 (sin el punto, hasta 2); 2: el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6) |
+| Más rápidos | sin puntos los enemigos van a ×0.85; 1: a su velocidad; 2: ×1.12 |
+| Más con poder | un tercio en vez de un cuarto |
+| Élites más duros | +2 de vida (sin el punto, el élite trae 2 menos) |
+| Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
+| Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
+
+Con todo puesto es la partida de antes del 3/10, más rápida y con menos descanso, y con dos olas especiales
+que dejan marca en vez de tres. Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas
+en `MARKS` (`src/core/waves.ts`); los dos se tocan en el panel B, pestaña Enemigos, donde también se
+pueden poner los puntos ganados para probar cualquier nivel.
+
+### Las partidas se mandan solas
+
+Al terminar (o al dejarla por la mitad), la partida se manda a Supabase, al proyecto del ManaMod, tabla
+`golf_runs` (`src/telemetry.ts`): nivel y talentos, resultado y oleada, y por oleada tiros, aciertos,
+perfectos, bajas, daño, habilidades, y la vida y la puerta que se perdieron con quién las sacó; las cartas
+ofrecidas y elegidas. Sin datos personales: un id al azar por navegador. Lo que no sale queda en una cola
+y se manda la próxima vez. No mandan el bot, el espectador ni las pruebas automáticas. La tabla se crea
+una vez con `docs/telemetria.sql`, que trae también consultas para mirar.
 
 ## El campo: tres mapas, uno por partida
 
@@ -417,7 +453,8 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
 
 ## Estructura
 
-- `src/core/`: lógica pura con tests (`ballistics`, `clubs`, `swing`, `waves`).
+- `src/core/`: lógica pura con tests (`ballistics`, `clubs`, `swing`, `waves`, `difficulty`).
+- `src/difficultyMenu.ts`: el menú de dificultad entre partidas. `src/telemetry.ts`: el registro de cada partida.
 - `src/game/`: `player` (estados libre / cargando / swing, salto por el portal, agarre), `tees` (los puestos de tiro y las pelotas que tiran los guardias), `golfClips` (detecta solo las fases de los clips de swing), `swingPose` (el palo, y un swing
   procedural con IK de respaldo), `balls` (pelotas y encantamientos), `enemies` (horda, hielo, aura del chamán), `effects`, `world`.
 - `src/audio/audio.ts`: todo sintetizado con Tone.js.

@@ -64,6 +64,30 @@
       #notesbtn svg { width: 30px; height: 34px; display: block; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
       #notesbtn.fresh::after { content: ''; position: absolute; top: 0; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: #ff5b5b; box-shadow: 0 0 0 2px #0b1118; }
       /* la libreta abierta: hoja rayada con margen rojo y espiral arriba; todo va en renglones de 30 px */
+      /* la dificultad (src/difficultyMenu.ts): los puntos ganados y dónde ponerlos, entre partidas */
+      #difficulty { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.7); pointer-events: auto; }
+      #difficulty[hidden] { display: none; }
+      #difficulty .box { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px 22px; border-radius: 10px; border: 1px solid #3a4452; background: #111923; color: #e4e9f0; }
+      #difficulty h2 { margin: 0; font-size: 30px; color: #ffd66b; }
+      #difficulty .summary { margin: 0; font-size: 15px; color: #cfd6e0; }
+      #difficulty .list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; scrollbar-width: thin; }
+      #difficulty .talent { padding: 8px 10px; border-radius: 8px; background: #19222e; border: 1px solid #263140; }
+      #difficulty .talent.taken { border-color: #7a5a1e; background: #211e18; }
+      #difficulty .head { display: flex; align-items: center; gap: 8px; }
+      #difficulty .head b { flex: 1; font-size: 16px; }
+      #difficulty .pips { display: flex; gap: 4px; }
+      #difficulty .pips i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #ffd66b; box-sizing: border-box; }
+      #difficulty .pips i.on { background: #ffd66b; }
+      #difficulty .head button { width: 32px; height: 30px; padding: 0; font-size: 20px; line-height: 1; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      #difficulty .head button:hover:not(:disabled) { border-color: #ffd66b; }
+      #difficulty .head button:disabled { opacity: 0.3; cursor: default; }
+      #difficulty .lines { margin: 4px 0 0 26px; font-size: 14px; line-height: 1.45; color: #8d97a5; }
+      #difficulty .lines .got { color: #ffd66b; }
+      #difficulty .foot { margin: 0; font-size: 13px; color: #9aa4b2; }
+      #difficulty .done { align-self: center; font-size: 17px; padding: 8px 28px; border-radius: 8px; border: 0; background: #5be07a; color: #102; font-weight: 600; cursor: pointer; }
+      #end .earned { color: #ffd66b; }
+      #end #enddiff { margin: 10px 0 6px; pointer-events: auto; font-size: 15px; padding: 6px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #end #enddiff[hidden], #end .earned[hidden] { display: none; }
       #notes { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.62); z-index: 20; }
       #notes[hidden] { display: none; }
       #notes .book { position: relative; width: min(640px, 92vw); height: min(80vh, 760px); display: flex; flex-direction: column; background: #f6efdc; color: #2b2a33; border-radius: 3px 3px 8px 8px; box-shadow: 0 3px 0 -1px #e8dec3, 0 6px 0 -2px #d9cca9, 0 22px 50px rgba(0, 0, 0, 0.6); }
@@ -295,6 +319,7 @@
       </div>
       <button id="alt" type="button" class="link" hidden></button>
       <button id="mode" type="button" class="link" hidden></button>
+      <button id="diffbtn" type="button" class="link" hidden></button>
       <button id="invite" type="button" class="link" hidden>Invitar a alguien a mirar tu partida</button>
       <div id="invitebox" hidden>
         <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy">Copiar</button></div>
@@ -322,6 +347,15 @@
           <button type="button" class="close" aria-label="Cerrar">×</button>
           <div class="page" tabindex="-1"></div>
         </div>
+      </div>
+    </div>
+    <div id="difficulty" hidden>
+      <div class="box">
+        <h2>Dificultad</h2>
+        <p class="summary"></p>
+        <div class="list"></div>
+        <p class="foot">Cada punto hace la partida más difícil. Ganá con todos tus puntos puestos y sumás uno más. Lo que cambies vale desde la próxima partida.</p>
+        <button type="button" class="done">Listo</button>
       </div>
     </div>
     <div id="hud">
@@ -361,7 +395,7 @@
           </div>
         </div>
       </div>
-      <div id="end" hidden><h2></h2><p class="detail"></p><p>R para jugar de nuevo</p></div>
+      <div id="end" hidden><h2></h2><p class="detail"></p><p class="earned" hidden></p><button id="enddiff" type="button" tabindex="-1" hidden>Dificultad</button><p>R para jugar de nuevo</p></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

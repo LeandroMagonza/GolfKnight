@@ -9,6 +9,7 @@ import { ABILITIES, ABILITY_KEYS, ECHO, ICE, lv, PALAZO, SLOTS, type AbilityId, 
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
+import { earnPoint, loadProgress, rulesFor, saveProgress, setLevel, TALENTS, used } from './core/difficulty';
 import { arcLayout, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls, RICOCHET_COLOR } from './game/balls';
@@ -28,6 +29,8 @@ import { DebugPanel, loadBalance } from './debug';
 import { Hud, type PerkChip } from './hud';
 import { Input } from './input';
 import { Intro } from './intro';
+import { DifficultyMenu } from './difficultyMenu';
+import { flushRuns, RunRecorder } from './telemetry';
 import { Tutorial } from './tutorial';
 import { applyTennis, POCKET_RAIN, switchMode, TENNIS_ON } from './tennis/mode';
 import { TENNIS, timingQuality } from './tennis/bounce';
@@ -91,16 +94,82 @@ const DUFF_COLORS = [0x6b7480, 0x5be07a, 0xffd21f];
 const hud = new Hud();
 const audio = new GameAudio();
 /**
- * La partida de esta vez: tres escenarios, cada uno con un poder sorteado, y el jefe (ver `buildRun`).
- * Reiniciar recarga la página, así que cada partida sortea de nuevo.
+ * La dificultad: los puntos ganados y dónde están puestos (ver core/difficulty.ts). Se eligen en un menú
+ * entre partidas, desde la pantalla de inicio o el cartel del final.
  */
-const run = buildRun();
-const director = new WaveDirector(run.waves);
+const progress = loadProgress();
+const difficultyMenu = new DifficultyMenu(progress);
+/**
+ * La partida de esta vez: tres escenarios, cada uno con un poder sorteado, y el jefe (ver `buildRun`), con
+ * lo que diga la dificultad. Reiniciar recarga la página, así que cada partida sortea de nuevo; si se
+ * cambia la dificultad antes de empezar, se vuelve a armar al arrancar (`rebuildRun`).
+ */
+let rules = rulesFor(progress.picks);
+let run = buildRun(Math.random, rules);
+const director = new WaveDirector(run.waves, rules.rest);
 const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva' };
-hud.setRun([
-  ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),
-  { src: badgeImage('skull'), title: 'El jefe' },
-]);
+function showRun(): void {
+  hud.setRun([
+    ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),
+    { src: badgeImage('skull'), title: 'El jefe' },
+  ]);
+}
+showRun();
+
+/** Se cambió la dificultad en la pantalla de inicio: la partida se arma de nuevo con la elegida. */
+function rebuildRun(): void {
+  difficultyMenu.dirty = false;
+  rules = rulesFor(progress.picks);
+  run = buildRun(Math.random, rules);
+  director.load(run.waves, rules.rest);
+  showRun();
+}
+
+/** El botón de la dificultad, en la pantalla de inicio y en el cartel del final: aparece con el primer punto. */
+const diffButtons = [document.getElementById('diffbtn'), document.getElementById('enddiff')].filter((x): x is HTMLElement => !!x);
+function paintDifficulty(): void {
+  const on = progress.points > 0 && !params.has('mirar');
+  const start = document.getElementById('diffbtn');
+  if (start) {
+    start.hidden = !on;
+    start.textContent = `Dificultad: nivel ${used(progress.picks)} (de ${progress.points} ganados)`;
+  }
+  const end = document.getElementById('enddiff');
+  if (end) end.hidden = !on;
+}
+for (const b of diffButtons) {
+  b.addEventListener('click', (e) => {
+    (e.currentTarget as HTMLElement).blur();
+    difficultyMenu.show();
+  });
+}
+difficultyMenu.onChange = paintDifficulty;
+
+/**
+ * El registro de la partida, que se manda solo al terminar (src/telemetry.ts). Arranca con la primera
+ * oleada (el tutorial no cuenta). Ni el bot, ni el espectador, ni las pruebas automáticas mandan nada.
+ */
+const RECORD = !params.has('bot') && !params.has('mirar') && !navigator.webdriver;
+let recorder: RunRecorder | null = null;
+/** Cómo se anota quién pegó: el cuerpo, y si es élite o hace algo distinto, eso también. */
+function sourceOf(enemy: { stats: { kind: EnemyKind }; size: number; behavior: string } | null, fallback: string): string {
+  if (!enemy) return fallback;
+  return `${enemy.size > 1 ? 'élite ' : ''}${enemy.stats.kind}${enemy.behavior !== 'melee' ? ` (${enemy.behavior})` : ''}`;
+}
+/** La carta, para el registro: clase, cuál y nivel. */
+function cardKey(card: Card): string {
+  return card.kind === 'heal' ? `curar:${card.id}` : `${card.kind === 'ability' ? 'habilidad' : 'mejora'}:${card.id}:${card.level}`;
+}
+/** El rebote del escudo le pega al golfista sin enemigo: así el registro lo distingue del hechizo. */
+let ricochetHit = false;
+/** Cómo quedó el golfista, para el final del registro. */
+function buildForLog(): unknown {
+  return { abilities: abilities.slots.map((s) => [s.id, s.level]), perks };
+}
+// la partida que se deja por la mitad (se cierra la pestaña, o R desde la pausa) queda como abandonada
+addEventListener('pagehide', () => {
+  if (recorder && !recorder.finished && !ended) recorder.finish('abandoned', { score, hp: player?.hp ?? 0, gate: gateHp, build: buildForLog() });
+});
 let player: Player;
 let gateHp = GATE_MAX;
 let score = 0;
@@ -484,7 +553,14 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string): v
   horde.ceaseFire = true;
   // si se perdió por la puerta, el golfista termina igual que cuando muere: tirado en el piso
   if (result === 'defeat') player.fall();
-  hud.showEnd(title, `${detail} · ${score} puntos · ${kills} bajas · ${shots} tiros`);
+  // ganar con todos los puntos de dificultad puestos suma uno (el bot no: juega para probar)
+  const level = used(progress.picks);
+  const earned = result === 'victory' && !BOT && earnPoint(progress);
+  if (earned) saveProgress(progress);
+  paintDifficulty();
+  const earnedText = earned ? (progress.points === 1 ? '¡Ganaste tu primer punto de dificultad! Ponelo para la próxima' : '¡Ganaste un punto de dificultad!') : '';
+  hud.showEnd(title, `${detail} · dificultad ${level} · ${score} puntos · ${kills} bajas · ${shots} tiros`, earnedText);
+  recorder?.finish(result, { cause: detail, score, hp: player.hp, gate: gateHp, build: buildForLog() });
   if (result === 'victory') audio.victory();
   else audio.defeat();
 }
@@ -494,6 +570,7 @@ horde.onEvent = (e) => {
   tutorial?.onEvent(e);
   switch (e.type) {
     case 'damage': {
+      recorder?.damage(e.amount, e.killed);
       const s = toScreen(e.enemy.position, e.enemy.height);
       // el que cae al hoyo no muestra daño: el «¡Al hoyo!» ya lo dice
       const text = `${e.crit ? '✸ ' : ''}${e.amount}${e.killed ? ' ☠' : ''}`;
@@ -542,6 +619,7 @@ horde.onEvent = (e) => {
       audio.growl();
       break;
     case 'playerHit': {
+      recorder?.hurt(e.amount, sourceOf(e.enemy, ricochetHit ? 'rebote del escudo' : 'hechizo'), false);
       if (godMode.godPlayer) player.hp = player.maxHp;
       audio.hurt();
       shake = Math.max(shake, e.enemy?.grabbing ? 0.1 : 0.3);
@@ -551,6 +629,7 @@ horde.onEvent = (e) => {
       break;
     }
     case 'gateHit':
+      recorder?.hurt(e.amount, sourceOf(e.enemy, ''), true);
       if (!godMode.godGate) gateHp = Math.max(0, gateHp - e.amount);
       audio.gateHit();
       world.flashDoor();
@@ -693,7 +772,9 @@ balls.onEvent = (e) => {
       const hit = player.alive && !player.invulnerable && Math.hypot(player.anchor.x - e.pos.x, player.anchor.z - e.pos.z) <= RICOCHET.radius;
       if (hit) {
         player.hit(RICOCHET.damage, e.pos);
+        ricochetHit = true;
         horde.emit({ type: 'playerHit', enemy: null, amount: RICOCHET.damage });
+        ricochetHit = false;
       }
       break;
     }
@@ -721,6 +802,7 @@ balls.onEvent = (e) => {
       // las rachas cuentan los tiros del puesto, no las habilidades
       if (e.ability) break;
       if (e.hits === 0) setCleanStreak(0);
+      else recorder?.hit();
       break;
   }
 };
@@ -789,6 +871,7 @@ function castAbility(index: number): void {
   const slot = abilities.slots[index];
   // la esquiva salta también ni bien tirás una habilidad que se apunta (las que no tienen alcance, no)
   if (result === 'ok' && ABILITIES[slot.id].range > 0) horde.dodgeAim(tee, player.aimDir);
+  if (result === 'ok') recorder?.ability();
   // el lugar vacío no dice nada: no hay nada que tirar
   if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
   else if (result === 'blocked') hud.feedback(ABILITIES[slot.id].kind === 'melee' ? 'En pleno swing no hay palazo' : 'No hay palo para tirar ahora', 'neutral');
@@ -874,6 +957,7 @@ function build(): Build {
 function offerChoice(): boolean {
   const cards = drawCards(build());
   if (!cards.length) return false;
+  recorder?.offered(cards.map(cardKey));
   choice = cards;
   cardOpen = true;
   player.cancelSwing();
@@ -889,6 +973,7 @@ function pickCard(i: number): void {
   choice = null;
   cardOpen = false;
   hud.hideChoice();
+  recorder?.picked(cardKey(card));
   applyCard(card);
 }
 
@@ -1197,6 +1282,8 @@ function dismissCard(): void {
 async function startGame(withTutorial = false): Promise<void> {
   if (started) return;
   started = true;
+  difficultyMenu.hide();
+  if (difficultyMenu.dirty) rebuildRun();
   await audio.start();
   audio.startMusic();
   overlay.hidden = true;
@@ -1235,6 +1322,18 @@ let debugPanel: DebugPanel | null = null;
 function makeDebugPanel(): DebugPanel {
   return new DebugPanel({
     director,
+    difficultyPoints: {
+      get: () => progress.points,
+      set(points) {
+        progress.points = points;
+        // si ya no alcanzan, se sacan de los últimos talentos
+        const keep = { ...progress.picks };
+        progress.picks = {};
+        for (const t of TALENTS) setLevel(progress, t.id, keep[t.id] ?? 0);
+        saveProgress(progress);
+        difficultyMenu.refresh();
+      },
+    },
     flags: godMode,
     refreshEnemies() {
       // los enemigos comparten el objeto de ENEMIES, así que la velocidad y el daño ya les llegaron
@@ -1356,6 +1455,8 @@ const input = new Input({
     if (!WATCH) debugPanel?.toggle();
   },
   space() {
+    // con el menú de dificultad abierto, el Espacio no arranca la partida
+    if (difficultyMenu.open) return;
     if (!started) intro.advance();
     else if (cardOpen && !choice) dismissCard();
     else lockSwing();
@@ -1368,11 +1469,15 @@ const input = new Input({
   restart() {
     // R solo desde la pausa o desde el cartel del final, que son los dos lugares que la ofrecen. En
     // pleno juego un toque de más te borraba la partida sin preguntar nada
+    if (difficultyMenu.open) return;
     if (started && (paused || ended)) location.reload();
     // en pleno juego la R es el cuarto lugar de habilidad
     else castAbility(3);
   },
-  pause: togglePause,
+  pause() {
+    if (difficultyMenu.open) difficultyMenu.hide();
+    else togglePause();
+  },
   muteToggle() {
     if (audio.ready) audio.toggleMute();
   },
@@ -1499,6 +1604,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
     const t = tennis?.shot();
     if (t) shot = { ...shot, quality: t.quality };
     shots++;
+    recorder?.shot(shot.quality >= QUALITY_LEVELS);
     audio.tock(shot.quality >= QUALITY_LEVELS);
     if (shot.quality >= QUALITY_LEVELS) hud.feedback('¡Golpe perfecto!', 'good');
     const range = shotRange(shot.club);
@@ -1643,6 +1749,9 @@ intro.onInvite = async () => {
 };
 loadModels().then(() => {
   intro.setReady();
+  paintDifficulty();
+  // las partidas que no salieron la vez pasada (sin red, o dejadas por la mitad)
+  if (RECORD) void flushRuns();
   if (WATCH) void startWatching(WATCH);
 }).catch((e) => {
   console.error(e);
@@ -1946,6 +2055,13 @@ function updateWaves(dt: number): void {
   for (const e of director.update(dt, horde.aliveCount)) {
     switch (e.type) {
       case 'wave': {
+        if (RECORD && !recorder && e.index === 0) {
+          recorder = new RunRecorder({
+            version: __BUILD__, level: used(progress.picks), picks: { ...progress.picks }, points: progress.points,
+            powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
+          });
+        }
+        recorder?.wave(e.index + 1, e.wave.title, e.wave.mod);
         audio.waveHorn();
         hud.showBanner(`Oleada ${e.index + 1}`, `${e.wave.scenario < 3 ? `Escenario ${e.wave.scenario + 1}` : 'El jefe'} · ${e.wave.title}`);
         // el día avanza con la partida: la primera oleada es de mañana y la última al atardecer
@@ -2004,6 +2120,7 @@ function frame(): void {
   if (player && !paused && !cardOpen) {
 
     if (started) gameClock += dt;
+    recorder?.tick(dt);
     // carcaj: se repone solo
     if (!quiver.ready && (quiver.timer -= dt) <= 0) quiver.ready = true;
     // caddie dorado: mientras dure, el puesto donde estás nunca se queda sin pelota

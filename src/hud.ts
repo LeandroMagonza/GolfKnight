@@ -435,9 +435,15 @@ export class Hud {
     this.pauseEl.hidden = !on;
   }
 
-  showEnd(title: string, detail: string): void {
+  /** El cartel del final. `earned`: el aviso del punto de dificultad ganado, si se ganó. */
+  showEnd(title: string, detail: string, earned = ''): void {
     (this.endEl.querySelector('h2') as HTMLElement).textContent = title;
     (this.endEl.querySelector('.detail') as HTMLElement).textContent = detail;
+    const note = this.endEl.querySelector('.earned') as HTMLElement | null;
+    if (note) {
+      note.textContent = earned;
+      note.hidden = !earned;
+    }
     this.endEl.hidden = false;
   }
 

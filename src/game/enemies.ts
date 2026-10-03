@@ -1089,7 +1089,8 @@ export class Enemy {
   /** Salta DODGE.distance metros hacia `side` (unitario en el piso), con un saltito. */
   dodge(side: THREE.Vector3): void {
     this.knock.addScaledVector(side, DODGE.distance * KNOCK_DECAY);
-    this.dodgeLeft = DODGE.cooldown;
+    // con poca dificultad tarda más en volver a esquivar (ver `dodgeEvery`)
+    this.dodgeLeft = this.mods.dodgeEvery ?? DODGE.cooldown;
     this.hopLeft = DODGE.hopTime;
   }
 

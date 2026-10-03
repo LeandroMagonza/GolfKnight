@@ -17,7 +17,8 @@ import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
-import { ENEMIES, GEOMANCER, HEAL_AURA, type EnemyKind, type WaveDirector } from './core/waves';
+import { ENEMIES, GEOMANCER, HEAL_AURA, MARKS, type EnemyKind, type WaveDirector } from './core/waves';
+import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
 export interface DebugFlags {
@@ -34,11 +35,13 @@ export interface DebugFlags {
 const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
   carga: CHARGE as unknown as Record<string, number>,
-  curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET,
+  curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
 };
 
 export interface DebugHooks {
+  /** Los puntos de dificultad ganados: para probar cualquier nivel sin ganar las partidas. */
+  difficultyPoints: { get(): number; set(points: number): void };
   /** Saca tres cartas ya, como al terminar una oleada. */
   offerChoice(): void;
   /** Toma una carta directo, sin sortear (las de curarse). */
@@ -981,6 +984,25 @@ export class DebugPanel {
       else cell(row, this.field(() => s.attackEvery ?? 0, (v) => { s.attackEvery = Math.max(0.2, v); }, 0.5)).title = 'segundos entre ataques';
     }
     el.append(enemies, note('«sale» lo saca de todas las oleadas sin cambiar el resto. La vida y la velocidad se les pasan también a los que ya están en el campo.'));
+
+    el.append(heading('Dificultad'));
+    const d = DIFFICULTY;
+    const levels = this.numbers([
+      ['puntos ganados', () => this.hooks.difficultyPoints.get(), (v) => this.hooks.difficultyPoints.set(Math.max(0, Math.min(MAX_POINTS, Math.round(v)))), 1, `de ${MAX_POINTS}`],
+      ['velocidad sin puntos', () => d.speed[0], (v) => { d.speed[0] = Math.max(0.3, v); }, 0.05, '×'],
+      ['velocidad con 1', () => d.speed[1], (v) => { d.speed[1] = Math.max(0.3, v); }, 0.05, '×'],
+      ['velocidad con 2', () => d.speed[2], (v) => { d.speed[2] = Math.max(0.3, v); }, 0.05, '×'],
+      ['con poder, sin puntos', () => d.share[0], (v) => { d.share[0] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
+      ['con poder, con el punto', () => d.share[1], (v) => { d.share[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
+      ['escudo y blindaje hasta, sin puntos', () => d.cap[0], (v) => { d.cap[0] = Math.max(1, Math.min(3, Math.round(v))); }, 1, ''],
+      ['recarga del escurridizo y el bendito, sin el 2.º punto', () => d.recharge[0], (v) => { d.recharge[0] = d.recharge[1] = Math.max(1, v); }, 0.1, '×'],
+      ['vida de menos del élite, sin el punto', () => d.eliteHpLess[0], (v) => { d.eliteHpLess[0] = Math.max(0, Math.round(v)); }, 1, ''],
+      ['descanso con «sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's'],
+      ['estampida: chicos de más por oleada', () => MARKS.stampede, (v) => { MARKS.stampede = Math.max(0, Math.round(v)); }, 1, ''],
+      ['gigantes: por oleada', () => MARKS.giants, (v) => { MARKS.giants = Math.max(0, Math.round(v)); }, 1, ''],
+      ['todos con poder: con los que no salieron', () => MARKS.foreign, (v) => { MARKS.foreign = Math.max(0, Math.round(v)); }, 1, ''],
+    ]);
+    el.append(levels.table, note('Los puntos se ponen en el menú de dificultad, en la pantalla de inicio (R desde la pausa). Lo demás vale desde la próxima partida: la de ahora ya está armada.'));
 
     el.append(heading('Rebote del escudo'));
     const ricochet = this.numbers([

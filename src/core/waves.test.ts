@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, ENEMIES, ELITE, elite, GIANTS, giantScale, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, POWERED, POWERS, WAVE_MODS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Wave } from './waves';
+import { DIFFICULTY, rulesFor } from './difficulty';
+import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -94,13 +95,18 @@ describe('waves', () => {
 
   it('un tercio sale con poder: la mitad con el del escenario y el primero que aparece lo presenta', () => {
     for (const run of runs(15)) {
+      const unused = SCENARIO_POWERS.filter((p) => !run.powers.includes(p));
       run.waves.forEach((w, i) => {
         for (let seed = 1; seed < 8; seed++) {
           const order = spawnOrder(w, seeded(seed));
           const fixed = w.groups.filter((g) => g.mods || g.plain).reduce((n, g) => n + g.count, 0);
           const exploders = order.filter((o) => o.mods?.explode).length;
-          const open = order.filter((o) => !ENEMIES[o.kind].boss).length - fixed - exploders;
-          const drawn = order.filter((o) => hasPower(o.mods) && !o.mods!.explode && !o.plain && !w.groups.some((g) => g.mods === o.mods));
+          // la marca de «todos con poder» va aparte del tercio, con los poderes que no salieron
+          const isForeign = (o: Spawn) => !!w.foreign && unused.some((p) => has(o.mods, p)) && !w.groups.some((g) => g.mods === o.mods);
+          const foreign = order.filter(isForeign).length;
+          if (w.foreign) expect(foreign, w.title).toBe(w.foreign.count);
+          const open = order.filter((o) => !ENEMIES[o.kind].boss).length - fixed - exploders - foreign;
+          const drawn = order.filter((o) => hasPower(o.mods) && !o.mods!.explode && !o.plain && !isForeign(o) && !w.groups.some((g) => g.mods === o.mods));
           // con «todos con poder», todos; si no, un tercio
           expect(drawn.length, `${i} ${w.title}`).toBe(w.mod === 'powered' ? open : Math.round(open / 3));
           // el jefe nunca; nadie recibe un poder que no pueda tener
@@ -127,21 +133,50 @@ describe('waves', () => {
     }
   });
 
-  it('la segunda oleada de cada escenario trae un modificador: los tres, en orden al azar', () => {
+  it('dos olas especiales: la segunda oleada de la partida y la segunda de otro escenario, distintas', () => {
     const orders = new Set<string>();
     for (const run of runs(30)) {
-      const mods = [1, 4, 7].map((i) => run.waves[i].mod);
-      expect([...mods].sort()).toEqual([...WAVE_MODS].sort());
-      orders.add(mods.join());
-      // las demás no traen
-      run.waves.forEach((w, i) => { if (i % 3 !== 1 || i === 9) expect(w.mod, w.title).toBeUndefined(); });
+      expect(run.waves[1].mod).toBeDefined();
+      const later = [4, 7].filter((i) => run.waves[i].mod);
+      expect(later).toHaveLength(1);
+      expect(run.waves[later[0]].mod).not.toBe(run.waves[1].mod);
+      expect(run.specials).toEqual([run.waves[1].mod, run.waves[later[0]].mod]);
+      orders.add(`${run.specials.join()} ${later[0]}`);
+      // las demás no son especiales
+      run.waves.forEach((w, i) => { if (i !== 1 && i !== later[0]) expect(w.mod, w.title).toBeUndefined(); });
     }
-    expect(orders.size).toBeGreaterThan(3);
+    expect(orders.size).toBeGreaterThan(6);
+  });
+
+  it('cada ola especial deja su marca en las oleadas que siguen', () => {
+    for (const run of runs(30)) {
+      const unused = SCENARIO_POWERS.filter((p) => !run.powers.includes(p));
+      run.waves.forEach((w, i) => {
+        const before = run.waves.slice(0, i).map((x) => x.mod);
+        // los gigantes: unos cuantos gigantes por oleada, nunca el élite ni el jefe
+        expect(w.giants, w.title).toBe(before.includes('giants') ? MARKS.giants : undefined);
+        if (w.giants) {
+          const giants = spawnOrder(w, seeded(i + 2)).filter((o) => o.mods?.giant);
+          expect(giants).toHaveLength(MARKS.giants);
+          for (const o of giants) expect(!o.mods?.size && !ENEMIES[o.kind].boss).toBe(true);
+        }
+        // todos con poder: unos pocos con los poderes que no salieron
+        expect(w.foreign, w.title).toEqual(before.includes('powered') ? { keys: unused, count: MARKS.foreign } : undefined);
+        // la estampida: kamikazes, y solo después de ella
+        expect(!!w.kamikaze, w.title).toBe(before.includes('stampede'));
+      });
+    }
+    // la estampida suma chicos: la misma oleada con la marca trae MARKS.stampede más
+    const count = (w: Wave) => w.groups.reduce((n, g) => n + g.count, 0);
+    const marked = runs(40).find((r) => r.waves[1].mod === 'stampede')!;
+    const plain = buildRun(seeded(1), { ...HARDEST, specials: 0 });
+    expect(count(marked.waves[2])).toBe(count(plain.waves[2]) + MARKS.stampede);
   });
 
   it('los gigantes: menos, bien más grandes pero más chicos que el élite, más lentos y con más vida', () => {
-    for (const run of runs(10)) {
+    for (const run of runs(20)) {
       const i = run.waves.findIndex((w) => w.mod === 'giants');
+      if (i < 0) continue;
       const s = Math.floor(i / 3);
       const w = run.waves[i];
       const order = spawnOrder(w, seeded(3));
@@ -165,26 +200,30 @@ describe('waves', () => {
 
   it('todos con poder: cada uno trae uno, a veces de los que no salieron sorteados, y con menos vida', () => {
     const outside = new Set<string>();
-    for (const run of runs(20)) {
-      const w = run.waves.find((x) => x.mod === 'powered')!;
+    for (const run of runs(30)) {
+      const w = run.waves.find((x) => x.mod === 'powered');
+      if (!w) continue;
       for (const o of spawnOrder(w, seeded(4))) {
-        // (en la segunda oleada no hay élite: a todos les toca lo mismo)
-        expect(o.mods?.hp, o.kind).toBe(POWERED.hp);
+        // (en la segunda oleada no hay élite: a todos les toca lo mismo; la marca de los gigantes, si
+        // vino antes, les suma vida a unos cuantos)
+        if (!o.mods?.giant) expect(o.mods?.hp, o.kind).toBe(POWERED.hp);
         for (const p of SCENARIO_POWERS) if (has(o.mods, p) && !run.powers.includes(p)) outside.add(p);
       }
     }
     expect(outside.size).toBeGreaterThan(0);
   });
 
-  it('el kamikaze sale en todas las oleadas, de a poco, y solo entre los chicos', () => {
+  it('el kamikaze sale después de la estampida, de a poco, y solo entre los chicos', () => {
     let small = 0;
     let boom = 0;
     let seed = 1;
-    for (const run of runs(20)) {
+    for (const run of runs(30)) {
       for (const w of run.waves) {
-        // la estampida lleva su parte fija; las demás, la chance
-        expect(!!w.kamikaze, w.title).toBe(!w.explode);
-        if (!w.kamikaze) continue;
+        if (!w.kamikaze) {
+          // sin estampida antes, nadie explota (salvo en la estampida misma)
+          if (!w.explode) for (const o of spawnOrder(w, seeded(seed++))) expect(o.mods?.explode, w.title).toBeUndefined();
+          continue;
+        }
         // una semilla por oleada: el kamikaze es lo primero que se sortea, con la misma saldrían los mismos
         for (const o of spawnOrder(w, seeded(seed++ * 7919))) {
           if (o.mods?.explode) expect(canTake(o.kind, o.mods), `${w.title}: ${o.kind}`).toBe(true);
@@ -201,9 +240,10 @@ describe('waves', () => {
   });
 
   it('la estampida: muchos, chicos, y los que explotan son de los más chicos', () => {
-    for (const run of runs(10)) {
-      const w = run.waves.find((x) => x.explode)!;
-      // es el modificador de la segunda oleada de algún escenario
+    for (const run of runs(20)) {
+      const w = run.waves.find((x) => x.explode);
+      if (!w) continue;
+      // es la segunda oleada de algún escenario
       expect(w.mod).toBe('stampede');
       expect(run.waves.indexOf(w) % 3).toBe(1);
       const order = spawnOrder(w, seeded(5));
@@ -211,6 +251,54 @@ describe('waves', () => {
       const exploders = order.filter((o) => o.mods?.explode);
       expect(exploders.length).toBe(Math.round(order.length * w.explode!));
       for (const o of exploders) expect(ENEMIES[o.kind].hp).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('sin puntos de dificultad: un poder por oleada, sin olas especiales, apoyos ni kamikazes', () => {
+    const rules = rulesFor({});
+    for (let r = 1; r <= 30; r++) {
+      const run = buildRun(seeded(r), rules);
+      expect(run.specials).toEqual([]);
+      expect(run.supports).toEqual([]);
+      run.waves.forEach((w, i) => {
+        expect(w.mod, w.title).toBeUndefined();
+        expect(w.supports, w.title).toBeUndefined();
+        expect(w.old ?? [], w.title).toEqual([]);
+        expect(w.kamikaze || w.giants || w.foreign, w.title).toBeFalsy();
+        for (const o of spawnOrder(w, seeded(r * 31 + i))) {
+          if (ENEMIES[o.kind].boss) continue;
+          // todos más lentos
+          expect(o.mods?.speed, o.kind).toBeCloseTo(DIFFICULTY.speed[0]);
+          if (!hasPower(o.mods) || o.mods?.size) continue;
+          // solo el poder del escenario, más flojo; y en la del jefe, ninguno
+          expect(w.focus, `${w.title}: ${o.kind}`).toBeDefined();
+          expect(has(o.mods, w.focus!), w.title).toBe(true);
+          expect(o.mods?.shield ?? 0).toBeLessThanOrEqual(DIFFICULTY.cap[0]);
+          expect(o.mods?.armor ?? 0).toBeLessThanOrEqual(DIFFICULTY.cap[0]);
+          if (o.mods?.dodge) expect(o.mods.dodgeEvery).toBeGreaterThan(DODGE.cooldown);
+          if (o.mods?.divine) expect(o.mods.divine).toBeGreaterThan(DIVINE.every);
+        }
+      });
+      // el élite, con menos vida
+      for (const s of [0, 1, 2]) {
+        const e = run.waves[s * 3 + 2].groups.find((g) => g.mods?.size)!;
+        expect(e.mods!.hp).toBe(ELITE.hp[s] - DIFFICULTY.eliteHpLess[0]);
+      }
+    }
+  });
+
+  it('los apoyos: con un punto, uno solo en el último escenario; con dos, desde el segundo', () => {
+    for (let r = 1; r <= 20; r++) {
+      const one = buildRun(seeded(r), rulesFor({ support: 1 }));
+      expect(one.supports).toHaveLength(1);
+      one.waves.forEach((w) => expect(!!w.supports, w.title).toBe(w.scenario === 2));
+      const two = buildRun(seeded(r), rulesFor({ support: 2 }));
+      expect(two.supports).toHaveLength(2);
+      two.waves.forEach((w) => expect(!!w.supports, w.title).toBe(w.scenario === 1 || w.scenario === 2));
+      // con escolta, el jefe trae los poderes de la partida y los apoyos
+      const escort = buildRun(seeded(r), rulesFor({ support: 2, escort: 1 }));
+      expect(escort.waves[9].old).toEqual(escort.powers);
+      expect(escort.waves[9].supports?.map((s) => s.key)).toEqual(escort.supports);
     }
   });
 
