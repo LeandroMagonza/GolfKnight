@@ -5,7 +5,7 @@
 // no llevan poder: las habilidades van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
-import { burnSeconds, effectOnly, ELEMENTS, lv, type Element } from '../core/abilities';
+import { burnSeconds, effectOnly, ELEMENTS, freezeFrom, lv, type Element } from '../core/abilities';
 import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
@@ -28,6 +28,8 @@ export interface Ball {
   bounce: BounceParams;
   /** Nivel de calidad del golpe: 1, 2 o 3. */
   quality: number;
+  /** El nivel de la habilidad (los tiros de palo y elemento): cuánto dura el elemento. Si no, `quality`. */
+  level: number;
   /** De dónde salió, para saber a qué distancia pega. */
   from: THREE.Vector3;
   /** Tiros de habilidad (palo y elemento): el elemento que deja en cada uno que alcanza. */
@@ -189,7 +191,7 @@ export class Balls {
     // el efecto curva hacia la derecha de la pantalla, que es el costado (-dz, dx) de la dirección
     const spin = tennis ? null : spinFor(state, range, shot.curve, -shot.dir.z, shot.dir.x, bounce.rollFriction ?? ROLL_FRICTION);
     const ball: Ball = {
-      state, club: shot.club, bounce, quality: shot.quality,
+      state, club: shot.club, bounce, quality: shot.quality, level: shot.level ?? shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
       element: shot.element ?? null, ability: !!shot.ability,
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
@@ -320,13 +322,13 @@ export class Balls {
     // fantasma no deja nada: lo suyo es el golpe mismo (ver Horde.damage)
     if (!ball.element || ball.element === 'wind' || ball.element === 'ghost') return;
     if (ball.element === 'ice') {
-      this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.quality));
-      if (ball.quality >= ELEMENTS.iceFreezeFrom) this.horde.freeze(enemy);
-    } else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.quality)));
+      this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.level));
+      if (ball.level >= freezeFrom(ball.club.id)) this.horde.freeze(enemy);
+    } else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.level)));
     // a cada uno que toca le cae un rayo, y de ahí sale el suyo
-    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.quality), true);
+    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.level), true);
     // lo deja apagado para lo que venga
-    else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.quality));
+    else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.level));
   }
 
   /**
@@ -334,7 +336,7 @@ export class Balls {
    * ráfaga que los manda para atrás, hacia donde iba el tiro.
    */
   private windBurst(ball: Ball, pos: THREE.Vector3): void {
-    const level = ball.quality;
+    const level = ball.level;
     if (ball.club.id === 'wedge') {
       const radius = lv(ELEMENTS.windPull, level);
       this.horde.whirl(pos, radius);
@@ -353,7 +355,7 @@ export class Balls {
     const s = ball.state;
     const gone = (s.pos.x - ball.from.x) * ball.dir.x + (s.pos.z - ball.from.z) * ball.dir.z;
     if (gone <= ball.windSwept) return;
-    const half = lv(ELEMENTS.windLine, ball.quality);
+    const half = lv(ELEMENTS.windLine, ball.level);
     const mid = ball.from.clone().addScaledVector(ball.dir, (ball.windSwept + gone) / 2);
     mid.y = heightAt(mid.x, mid.z);
     this.horde.sweep(mid, ball.dir, half, (gone - ball.windSwept) / 2, ball.windCaught);

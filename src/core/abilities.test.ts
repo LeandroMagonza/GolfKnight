@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, hintAt, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, freezeFrom, hintAt, ICE, lv, MAX_LEVEL, shotQuality, SLOTS } from './abilities';
 import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
@@ -84,6 +84,16 @@ describe('habilidades', () => {
     // el fantasma pasa todo desde el nivel 1: la carta lo dice igual en todos
     expect(hintAt(ABILITIES['iron-ghost'], 1)).toBe('Un disparo de hierro instantáneo que atraviesa escudos, blindaje, fantasmas e inmunes');
     expect(hintAt(ABILITIES['iron-ghost'], 3)).toBe(hintAt(ABILITIES['iron-ghost'], 1));
+  });
+
+  it('los tiros del wedge saltean la pifia: dos niveles, con el golpe 2 y el 3', () => {
+    expect(shotQuality('wedge', 1)).toBe(2);
+    expect(shotQuality('wedge', 2)).toBe(3);
+    expect(shotQuality('driver', 1)).toBe(1);
+    expect(shotQuality('putter', 3)).toBe(3);
+    // el hielo del wedge congela en su último nivel
+    expect(freezeFrom('wedge')).toBe(2);
+    expect(freezeFrom('iron')).toBe(ELEMENTS.iceFreezeFrom);
   });
 
   it('la zona de hielo frena y al salir se va enseguida', () => {

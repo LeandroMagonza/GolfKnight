@@ -23,6 +23,11 @@ export interface Shot {
   club: Club;
   /** Calidad del golpe: 1, 2 o 3. Puro timing; la distancia la decide el mouse. */
   quality: number;
+  /**
+   * Tiros de habilidad: el nivel de la habilidad, que decide cuánto dura el elemento. Puede no ser el
+   * golpe: el wedge saltea la pifia (ver `shotQuality`). Sin esto, el de `quality`.
+   */
+  level?: number;
   /** Potencia cruda al soltar, para los sonidos. */
   power: number;
   /** Efecto: metros que se corre el tiro al final, hacia la derecha de la pantalla (negativo, izquierda). */

@@ -13,7 +13,7 @@
 // - **Las demás**, cada una con su mecánica propia: hielo, carrito, hoyo, bandera, pólvora, lluvia de
 //   pelotas, caddie dorado, lupa, clon, palazo, eco y potencia. (El 1/10 se fueron el boomerang, que
 //   tiraba el palo de la mano, y la granada: el silencio en área es el wedge silenciador.)
-import { CLUBS, spreadFor, type ClubId } from './clubs';
+import { CLUBS, QUALITY_LEVELS, spreadFor, type ClubId } from './clubs';
 
 export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning' | 'wind' | 'ghost' | 'silence';
@@ -286,17 +286,40 @@ export function hintAt(a: Ability, level: number): string {
     const n = lv(ECHO.shots, level);
     return n > 1 ? `Tu próximo tiro se repite ${n} veces` : a.hint;
   }
-  if (a.element === 'ice' && level >= ELEMENTS.iceFreezeFrom) return a.hint.replace('enfría', 'enfría y congela');
+  if (a.element === 'ice' && a.club && level >= freezeFrom(a.club)) return a.hint.replace('enfría', 'enfría y congela');
   return a.hint;
 }
 
 /** Las que no tienen nada que mejorar al subir de nivel: la carta para subirlas no sale. */
 const NO_LEVELS: AbilityKind[] = ['rain'];
 
+/**
+ * Los tiros de habilidad del wedge (3/10, pedido de Leandro): el golpe 1 del wedge es la pifia, así que
+ * se saltea. Tienen dos niveles, que salen con el golpe 2 y el 3 (pegan 1 y 2).
+ */
+const SHOT_MAX_LEVEL: Partial<Record<ClubId, number>> = { wedge: 2 };
+
+/** Hasta qué nivel suben los tiros de habilidad de este palo. */
+export function shotMaxLevel(club: ClubId): number {
+  return SHOT_MAX_LEVEL[club] ?? MAX_LEVEL;
+}
+
+/** Con qué golpe sale el tiro de una habilidad de este palo en este nivel: el wedge saltea la pifia. */
+export function shotQuality(club: ClubId, level: number): number {
+  return Math.min(QUALITY_LEVELS, level + (QUALITY_LEVELS - shotMaxLevel(club)));
+}
+
+/** Desde qué nivel congela el tiro de hielo de este palo: el de ELEMENTS, o el último que tenga. */
+export function freezeFrom(club: ClubId): number {
+  return Math.min(ELEMENTS.iceFreezeFrom, shotMaxLevel(club));
+}
+
 /** Hasta qué nivel sube una habilidad. La lluvia de pelotas es igual en todos: se queda en 1. */
 export function maxLevelOf(id: AbilityId): number {
   const a = ABILITIES[id];
-  return a && NO_LEVELS.includes(a.kind) ? 1 : MAX_LEVEL;
+  if (!a) return MAX_LEVEL;
+  if (NO_LEVELS.includes(a.kind)) return 1;
+  return a.kind === 'shot' && a.club ? shotMaxLevel(a.club) : MAX_LEVEL;
 }
 
 /**
@@ -332,7 +355,7 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
     case 'shot': {
       const club = CLUBS[a.club!];
       switch (a.element) {
-        case 'ice': table('Enfría', ELEMENTS.iceSeconds, ' s'); gains('Congela', ELEMENTS.iceFreezeFrom); break;
+        case 'ice': table('Enfría', ELEMENTS.iceSeconds, ' s'); gains('Congela', freezeFrom(a.club!)); break;
         case 'fire': stat('Daño del fuego', (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage); break;
         case 'lightning': table('Saltos por lado', ELEMENTS.chainJumps); break;
         case 'wind':
@@ -343,9 +366,9 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
         case 'ghost': stat('Golpe', (l) => l); break;
         case 'silence': table('Silencia', ELEMENTS.silenceSeconds, ' s'); break;
       }
-      // el tiro sale cargado al nivel: el área del hierro y del wedge crece con él (el viento no: el
-      // remolino y la ráfaga tienen su propio radio, que ya dice arriba)
-      if (a.element !== 'wind') stat('Área', (l) => spreadFor(club, l), ' m');
+      // el tiro sale con el golpe del nivel (el wedge, uno más): el área del hierro y del wedge crece con
+      // él (el viento no: el remolino y la ráfaga tienen su propio radio, que ya dice arriba)
+      if (a.element !== 'wind') stat('Área', (l) => spreadFor(club, shotQuality(a.club!, l)), ' m');
       break;
     }
   }

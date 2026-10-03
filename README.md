@@ -117,7 +117,8 @@ arriba) y *atraviesa* (pasa de largo hasta a tres y abre su área donde cae, le 
 clases:
 
 - **Habilidad**: una nueva va al primer lugar libre de `Q`, `W`, `E` o `R`. Si ya la tenés, sube de
-  nivel (hasta 3): pega más o agarra más, y recarga igual (el costo es la carta que no elegiste; solo el palazo recarga un 30 % más lento por nivel, porque con poca recarga dejaría frenar la oleada sin fin).
+  nivel (hasta 3; los tiros del wedge, hasta 2, porque su golpe 1 es la pifia y se saltea: salen con el
+  golpe 2 y el 3): pega más o agarra más, y recarga igual (el costo es la carta que no elegiste; solo el palazo recarga un 30 % más lento por nivel, porque con poca recarga dejaría frenar la oleada sin fin).
 - **Mejora**: cosas que valen para todo el juego. A propósito no tocan la tabla de daño de ningún palo,
   para no romper la regla de «cada palo tiene su distancia».
 - **No hay cartas de curarse**: eran mucho peores que el Botiquín, que cura un poco al terminar cada

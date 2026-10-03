@@ -7,7 +7,7 @@
 // pelotas, el caddie, el clon y el palazo) lo hace el juego, a través de `hooks`.
 import * as THREE from 'three';
 import {
-  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, HOLE, ICE, LENS, lv, MAX_LEVEL, POWDER, SLOTS,
+  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, HOLE, ICE, LENS, lv, maxLevelOf, POWDER, SLOTS,
   type AbilityId, type Element,
 } from '../core/abilities';
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
@@ -21,8 +21,8 @@ import { FIELD_HALF_WIDTH, GATE_Z } from './world';
 
 /** Lo que las habilidades le piden al juego. */
 export interface AbilityHooks {
-  /** Tiro de palo y elemento: sale del puesto, con pelota gratis, cargado a `quality`. */
-  fireShot(club: ClubId, quality: number, element: Element): void;
+  /** Tiro de palo y elemento de nivel `level`: sale del puesto, con pelota gratis (ver `shotQuality`). */
+  fireShot(club: ClubId, level: number, element: Element): void;
   /** Lluvia de pelotas: una en cada puesto. Devuelve cuántas puso. */
   fillSpots(): number;
   /** Caddie dorado: tu puesto no se queda sin pelota durante `seconds`. */
@@ -133,7 +133,7 @@ export class Abilities {
   learn(id: AbilityId): boolean {
     const have = this.slots.find((s) => s.id === id);
     if (have) {
-      if (have.level >= MAX_LEVEL) return false;
+      if (have.level >= maxLevelOf(id)) return false;
       have.level++;
       return true;
     }
@@ -147,7 +147,7 @@ export class Abilities {
    * un lugar), y una que no tenías va al primer lugar libre. Devuelve false si no había lugar.
    */
   setLevel(id: AbilityId, level: number): boolean {
-    const to = Math.max(0, Math.min(MAX_LEVEL, Math.round(level)));
+    const to = Math.max(0, Math.min(maxLevelOf(id), Math.round(level)));
     const i = this.slots.findIndex((s) => s.id === id);
     if (to === 0) {
       if (i >= 0) {

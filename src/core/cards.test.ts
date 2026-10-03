@@ -81,7 +81,9 @@ describe('cartas', () => {
       expect(describeCard({ kind: 'ability', id, level: 1 }).up, id).toBeUndefined();
       for (let level = 2; level <= maxLevelOf(id); level++) expect(describeCard({ kind: 'ability', id, level }).up, `${id} ${level}`).toBeTruthy();
     }
-    expect(upgradeNote('wedge-lightning', 2)).toBe('Saltos por lado: 2 → 3 · Área: 3.5 → 4.2 m');
+    // el wedge saltea la pifia: su nivel 1 sale con el golpe 2, así que el área es la del 2 y la del 3
+    expect(upgradeNote('wedge-lightning', 2)).toBe('Saltos por lado: 2 → 3 · Área: 4.2 → 5 m');
+    expect(upgradeNote('wedge-ice', 2)).toContain('Congela');
     expect(upgradeNote('driver-ghost', 2)).toBe('Golpe: 1 → 2');
     expect(upgradeNote('iron-ice', 3)).toContain('Congela');
     expect(upgradeNote('iron-ice', 2)).not.toContain('Congela');
@@ -89,6 +91,11 @@ describe('cartas', () => {
     expect(maxLevelOf('rain')).toBe(1);
     const pool = candidates(fresh({ slots: [{ id: 'rain', level: 1 }] }));
     expect(pool.some((c) => c.card.kind === 'ability' && c.card.id === 'rain')).toBe(false);
+    // los tiros del wedge llegan hasta el 2: no se ofrece el 3
+    expect(maxLevelOf('wedge-fire')).toBe(2);
+    expect(maxLevelOf('iron-fire')).toBe(3);
+    const wedge = candidates(fresh({ slots: [{ id: 'wedge-fire', level: 2 }] }));
+    expect(wedge.some((c) => c.card.kind === 'ability' && c.card.id === 'wedge-fire')).toBe(false);
   });
 
   it('las mejoras que recargan dicen su recarga abajo, no en el texto', () => {

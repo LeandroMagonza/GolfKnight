@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ECHO, ICE, lv, PALAZO, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, ECHO, ICE, lv, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
@@ -1225,12 +1225,14 @@ function removeClone(): void {
 }
 
 abilities.hooks = {
-  fireShot(clubId: ClubId, quality: number, element: Element) {
+  fireShot(clubId: ClubId, level: number, element: Element) {
     const club = CLUBS[clubId];
     player.teePosition(tee);
     const range = shotRange(club);
+    // el wedge saltea la pifia: su nivel 1 sale con el golpe 2
+    const quality = shotQuality(clubId, level);
     audio.tock(quality >= QUALITY_LEVELS);
-    balls.fire({ club, quality, power: 1, curve: 0, element, ability: true, from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
+    balls.fire({ club, quality, level, power: 1, curve: 0, element, ability: true, from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
   },
   fillSpots() {
     if (pocket) {
