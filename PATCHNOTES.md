@@ -34,6 +34,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   hasta 3, y escurridizos y benditos con la recarga rápida). Siguen siendo 13 puntos. `00dfdeb`
 - Prender o apagar el terreno irregular en la entrada cambia el campo en el acto, sin recargar la
   página. `98948f4`
+- Más rápidos tiene un nivel más, y arranca más lento: sin puntos los enemigos van a 0.76 de su
+  velocidad, y con los tres puntos, a 1.12 (lo que antes era con dos). Más con poder también suma
+  uno: con el segundo, la mitad de los enemigos trae poder. Ahora son 15 puntos. `f12f491`
 
 **Golf**
 - Subir una habilidad de nivel ya no la hace recargar más lento: es mejora pura. Solo el palazo sigue
