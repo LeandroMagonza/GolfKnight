@@ -60,11 +60,11 @@ const params = new URLSearchParams(location.search);
  * entre partidas, desde la pantalla de inicio o el cartel del final.
  */
 const progress = loadProgress();
-/** Los campos con lomas son un talento: sin él se juega en el liso. Es lo que se armó al cargar. */
-const builtHills = hillsOn(progress.picks);
+/** Los campos con lomas son un talento: sin él se juega en el liso. Es lo que está armado ahora. */
+let builtHills = hillsOn(progress.picks);
 // el tenis se juega en cancha lisa: la pelota que rebota no sabe de lomas. ?campo=N y ?plano mandan
 // sobre la dificultad (las pruebas y el que mira usan el campo del que juega)
-const gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.get('campo') ?? (builtHills ? null : 'plano'));
+let gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.get('campo') ?? (builtHills ? null : 'plano'));
 // el balance ajustado en el panel vuelve al recargar: cambiar de campo recarga la página, así que sin
 // esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
 const savedBalance = loadBalance();
@@ -150,10 +150,16 @@ for (const b of diffButtons) {
   });
 }
 difficultyMenu.onChange = paintDifficulty;
-// el campo se arma al cargar: si antes de empezar se prendió o se apagó el terreno irregular, se vuelve
-// a cargar (en el cartel del final no hace falta: la R ya recarga)
+// si antes de empezar se prendió o se apagó el terreno irregular, el campo se cambia en el acto (en el
+// cartel del final no hace falta: la R arma la partida nueva). ?plano y ?campo mandan sobre la dificultad
 difficultyMenu.onClose = () => {
-  if (!started && hillsOn(progress.picks) !== builtHills && !params.has('plano') && !params.has('campo') && !TENNIS_ON) location.reload();
+  if (started || hillsOn(progress.picks) === builtHills || params.has('plano') || params.has('campo') || TENNIS_ON) return;
+  builtHills = hillsOn(progress.picks);
+  gameCourse = pickCourse(builtHills ? null : 'plano');
+  world.rebuildField();
+  // la marca de caída, como al armarla: con relieve se dibuja por encima del piso
+  landingMat.depthTest = !relief.on;
+  landingMat.needsUpdate = true;
 };
 
 /**

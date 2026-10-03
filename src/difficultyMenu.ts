@@ -12,7 +12,7 @@ export class DifficultyMenu {
   dirty = false;
   /** Avisa cada cambio (para refrescar los botones que dicen el nivel). */
   onChange: (() => void) | null = null;
-  /** Avisa al cerrar (si cambió el campo, hay que volver a cargar la página). */
+  /** Avisa al cerrar (si se prendió o se apagó el terreno irregular, se cambia el campo). */
   onClose: (() => void) | null = null;
 
   constructor(readonly progress: Progress) {

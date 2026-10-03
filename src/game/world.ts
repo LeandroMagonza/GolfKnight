@@ -86,34 +86,65 @@ export class World {
   readonly hemi = new THREE.HemisphereLight(0xdff1ff, 0x4a6b3a, 1.5);
   readonly sun = new THREE.DirectionalLight(0xfff2d6, 2.4);
 
+  /**
+   * Lo que depende del campo: el piso, las rayas de distancia, los árboles y las piedras (que se apoyan
+   * en el piso) y los bunkers. Va en un grupo aparte para poder rearmarlo cuando cambia el campo
+   * (`rebuildField`); la muralla, la puerta y los guardias están en el llano y no se enteran.
+   */
+  private readonly field = new THREE.Group();
+
   constructor(scene: THREE.Scene) {
     scene.background = new THREE.Color(0x9fd3f0);
     scene.fog = new THREE.Fog(0x9fd3f0, 70, 140);
     scene.add(this.hemi);
     this.sun.position.set(-10, 18, -6);
     scene.add(this.sun);
-
-    if (relief.on) {
-      this.buildTerrain(scene);
-      this.buildWall(scene);
-      this.buildScenery(scene);
-      return;
-    }
-    const rough = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x2f6b38, roughness: 1 }));
-    rough.rotation.x = -Math.PI / 2;
-    rough.position.y = -0.02;
-    scene.add(rough);
-    const fairway = new THREE.Mesh(
-      new THREE.PlaneGeometry(FIELD_HALF_WIDTH * 2 + 4, 120),
-      new THREE.MeshStandardMaterial({ map: fairwayTexture(), roughness: 1 }),
-    );
-    fairway.rotation.x = -Math.PI / 2;
-    fairway.position.z = 56;
-    scene.add(fairway);
-
-    this.buildDistanceMarks(scene);
+    scene.add(this.field);
+    this.buildField();
     this.buildWall(scene);
-    this.buildScenery(scene);
+  }
+
+  /** Arma el campo que diga core/terrain: con relieve, una malla; liso, el rough y el fairway. */
+  private buildField(): void {
+    const g = this.field;
+    if (relief.on) this.buildTerrain(g);
+    else {
+      const rough = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x2f6b38, roughness: 1 }));
+      rough.rotation.x = -Math.PI / 2;
+      rough.position.y = -0.02;
+      g.add(rough);
+      const fairway = new THREE.Mesh(
+        new THREE.PlaneGeometry(FIELD_HALF_WIDTH * 2 + 4, 120),
+        new THREE.MeshStandardMaterial({ map: fairwayTexture(), roughness: 1 }),
+      );
+      fairway.rotation.x = -Math.PI / 2;
+      fairway.position.z = 56;
+      g.add(fairway);
+    }
+    this.buildDistanceMarks(g);
+    this.buildScenery(g);
+  }
+
+  /**
+   * Cambió el campo (se prendió o se apagó el terreno irregular antes de empezar): tira el de antes y
+   * arma el nuevo, sin recargar la página.
+   */
+  rebuildField(): void {
+    this.field.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.material) return;
+      // los carteles son sprites, que comparten una sola geometría: de esos se tira solo el material
+      if (mesh.isMesh) mesh.geometry.dispose();
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        (m as THREE.MeshStandardMaterial).map?.dispose();
+        m.dispose();
+      }
+    });
+    this.field.clear();
+    this.terrainGeo = null;
+    this.marks.length = 0;
+    this.labels.length = 0;
+    this.buildField();
   }
 
   /**
@@ -121,7 +152,7 @@ export class World {
    * core/terrain. El color hace de mapa: franjas de fairway, rough a los costados, y más claro en las
    * lomas y más oscuro en el valle, para que el relieve se lea desde la cámara fija.
    */
-  private buildTerrain(scene: THREE.Scene): void {
+  private buildTerrain(scene: THREE.Object3D): void {
     const geo = new THREE.PlaneGeometry(TERRAIN.width, TERRAIN.depth, TERRAIN.width, TERRAIN.depth);
     geo.rotateX(-Math.PI / 2);
     geo.translate(0, 0, TERRAIN.centerZ);
@@ -133,7 +164,6 @@ export class World {
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
     mesh.receiveShadow = true;
     scene.add(mesh);
-    this.buildDistanceMarks(scene);
   }
 
   /** La malla del campo con relieve (null en el campo liso). */
@@ -204,7 +234,7 @@ export class World {
    * Las rayas de 20 y 40 m son los bordes de las bandas de daño: ahí cambia cuánto pega cada palo, así
    * que se ven más marcadas y llevan el nombre de la banda.
    */
-  private buildDistanceMarks(scene: THREE.Scene): void {
+  private buildDistanceMarks(scene: THREE.Object3D): void {
     const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
     const bandMat = new THREE.MeshBasicMaterial({ color: 0xffd66b, transparent: true, opacity: 0.55 });
     for (let d = 0; d <= 60; d += 10) {
@@ -303,7 +333,7 @@ export class World {
     }
   }
 
-  private buildScenery(scene: THREE.Scene): void {
+  private buildScenery(scene: THREE.Object3D): void {
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3d25, roughness: 1 });
     const leafMats = [0x2e7d3a, 0x3c8c46, 0x27693a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1 }));
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8d90, roughness: 1, flatShading: true });

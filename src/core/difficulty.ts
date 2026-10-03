@@ -95,8 +95,8 @@ export function rulesFor(picks: Picks): RunRules {
 }
 
 /**
- * ¿Se juega en un campo con lomas? Es un talento más (3/10): sin él, el campo liso. El campo se arma al
- * cargar la página, así que cambiarlo antes de empezar la vuelve a cargar.
+ * ¿Se juega en un campo con lomas? Es un talento más (3/10): sin él, el campo liso. Cambiarlo antes de
+ * empezar cambia el campo en el acto (ver World.rebuildField).
  */
 export function hillsOn(picks: Picks): boolean {
   return levelOf(picks, 'terrain') >= 1;

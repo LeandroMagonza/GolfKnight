@@ -320,7 +320,7 @@ partida. Se guarda en el navegador. Son 13 puntos en 10 talentos:
 | Apoyos | 1: en el último escenario; 2: desde el segundo |
 | Poderes más duros | escudos y blindajes de hasta 3 (sin el punto, hasta 2), y el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6) |
 | Más rápidos | sin puntos los enemigos van a ×0.85; 1: a su velocidad; 2: ×1.12 |
-| Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). El campo se arma al cargar: cambiarlo en la pantalla de inicio la vuelve a cargar |
+| Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). Cambiarlo en la pantalla de inicio cambia el campo en el acto |
 | Más con poder | un tercio en vez de un cuarto |
 | Élites más duros | +2 de vida (sin el punto, el élite trae 2 menos) |
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
