@@ -28,9 +28,14 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   chicos y algunos kamikazes (sin estampida no hay), después de los gigantes vienen algunos gigantes, y
   después de «todos con poder», unos pocos con los poderes que no salieron. `af3e875`
 
+**Golf**
+- Subir una habilidad de nivel ya no la hace recargar más lento: es mejora pura. Solo el palazo sigue
+  recargando más lento al subir. `531e74d`
+- El carcaj te da una pelota cada 10 s. `531e74d`
+
 **Detrás de escena**
 - Cada partida se manda sola al terminar, para ver dónde se pierde y balancear con datos. Sin datos
-  personales. `af3e875`
+  personales. `af3e875` `531e74d`
 
 ## 2 de octubre
 
