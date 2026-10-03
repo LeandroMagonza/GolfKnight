@@ -23,6 +23,17 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   les apaga los poderes (escudo, blindaje, burbuja, auras). Duran poco, llegan a toda la cancha y
   agarran poco: hay que coordinar para aprovecharlos. Cada uno recarga por su lado, y ninguno hace
   daño. En el celular parado, la cámara arranca viendo todo el ancho de la cancha. `4860abe`
+- Abe ahora va ganando sus hechizos: arranca eligiendo uno entre tres, y gana otro al terminar cada
+  oleada, hasta tener 4. Después le salen de nivel más alto (cualquiera, no solo los que tiene) y elige
+  cuál reemplaza o se queda con los suyos; puede tener el mismo dos veces, de distinto nivel, cada uno
+  con su recarga. Son siete: **Granizo** (los frena), **Remolino** (los junta), **Corriente** (del
+  caballero hasta donde toca Abe, los pone en fila), **Empujón** (los manda para atrás), **Maldición**,
+  **Silencio** y **Trampa** (queda en el piso, y el primero que la pisa deja atrapados a los de alrededor).
+  La Fila de antes es ahora la Corriente. `e45eec3`
+- La oleada que viene espera a que elijan los dos: vos tu carta y Abe su hechizo. Vos ves que lo está
+  esperando, y a él le salen las cartas solas. `e45eec3`
+- Podés echar a Abe y hacer la partida privada (no entra nadie más), con los botones debajo del enlace,
+  en la intro y en la pausa. Al echado le avisa; si había otro mirando, pasa a ser Abe. `e45eec3`
 
 **Dificultad (nuevo)**
 - La partida arranca más simple: cada oleada trae un solo poder (el de su escenario), no hay olas
