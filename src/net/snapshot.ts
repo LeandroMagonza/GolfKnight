@@ -6,6 +6,7 @@
 // las dos. Los eventos esperan a su hora para salir junto con lo que se ve.
 //
 // Acá van solo los tipos y las cuentas, sin Three.js: se prueban sin navegador.
+import type { StrikeSnap } from '../coop/abe';
 
 /** Fotos por segundo. */
 export const SNAP_HZ = 15;
@@ -149,6 +150,8 @@ export interface GameSnap {
   kills: number;
   /** Bolsillo del tenis: cuántas y de cuántas. */
   pk?: [number, number];
+  /** El granizo de Abe: segundos que le faltan, de cuántos es la recarga, y el radio. */
+  abe: [number, number, number];
 }
 
 export interface Snap {
@@ -163,6 +166,8 @@ export interface Snap {
   mk: MarkSnap[];
   ca: CartSnap[];
   mo: MoundSnap[];
+  /** Los granizos de Abe en camino. */
+  ab: StrikeSnap[];
 }
 
 /** El saludo: con qué partida se va a encontrar el que mira. */
@@ -194,11 +199,24 @@ export interface Bye {
   k: 'bye';
 }
 
-export type HostMsg = Snap | Hello | NetEvent | Bye;
+/** Qué es el que mira: Abe (el primero que entró, que tira el granizo) o solo espectador. */
+export interface Role {
+  k: 'role';
+  abe: boolean;
+}
+
+export type HostMsg = Snap | Hello | NetEvent | Bye | Role;
 
 /** El que mira se presenta: el que juega le contesta con el saludo. */
 export interface Watch {
   k: 'watch';
+}
+
+/** Abe tira el granizo en (x, z). */
+export interface Cast {
+  k: 'cast';
+  x: number;
+  z: number;
 }
 
 // ---------- cuentas ----------

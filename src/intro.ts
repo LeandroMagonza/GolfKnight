@@ -115,7 +115,7 @@ export class Intro {
   /** Cuántos están mirando, abajo del enlace. */
   setWatchers(n: number): void {
     const el = this.inviteBox.querySelector('.who') as HTMLElement;
-    el.textContent = n === 0 ? 'Todavía no entró nadie. Puede entrar ahora o con la partida empezada.' : n === 1 ? '👁 Ya está mirando' : `👁 Están mirando ${n}`;
+    el.textContent = n === 0 ? 'Todavía no entró nadie. Puede entrar ahora o con la partida empezada.' : n === 1 ? '🧙 Abe ya está en la partida' : `🧙 Abe y ${n - 1} mirando`;
   }
 
   /** La cinemática, a pantalla completa arriba del juego. Cuando termina o se salta, avisa con un mensaje. */

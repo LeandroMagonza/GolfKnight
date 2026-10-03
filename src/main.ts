@@ -42,6 +42,7 @@ import { connect, roomCode } from './net/link';
 import { MIRRORED, mirror, NetHost } from './net/host';
 import { NetSpectator } from './net/spectator';
 import type { GameSnap, Hello } from './net/snapshot';
+import { ABE, ABE_COLOR, AbeStrikes } from './coop/abe';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -70,6 +71,8 @@ const balls = new Balls(scene, horde, effects);
 /** Las lomas del geomante, a la vista (la altura ya la leen todos de core/terrain). */
 const moundView = new MoundView(scene, world);
 const abilities = new Abilities(scene, horde, effects);
+/** El granizo de Abe, el segundo jugador (src/coop): lo pide el que mira, cae en este juego. */
+const abe = new AbeStrikes(scene, horde, effects);
 const tees = new Tees(scene);
 const traps = new Traps(scene, horde, effects);
 balls.traps = traps;
@@ -1764,6 +1767,37 @@ const watchersEl = document.getElementById('watchers')!;
 let netHost: NetHost | null = null;
 let spectator: NetSpectator | null = null;
 
+// cae el granizo de Abe: el sonido del hielo (también le llega al que mira) y, acá, a cuántos agarró
+abe.onLand = (pos, hits) => {
+  audio.frost();
+  if (!hits) return;
+  const s = toScreen(pos, 1.5);
+  hud.float(s.x, s.y, `Abe ❄ ×${hits}`, '');
+};
+
+/** El panel de Abe (el que mira): su granizo y la recarga. Solo toca el DOM cuando cambia algo. */
+const abeEl = document.getElementById('abe')!;
+let abeKey = '';
+function showAbe(s: { abe: boolean; ready: boolean; left: number; total: number; why: string | null }): void {
+  const key = `${s.abe}|${s.ready}|${Math.ceil(s.left)}|${s.why}|${Math.round((s.left / s.total) * 50)}`;
+  if (key === abeKey) return;
+  abeKey = key;
+  abeEl.hidden = false;
+  abeEl.classList.toggle('other', !s.abe);
+  abeEl.classList.toggle('ready', s.ready);
+  (abeEl.querySelector('.who') as HTMLElement).textContent = s.abe ? '🧙 Sos Abe, el mago que lo invocó' : 'Mirando · Abe es el primero que entró';
+  (abeEl.querySelector('.fill') as HTMLElement).style.width = `${s.ready ? 100 : Math.round(100 * (1 - s.left / Math.max(0.1, s.total)))}%`;
+  (abeEl.querySelector('.state') as HTMLElement).textContent = s.why ?? (s.ready ? 'listo' : `${Math.ceil(s.left)} s`);
+}
+
+/** El que mira: dónde cae en el piso un punto de la pantalla (-1..1). */
+function groundAt(x: number, y: number): { x: number; z: number } | null {
+  raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+  const { origin: o, direction: d } = raycaster.ray;
+  const hit = raycastTerrain(o, d) ?? raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
+  return hit ? { x: hit.x, z: hit.z } : null;
+}
+
 /** El campo de esta partida, como va en la URL: 0 liso, 1..N con relieve. */
 function courseNumber(): number {
   return relief.on ? relief.index + 1 : 0;
@@ -1811,20 +1845,28 @@ async function startHosting(code: string): Promise<string> {
         score,
         kills,
         pk: pocket ? [pocket.count, pocket.max] : undefined,
+        abe: [Math.round(abe.cooldownLeft * 10) / 10, ABE.cooldown, ABE.radius],
       }),
       player: () => player ?? null,
       horde,
       balls,
       abilities,
+      abe,
     });
     const host = netHost;
+    // Abe pide un granizo: sale si la partida está andando y ya recargó
+    host.onCast = (x, z) => {
+      if (!started || paused || cardOpen || ended) return;
+      if (abe.cast(x, z)) effects.blink(new THREE.Vector3(x, heightAt(x, z), z), ABE_COLOR);
+    };
     mirror(effects, MIRRORED.fx, (f, a) => host.record('fx', f, a));
     mirror(audio, MIRRORED.au, (f, a) => host.record('au', f, a));
     mirror(hud, MIRRORED.hud, (f, a) => host.record('hud', f, a));
     mirror(visuals, MIRRORED.vis, (f, a) => host.record('vis', f, a));
     host.onWatchers = (n) => {
       watchersEl.hidden = n === 0;
-      watchersEl.textContent = n === 1 ? '👁 1 mirando' : `👁 ${n} mirando`;
+      // el primero que entra es Abe, el mago que te invocó; los demás miran
+      watchersEl.textContent = n === 1 ? '🧙 Abe está con vos' : `🧙 Abe y ${n - 1} mirando`;
       intro.setWatchers(n);
       setPauseWatchers(n);
     };
@@ -1863,7 +1905,7 @@ function showPauseInvite(link: string): void {
   (pauseInvite.querySelector('input') as HTMLInputElement).value = link;
 }
 function setPauseWatchers(n: number): void {
-  (pauseInvite.querySelector('.who') as HTMLElement).textContent = n === 0 ? 'Todavía no entró nadie: puede entrar ahora, con la partida empezada.' : n === 1 ? '👁 Ya está mirando' : `👁 Están mirando ${n}`;
+  (pauseInvite.querySelector('.who') as HTMLElement).textContent = n === 0 ? 'Todavía no entró nadie: puede entrar ahora, con la partida empezada.' : n === 1 ? '🧙 Abe ya está en la partida' : `🧙 Abe y ${n - 1} mirando`;
 }
 setPauseWatchers(0);
 pauseInviteOpen.addEventListener('click', () => {
@@ -1933,6 +1975,9 @@ async function startWatching(code: string): Promise<void> {
       netNote.hidden = !text;
       if (text) netNote.textContent = text;
     },
+    abe,
+    groundAt,
+    showAbe,
   });
 }
 
@@ -2164,6 +2209,7 @@ function frame(): void {
       moundView.update();
       balls.update(dt);
       abilities.update(dt);
+      abe.update(dt);
       const stance = player.mode === 'charging' || player.mode === 'swinging';
       // en la postura la pelota se dibuja a los pies del golfista, aunque se haya corrido cargando
       if (tennis) {
@@ -2212,6 +2258,8 @@ addEventListener('resize', () => {
   },
   get player() { return player; },
   get audio() { return audio; },
+  /** El granizo de Abe (el segundo jugador). */
+  get abe() { return abe; },
   get horde() { return horde; },
   get balls() { return balls; },
   get director() { return director; },

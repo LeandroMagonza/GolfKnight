@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { BALL_RADIUS } from '../core/ballistics';
 import { mounds } from '../core/terrain';
 import { ENEMIES } from '../core/waves';
+import type { AbeStrikes } from '../coop/abe';
 import type { Abilities } from '../game/abilities';
 import type { Balls } from '../game/balls';
 import type { Enemy, Horde } from '../game/enemies';
@@ -41,6 +42,7 @@ export interface HostSource {
   horde: Horde;
   balls: Balls;
   abilities: Abilities;
+  abe: AbeStrikes;
 }
 
 export class NetHost {
@@ -56,12 +58,20 @@ export class NetHost {
   private last = -Infinity;
   private readonly kinds = new WeakMap<object, string>();
 
+  /** Abe: el primero de los que miran. Si se va, pasa al que sigue. */
+  private abeId: string | null = null;
+  /** Abe pidió un granizo en (x, z). */
+  onCast: ((x: number, z: number) => void) | null = null;
+
   constructor(private readonly link: Link, private readonly src: HostSource) {
     link.onMessage = (m, from) => {
       if (m.k === 'watch') this.join(from);
+      else if (m.k === 'cast' && from === this.abeId && Number.isFinite(m.x) && Number.isFinite(m.z)) this.onCast?.(m.x as number, m.z as number);
     };
     link.onPeer = (id, joined) => {
-      if (!joined && this.watchers.delete(id)) this.onWatchers?.(this.watchers.size);
+      if (joined || !this.watchers.delete(id)) return;
+      this.updateRoles();
+      this.onWatchers?.(this.watchers.size);
     };
     // al cerrar o recargar (R) se avisa: WebRTC solo, tarda bastante en darse cuenta
     addEventListener('pagehide', () => {
@@ -73,8 +83,24 @@ export class NetHost {
     this.watchers.add(id);
     this.announced.clear();
     this.link.send({ k: 'hello', ...this.src.hello() }, id);
+    this.updateRoles();
+    this.link.send({ k: 'role', abe: id === this.abeId }, id);
     this.last = -Infinity;
     this.onWatchers?.(this.watchers.size);
+  }
+
+  /** ¿Hay un Abe mirando? */
+  get hasAbe(): boolean {
+    return this.abeId !== null;
+  }
+
+  /** El primero que mira es Abe: si cambió, se les avisa al de antes y al nuevo. */
+  private updateRoles(): void {
+    const first = this.watchers.values().next().value ?? null;
+    if (first === this.abeId) return;
+    if (this.abeId && this.watchers.has(this.abeId)) this.link.send({ k: 'role', abe: false }, this.abeId);
+    this.abeId = first;
+    if (first) this.link.send({ k: 'role', abe: true }, first);
   }
 
   /** Un efecto, sonido o cartel que acaba de pasar. */
@@ -146,6 +172,7 @@ export class NetHost {
       mk: view.marks,
       ca: view.carts,
       mo: mounds.map((m) => [r2(m.x), r2(m.z), r2(m.height), r2(m.rx), r2(m.rz), r2(m.target)]),
+      ab: this.src.abe.view,
     };
   }
 

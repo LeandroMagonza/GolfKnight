@@ -38,6 +38,19 @@
       #netnote { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #e4e9f0; font-size: 15px; white-space: nowrap; }
       #netnote[hidden], #netsound[hidden], #watchers[hidden] { display: none; }
       #netsound { position: absolute; bottom: 14px; left: 14px; padding: 6px 12px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #cfd6e0; font-size: 14px; }
+      /* Abe, el que mira y tira el granizo: su panel abajo al centro */
+      #abe { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 16px; border-radius: 10px; background: rgba(10, 14, 20, 0.72); border: 1px solid rgba(159, 227, 255, 0.35); max-width: calc(100vw - 32px); text-align: center; }
+      #abe[hidden] { display: none; }
+      #abe .who { font-weight: 800; font-size: 15px; color: #dff6ff; }
+      #abe .power { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+      #abe .name { font-weight: 700; color: #9fe3ff; }
+      #abe .bar { width: 160px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+      #abe .fill { height: 100%; width: 0; background: #5a7686; }
+      #abe.ready .fill { background: #9fe3ff; box-shadow: 0 0 8px #9fe3ff; }
+      #abe .state { min-width: 60px; color: #cfd6e0; font-size: 13px; }
+      #abe .help { font-size: 12px; color: #9aa4b2; }
+      #abe.other .power, #abe.other .help { display: none; }
+      #abe.other .who { font-weight: 400; font-size: 13px; color: #9aa4b2; }
       #watchers { position: absolute; top: 62px; left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
       body.watching #meter, body.watching #bottom, body.watching #perks, body.watching #skin, body.watching #balancebtn,
       body.watching #balance, body.watching #card, body.watching #choice, body.watching #tutorial, body.watching #pause,
@@ -320,7 +333,7 @@
       <button id="alt" type="button" class="link" hidden></button>
       <button id="mode" type="button" class="link" hidden></button>
       <button id="diffbtn" type="button" class="link" hidden></button>
-      <button id="invite" type="button" class="link" hidden>Invitar a alguien a mirar tu partida</button>
+      <button id="invite" type="button" class="link" hidden>Invitar a un amigo: juega de Abe, el mago</button>
       <div id="invitebox" hidden>
         <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy">Copiar</button></div>
         <div class="who">Pasale este enlace. Puede entrar ahora o con la partida empezada.</div>
@@ -369,6 +382,11 @@
       <div id="watchers" hidden></div>
       <div id="netnote" hidden></div>
       <div id="netsound" hidden>🔈 Click para activar el sonido</div>
+      <div id="abe" hidden>
+        <div class="who"></div>
+        <div class="power"><span class="name">❄ Granizo</span><div class="bar"><div class="fill"></div></div><span class="state"></span></div>
+        <div class="help">Click en el piso: marca un círculo y al rato cae el hielo, que los frena · arrastrá para girar la cámara, rueda para acercar</div>
+      </div>
       <button id="skin" type="button" tabindex="-1"></button>
       <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>
       <button id="muteall" type="button" tabindex="-1"></button>
@@ -388,7 +406,7 @@
       <div id="choice" hidden><h2>Elegí una</h2><div class="cards"></div><div class="next"></div><div class="go">click, o 1 · 2 · 3</div></div>
       <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música · N todo el sonido</p>
         <div class="invite">
-          <button type="button" class="open" tabindex="-1">Invitar a alguien a mirar tu partida</button>
+          <button type="button" class="open" tabindex="-1">Invitar a un amigo: juega de Abe, el mago</button>
           <div class="box" hidden>
             <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy" tabindex="-1">Copiar</button></div>
             <div class="who"></div>

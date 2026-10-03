@@ -3,8 +3,8 @@
 Un segundo jugador que no es otro golfista: mira la cancha desde arriba y ayuda con habilidades de
 utilidad (empujar, frenar, juntar). Poco daño, mucho control. La gracia es que tengan que coordinar.
 
-Estado: **hecho el primer paso, el espectador** (ver abajo, «Hecho: el espectador»). Las habilidades del
-jugador 2 todavía no.
+Estado: **hecho el espectador, y Abe con su primer poder, el granizo** (ver abajo, «Hecho»). Las demás
+habilidades del jugador 2 todavía no.
 
 ## El jugador 2: "el de la torre"
 
@@ -162,3 +162,24 @@ medio metro caminando (es el atraso a propósito), las pelotas, el HUD, la pausa
   que flotan, y qué cartas se ofrecen (se ve que se está eligiendo).
 - Algunas redes no dejan la conexión directa: si pasa, hay que sumar un servidor TURN.
 - El jugador 2 de verdad: sus habilidades (tanda 1 de «Por tandas»).
+
+## Hecho: Abe y el granizo (3/10/2026)
+
+El jugador 2 es **Abe, el mago que te invocó**. Por ahora es **el primero que entra a mirar**; los demás
+solo miran, por balance. Si Abe se va, pasa a ser Abe el que sigue.
+
+**El granizo**: Abe hace click en el piso (arrastrar sigue girando la cámara) y ahí aparece un círculo
+celeste, para los dos. El círculo se va llenando y al final caen trozos de hielo: a todos los que agarra
+los enfría (caminan lento). No hace daño: Abe ayuda, el que mata sos vos. Recarga cada 8 s. Antes de
+tirar, Abe ve un círculo que sigue al mouse (gris mientras recarga) y abajo su panel con la recarga.
+
+**Números** (panel de balance, pestaña del tiro, «Abe»): recarga 8 s, demora 1.5 s, radio 3.5 m, frío
+4 s, y si además congela (apagado). Cuentan los del que juega.
+
+**Cómo está hecho**: `src/coop/abe.ts` (el granizo: marca, espera, cae y enfría, en el juego del que
+juega; el que mira lo dibuja desde la foto). Abe manda `{ k: 'cast', x, z }`; el que juega decide (que
+sea Abe, que haya recargado, que la partida esté andando) y avisa quién es Abe con `{ k: 'role' }`.
+Probado con `logs/check-abe.mjs`: un host y dos que miran.
+
+**Ideas para seguir**: más poderes de Abe (empujón, muro, imán) en teclas, energía que se carga cuando
+vos pegás, y que el que juega vea a Abe en algún lado (en la muralla, con su báculo).
