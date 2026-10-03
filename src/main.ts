@@ -584,12 +584,6 @@ horde.onEvent = (e) => {
         if (!horde.shot) audio.kill(1);
         kills++;
         score += e.enemy.stats.score;
-        // perfecto de regalo: cada tantas bajas, el próximo tiro arranca clavado
-        if (perks.giftPerfect && ++giftKills >= PERK_NUMBERS.giftPerfect) {
-          giftKills = 0;
-          player.giftPerfect = true;
-          hud.feedback('Próximo tiro: perfecto', 'good');
-        }
       }
       break;
     }
@@ -798,6 +792,7 @@ balls.onEvent = (e) => {
       // matar a varios de un tiro es lo que se les pide
       const progress: string[] = [];
       if (perks.masonStreak) progress.push(masonStep());
+      if (perks.giftPerfect) progress.push(giftStep());
       if (perks.smithStreak) progress.push(smithStep());
       hud.feedback(progress.length ? `${name} ${progress.join(' · ')}` : name, 'good');
       break;
@@ -896,11 +891,23 @@ let smithBonus = 0;
 function masonStep(): string {
   const every = PERK_NUMBERS.masonStreak;
   masonPoints++;
-  if (masonPoints % every === 0 && gateHp < GATE_MAX) {
+  if (masonPoints % every === 0 && (gateHp < GATE_MAX || player.hp < player.maxHp)) {
     gateHp = Math.min(GATE_MAX, gateHp + 1);
-    return '¡Los albañiles! La puerta +1';
+    player.heal(1);
+    return '¡Los albañiles! La puerta +1 y vos +1';
   }
   return `Albañil ${masonPoints % every || every}/${every}`;
+}
+
+/** Una baja de más para el perfecto de regalo: cada tantas, el próximo tiro arranca clavado. */
+function giftStep(): string {
+  const every = PERK_NUMBERS.giftPerfect;
+  giftPoints++;
+  if (giftPoints % every === 0) {
+    player.giftPerfect = true;
+    return '¡Próximo tiro: perfecto!';
+  }
+  return `Perfecto ${giftPoints % every}/${every}`;
 }
 
 /** Una baja de más para el herrero: cada tantas, la próxima pelota pega más. Devuelve qué decir. */
@@ -940,8 +947,8 @@ function updateStreakEffects(): void {
   // suma, pero sin pasar del tope y sin bajar nunca; la pifia (0) no se toca
   balls.hotDamage = hotStreakOn() ? (base) => (base <= 0 ? base : Math.max(base, Math.min(base + PERK_NUMBERS.hotStreakAdd, PERK_NUMBERS.hotStreakCap))) : null;
 }
-/** Bajas desde el último perfecto de regalo. */
-let giftKills = 0;
+/** El perfecto de regalo: las bajas de más de cada tiro, juntadas, como el albañil. */
+let giftPoints = 0;
 /** Carcaj: si hay pelota a mano, y cuánto falta para la próxima. */
 const quiver = { ready: true, timer: 0 };
 /** Caddie dorado: segundos que le quedan. */
@@ -1109,7 +1116,7 @@ function perkStatus(): PerkChip[] {
     switch (id) {
       case 'giftPerfect':
         chip.ready = player.giftReady;
-        chip.status = chip.ready ? '¡listo!' : `bajas ${giftKills}/${PERK_NUMBERS.giftPerfect}`;
+        chip.status = chip.ready ? '¡listo!' : `dobletes ${giftPoints % PERK_NUMBERS.giftPerfect}/${PERK_NUMBERS.giftPerfect}`;
         break;
       case 'quiver':
         chip.ready = quiver.ready;

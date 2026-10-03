@@ -63,9 +63,19 @@ export const VULNERABLE = { bonus: 1 };
 
 /**
  * Hielo: la zona que deja al caer. Todo enemigo que esté adentro cuando cae, o que entre mientras dura,
- * camina a `slow` de su velocidad; al salir, el frío se le va a los `linger` segundos.
+ * camina más lento; al salir, el frío se le va a los `linger` segundos.
+ *
+ * **Cuánto frena el frío** (el de la zona y el de los tiros de hielo, ver `chilledSpeed`): lo lleva a
+ * `slow` de su velocidad, pero sin bajarlo de `floor` m/s, y a todos los frena por lo menos hasta `least`
+ * de la suya. Así frena mucho a los rápidos y poco a los lentos: el goblin pasa de 3.6 a 1.4 m/s, y el
+ * caballero de 1.5 a 1 (hasta el 3/10 quedaba en 0.6, casi quieto).
  */
-export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5, slow: 0.4 };
+export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5, slow: 0.4, floor: 1, least: 0.8 };
+
+/** A qué velocidad camina con frío uno que sin frío va a `speed` m/s (ver ICE). */
+export function chilledSpeed(speed: number): number {
+  return Math.min(speed * ICE.least, Math.max(speed * ICE.slow, ICE.floor));
+}
 
 /** Vendaval: el pasillo de viento que va detrás de la pelota, `halfWidth` a cada lado de la línea. */
 
@@ -84,7 +94,8 @@ export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5,
  *   **congela** `freezeSeconds`. Con la maestría, al que ya estaba frío lo congela cualquier hielo. El
  *   golpe que rompe el hielo pega el doble. Al jefe nunca lo congela.
  * - **Fuego**: lo prende y le saca `burnDamage` cada `burnTick` segundos, `burnTicks` veces según el nivel
- *   (4, 5 y 6 de daño en total). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
+ *   (2, 3 y 4 de daño en total, en 2, 4 y 6 s; hasta el 3/10 eran 4, 5 y 6 cada 1.5 s, y un tiro de
+ *   fuego solo mataba a los élites antes de que llegaran). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
  *   respuesta al blindado y al fantasma. Con la maestría, el que muere prendido contagia a los que tiene
  *   a `spreadRadius`.
  * - **Rayo**: a **cada uno que toca la pelota le cae un rayo** (`chainDamage`), y de ahí sale para los
@@ -103,7 +114,7 @@ export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5,
  */
 export const ELEMENTS = {
   iceSeconds: [5, 6.5, 8], iceFreezeFrom: 3, freezeSeconds: 2,
-  burnTicks: [4, 5, 6], burnTick: 1.5, burnDamage: 1, spreadRadius: 2.5,
+  burnTicks: [2, 3, 4], burnTick: 2, burnDamage: 1, spreadRadius: 2.5,
   chainJumps: [2, 3, 4], chainRange: 6, chainDamage: 1,
   // el viento hace algo distinto con cada palo (ver WIND_HINT): el driver junta sobre la línea a los de
   // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a

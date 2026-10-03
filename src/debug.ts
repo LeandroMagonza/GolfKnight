@@ -95,7 +95,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 17;
+const VERSION = 18;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -131,6 +131,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   16: ['mejoras.masonStreak', 'mejoras.smithStreak'],
   // subir de nivel ya no alarga la recarga (salvo el palazo), y el carcaj recarga en 10 s
   17: ['niveles.cooldownGrowth', 'mejoras.quiverCooldown'],
+  // el perfecto de regalo pasó a contar dobletes (5), y el fuego a 2, 3 y 4 de daño, cada 2 s
+  18: ['mejoras.giftPerfect', 'elementos.burnTicks', 'elementos.burnTick'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -311,7 +313,7 @@ function note(text: string): HTMLElement {
 
 /** Cómo se llama cada número de las tablas de habilidades, en el panel. Si falta, se muestra la clave. */
 const LABELS: Record<string, string> = {
-  radius: 'radio m', duration: 'dura s', linger: 'el frío sigue s', slow: 'velocidad adentro ×',
+  radius: 'radio m', duration: 'dura s', linger: 'el frío sigue s', slow: 'con frío, velocidad ×', floor: 'pero no menos de m/s', least: 'y por lo menos ×',
   halfWidth: 'ancho a cada lado m', push: 'los corre hasta m', core: 'centro quieto (fracción)', silence: 'silencio s',
   damage: 'daño', speed: 'velocidad m/s', width: 'ancho m', swallows: 'se traga', life: 'dura s',
   seconds: 'dura s', blast: 'radio de la explosión m', reach: 'alcance m', hitRadius: 'radio del golpe m',
@@ -333,7 +335,7 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
   hotStreak: [[PERK_NUMBERS, 'hotStreakShots', 'tiros sin errar'], [PERK_NUMBERS, 'hotStreakAdd', 'daño de más'], [PERK_NUMBERS, 'hotStreakCap', 'sin pasar de']],
   masonStreak: [[PERK_NUMBERS, 'masonStreak', 'bajas de más para curar']],
   smithStreak: [[PERK_NUMBERS, 'smithStreak', 'bajas de más para forjar'], [PERK_NUMBERS, 'smithBonus', 'la próxima pega +']],
-  giftPerfect: [[PERK_NUMBERS, 'giftPerfect', 'cada bajas']],
+  giftPerfect: [[PERK_NUMBERS, 'giftPerfect', 'dobletes para el perfecto']],
   quiver: [[PERK_NUMBERS, 'quiverCooldown', 'una cada s']],
   secondWind: [[PERK_NUMBERS, 'secondWindCooldown', 'recarga s']],
   masteryIce: [[ELEMENTS, 'freezeSeconds', 'congelado s']],

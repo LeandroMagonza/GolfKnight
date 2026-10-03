@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, hintAt, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, hintAt, ICE, lv, MAX_LEVEL, SLOTS } from './abilities';
 import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
@@ -89,6 +89,11 @@ describe('habilidades', () => {
     expect(ICE.linger).toBe(0.5);
     expect(ICE.slow).toBeGreaterThan(0);
     expect(ICE.slow).toBeLessThan(1);
+    // frena mucho a los rápidos (el goblin, a 3.6) y poco a los lentos (el caballero, a 1.5), y a todos algo
+    expect(chilledSpeed(3.6)).toBeCloseTo(3.6 * ICE.slow);
+    expect(chilledSpeed(1.5)).toBe(ICE.floor);
+    expect(chilledSpeed(1.1)).toBeCloseTo(1.1 * ICE.least);
+    expect(chilledSpeed(3.6) / 3.6).toBeLessThan(chilledSpeed(1.5) / 1.5);
   });
 
   it('el panel encuentra los números de cada una, y todos existen en su tabla', () => {

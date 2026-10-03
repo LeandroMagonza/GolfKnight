@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { burnSeconds, ELEMENTS, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
+import { burnSeconds, chilledSpeed, ELEMENTS, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { chainJumps } from '../core/chain';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
@@ -728,7 +728,10 @@ export class Enemy {
   /** Con frío encima: camina lento. Nada más: el escudo y el aura ya no se los saca el hielo. */
   /** A qué velocidad camina ahora, con el frío encima. */
   get walkSpeed(): number {
-    return this.frozen ? 0 : this.stats.speed * this.speedMul * (this.mods.speed ?? 1) * (this.chilled ? ICE.slow : 1);
+    if (this.frozen) return 0;
+    const speed = this.stats.speed * this.speedMul * (this.mods.speed ?? 1);
+    // el frío frena mucho a los rápidos y poco a los lentos (ver ICE)
+    return this.chilled ? chilledSpeed(speed) : speed;
   }
 
   get chilled(): boolean {

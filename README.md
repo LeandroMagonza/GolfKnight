@@ -133,8 +133,8 @@ hierro y el wedge con viento. Es una pelota de ese palo, instantánea y gratis, 
 el efecto**: salvo el fantasma, **no pegan ni empujan**, solo dejan el efecto, y el efecto sale solo si
 la pelota **toca** (si el escudo la para, la burbuja divina se la come o el aura de invencible lo
 protege, no hace nada). Lo que hace cada una, por nivel:
-- *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela.
-- *Fuego*: lo prende; pierde 1 de vida cada 1.5 s, 4 veces (5 y 6), y el blindaje no le resta.
+- *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela. El frío (este y el de la zona) lleva a cada uno al 40 % de su velocidad pero no por debajo de 1 m/s, y a todos los frena por lo menos un 20 %: mucho a los rápidos, poco a los lentos.
+- *Fuego*: lo prende; pierde 1 de vida en el acto y después cada 2 s: 2 en total (3 y 4), y el blindaje no le resta. Volver a prenderlo no suma: le alarga el fuego.
 - *Rayo*: **a cada uno que toca le cae un rayo**, y de ahí sale para los dos lados: en cada rama salta
   al más cercano 2 veces (3 y 4), a 6 m como mucho, sacándole 1 a cada uno. Un rayo **nunca toca dos
   veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje se come ese 1.
@@ -174,9 +174,9 @@ llega más tarde), Swing parejo (hasta 3 niveles: cada uno acerca un tercio los 
 partes iguales, y al tercero débil, medio y fuerte duran lo mismo; las otras mejoras de la barra van
 encima, así que el fuerte puede terminar durando más que el débil), Ritmo (cada tiro seguido **sin errar** te hace llegar antes
 al golpe 3, hasta tres, y ahí se queda hasta que errás), En racha (después de 4 tiros seguidos sin errar,
-los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 3, la puerta +1; no se corta),
+los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 3, la puerta +1 y vos +1; no se corta),
 El herrero (cuenta igual; cada 2, la próxima pelota pega +1, y no se pierde al cancelar, cambiar de palo ni pifiar),
-Botiquín (hasta 3 niveles: al empezar cada oleada, la puerta +1 y vos +1 por nivel), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
+Botiquín (hasta 3 niveles: al empezar cada oleada, la puerta +1 y vos +1 por nivel), Perfecto de regalo (cuenta igual que el albañil; cada 5, el próximo tiro arranca clavado arriba),
 Carcaj (si vas a pegar sin pelota, te aparece una; una cada 10 s), Pelota extra (los guardias mantienen
 una más), Segundo aire (apretar una habilidad que recarga la tira igual, y recarga él 30 s).
 
