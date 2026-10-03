@@ -3,8 +3,8 @@
 Un segundo jugador que no es otro golfista: mira la cancha desde arriba y ayuda con habilidades de
 utilidad (empujar, frenar, juntar). Poco daño, mucho control. La gracia es que tengan que coordinar.
 
-Estado: **hecho el espectador, y Abe con su primer poder, el granizo** (ver abajo, «Hecho»). Las demás
-habilidades del jugador 2 todavía no.
+Estado: **hecho el espectador, y Abe con cuatro hechizos** (granizo, fila, maldición y silencio; ver
+abajo, «Hecho»).
 
 ## El jugador 2: "el de la torre"
 
@@ -183,3 +183,38 @@ Probado con `logs/check-abe.mjs`: un host y dos que miran.
 
 **Ideas para seguir**: más poderes de Abe (empujón, muro, imán) en teclas, energía que se carga cuando
 vos pegás, y que el que juega vea a Abe en algún lado (en la muralla, con su báculo).
+
+## Hecho: los cuatro hechizos de Abe (3/10/2026)
+
+Abe juega **táctico**, y se puede jugar desde el celular: abajo tiene **cuatro botones grandes** (o las
+teclas 1 a 4) para elegir el hechizo, y un toque en el piso lo pone ahí. Arrastrar sigue girando la
+cámara; en el celular, dos dedos acercan. La cámara arranca lo bastante lejos para que entre todo el
+ancho de la cancha, también con el celular parado.
+
+**Las reglas que pidió Leandro**: los hechizos **generan jugadas con el caballero** (Abe prepara, el
+caballero pega), **duran poco** (para que el timing importe), **llegan a toda la cancha** y agarran
+**áreas chicas**. Ninguno hace daño. Cada uno tiene su recarga.
+
+| Hechizo | Sale de | Qué hace | La jugada con el caballero | Números |
+|---|---|---|---|---|
+| ❄ **Granizo** | el hielo | Marca, y a los 1.5 s cae hielo: los frena 4 s | Frenarlos donde querés pegar, o lejos de la puerta | recarga 8 s, radio 3.5 m |
+| 🌬 **Fila** | el driver de viento | Los pone en fila **sobre la línea de tu puesto al centro del círculo** | Uno detrás del otro: el driver los atraviesa a todos | recarga 8 s, radio 3.5 m, sale a los 0.6 s |
+| 🎯 **Maldición** | la lupa | Crecen y reciben 1 más por golpe, 3 s | Pegarles en esa ventana: más fáciles de acertar y pegan más | recarga 10 s, radio 3 m |
+| 🔇 **Silencio** | el wedge silenciador | Se les apagan los poderes 2.5 s (al élite, la mitad) | Escudo, blindaje, burbuja, esquiva y auras apagados: tirá ya | recarga 10 s, radio 3 m |
+
+**La magia cae de arriba**: a diferencia de las pelotas, no la paran el escudo ni la burbuja. Silenciar al
+chamán le apaga el aura a todos los que protegía. La fila no mueve al jefe.
+
+**Las que no se adaptaron, y por qué**:
+- El **carrito**, el **hoyo** y el **fuego** o el **rayo** hacen daño o matan: eso es del caballero.
+- La **bandera** y el **palazo** mueven a muchos y por mucho tiempo: rompen el balance (la fila es el
+  empujón de Abe, chico y con dirección).
+- La **lluvia de pelotas**, el **caddie**, el **clon**, el **eco** y la **potencia** son del golfista y de
+  sus tiros.
+- La **pólvora** quedaría bien como quinto hechizo más adelante (marca, y el que muere marcado explota).
+
+**Cómo está hecho**: `src/coop/abe.ts` tiene los cuatro (`ABE_SPELLS` con los números, `SPELL_INFO` con
+nombre, ícono y color). Abe manda `{ k: 'cast', s, x, z }`; el que juega decide y manda las recargas de
+los cuatro en cada foto. Los números están en el panel de balance, pestaña del tiro, «Abe». Probado con
+`logs/check-abe.mjs`: cada hechizo hace lo suyo (la fila deja a los de 2.5 m a 2 cm de la línea), las
+recargas son de cada uno, y el que no es Abe no puede tirar.

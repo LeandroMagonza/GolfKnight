@@ -42,7 +42,8 @@ import { connect, roomCode } from './net/link';
 import { MIRRORED, mirror, NetHost } from './net/host';
 import { NetSpectator } from './net/spectator';
 import type { GameSnap, Hello } from './net/snapshot';
-import { ABE, ABE_COLOR, AbeStrikes } from './coop/abe';
+import { AbeStrikes, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/abe';
+import type { AbeStatus } from './net/spectator';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -857,6 +858,11 @@ function cycleClub(delta: number): void {
 
 /** 1, 2, 3 y 4 eligen palo. */
 function selectClub(index: number): void {
+  // en el que mira, 1 a 4 eligen el hechizo de Abe
+  if (WATCH) {
+    spectator?.select(index);
+    return;
+  }
   if (choice) {
     pickCard(index);
     return;
@@ -1791,27 +1797,54 @@ const watchersEl = document.getElementById('watchers')!;
 let netHost: NetHost | null = null;
 let spectator: NetSpectator | null = null;
 
-// cae el granizo de Abe: el sonido del hielo (también le llega al que mira) y, acá, a cuántos agarró
-abe.onLand = (pos, hits) => {
-  audio.frost();
+// sale un hechizo de Abe: su sonido (también le llega al que mira) y, acá, a cuántos agarró
+abe.origin = () => player?.anchor ?? { x: 0, z: TEE_Z };
+abe.onLand = (spell, pos, hits) => {
+  if (spell === 'hail') audio.frost();
+  else if (spell === 'row') audio.whoosh(0.9);
+  else if (spell === 'curse') audio.zap();
+  else audio.thud();
   if (!hits) return;
   const s = toScreen(pos, 1.5);
-  hud.float(s.x, s.y, `Abe ❄ ×${hits}`, '');
+  hud.float(s.x, s.y, `Abe ${SPELL_INFO[spell].icon} ×${hits}`, '');
 };
 
-/** El panel de Abe (el que mira): su granizo y la recarga. Solo toca el DOM cuando cambia algo. */
+/**
+ * El panel de Abe (el que mira): sus cuatro hechizos en botones grandes, que se tocan bien con el dedo,
+ * con la recarga de cada uno. Solo toca el DOM cuando cambia algo.
+ */
 const abeEl = document.getElementById('abe')!;
+const abeSpells = abeEl.querySelector('.spells') as HTMLElement;
+abeSpells.innerHTML = SPELL_ORDER.map((id, i) => {
+  const info = SPELL_INFO[id];
+  const color = `#${info.color.toString(16).padStart(6, '0')}`;
+  return `<button type="button" class="spell" data-i="${i}" style="--c:${color}"><span class="icon">${info.icon}</span><span class="name">${info.name}</span><kbd>${i + 1}</kbd><span class="cd"></span></button>`;
+}).join('');
+abeSpells.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('button.spell') as HTMLButtonElement | null;
+  if (!btn) return;
+  btn.blur();
+  spectator?.select(Number(btn.dataset.i));
+});
 let abeKey = '';
-function showAbe(s: { abe: boolean; ready: boolean; left: number; total: number; why: string | null }): void {
-  const key = `${s.abe}|${s.ready}|${Math.ceil(s.left)}|${s.why}|${Math.round((s.left / s.total) * 50)}`;
+function showAbe(s: AbeStatus): void {
+  const key = JSON.stringify([s.abe, s.selected, s.why, s.spells.map((x) => [x.ready, Math.ceil(x.left), Math.round((x.left / x.total) * 40)])]);
   if (key === abeKey) return;
   abeKey = key;
   abeEl.hidden = false;
   abeEl.classList.toggle('other', !s.abe);
-  abeEl.classList.toggle('ready', s.ready);
   (abeEl.querySelector('.who') as HTMLElement).textContent = s.abe ? '🧙 Sos Abe, el mago que lo invocó' : 'Mirando · Abe es el primero que entró';
-  (abeEl.querySelector('.fill') as HTMLElement).style.width = `${s.ready ? 100 : Math.round(100 * (1 - s.left / Math.max(0.1, s.total)))}%`;
-  (abeEl.querySelector('.state') as HTMLElement).textContent = s.why ?? (s.ready ? 'listo' : `${Math.ceil(s.left)} s`);
+  Array.from(abeSpells.children).forEach((el, i) => {
+    const st = s.spells[i];
+    el.classList.toggle('on', i === s.selected);
+    el.classList.toggle('ready', !!st?.ready);
+    // lo que falta de la recarga tapa el botón, de arriba para abajo
+    (el.querySelector('.cd') as HTMLElement).style.height = st && !st.ready && !s.why ? `${Math.round((100 * st.left) / Math.max(0.1, st.total))}%` : '0';
+  });
+  const sel = SPELL_ORDER[s.selected];
+  const st = s.spells[s.selected];
+  (abeEl.querySelector('.help') as HTMLElement).textContent = s.why
+    ?? `${SPELL_INFO[sel].name}: ${SPELL_INFO[sel].hint.toLowerCase()} · ${st?.ready ? 'tocá el piso donde va' : `listo en ${Math.ceil(st?.left ?? 0)} s`}`;
 }
 
 /** El que mira: dónde cae en el piso un punto de la pantalla (-1..1). */
@@ -1869,7 +1902,7 @@ async function startHosting(code: string): Promise<string> {
         score,
         kills,
         pk: pocket ? [pocket.count, pocket.max] : undefined,
-        abe: [Math.round(abe.cooldownLeft * 10) / 10, ABE.cooldown, ABE.radius],
+        abe: abe.status,
       }),
       player: () => player ?? null,
       horde,
@@ -1878,10 +1911,11 @@ async function startHosting(code: string): Promise<string> {
       abe,
     });
     const host = netHost;
-    // Abe pide un granizo: sale si la partida está andando y ya recargó
-    host.onCast = (x, z) => {
-      if (!started || paused || cardOpen || ended) return;
-      if (abe.cast(x, z)) effects.blink(new THREE.Vector3(x, heightAt(x, z), z), ABE_COLOR);
+    // Abe pide un hechizo: sale si la partida está andando y ese ya recargó
+    host.onCast = (spell, x, z) => {
+      if (!started || paused || cardOpen || ended || !(spell in SPELL_INFO)) return;
+      const id = spell as SpellId;
+      if (abe.cast(id, x, z)) effects.blink(new THREE.Vector3(x, heightAt(x, z), z), SPELL_INFO[id].color);
     };
     mirror(effects, MIRRORED.fx, (f, a) => host.record('fx', f, a));
     mirror(audio, MIRRORED.au, (f, a) => host.record('au', f, a));

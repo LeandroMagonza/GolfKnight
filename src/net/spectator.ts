@@ -5,11 +5,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { BALL_RADIUS } from '../core/ballistics';
 import { heightAt, mounds, type Mound } from '../core/terrain';
-import { ABE_COLOR, type AbeStrikes } from '../coop/abe';
+import { SPELL_INFO, SPELL_ORDER, type AbeStrikes, type SpellId } from '../coop/abe';
 import { ENEMIES, type EnemyKind, type EnemyMods } from '../core/waves';
 import type { Abilities } from '../game/abilities';
 import type { Enemy, Horde } from '../game/enemies';
 import type { Player } from '../game/player';
+import { FIELD_HALF_WIDTH } from '../game/world';
 import type { Link } from './link';
 import { MIRRORED } from './host';
 import {
@@ -42,26 +43,27 @@ export interface SpectatorDeps {
   onHello(h: Hello): void;
   /** Lo que se le cuenta al que mira: conectando, esperando, pausa… Null lo esconde. */
   note(text: string | null): void;
-  /** Los granizos de Abe, para dibujarlos. */
+  /** Los hechizos de Abe, para dibujarlos. */
   abe: AbeStrikes;
   /** Dónde cae en el piso un punto de la pantalla (coordenadas -1..1), o null si no toca el piso. */
   groundAt(x: number, y: number): { x: number; z: number } | null;
-  /** El panel de Abe: si lo es, y cómo está su granizo. */
+  /** El panel de Abe: si lo es, cuál eligió y cómo están sus hechizos. */
   showAbe(s: AbeStatus): void;
 }
 
-/** Cómo está el granizo, para el panel de Abe. */
+/** Cómo están los hechizos, para el panel de Abe. */
 export interface AbeStatus {
   /** Este es Abe (el primero que entró). */
   abe: boolean;
-  /** Se puede tirar ya. */
-  ready: boolean;
-  /** Segundos que le faltan, y de cuántos. */
-  left: number;
-  total: number;
-  /** Por qué no se puede, si no es la recarga (pausa, carta, no empezó). */
+  /** El hechizo elegido, en el orden de los botones. */
+  selected: number;
+  /** Cada hechizo: si se puede tirar ya, y los segundos que le faltan de cuántos. */
+  spells: { ready: boolean; left: number; total: number }[];
+  /** Por qué no se puede ninguno, si no es la recarga (pausa, carta, no empezó). */
   why: string | null;
 }
+
+const NO_ABE: AbeStatus = { abe: false, selected: 0, spells: [], why: null };
 
 interface RemoteBall {
   mesh: THREE.Mesh;
@@ -87,14 +89,19 @@ export class NetSpectator {
   /** El juego del que juega está frenado (pausa o carta): acá todo quieto, también los efectos. */
   frozen = false;
   readonly controls: OrbitControls;
-  /** Es Abe: el primero que entró, que tira el granizo. */
+  /** Es Abe: el primero que entró, que tira los hechizos. */
   isAbe = false;
-  /** Cómo está el granizo según la última foto, y hasta cuándo no se manda otro pedido. */
-  private abeState: AbeStatus = { abe: false, ready: false, left: 0, total: 1, why: null };
+  /** El hechizo elegido (botones o teclas 1 a 4). */
+  selected: SpellId = 'hail';
+  /** Cómo están los hechizos según la última foto, y hasta cuándo no se manda otro pedido. */
+  private abeState: AbeStatus = NO_ABE;
+  /** El radio de cada hechizo, según el que juega. */
+  private radii: number[] = [];
   private castLock = 0;
-  /** Dónde está el mouse en el piso, y el círculo que muestra dónde caería. */
+  /** Dónde está el mouse en el piso, y el círculo que muestra dónde caería (y la fila, hacia el caballero). */
   private aim: { x: number; z: number } | null = null;
   private readonly preview: THREE.Mesh;
+  private readonly previewLine: THREE.Line;
 
   constructor(private readonly link: Link, private readonly d: SpectatorDeps) {
     link.onPeer = (id, joined) => {
@@ -109,7 +116,11 @@ export class NetSpectator {
     const cam = d.camera;
     cam.far = 500;
     cam.updateProjectionMatrix();
-    cam.position.set(0, 52, -14);
+    // lo bastante lejos para que entre todo el ancho de la cancha: en un celular parado, bastante más
+    const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect);
+    const dist = Math.max(68, Math.min(130, (FIELD_HALF_WIDTH + 3) / Math.tan(halfFov)));
+    const back = new THREE.Vector3(0, 52, -44).normalize().multiplyScalar(dist);
+    cam.position.set(back.x, back.y, 30 + back.z);
     this.controls = new OrbitControls(cam, d.dom);
     this.controls.target.set(0, 0, 30);
     this.controls.enableDamping = true;
@@ -125,11 +136,15 @@ export class NetSpectator {
       fog.far = 320;
     }
 
-    // Abe: un click en el piso tira el granizo; arrastrar sigue siendo girar la cámara
-    this.preview = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: ABE_COLOR, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
+    // Abe: un toque en el piso tira el hechizo elegido; arrastrar sigue siendo girar la cámara
+    this.preview = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
     this.preview.rotation.x = -Math.PI / 2;
     this.preview.visible = false;
-    d.scene.add(this.preview);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    this.previewLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ transparent: true, opacity: 0.6, depthTest: false }));
+    this.previewLine.visible = false;
+    this.previewLine.frustumCulled = false;
+    d.scene.add(this.preview, this.previewLine);
     let down: { x: number; y: number; t: number } | null = null;
     const ndc = (e: PointerEvent) => {
       const r = d.dom.getBoundingClientRect();
@@ -155,12 +170,21 @@ export class NetSpectator {
     });
   }
 
-  /** Abe pide un granizo. Lo decide el que juega: acá solo se manda, si parece que se puede. */
+  /** Abe pide el hechizo elegido en (x, z). Lo decide el que juega: acá solo se manda, si parece que se puede. */
   cast(x: number, z: number): boolean {
-    if (!this.isAbe || !this.host || !this.abeState.ready || performance.now() < this.castLock) return false;
-    this.castLock = performance.now() + 700;
-    this.link.send({ k: 'cast', x, z }, this.host);
+    const ready = this.abeState.spells[SPELL_ORDER.indexOf(this.selected)]?.ready;
+    if (!this.isAbe || !this.host || !ready || performance.now() < this.castLock) return false;
+    this.castLock = performance.now() + 400;
+    this.link.send({ k: 'cast', s: this.selected, x, z }, this.host);
     return true;
+  }
+
+  /** Elige el hechizo `i` (0 a 3, en el orden de los botones). */
+  select(i: number): void {
+    const id = SPELL_ORDER[i];
+    if (!id || !this.isAbe) return;
+    this.selected = id;
+    this.d.showAbe({ ...this.abeState, selected: i });
   }
 
   private receive(m: HostMsg, from: string): void {
@@ -190,8 +214,9 @@ export class NetSpectator {
   /** El que juega se fue: queda todo como estaba hasta que vuelva (reiniciar es volver a entrar). */
   private lost(): void {
     this.host = null;
-    this.preview.visible = false;
-    this.d.showAbe({ abe: false, ready: false, left: 0, total: 1, why: null });
+    this.preview.visible = this.previewLine.visible = false;
+    this.abeState = NO_ABE;
+    this.d.showAbe(NO_ABE);
     this.d.note('El que juega se fue (o reinició). Esperando a que vuelva…');
   }
 
@@ -250,22 +275,41 @@ export class NetSpectator {
     this.updateAbe(b);
   }
 
-  /** Los granizos en camino, el panel de Abe y el círculo de dónde caería. */
+  /** Los hechizos en camino, el panel de Abe y el círculo de dónde caería el elegido. */
   private updateAbe(b: Snap): void {
     this.d.abe.applyRemote(b.ab);
     const g = b.g;
-    const [left, total, radius] = g.abe;
     const why = !g.st ? 'Todavía no empezó la partida' : g.pa ? 'En pausa' : g.cd ? 'Está eligiendo una carta' : g.en ? 'Terminó la partida' : null;
-    this.abeState = { abe: this.isAbe, ready: !why && left <= 0, left, total, why };
+    this.radii = g.abe.map(([, , r]) => r);
+    const selected = SPELL_ORDER.indexOf(this.selected);
+    this.abeState = {
+      abe: this.isAbe,
+      selected,
+      spells: g.abe.map(([left, total]) => ({ ready: !why && left <= 0, left, total })),
+      why,
+    };
     this.d.showAbe(this.abeState);
     const aim = this.isAbe ? this.aim : null;
     this.preview.visible = !!aim;
-    if (aim) {
-      this.preview.position.set(aim.x, heightAt(aim.x, aim.z) + 0.09, aim.z);
-      this.preview.scale.setScalar(radius);
-      const mat = this.preview.material as THREE.MeshBasicMaterial;
-      mat.color.setHex(this.abeState.ready ? ABE_COLOR : 0x8a94a3);
-      mat.opacity = this.abeState.ready ? 0.75 : 0.35;
+    this.previewLine.visible = !!aim && this.selected === 'row';
+    if (!aim) return;
+    const ready = this.abeState.spells[selected]?.ready;
+    const color = ready ? SPELL_INFO[this.selected].color : 0x8a94a3;
+    const y = heightAt(aim.x, aim.z) + 0.09;
+    this.preview.position.set(aim.x, y, aim.z);
+    this.preview.scale.setScalar(this.radii[selected] ?? 3);
+    const mat = this.preview.material as THREE.MeshBasicMaterial;
+    mat.color.setHex(color);
+    mat.opacity = ready ? 0.75 : 0.35;
+    // la fila: la línea de tu puesto hasta el centro, que es donde van a quedar
+    const player = this.d.player();
+    if (this.previewLine.visible && player) {
+      const pos = this.previewLine.geometry.attributes.position as THREE.BufferAttribute;
+      // (acá el golfista solo tiene la posición del cuerpo, que está a un paso de su puesto)
+      pos.setXYZ(0, player.position.x, heightAt(player.position.x, player.position.z) + 0.1, player.position.z);
+      pos.setXYZ(1, aim.x, y, aim.z);
+      pos.needsUpdate = true;
+      (this.previewLine.material as THREE.LineBasicMaterial).color.setHex(color);
     }
   }
 

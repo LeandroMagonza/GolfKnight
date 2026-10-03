@@ -60,13 +60,13 @@ export class NetHost {
 
   /** Abe: el primero de los que miran. Si se va, pasa al que sigue. */
   private abeId: string | null = null;
-  /** Abe pidió un granizo en (x, z). */
-  onCast: ((x: number, z: number) => void) | null = null;
+  /** Abe pidió el hechizo `spell` en (x, z). */
+  onCast: ((spell: string, x: number, z: number) => void) | null = null;
 
   constructor(private readonly link: Link, private readonly src: HostSource) {
     link.onMessage = (m, from) => {
       if (m.k === 'watch') this.join(from);
-      else if (m.k === 'cast' && from === this.abeId && Number.isFinite(m.x) && Number.isFinite(m.z)) this.onCast?.(m.x as number, m.z as number);
+      else if (m.k === 'cast' && from === this.abeId && typeof m.s === 'string' && Number.isFinite(m.x) && Number.isFinite(m.z)) this.onCast?.(m.s, m.x as number, m.z as number);
     };
     link.onPeer = (id, joined) => {
       if (joined || !this.watchers.delete(id)) return;

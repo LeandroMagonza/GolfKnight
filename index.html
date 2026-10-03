@@ -37,19 +37,24 @@
       /* el que mira: estado de la conexión, el aviso del sonido y quiénes miran (en el que juega) */
       #netnote { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #e4e9f0; font-size: 15px; white-space: nowrap; }
       #netnote[hidden], #netsound[hidden], #watchers[hidden] { display: none; }
-      #netsound { position: absolute; bottom: 14px; left: 14px; padding: 6px 12px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #cfd6e0; font-size: 14px; }
-      /* Abe, el que mira y tira el granizo: su panel abajo al centro */
-      #abe { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 16px; border-radius: 10px; background: rgba(10, 14, 20, 0.72); border: 1px solid rgba(159, 227, 255, 0.35); max-width: calc(100vw - 32px); text-align: center; }
+      #netsound { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 6px 12px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #cfd6e0; font-size: 14px; }
+      /* Abe, el que mira y tira los hechizos: sus cuatro botones abajo al centro, grandes para el dedo */
+      #abe { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: rgba(10, 14, 20, 0.75); border: 1px solid rgba(159, 227, 255, 0.35); width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box; text-align: center; pointer-events: auto; }
       #abe[hidden] { display: none; }
       #abe .who { font-weight: 800; font-size: 15px; color: #dff6ff; }
-      #abe .power { display: flex; align-items: center; gap: 10px; font-size: 14px; }
-      #abe .name { font-weight: 700; color: #9fe3ff; }
-      #abe .bar { width: 160px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
-      #abe .fill { height: 100%; width: 0; background: #5a7686; }
-      #abe.ready .fill { background: #9fe3ff; box-shadow: 0 0 8px #9fe3ff; }
-      #abe .state { min-width: 60px; color: #cfd6e0; font-size: 13px; }
-      #abe .help { font-size: 12px; color: #9aa4b2; }
-      #abe.other .power, #abe.other .help { display: none; }
+      #abe .spells { display: grid; grid-template-columns: repeat(4, minmax(64px, 92px)); gap: 6px; }
+      #abe .spell { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; padding: 6px 4px; border-radius: 10px; border: 2px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: #cfd6e0; font: inherit; cursor: pointer; touch-action: manipulation; }
+      #abe .spell .icon { font-size: 24px; line-height: 1.1; filter: grayscale(0.7); opacity: 0.6; }
+      #abe .spell .name { font-size: 12px; font-weight: 700; }
+      #abe .spell kbd { position: absolute; top: 3px; left: 5px; font-size: 10px; opacity: 0.5; }
+      #abe .spell .cd { position: absolute; left: 0; right: 0; top: 0; height: 0; background: rgba(0, 0, 0, 0.55); pointer-events: none; }
+      #abe .spell.ready { color: #fff; }
+      #abe .spell.ready .icon { filter: none; opacity: 1; }
+      #abe .spell.on { border-color: var(--c); box-shadow: 0 0 10px var(--c); background: rgba(255, 255, 255, 0.12); }
+      #abe .help { font-size: 13px; color: #dfe5ec; max-width: 420px; }
+      #abe .cam { font-size: 11px; color: #8a94a3; }
+      #abe.other { pointer-events: none; }
+      #abe.other .spells, #abe.other .help, #abe.other .cam { display: none; }
       #abe.other .who { font-weight: 400; font-size: 13px; color: #9aa4b2; }
       #watchers { position: absolute; top: 62px; left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
       body.watching #meter, body.watching #bottom, body.watching #perks, body.watching #skin, body.watching #balancebtn,
@@ -384,8 +389,9 @@
       <div id="netsound" hidden>🔈 Click para activar el sonido</div>
       <div id="abe" hidden>
         <div class="who"></div>
-        <div class="power"><span class="name">❄ Granizo</span><div class="bar"><div class="fill"></div></div><span class="state"></span></div>
-        <div class="help">Click en el piso: marca un círculo y al rato cae el hielo, que los frena · arrastrá para girar la cámara, rueda para acercar</div>
+        <div class="spells"></div>
+        <div class="help"></div>
+        <div class="cam">Arrastrá para girar la cámara · rueda o dos dedos para acercar</div>
       </div>
       <button id="skin" type="button" tabindex="-1"></button>
       <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>

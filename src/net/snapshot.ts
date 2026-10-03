@@ -150,8 +150,8 @@ export interface GameSnap {
   kills: number;
   /** Bolsillo del tenis: cuántas y de cuántas. */
   pk?: [number, number];
-  /** El granizo de Abe: segundos que le faltan, de cuántos es la recarga, y el radio. */
-  abe: [number, number, number];
+  /** Los hechizos de Abe, en el orden de los botones: segundos que le faltan, de cuánto es la recarga, y el radio. */
+  abe: [number, number, number][];
 }
 
 export interface Snap {
@@ -215,6 +215,8 @@ export interface Watch {
 /** Abe tira el granizo en (x, z). */
 export interface Cast {
   k: 'cast';
+  /** Cuál de sus hechizos (ver SPELL_ORDER). */
+  s: string;
   x: number;
   z: number;
 }
