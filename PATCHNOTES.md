@@ -17,6 +17,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   `c74820e`
 - Al que mira ya no le queda «La puerta cayó» cuando reiniciás: el cartel se va con la partida nueva.
   `a6d2d9a`
+- Abe tiene cuatro hechizos, en botones grandes que se tocan bien desde el celular (o con 1 a 4): elegís
+  uno y tocás el piso. **Granizo** los frena; **Fila** los pone en fila hacia el caballero, para que el
+  driver los atraviese a todos; **Maldición** los agranda y les suma 1 de daño por golpe; **Silencio**
+  les apaga los poderes (escudo, blindaje, burbuja, auras). Duran poco, llegan a toda la cancha y
+  agarran poco: hay que coordinar para aprovecharlos. Cada uno recarga por su lado, y ninguno hace
+  daño. En el celular parado, la cámara arranca viendo todo el ancho de la cancha. `4860abe`
 
 **Dificultad (nuevo)**
 - La partida arranca más simple: cada oleada trae un solo poder (el de su escenario), no hay olas
