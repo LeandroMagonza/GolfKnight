@@ -7,6 +7,24 @@ de entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 3 de octubre
+
+**Dificultad (nuevo)**
+- La partida arranca más simple: cada oleada trae un solo poder (el de su escenario), no hay olas
+  especiales, apoyos ni kamikazes, los enemigos van un poco más lentos, menos traen poder y los
+  élites tienen menos vida. El jefe viene con enemigos comunes. `af3e875`
+- Cada partida que ganás con todos tus puntos puestos te da un punto de dificultad. Se ponen en un menú
+  entre partidas (en la entrada y en el cartel del final) y se pueden mover cuando quieras: poderes
+  acumulados, olas especiales, apoyos, poderes más duros, más rápidos, más con poder, élites más duros,
+  escolta del jefe y sin respiro. Son 13 puntos. `af3e875`
+- Las olas especiales dejan su marca en el resto de la partida: después de la estampida vienen más
+  chicos y algunos kamikazes (sin estampida no hay), después de los gigantes vienen algunos gigantes, y
+  después de «todos con poder», unos pocos con los poderes que no salieron. `af3e875`
+
+**Detrás de escena**
+- Cada partida se manda sola al terminar, para ver dónde se pierde y balancear con datos. Sin datos
+  personales. `af3e875`
+
 ## 2 de octubre
 
 **Espectador (nuevo)**
