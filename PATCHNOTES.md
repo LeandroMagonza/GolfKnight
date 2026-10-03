@@ -15,6 +15,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   los que agarra quedan lentos un rato. No hace daño, así que la idea es que él frene y vos pegues.
   Recarga cada 8 s. Los que entran después solo miran; si Abe se va, el siguiente pasa a ser Abe.
   `c74820e`
+- Al que mira ya no le queda «La puerta cayó» cuando reiniciás: el cartel se va con la partida nueva.
+  `a6d2d9a`
 
 **Dificultad (nuevo)**
 - La partida arranca más simple: cada oleada trae un solo poder (el de su escenario), no hay olas
