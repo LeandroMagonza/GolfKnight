@@ -29,6 +29,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Las olas especiales dejan su marca en el resto de la partida: después de la estampida vienen más
   chicos y algunos kamikazes (sin estampida no hay), después de los gigantes vienen algunos gigantes, y
   después de «todos con poder», unos pocos con los poderes que no salieron. `af3e875`
+- Las lomas pasan a ser un talento, **Terreno irregular**: sin él se juega en el campo liso, y con él en
+  uno de los tres campos con lomas. Poderes más duros pasa a ser un solo punto (escudos y blindajes
+  hasta 3, y escurridizos y benditos con la recarga rápida). Siguen siendo 13 puntos. `00dfdeb`
 
 **Golf**
 - Subir una habilidad de nivel ya no la hace recargar más lento: es mejora pura. Solo el palazo sigue
@@ -44,6 +47,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - El rayo ya no lo frena el blindaje: le saca su 1 también al acorazado. `95d1207`
 - El tiro fantasma le entra entero a todos desde el nivel 1: pasa escudos, blindaje, al enemigo fantasma
   (el putter fantasma le saca 2, como a cualquiera) y también a los inmunes del chamán. `95d1207`
+- Los tiros de habilidad del wedge se saltean la pifia: tienen dos niveles, que salen con el golpe 2 y
+  el 3 (pegan 1 y 2). El wedge fantasma de nivel 1 ya no pega 0, y el wedge de hielo congela en su
+  nivel 2. `07e8d64`
 
 **Detrás de escena**
 - Cada partida se manda sola al terminar, para ver dónde se pierde y balancear con datos. Sin datos
