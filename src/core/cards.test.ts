@@ -65,10 +65,14 @@ describe('cartas', () => {
   it('la carta de habilidad dice su recarga: la de base si es nueva, y de cuánto a cuánto si sube', () => {
     const base = ABILITIES.cart.cooldown;
     expect(cooldownNote('cart', 1)).toEqual({ text: `Recarga: ${base} s`, slower: false });
-    const up = cooldownNote('cart', 2);
+    // subir el carrito no la cambia: la carta no dice nada de la recarga
+    expect(cooldownNote('cart', 2)).toBeNull();
+    expect(describeCard({ kind: 'ability', id: 'cart', level: 2 }).cool).toBeUndefined();
+    // el palazo sí recarga más lento al subir
+    const up = cooldownNote('shove', 2)!;
     expect(up.slower).toBe(true);
-    expect(up.text).toBe(`Recarga: ${base} s → ${+cooldownAt(ABILITIES.cart, 2).toFixed(1)} s · más lenta`);
-    expect(describeCard({ kind: 'ability', id: 'cart', level: 2 }).cool).toEqual(up);
+    expect(up.text).toBe(`Recarga: ${ABILITIES.shove.cooldown} s → ${+cooldownAt(ABILITIES.shove, 2).toFixed(1)} s · más lenta`);
+    expect(describeCard({ kind: 'ability', id: 'shove', level: 2 }).cool).toEqual(up);
     expect(describeCard({ kind: 'perk', id: 'rhythm', level: 1 }).cool).toBeUndefined();
   });
 

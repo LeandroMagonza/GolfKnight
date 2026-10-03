@@ -28,9 +28,14 @@ describe('habilidades', () => {
     expect(ABILITY_LIST.length).toBeGreaterThanOrEqual(20);
   });
 
-  it('subir de nivel recarga más lento: subir no es gratis', () => {
+  it('subir de nivel no alarga la recarga, salvo el palazo (que con poca recarga frenaría la oleada sin fin)', () => {
     for (const id of ABILITY_LIST) {
-      for (let level = 2; level <= MAX_LEVEL; level++) expect(cooldownAt(ABILITIES[id], level), id).toBeGreaterThan(cooldownAt(ABILITIES[id], level - 1));
+      for (let level = 2; level <= MAX_LEVEL; level++) {
+        const now = cooldownAt(ABILITIES[id], level);
+        const before = cooldownAt(ABILITIES[id], level - 1);
+        if (ABILITIES[id].kind === 'melee') expect(now, id).toBeGreaterThan(before);
+        else expect(now, id).toBe(before);
+      }
     }
   });
 

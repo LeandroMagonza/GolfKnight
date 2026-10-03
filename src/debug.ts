@@ -95,7 +95,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 16;
+const VERSION = 17;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -129,6 +129,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   15: ['hole.cooldown', 'elementos'],
   // el albañil pasó a curar cada 3 dobletes y el herrero a forjar cada 2 (eran 5 y 5)
   16: ['mejoras.masonStreak', 'mejoras.smithStreak'],
+  // subir de nivel ya no alarga la recarga (salvo el palazo), y el carcaj recarga en 10 s
+  17: ['niveles.cooldownGrowth', 'mejoras.quiverCooldown'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -317,7 +319,7 @@ const LABELS: Record<string, string> = {
   iceSeconds: 'frío s', freezeSeconds: 'congelado s (maestría)', burnTicks: 'fuego: mordiscos', burnTick: 'pierde cada s',
   burnDamage: 'daño por vez', spreadRadius: 'contagio m (maestría)', chainJumps: 'saltos',
   chainRange: 'salta hasta m', chainDamage: 'daño por salto',
-  cooldownGrowth: 'recarga de más por nivel', bonus: 'daño de más al vulnerable',
+  cooldownGrowth: 'recarga de más por nivel (todas menos el palazo)', meleeGrowth: 'la del palazo, por nivel', bonus: 'daño de más al vulnerable',
   gate: 'la puerta +', player: 'vos +',
 };
 
@@ -811,6 +813,7 @@ export class DebugPanel {
     el.append(heading('Para todas'));
     el.append(this.numbers([
       [LABELS.cooldownGrowth, () => LEVELS.cooldownGrowth, (v) => { LEVELS.cooldownGrowth = Math.max(0, v); }, 0.05, 'de la base (0.3 = +30 %)'],
+      [LABELS.meleeGrowth, () => LEVELS.meleeGrowth, (v) => { LEVELS.meleeGrowth = Math.max(0, v); }, 0.05, 'de la base'],
       [LABELS.bonus, () => VULNERABLE.bonus, (v) => { VULNERABLE.bonus = Math.max(0, v); }, 1, 'a los silenciados y agrandados'],
     ]).table, note(
       'Subí el nivel para darle una habilidad y bajalo a 0 para sacársela. Cada habilidad tira su propia pelota: no gasta la del puesto. '

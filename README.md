@@ -117,7 +117,7 @@ arriba) y *atraviesa* (pasa de largo hasta a tres y abre su área donde cae, le 
 clases:
 
 - **Habilidad**: una nueva va al primer lugar libre de `Q`, `W`, `E` o `R`. Si ya la tenés, sube de
-  nivel (hasta 3): pega más o agarra más, pero **recarga un 30 % más lento por nivel**.
+  nivel (hasta 3): pega más o agarra más, y recarga igual (el costo es la carta que no elegiste; solo el palazo recarga un 30 % más lento por nivel, porque con poca recarga dejaría frenar la oleada sin fin).
 - **Mejora**: cosas que valen para todo el juego. A propósito no tocan la tabla de daño de ningún palo,
   para no romper la regla de «cada palo tiene su distancia».
 - **No hay cartas de curarse**: eran mucho peores que el Botiquín, que cura un poco al terminar cada
@@ -177,7 +177,7 @@ al golpe 3, hasta tres, y ahí se queda hasta que errás), En racha (después de
 los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 3, la puerta +1; no se corta),
 El herrero (cuenta igual; cada 2, la próxima pelota pega +1, y no se pierde al cancelar, cambiar de palo ni pifiar),
 Botiquín (hasta 3 niveles: al empezar cada oleada, la puerta +1 y vos +1 por nivel), Perfecto de regalo (cada 8 bajas, el próximo tiro arranca clavado arriba),
-Carcaj (si vas a pegar sin pelota, te aparece una; una cada 12 s), Pelota extra (los guardias mantienen
+Carcaj (si vas a pegar sin pelota, te aparece una; una cada 10 s), Pelota extra (los guardias mantienen
 una más), Segundo aire (apretar una habilidad que recarga la tira igual, y recarga él 30 s).
 
 Las mejoras tomadas se ven en **una columna a la izquierda**, con lo que cuentan: cuánto le falta al

@@ -573,7 +573,7 @@ horde.onEvent = (e) => {
   tutorial?.onEvent(e);
   switch (e.type) {
     case 'damage': {
-      recorder?.damage(e.amount, e.killed);
+      recorder?.damage(e.amount, e.killed, !!horde.shot);
       const s = toScreen(e.enemy.position, e.enemy.height);
       // el que cae al hoyo no muestra daño: el «¡Al hoyo!» ya lo dice
       const text = `${e.crit ? '✸ ' : ''}${e.amount}${e.killed ? ' ☠' : ''}`;
@@ -792,6 +792,7 @@ balls.onEvent = (e) => {
       audio.kill(e.quality - 1 + e.kills);
       // el doblete se canta (y suma) en el acto, cuando cae el segundo; el tercero suma otra vez
       if (e.ability || e.kills < 2) break;
+      recorder?.extraKill();
       const name = MULTI_KILL[e.kills] ?? `¡${e.kills} de un tiro!`;
       // el albañil y el herrero: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio;
       // matar a varios de un tiro es lo que se les pide

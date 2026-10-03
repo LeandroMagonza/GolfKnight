@@ -27,7 +27,7 @@ export interface Ability {
   name: string;
   title: string;
   hint: string;
-  /** Segundos de recarga a nivel 1. Cada nivel más le suma `LEVELS.cooldownGrowth`. */
+  /** Segundos de recarga a nivel 1. Subir de nivel no la cambia, salvo en el palazo (ver LEVELS). */
   cooldown: number;
   /** Hasta dónde llega, en metros. Lo que cae donde apuntás cae ahí, recortado a esto. */
   range: number;
@@ -41,11 +41,16 @@ export interface Ability {
 export const ABILITY_KEYS = ['Q', 'W', 'E', 'R'];
 export const SLOTS = ABILITY_KEYS.length;
 export const MAX_LEVEL = 3;
-/** Cuánto más tarda en recargar cada nivel de más: con 0.3, el nivel 3 recarga un 60 % más lento. */
-export const LEVELS = { cooldownGrowth: 0.3 };
+/**
+ * Cuánto más tarda en recargar cada nivel de más (con 0.3, el nivel 3 recarga un 60 % más lento). Desde
+ * el 3/10 subir de nivel es mejora pura: el costo es la carta que no elegiste. Solo el palazo recarga
+ * más lento (`meleeGrowth`): empuja lejos, y con poca recarga dejaría frenar la oleada sin fin.
+ */
+export const LEVELS = { cooldownGrowth: 0, meleeGrowth: 0.3 };
 
 export function cooldownAt(a: Ability, level: number): number {
-  return a.cooldown * (1 + LEVELS.cooldownGrowth * (Math.max(1, level) - 1));
+  const growth = a.kind === 'melee' ? LEVELS.meleeGrowth : LEVELS.cooldownGrowth;
+  return a.cooldown * (1 + growth * (Math.max(1, level) - 1));
 }
 
 /** El número de un nivel (1, 2 o 3) en una tabla por nivel. */

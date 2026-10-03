@@ -26,8 +26,11 @@ export interface WaveLog {
   hits: number;
   perfects: number;
   kills: number;
-  /** Daño hecho (todas las formas de pegar). */
+  /** Bajas de más de un mismo tiro (un doblete suma 1, un triplete 2): lo que cuentan el albañil y el herrero. */
+  extra: number;
+  /** Daño hecho: todas las formas de pegar, y de eso, cuánto con los tiros de palo. */
   damage: number;
+  shotDamage: number;
   /** Habilidades tiradas. */
   abilities: number;
   /** Vida del golfista y de la puerta que se perdió, y quién la sacó. */
@@ -152,7 +155,7 @@ export class RunRecorder {
   wave(n: number, title: string, mod?: string): void {
     this.closeWave();
     this.waveStart = this.clock;
-    this.waves.push({ n, title, ...(mod ? { mod } : {}), seconds: 0, shots: 0, hits: 0, perfects: 0, kills: 0, damage: 0, abilities: 0, hurt: 0, gate: 0, by: {} });
+    this.waves.push({ n, title, ...(mod ? { mod } : {}), seconds: 0, shots: 0, hits: 0, perfects: 0, kills: 0, extra: 0, damage: 0, shotDamage: 0, abilities: 0, hurt: 0, gate: 0, by: {} });
   }
 
   private closeWave(): void {
@@ -172,11 +175,20 @@ export class RunRecorder {
     if (this.now) this.now.hits++;
   }
 
-  damage(amount: number, killed: boolean): void {
+  /** Daño a un enemigo; `shot`: de un tiro de palo. */
+  damage(amount: number, killed: boolean, shot: boolean): void {
     const w = this.now;
     if (!w) return;
-    if (Number.isFinite(amount)) w.damage += amount;
+    if (Number.isFinite(amount)) {
+      w.damage += amount;
+      if (shot) w.shotDamage += amount;
+    }
     if (killed) w.kills++;
+  }
+
+  /** Una baja de más de un mismo tiro. */
+  extraKill(): void {
+    if (this.now) this.now.extra++;
   }
 
   ability(): void {
@@ -209,7 +221,7 @@ export class RunRecorder {
     if (this.done) return;
     this.done = true;
     this.closeWave();
-    const sum = (k: 'shots' | 'hits' | 'perfects' | 'kills' | 'damage') => this.waves.reduce((n, w) => n + w[k], 0);
+    const sum = (k: 'shots' | 'hits' | 'perfects' | 'kills' | 'extra' | 'damage' | 'shotDamage') => this.waves.reduce((n, w) => n + w[k], 0);
     enqueue({
       id: this.id,
       player_id: playerId(),
@@ -222,7 +234,7 @@ export class RunRecorder {
         ...this.info,
         startedAt: this.startedAt,
         ...extra,
-        shots: sum('shots'), hits: sum('hits'), perfects: sum('perfects'), kills: sum('kills'), damage: sum('damage'),
+        shots: sum('shots'), hits: sum('hits'), perfects: sum('perfects'), kills: sum('kills'), extra: sum('extra'), damage: sum('damage'), shotDamage: sum('shotDamage'),
         waves: this.waves,
         cards: this.cards,
         host: location.hostname,

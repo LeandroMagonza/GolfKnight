@@ -76,7 +76,7 @@ export const PERK_NUMBERS = {
   /** Perfecto de regalo: cada tantas bajas, el próximo tiro arranca clavado en el golpe perfecto. */
   giftPerfect: 8,
   /** Carcaj: si vas a pegar sin pelota, te aparece una. Una cada tantos segundos. */
-  quiverCooldown: 12,
+  quiverCooldown: 10,
   /** Segundo aire: recarga propia. */
   secondWindCooldown: 30,
 };
@@ -180,13 +180,14 @@ export function drawCards(build: Build, n = 3, rand: () => number = Math.random)
  * La recarga de una carta de habilidad: la de base si es nueva, y si sube de nivel, de cuánto a cuánto y
  * si se alarga o se acorta (`slower`).
  */
-export function cooldownNote(id: AbilityId, level: number): { text: string; slower: boolean } {
+export function cooldownNote(id: AbilityId, level: number): { text: string; slower: boolean } | null {
   const a = ABILITIES[id];
   const s = (n: number) => `${+n.toFixed(1)} s`;
   const to = cooldownAt(a, level);
   if (level <= 1) return { text: `Recarga: ${s(to)}`, slower: false };
   const from = cooldownAt(a, level - 1);
-  if (to === from) return { text: `Recarga: ${s(to)}, igual que ahora`, slower: false };
+  // si subir no la cambia (todas menos el palazo), la carta no dice nada: ya dice qué mejora
+  if (to === from) return null;
   return { text: `Recarga: ${s(from)} → ${s(to)} · ${to > from ? 'más lenta' : 'más rápida'}`, slower: to > from };
 }
 
@@ -206,7 +207,7 @@ export function describe(card: Card): { name: string; title: string; hint: strin
     const a = ABILITIES[card.id];
     return {
       name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA',
-      up: upgradeNote(card.id, card.level) ?? undefined, cool: cooldownNote(card.id, card.level),
+      up: upgradeNote(card.id, card.level) ?? undefined, cool: cooldownNote(card.id, card.level) ?? undefined,
     };
   }
   if (card.kind === 'perk') {
