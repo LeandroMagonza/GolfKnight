@@ -28,8 +28,9 @@ export interface Talent {
  * - rest: segundos de descanso entre oleadas.
  */
 export const DIFFICULTY = {
-  speed: [0.85, 1, 1.12],
-  share: [0.25, 1 / 3],
+  // tres puntos de velocidad (3/10): sin puntos ×0.76, y el tercero llega a lo que antes era el segundo
+  speed: [0.76, 0.88, 1, 1.12],
+  share: [0.25, 1 / 3, 0.5],
   cap: [2, 3],
   recharge: [1.6, 1],
   eliteHpLess: [2, 0],
@@ -44,9 +45,12 @@ export const TALENTS: Talent[] = [
   { id: 'special', name: 'Olas especiales', levels: [() => 'La segunda oleada es especial y deja su marca en el resto de la partida', () => 'Otra ola especial, más adelante'] },
   { id: 'support', name: 'Apoyos', levels: [() => 'En el último escenario vienen curanderos, inmunes, abanderados o hechiceros', () => 'Desde el segundo escenario'] },
   { id: 'powers', name: 'Poderes más duros', levels: [() => `Escudos y blindajes de hasta ${DIFFICULTY.cap[1]}, y los escurridizos y los benditos recargan más rápido`] },
-  { id: 'speed', name: 'Más rápidos', levels: [() => 'Los enemigos caminan más rápido', () => 'Todavía más rápido'] },
+  { id: 'speed', name: 'Más rápidos', levels: [() => 'Los enemigos caminan más rápido', () => 'Más rápido', () => 'Todavía más rápido'] },
   { id: 'terrain', name: 'Terreno irregular', levels: [() => 'Se juega en campos con lomas'] },
-  { id: 'powered', name: 'Más con poder', levels: [() => `${part(DIFFICULTY.share[1])} de los enemigos trae poder, en vez de ${part(DIFFICULTY.share[0])}`.replace(/^./, (c) => c.toUpperCase())] },
+  { id: 'powered', name: 'Más con poder', levels: [
+    () => `${part(DIFFICULTY.share[1])} de los enemigos trae poder, en vez de ${part(DIFFICULTY.share[0])}`.replace(/^./, (c) => c.toUpperCase()),
+    () => `${part(DIFFICULTY.share[2])} trae poder`.replace(/^./, (c) => c.toUpperCase()),
+  ] },
   { id: 'elite', name: 'Élites más duros', levels: [() => `Los élites tienen ${DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]} de vida más`] },
   { id: 'escort', name: 'Escolta del jefe', levels: [() => 'El jefe viene con enemigos con poderes'] },
   { id: 'rest', name: 'Sin respiro', levels: [() => 'Menos descanso entre oleadas'] },

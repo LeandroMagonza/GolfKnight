@@ -3,12 +3,14 @@ import { DIFFICULTY, earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, set
 import { ELITE, HARDEST, INTERMISSION } from './waves';
 
 describe('dificultad', () => {
-  it('diez talentos, trece puntos: los de dos niveles son olas especiales, apoyos y velocidad', () => {
+  it('diez talentos, quince puntos: la velocidad tiene tres, y olas especiales, apoyos y más con poder, dos', () => {
     expect(TALENTS).toHaveLength(10);
-    expect(MAX_POINTS).toBe(13);
-    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['special', 'speed', 'support']);
+    expect(MAX_POINTS).toBe(15);
+    expect(TALENTS.filter((t) => t.levels.length === 3).map((t) => t.id)).toEqual(['speed']);
+    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['powered', 'special', 'support']);
     for (const t of TALENTS) for (const text of t.levels) expect(text(), t.id).not.toBe('');
     expect(TALENTS.find((t) => t.id === 'powered')!.levels[0]()).toBe('Un tercio de los enemigos trae poder, en vez de un cuarto');
+    expect(TALENTS.find((t) => t.id === 'powered')!.levels[1]()).toBe('La mitad trae poder');
     expect(TALENTS.find((t) => t.id === 'elite')!.levels[0]()).toBe('Los élites tienen 2 de vida más');
   });
 
@@ -20,10 +22,14 @@ describe('dificultad', () => {
     expect(easy.eliteHp).toEqual(ELITE.hp.map((h) => h - 2));
     const all = Object.fromEntries(TALENTS.map((t) => [t.id, t.levels.length]));
     const hard = rulesFor(all);
-    // lo mismo que la de antes del 3/10 en todo, salvo que va más rápido y descansa menos
-    expect({ ...hard, speed: 1, rest: INTERMISSION }).toEqual(HARDEST);
+    // lo mismo que la de antes del 3/10 en todo, salvo que va más rápido, descansa menos y la mitad trae poder
+    expect({ ...hard, speed: 1, rest: INTERMISSION, share: HARDEST.share }).toEqual(HARDEST);
     expect(hard.speed).toBeGreaterThan(1);
     expect(hard.rest).toBeLessThan(INTERMISSION);
+    expect(hard.share).toBe(0.5);
+    // con tres puntos de velocidad, lo que antes era con dos
+    expect(rulesFor({ speed: 3 }).speed).toBe(1.12);
+    expect(rulesFor({ speed: 2 }).speed).toBe(1);
     // y un número de más no pasa del máximo
     expect(rulesFor({ special: 9 }).specials).toBe(2);
     // un solo punto en poderes más duros pone todo: escudos hasta 3 y la recarga de siempre

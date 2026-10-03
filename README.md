@@ -311,7 +311,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 Cada partida ganada **con todos los puntos puestos** da un punto de dificultad, y cada punto puesto hace
 la partida más difícil. Se reparten como uno quiera en un menú entre partidas (en la pantalla de inicio,
 con el primer punto, y en el cartel del final), y se pueden mover cuando se quiera: vale para la próxima
-partida. Se guarda en el navegador. Son 13 puntos en 10 talentos:
+partida. Se guarda en el navegador. Son 15 puntos en 10 talentos:
 
 | Talento | Niveles |
 | --- | --- |
@@ -319,9 +319,9 @@ partida. Se guarda en el navegador. Son 13 puntos en 10 talentos:
 | Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
 | Apoyos | 1: en el último escenario; 2: desde el segundo |
 | Poderes más duros | escudos y blindajes de hasta 3 (sin el punto, hasta 2), y el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6) |
-| Más rápidos | sin puntos los enemigos van a ×0.85; 1: a su velocidad; 2: ×1.12 |
+| Más rápidos | sin puntos los enemigos van a ×0.76; 1: ×0.88; 2: a su velocidad; 3: ×1.12 |
 | Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). Cambiarlo en la pantalla de inicio cambia el campo en el acto |
-| Más con poder | un tercio en vez de un cuarto |
+| Más con poder | 1: un tercio en vez de un cuarto; 2: la mitad |
 | Élites más duros | +2 de vida (sin el punto, el élite trae 2 menos) |
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
 | Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
