@@ -32,6 +32,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Las lomas pasan a ser un talento, **Terreno irregular**: sin él se juega en el campo liso, y con él en
   uno de los tres campos con lomas. Poderes más duros pasa a ser un solo punto (escudos y blindajes
   hasta 3, y escurridizos y benditos con la recarga rápida). Siguen siendo 13 puntos. `00dfdeb`
+- Prender o apagar el terreno irregular en la entrada cambia el campo en el acto, sin recargar la
+  página. `98948f4`
 
 **Golf**
 - Subir una habilidad de nivel ya no la hace recargar más lento: es mejora pura. Solo el palazo sigue
