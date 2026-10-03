@@ -34,6 +34,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Subir una habilidad de nivel ya no la hace recargar más lento: es mejora pura. Solo el palazo sigue
   recargando más lento al subir. `531e74d`
 - El carcaj te da una pelota cada 10 s. `531e74d`
+- El fuego pega menos y más lento: 2, 3 o 4 según el nivel, uno cada 2 s (eran 4, 5 y 6, uno cada
+  1.5 s). Un tiro de fuego solo ya no mata al élite antes de que llegue. `635fdb1`
+- El frío frena mucho a los rápidos y poco a los lentos: los lleva al 40 % de su velocidad pero no
+  por debajo de 1 m/s, así que el caballero y el gólem chico ya no quedan casi quietos. `635fdb1`
+- El perfecto de regalo pasa a contar como el albañil y el herrero: cada 5 tiros que matan a más de
+  uno (eran 8 bajas cualquiera). `635fdb1`
+- El albañil cura también al golfista: la puerta +1 y vos +1. `635fdb1`
 
 **Detrás de escena**
 - Cada partida se manda sola al terminar, para ver dónde se pierde y balancear con datos. Sin datos
