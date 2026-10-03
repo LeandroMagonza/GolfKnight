@@ -9,7 +9,7 @@ import { ABILITIES, ABILITY_KEYS, ECHO, ICE, lv, PALAZO, SLOTS, type AbilityId, 
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
-import { earnPoint, loadProgress, rulesFor, saveProgress, setLevel, TALENTS, used } from './core/difficulty';
+import { earnPoint, hillsOn, loadProgress, rulesFor, saveProgress, setLevel, TALENTS, used } from './core/difficulty';
 import { arcLayout, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls, RICOCHET_COLOR } from './game/balls';
@@ -55,8 +55,16 @@ const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 30
 // El campo de esta partida sale de core/terrain: ?campo=N fuerza uno y ?plano deja el campo liso. Tiene
 // que decidirse antes de armar el mundo, porque la malla del terreno se construye una sola vez.
 const params = new URLSearchParams(location.search);
-// el tenis se juega en cancha lisa: la pelota que rebota no sabe de lomas
-const gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.get('campo'));
+/**
+ * La dificultad: los puntos ganados y dónde están puestos (ver core/difficulty.ts). Se eligen en un menú
+ * entre partidas, desde la pantalla de inicio o el cartel del final.
+ */
+const progress = loadProgress();
+/** Los campos con lomas son un talento: sin él se juega en el liso. Es lo que se armó al cargar. */
+const builtHills = hillsOn(progress.picks);
+// el tenis se juega en cancha lisa: la pelota que rebota no sabe de lomas. ?campo=N y ?plano mandan
+// sobre la dificultad (las pruebas y el que mira usan el campo del que juega)
+const gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.get('campo') ?? (builtHills ? null : 'plano'));
 // el balance ajustado en el panel vuelve al recargar: cambiar de campo recarga la página, así que sin
 // esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
 const savedBalance = loadBalance();
@@ -96,11 +104,6 @@ const QUALITY_COLORS = [0xffffff, 0xffe066, 0xff2d3c];
 const DUFF_COLORS = [0x6b7480, 0x5be07a, 0xffd21f];
 const hud = new Hud();
 const audio = new GameAudio();
-/**
- * La dificultad: los puntos ganados y dónde están puestos (ver core/difficulty.ts). Se eligen en un menú
- * entre partidas, desde la pantalla de inicio o el cartel del final.
- */
-const progress = loadProgress();
 const difficultyMenu = new DifficultyMenu(progress);
 /**
  * La partida de esta vez: tres escenarios, cada uno con un poder sorteado, y el jefe (ver `buildRun`), con
@@ -147,6 +150,11 @@ for (const b of diffButtons) {
   });
 }
 difficultyMenu.onChange = paintDifficulty;
+// el campo se arma al cargar: si antes de empezar se prendió o se apagó el terreno irregular, se vuelve
+// a cargar (en el cartel del final no hace falta: la R ya recarga)
+difficultyMenu.onClose = () => {
+  if (!started && hillsOn(progress.picks) !== builtHills && !params.has('plano') && !params.has('campo') && !TENNIS_ON) location.reload();
+};
 
 /**
  * El registro de la partida, que se manda solo al terminar (src/telemetry.ts). Arranca con la primera

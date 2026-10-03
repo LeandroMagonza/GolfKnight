@@ -310,15 +310,16 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 Cada partida ganada **con todos los puntos puestos** da un punto de dificultad, y cada punto puesto hace
 la partida más difícil. Se reparten como uno quiera en un menú entre partidas (en la pantalla de inicio,
 con el primer punto, y en el cartel del final), y se pueden mover cuando se quiera: vale para la próxima
-partida. Se guarda en el navegador. Son 13 puntos en 9 talentos:
+partida. Se guarda en el navegador. Son 13 puntos en 10 talentos:
 
 | Talento | Niveles |
 | --- | --- |
 | Poderes acumulados | los poderes de los escenarios anteriores siguen viniendo |
 | Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
 | Apoyos | 1: en el último escenario; 2: desde el segundo |
-| Poderes más duros | 1: escudos y blindajes de hasta 3 (sin el punto, hasta 2); 2: el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6) |
+| Poderes más duros | escudos y blindajes de hasta 3 (sin el punto, hasta 2), y el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6) |
 | Más rápidos | sin puntos los enemigos van a ×0.85; 1: a su velocidad; 2: ×1.12 |
+| Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). El campo se arma al cargar: cambiarlo en la pantalla de inicio la vuelve a cargar |
 | Más con poder | un tercio en vez de un cuarto |
 | Élites más duros | +2 de vida (sin el punto, el élite trae 2 menos) |
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
@@ -340,7 +341,8 @@ una vez con `docs/telemetria.sql`, que trae también consultas para mirar.
 
 ## El campo: tres mapas, uno por partida
 
-El campo ya no es un plano, y **cada partida sale uno de tres mapas diseñados**: *Valle del medio*,
+Desde el 3/10 las lomas son un talento de dificultad (*Terreno irregular*): sin él se juega en el campo
+liso. Con él, **cada partida sale uno de tres mapas diseñados**: *Valle del medio*,
 *La meseta* (más baja que al principio) y *La loma sola*. Cambia dónde está la cobertura, por dónde
 vienen en fila y desde qué puesto conviene pegar, sin que ninguno quede injugable. `?campo=1` a
 `?campo=3` fuerza uno, y `?plano` deja el campo liso (es lo que usa la prueba general, que mide trayectorias).

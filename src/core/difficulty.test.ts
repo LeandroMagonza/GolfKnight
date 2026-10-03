@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DIFFICULTY, earnPoint, loadProgress, MAX_POINTS, rulesFor, setLevel, TALENTS, used, type Progress } from './difficulty';
+import { DIFFICULTY, earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, setLevel, TALENTS, used, type Progress } from './difficulty';
 import { ELITE, HARDEST, INTERMISSION } from './waves';
 
 describe('dificultad', () => {
-  it('nueve talentos, trece puntos: los de dos niveles son olas especiales, apoyos, poderes y velocidad', () => {
-    expect(TALENTS).toHaveLength(9);
+  it('diez talentos, trece puntos: los de dos niveles son olas especiales, apoyos y velocidad', () => {
+    expect(TALENTS).toHaveLength(10);
     expect(MAX_POINTS).toBe(13);
-    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['powers', 'special', 'speed', 'support']);
+    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['special', 'speed', 'support']);
     for (const t of TALENTS) for (const text of t.levels) expect(text(), t.id).not.toBe('');
     expect(TALENTS.find((t) => t.id === 'powered')!.levels[0]()).toBe('Un tercio de los enemigos trae poder, en vez de un cuarto');
     expect(TALENTS.find((t) => t.id === 'elite')!.levels[0]()).toBe('Los élites tienen 2 de vida más');
@@ -26,6 +26,13 @@ describe('dificultad', () => {
     expect(hard.rest).toBeLessThan(INTERMISSION);
     // y un número de más no pasa del máximo
     expect(rulesFor({ special: 9 }).specials).toBe(2);
+    // un solo punto en poderes más duros pone todo: escudos hasta 3 y la recarga de siempre
+    expect(rulesFor({ powers: 1 }).hard).toEqual(HARDEST.hard);
+  });
+
+  it('sin el talento se juega en el campo liso', () => {
+    expect(hillsOn({})).toBe(false);
+    expect(hillsOn({ terrain: 1 })).toBe(true);
   });
 
   it('los puntos se ponen sin pasar de los que hay ni del máximo de cada talento', () => {

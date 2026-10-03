@@ -1023,7 +1023,7 @@ export class DebugPanel {
       ['con poder, sin puntos', () => d.share[0], (v) => { d.share[0] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
       ['con poder, con el punto', () => d.share[1], (v) => { d.share[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
       ['escudo y blindaje hasta, sin puntos', () => d.cap[0], (v) => { d.cap[0] = Math.max(1, Math.min(3, Math.round(v))); }, 1, ''],
-      ['recarga del escurridizo y el bendito, sin el 2.º punto', () => d.recharge[0], (v) => { d.recharge[0] = d.recharge[1] = Math.max(1, v); }, 0.1, '×'],
+      ['recarga del escurridizo y el bendito, sin el punto', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×'],
       ['vida de menos del élite, sin el punto', () => d.eliteHpLess[0], (v) => { d.eliteHpLess[0] = Math.max(0, Math.round(v)); }, 1, ''],
       ['descanso con «sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's'],
       ['estampida: chicos de más por oleada', () => MARKS.stampede, (v) => { MARKS.stampede = Math.max(0, Math.round(v)); }, 1, ''],
