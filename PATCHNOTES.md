@@ -41,6 +41,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - El perfecto de regalo pasa a contar como el albañil y el herrero: cada 5 tiros que matan a más de
   uno (eran 8 bajas cualquiera). `635fdb1`
 - El albañil cura también al golfista: la puerta +1 y vos +1. `635fdb1`
+- El rayo ya no lo frena el blindaje: le saca su 1 también al acorazado. `95d1207`
+- El tiro fantasma le entra entero a todos desde el nivel 1: pasa escudos, blindaje, al enemigo fantasma
+  (el putter fantasma le saca 2, como a cualquiera) y también a los inmunes del chamán. `95d1207`
 
 **Detrás de escena**
 - Cada partida se manda sola al terminar, para ver dónde se pierde y balancear con datos. Sin datos
