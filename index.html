@@ -53,8 +53,27 @@
       #abe .spell.on { border-color: var(--c); box-shadow: 0 0 10px var(--c); background: rgba(255, 255, 255, 0.12); }
       #abe .help { font-size: 13px; color: #dfe5ec; max-width: 420px; }
       #abe .cam { font-size: 11px; color: #8a94a3; }
+      #abe .spell .lv { font-size: 10px; color: #9aa4b2; }
+      #abe .spell.empty { cursor: default; opacity: 0.45; }
+      #abe.swap .spell:not(.empty) { animation: abeswap 0.8s ease-in-out infinite alternate; }
+      @keyframes abeswap { from { border-color: rgba(255, 255, 255, 0.2); } to { border-color: #ffd66b; box-shadow: 0 0 10px #ffd66b; } }
+      /* las cartas de hechizo nuevo, arriba de los botones */
+      #abe .offer { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+      #abe .offer[hidden], #abe .newspell[hidden], #abe .offer [hidden] { display: none; }
+      #abe .offer .title { font-size: 13px; font-weight: 700; color: #ffd66b; max-width: 400px; }
+      #abe .offer .cards { display: grid; grid-template-columns: repeat(3, minmax(90px, 128px)); gap: 6px; }
+      #abe .card { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 5px; border-radius: 10px; border: 2px solid var(--c); background: rgba(255, 255, 255, 0.07); color: #e4e9f0; font: inherit; cursor: pointer; touch-action: manipulation; }
+      #abe .card.on { background: rgba(255, 214, 107, 0.18); border-color: #ffd66b; }
+      #abe .card .icon { font-size: 26px; line-height: 1.1; }
+      #abe .card .name { font-size: 13px; font-weight: 800; }
+      #abe .card .name small { font-weight: 400; color: #9aa4b2; }
+      #abe .card .shape { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aa4b2; }
+      #abe .card .hint { font-size: 11px; color: #cfd6e0; line-height: 1.25; }
+      #abe .offer .actions { display: flex; gap: 6px; }
+      #abe .offer .actions button, #abe .newspell { font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 0, 0, 0.4); color: #e4e9f0; cursor: pointer; touch-action: manipulation; }
+      #abe .newspell { border-color: #ffd66b; color: #ffd66b; }
       #abe.other { pointer-events: none; }
-      #abe.other .spells, #abe.other .help, #abe.other .cam { display: none; }
+      #abe.other .spells, #abe.other .help, #abe.other .cam, #abe.other .offer, #abe.other .newspell { display: none; }
       #abe.other .who { font-weight: 400; font-size: 13px; color: #9aa4b2; }
       #watchers { position: absolute; top: 62px; left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
       body.watching #meter, body.watching #bottom, body.watching #perks, body.watching #skin, body.watching #balancebtn,
@@ -323,6 +342,11 @@
       #pause .invite input { flex: 1; min-width: 0; font: 13px ui-monospace, monospace; padding: 6px 8px; border-radius: 6px; border: 1px solid #3a4452; background: #0e141c; color: #e4e9f0; }
       #pause .invite .who { font-size: 13px; color: #9aa4b2; }
       #pause .invite [hidden] { display: none; }
+      /* echar a Abe y la partida privada, debajo del enlace (en la intro y en la pausa) */
+      .netctl { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+      .netctl[hidden], .netctl [hidden] { display: none; }
+      #overlay .netctl button { font-size: 13px; padding: 5px 12px; }
+      .netctl .kick { color: #ff8a8a; }
       #pause h2, #end h2 { margin: 0 0 12px; font-size: 44px; color: #ffd66b; }
       #pause p, #end p { margin: 4px 0; color: #e4e9f0; font-size: 17px; }
     </style>
@@ -342,6 +366,7 @@
       <div id="invitebox" hidden>
         <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy">Copiar</button></div>
         <div class="who">Pasale este enlace. Puede entrar ahora o con la partida empezada.</div>
+        <div class="netctl" hidden><button type="button" class="kick" hidden>Echar a Abe</button><button type="button" class="private"></button></div>
       </div>
       <button id="replaycine" type="button">Ver la intro de nuevo</button>
       <div id="corner">
@@ -389,6 +414,12 @@
       <div id="netsound" hidden>🔈 Click para activar el sonido</div>
       <div id="abe" hidden>
         <div class="who"></div>
+        <div class="offer" hidden>
+          <div class="title"></div>
+          <div class="cards"></div>
+          <div class="actions"><button type="button" class="keep">Quedarme con los míos</button><button type="button" class="later">Después</button></div>
+        </div>
+        <button type="button" class="newspell" hidden></button>
         <div class="spells"></div>
         <div class="help"></div>
         <div class="cam">Arrastrá para girar la cámara · rueda o dos dedos para acercar</div>
@@ -416,6 +447,7 @@
           <div class="box" hidden>
             <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy" tabindex="-1">Copiar</button></div>
             <div class="who"></div>
+            <div class="netctl" hidden><button type="button" class="kick" tabindex="-1" hidden>Echar a Abe</button><button type="button" class="private" tabindex="-1"></button></div>
           </div>
         </div>
       </div>

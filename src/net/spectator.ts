@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { BALL_RADIUS } from '../core/ballistics';
 import { heightAt, mounds, type Mound } from '../core/terrain';
-import { SPELL_INFO, SPELL_ORDER, type AbeStrikes, type SpellId } from '../coop/abe';
+import { SPELL_INFO, type Abe, type SpellId } from '../coop/abe';
+import type { Offer } from '../coop/spells';
 import { ENEMIES, type EnemyKind, type EnemyMods } from '../core/waves';
 import type { Abilities } from '../game/abilities';
 import type { Enemy, Horde } from '../game/enemies';
@@ -44,7 +45,7 @@ export interface SpectatorDeps {
   /** Lo que se le cuenta al que mira: conectando, esperando, pausa… Null lo esconde. */
   note(text: string | null): void;
   /** Los hechizos de Abe, para dibujarlos. */
-  abe: AbeStrikes;
+  abe: Abe;
   /** Dónde cae en el piso un punto de la pantalla (coordenadas -1..1), o null si no toca el piso. */
   groundAt(x: number, y: number): { x: number; z: number } | null;
   /** El panel de Abe: si lo es, cuál eligió y cómo están sus hechizos. */
@@ -55,15 +56,22 @@ export interface SpectatorDeps {
 export interface AbeStatus {
   /** Este es Abe (el primero que entró). */
   abe: boolean;
-  /** El hechizo elegido, en el orden de los botones. */
+  /** El lugar elegido (0 a 3, el orden de los botones). */
   selected: number;
-  /** Cada hechizo: si se puede tirar ya, y los segundos que le faltan de cuántos. */
-  spells: { ready: boolean; left: number; total: number }[];
+  /** Cada lugar: qué hechizo y de qué nivel, si se puede tirar ya, y los segundos que le faltan de cuántos. */
+  slots: { id: SpellId; level: number; ready: boolean; left: number; total: number }[];
+  /** Lo que le ofrecen ahora, y cuántos le deben (contando ese). */
+  offer: Offer | null;
+  picks: number;
+  /** La oleada que viene lo está esperando a él. */
+  waiting: boolean;
+  /** Ya no está en la partida (lo echaron, o era privada): el panel no se muestra. */
+  gone?: boolean;
   /** Por qué no se puede ninguno, si no es la recarga (pausa, carta, no empezó). */
   why: string | null;
 }
 
-const NO_ABE: AbeStatus = { abe: false, selected: 0, spells: [], why: null };
+const NO_ABE: AbeStatus = { abe: false, selected: 0, slots: [], offer: null, picks: 0, waiting: false, why: null };
 
 interface RemoteBall {
   mesh: THREE.Mesh;
@@ -82,6 +90,8 @@ export class NetSpectator {
   private host: string | null = null;
   /** Cuándo llegó lo último del que juega. */
   private heard = 0;
+  /** Lo echaron, o la partida era privada: ya no escucha nada. */
+  private out = false;
   /** Cuándo se empezó a buscar la partida, y si alguna vez apareció el que juega. */
   private readonly born = performance.now();
   private everHost = false;
@@ -91,14 +101,14 @@ export class NetSpectator {
   readonly controls: OrbitControls;
   /** Es Abe: el primero que entró, que tira los hechizos. */
   isAbe = false;
-  /** El hechizo elegido (botones o teclas 1 a 4). */
-  selected: SpellId = 'hail';
+  /** El lugar elegido (botones o teclas 1 a 4). */
+  selected = 0;
   /** Cómo están los hechizos según la última foto, y hasta cuándo no se manda otro pedido. */
   private abeState: AbeStatus = NO_ABE;
-  /** El radio de cada hechizo, según el que juega. */
-  private radii: number[] = [];
+  /** El tamaño de cada lugar (radio, o ancho de la línea), según el que juega. */
+  private sizes: number[] = [];
   private castLock = 0;
-  /** Dónde está el mouse en el piso, y el círculo que muestra dónde caería (y la fila, hacia el caballero). */
+  /** Dónde está el mouse en el piso, y el círculo que muestra dónde caería (o la línea desde el caballero). */
   private aim: { x: number; z: number } | null = null;
   private readonly preview: THREE.Mesh;
   private readonly previewLine: THREE.Line;
@@ -172,22 +182,39 @@ export class NetSpectator {
 
   /** Abe pide el hechizo elegido en (x, z). Lo decide el que juega: acá solo se manda, si parece que se puede. */
   cast(x: number, z: number): boolean {
-    const ready = this.abeState.spells[SPELL_ORDER.indexOf(this.selected)]?.ready;
+    const ready = this.abeState.slots[this.selected]?.ready;
     if (!this.isAbe || !this.host || !ready || performance.now() < this.castLock) return false;
     this.castLock = performance.now() + 400;
-    this.link.send({ k: 'cast', s: this.selected, x, z }, this.host);
+    this.link.send({ k: 'cast', i: this.selected, x, z }, this.host);
     return true;
   }
 
-  /** Elige el hechizo `i` (0 a 3, en el orden de los botones). */
+  /** Elige el lugar `i` (0 a 3, en el orden de los botones). */
   select(i: number): void {
-    const id = SPELL_ORDER[i];
-    if (!id || !this.isAbe) return;
-    this.selected = id;
+    if (!this.isAbe || !this.abeState.slots[i]) return;
+    this.selected = i;
     this.d.showAbe({ ...this.abeState, selected: i });
   }
 
+  /** Abe elige de lo que le ofrecen: la carta `card` (-1, quedarse como está) y, con todo lleno, en qué lugar va. */
+  pick(card: number, slot = -1): void {
+    if (!this.isAbe || !this.host) return;
+    this.link.send({ k: 'pick', c: card, s: slot }, this.host);
+  }
+
   private receive(m: HostMsg, from: string): void {
+    if (this.out) return;
+    // te echó el caballero, o la partida es privada: se corta acá (la privada se contesta antes del saludo)
+    if ((m.k === 'kicked' && from === this.host) || (m.k === 'closed' && !this.host)) {
+      this.out = true;
+      this.everHost = true;
+      this.host = null;
+      this.preview.visible = this.previewLine.visible = false;
+      this.d.showAbe({ ...NO_ABE, gone: true });
+      this.d.note(m.k === 'kicked' ? 'El caballero te sacó de la partida.' : 'La partida es privada: el caballero no deja entrar a nadie más.');
+      this.link.close();
+      return;
+    }
     if (m.k === 'hello') {
       this.host = from;
       this.everHost = true;
@@ -213,6 +240,7 @@ export class NetSpectator {
 
   /** El que juega se fue: queda todo como estaba hasta que vuelva (reiniciar es volver a entrar). */
   private lost(): void {
+    if (this.out) return;
     this.host = null;
     this.preview.visible = this.previewLine.visible = false;
     this.abeState = NO_ABE;
@@ -280,28 +308,35 @@ export class NetSpectator {
     this.d.abe.applyRemote(b.ab);
     const g = b.g;
     const why = !g.st ? 'Todavía no empezó la partida' : g.pa ? 'En pausa' : g.cd ? 'Está eligiendo una carta' : g.en ? 'Terminó la partida' : null;
-    this.radii = g.abe.map(([, , r]) => r);
-    const selected = SPELL_ORDER.indexOf(this.selected);
+    const a = g.abe;
+    this.sizes = a.s.map(([, , , , size]) => size);
+    if (this.selected >= a.s.length) this.selected = 0;
     this.abeState = {
       abe: this.isAbe,
-      selected,
-      spells: g.abe.map(([left, total]) => ({ ready: !why && left <= 0, left, total })),
+      selected: this.selected,
+      slots: a.s.map(([id, level, left, total]) => ({ id, level, ready: !why && left <= 0, left, total })),
+      offer: a.o,
+      picks: a.p,
+      waiting: !!g.wa,
       why,
     };
     this.d.showAbe(this.abeState);
-    const aim = this.isAbe ? this.aim : null;
-    this.preview.visible = !!aim;
-    this.previewLine.visible = !!aim && this.selected === 'row';
-    if (!aim) return;
-    const ready = this.abeState.spells[selected]?.ready;
-    const color = ready ? SPELL_INFO[this.selected].color : 0x8a94a3;
+    const slot = this.abeState.slots[this.selected];
+    const aim = this.isAbe && slot ? this.aim : null;
+    // la corriente se ve como la línea desde el caballero; lo demás, como el círculo donde cae
+    const line = slot?.id === 'current';
+    this.preview.visible = !!aim && !line;
+    this.previewLine.visible = !!aim && line;
+    if (!aim || !slot) return;
+    const ready = slot.ready;
+    const color = ready ? SPELL_INFO[slot.id].color : 0x8a94a3;
     const y = heightAt(aim.x, aim.z) + 0.09;
     this.preview.position.set(aim.x, y, aim.z);
-    this.preview.scale.setScalar(this.radii[selected] ?? 3);
+    this.preview.scale.setScalar(this.sizes[this.selected] ?? 3);
     const mat = this.preview.material as THREE.MeshBasicMaterial;
     mat.color.setHex(color);
     mat.opacity = ready ? 0.75 : 0.35;
-    // la fila: la línea de tu puesto hasta el centro, que es donde van a quedar
+    // la corriente: la línea del caballero hasta donde tocaría
     const player = this.d.player();
     if (this.previewLine.visible && player) {
       const pos = this.previewLine.geometry.attributes.position as THREE.BufferAttribute;

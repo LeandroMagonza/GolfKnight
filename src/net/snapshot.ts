@@ -6,7 +6,7 @@
 // las dos. Los eventos esperan a su hora para salir junto con lo que se ve.
 //
 // Acá van solo los tipos y las cuentas, sin Three.js: se prueban sin navegador.
-import type { StrikeSnap } from '../coop/abe';
+import type { AbeSnap, StrikeSnap } from '../coop/abe';
 
 /** Fotos por segundo. */
 export const SNAP_HZ = 15;
@@ -150,8 +150,10 @@ export interface GameSnap {
   kills: number;
   /** Bolsillo del tenis: cuántas y de cuántas. */
   pk?: [number, number];
-  /** Los hechizos de Abe, en el orden de los botones: segundos que le faltan, de cuánto es la recarga, y el radio. */
-  abe: [number, number, number][];
+  /** Abe: sus hechizos con la recarga de cada lugar, lo que le ofrecen y cuántos le deben. */
+  abe: AbeSnap;
+  /** La oleada que viene espera a que Abe elija su hechizo. */
+  wa: boolean;
 }
 
 export interface Snap {
@@ -166,7 +168,7 @@ export interface Snap {
   mk: MarkSnap[];
   ca: CartSnap[];
   mo: MoundSnap[];
-  /** Los granizos de Abe en camino. */
+  /** Los hechizos de Abe en camino y sus trampas armadas. */
   ab: StrikeSnap[];
 }
 
@@ -199,13 +201,18 @@ export interface Bye {
   k: 'bye';
 }
 
-/** Qué es el que mira: Abe (el primero que entró, que tira el granizo) o solo espectador. */
+/** Qué es el que mira: Abe (el primero que entró, que tira los hechizos) o solo espectador. */
 export interface Role {
   k: 'role';
   abe: boolean;
 }
 
-export type HostMsg = Snap | Hello | NetEvent | Bye | Role;
+/** El caballero te echó (`kicked`), o la partida es privada y no se puede entrar (`closed`). */
+export interface Out {
+  k: 'kicked' | 'closed';
+}
+
+export type HostMsg = Snap | Hello | NetEvent | Bye | Role | Out;
 
 /** El que mira se presenta: el que juega le contesta con el saludo. */
 export interface Watch {
@@ -215,10 +222,17 @@ export interface Watch {
 /** Abe tira el granizo en (x, z). */
 export interface Cast {
   k: 'cast';
-  /** Cuál de sus hechizos (ver SPELL_ORDER). */
-  s: string;
+  /** El lugar del hechizo (0 a 3, el orden de los botones). */
+  i: number;
   x: number;
   z: number;
+}
+
+/** Abe elige de lo que le ofrecen: la carta (-1, quedarse como está) y en qué lugar va (con todo lleno). */
+export interface Pick {
+  k: 'pick';
+  c: number;
+  s: number;
 }
 
 // ---------- cuentas ----------

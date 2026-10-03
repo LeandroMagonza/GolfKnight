@@ -17,7 +17,7 @@ import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
-import { ABE_SPELLS, SPELL_INFO, SPELL_ORDER } from './coop/abe';
+import { ABE_SPELLS, SPELL_INFO, SPELL_ORDER } from './coop/spells';
 import { ENEMIES, GEOMANCER, HEAL_AURA, MARKS, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
@@ -38,10 +38,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   carga: CHARGE as unknown as Record<string, number>,
   curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
-  'abe granizo': ABE_SPELLS.hail,
-  'abe fila': ABE_SPELLS.row,
-  'abe maldición': ABE_SPELLS.curse,
-  'abe silencio': ABE_SPELLS.hush,
+  // los hechizos de Abe, uno por tabla (ver coop/spells)
+  ...Object.fromEntries(SPELL_ORDER.map((id) => [`abe ${SPELL_INFO[id].name.toLowerCase()}`, ABE_SPELLS[id] as Record<string, number | number[]>])),
 };
 
 export interface DebugHooks {
@@ -49,6 +47,8 @@ export interface DebugHooks {
   difficultyPoints: { get(): number; set(points: number): void };
   /** Saca tres cartas ya, como al terminar una oleada. */
   offerChoice(): void;
+  /** Le da a Abe un hechizo para elegir, como al terminar una oleada. */
+  abeGrant?(): void;
   /** Toma una carta directo, sin sortear (las de curarse). */
   take(card: Card): void;
   /** Las habilidades en Q, W, E y R, con su nivel. */
@@ -698,32 +698,45 @@ export class DebugPanel {
     );
   }
 
-  /** Los cuatro hechizos de Abe, el segundo jugador (el primero que entra a mirar tu partida). */
+  /**
+   * Los hechizos de Abe, el segundo jugador (el primero que entra a mirar tu partida): una tabla por
+   * hechizo, con los números por nivel como en las habilidades. Y un botón para darle uno sin esperar a que
+   * termine la oleada.
+   */
   private buildAbe(el: HTMLElement): void {
     el.append(heading('Abe (el que mira)'));
-    type Row = [string, () => number, (v: number) => void, number, string];
-    const rows: Row[] = [];
+    el.append(note('Los tira el primero que entra a mirar tu partida (Invitar, en la intro o en la pausa): elige uno de sus hechizos y toca el piso. Ninguno hace daño. '
+      + 'Arranca eligiendo uno y gana otro por oleada, hasta 4; después le salen de nivel más alto. Cuenta lo de este panel, el del que juega.'));
+    if (this.hooks.abeGrant) el.append(this.row(this.button('Darle un hechizo a Abe', () => this.hooks.abeGrant?.())));
+    const LABEL: Record<string, string> = {
+      cooldown: 'recarga (s)', delay: 'demora hasta que sale (s)', radius: 'radio (m)', width: 'ancho a cada lado (m)',
+      seconds: 'dura (s)', distance: 'empuja (m)', freezeFrom: 'congela desde el nivel', life: 'la trampa dura (s)', trigger: 'se dispara a (m)',
+    };
     for (const id of SPELL_ORDER) {
-      const t = ABE_SPELLS[id] as Record<string, number>;
-      const name = SPELL_INFO[id].name.toLowerCase();
-      const num = (key: string, min: number, max: number) =>
-        [() => t[key], (v: number) => { t[key] = Math.min(max, Math.max(min, v)); }] as const;
-      rows.push(
-        [`${name}: recarga`, ...num('cooldown', 0.5, 120), 0.5, 's'],
-        [`${name}: demora`, ...num('delay', 0.1, 10), 0.1, 's desde que marca hasta que sale'],
-        [`${name}: radio`, ...num('radius', 0.5, 15), 0.25, 'm'],
-      );
-      if ('seconds' in t) rows.push([`${name}: dura`, ...num('seconds', 0.5, 30), 0.5, id === 'hail' ? 's de frío' : id === 'curse' ? 's grandes y vulnerables' : 's sin poderes']);
+      const info = SPELL_INFO[id];
+      const table = ABE_SPELLS[id] as Record<string, number | number[]>;
+      const t = document.createElement('table');
+      const head = t.insertRow();
+      for (const h of [`${info.icon} ${info.name} (${info.shape})`, 'nv 1', 'nv 2', 'nv 3']) {
+        const th = document.createElement('th');
+        th.textContent = h;
+        if (!h.startsWith('nv')) th.className = 'l';
+        head.appendChild(th);
+      }
+      for (const key of Object.keys(table)) {
+        const r = t.insertRow();
+        cell(r, LABEL[key] ?? key, 'l').title = key;
+        const value = table[key];
+        if (Array.isArray(value)) {
+          for (let q = 0; q < value.length; q++) cell(r, this.loose(() => (table[key] as number[])[q], (v) => { (table[key] as number[])[q] = Math.max(0, v); }, 0.25));
+        } else {
+          cell(r, this.loose(() => table[key] as number, (v) => { table[key] = Math.max(0, v); }, key === 'cooldown' || key === 'life' ? 0.5 : 0.1)).title = 'igual en los tres niveles';
+          cell(r, '');
+          cell(r, '');
+        }
+      }
+      el.append(t);
     }
-    const hail = ABE_SPELLS.hail;
-    el.append(
-      this.choiceRow('el granizo', ['enfría', 'congela'] as const, () => (hail.freeze ? 'congela' : 'enfría'), (v) => { hail.freeze = v === 'congela' ? 1 : 0; }, {
-        enfría: 'Los frena: caminan lento mientras dura el frío',
-        congela: 'Además los deja quietos, y el próximo golpe pega el doble',
-      }),
-      this.numbers(rows).table,
-      note('Los tira el primero que entra a mirar tu partida (Invitar, en la intro o en la pausa): elige un hechizo y toca el piso. Ninguno hace daño. Granizo frena, fila los alinea hacia vos, maldición los agranda y les suma 1 por golpe, silencio les apaga los poderes. Cuenta lo de este panel, el del que juega.'),
-    );
   }
 
   // ---- el tiro: correrse cargando o darle efecto ----

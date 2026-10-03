@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { BALL_RADIUS } from '../core/ballistics';
 import { mounds } from '../core/terrain';
 import { ENEMIES } from '../core/waves';
-import type { AbeStrikes } from '../coop/abe';
+import type { Abe } from '../coop/abe';
 import type { Abilities } from '../game/abilities';
 import type { Balls } from '../game/balls';
 import type { Enemy, Horde } from '../game/enemies';
@@ -42,7 +42,7 @@ export interface HostSource {
   horde: Horde;
   balls: Balls;
   abilities: Abilities;
-  abe: AbeStrikes;
+  abe: Abe;
 }
 
 export class NetHost {
@@ -60,13 +60,24 @@ export class NetHost {
 
   /** Abe: el primero de los que miran. Si se va, pasa al que sigue. */
   private abeId: string | null = null;
-  /** Abe pidió el hechizo `spell` en (x, z). */
-  onCast: ((spell: string, x: number, z: number) => void) | null = null;
+  /** Abe pidió el hechizo del lugar `slot` en (x, z). */
+  onCast: ((slot: number, x: number, z: number) => void) | null = null;
+  /** Abe eligió de lo que le ofrecen: la carta (o -1) y el lugar. */
+  onPick: ((card: number, slot: number) => void) | null = null;
+  /**
+   * Partida privada: no entra nadie más (los que ya miran siguen). Y los que el caballero echó, que no
+   * vuelven en esta sesión. Al que vuelve a entrar desde otra pestaña lo frena la privada.
+   */
+  isPrivate = false;
+  private readonly banned = new Set<string>();
 
   constructor(private readonly link: Link, private readonly src: HostSource) {
     link.onMessage = (m, from) => {
+      if (this.banned.has(from)) return;
       if (m.k === 'watch') this.join(from);
-      else if (m.k === 'cast' && from === this.abeId && typeof m.s === 'string' && Number.isFinite(m.x) && Number.isFinite(m.z)) this.onCast?.(m.s, m.x as number, m.z as number);
+      else if (from !== this.abeId) return;
+      else if (m.k === 'cast' && Number.isInteger(m.i) && Number.isFinite(m.x) && Number.isFinite(m.z)) this.onCast?.(m.i as number, m.x as number, m.z as number);
+      else if (m.k === 'pick' && Number.isInteger(m.c) && Number.isInteger(m.s)) this.onPick?.(m.c as number, m.s as number);
     };
     link.onPeer = (id, joined) => {
       if (joined || !this.watchers.delete(id)) return;
@@ -80,6 +91,11 @@ export class NetHost {
   }
 
   private join(id: string): void {
+    // privada: el que no estaba no entra (se le avisa, así no se queda esperando)
+    if (this.isPrivate && !this.watchers.has(id)) {
+      this.link.send({ k: 'closed' }, id);
+      return;
+    }
     this.watchers.add(id);
     this.announced.clear();
     this.link.send({ k: 'hello', ...this.src.hello() }, id);
@@ -92,6 +108,17 @@ export class NetHost {
   /** ¿Hay un Abe mirando? */
   get hasAbe(): boolean {
     return this.abeId !== null;
+  }
+
+  /** El caballero echa a Abe: se le avisa, no se le hace caso nunca más, y el que sigue pasa a ser Abe. */
+  kickAbe(): void {
+    const id = this.abeId;
+    if (!id) return;
+    this.link.send({ k: 'kicked' }, id);
+    this.banned.add(id);
+    this.watchers.delete(id);
+    this.updateRoles();
+    this.onWatchers?.(this.watchers.size);
   }
 
   /** El primero que mira es Abe: si cambió, se les avisa al de antes y al nuevo. */

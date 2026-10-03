@@ -42,7 +42,8 @@ import { connect, roomCode } from './net/link';
 import { MIRRORED, mirror, NetHost } from './net/host';
 import { NetSpectator } from './net/spectator';
 import type { GameSnap, Hello } from './net/snapshot';
-import { AbeStrikes, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/abe';
+import { Abe, SPELL_INFO } from './coop/abe';
+import { ABE_SLOTS, spellHint, spellSize } from './coop/spells';
 import type { AbeStatus } from './net/spectator';
 
 // ---------- escena ----------
@@ -81,7 +82,7 @@ const balls = new Balls(scene, horde, effects);
 const moundView = new MoundView(scene, world);
 const abilities = new Abilities(scene, horde, effects);
 /** El granizo de Abe, el segundo jugador (src/coop): lo pide el que mira, cae en este juego. */
-const abe = new AbeStrikes(scene, horde, effects);
+const abe = new Abe(scene, horde, effects);
 const tees = new Tees(scene);
 const traps = new Traps(scene, horde, effects);
 balls.traps = traps;
@@ -1405,6 +1406,7 @@ function makeDebugPanel(): DebugPanel {
     offerChoice() {
       if (!cardOpen) offerChoice();
     },
+    abeGrant: () => abe.grantPick(),
     take: applyCard,
     slots: () => abilities.slots,
     setAbilityLevel: (id, level) => abilities.setLevel(id, level),
@@ -1801,7 +1803,7 @@ let spectator: NetSpectator | null = null;
 abe.origin = () => player?.anchor ?? { x: 0, z: TEE_Z };
 abe.onLand = (spell, pos, hits) => {
   if (spell === 'hail') audio.frost();
-  else if (spell === 'row') audio.whoosh(0.9);
+  else if (spell === 'whirl' || spell === 'current' || spell === 'push') audio.whoosh(0.9);
   else if (spell === 'curse') audio.zap();
   else audio.thud();
   if (!hits) return;
@@ -1810,41 +1812,115 @@ abe.onLand = (spell, pos, hits) => {
 };
 
 /**
- * El panel de Abe (el que mira): sus cuatro hechizos en botones grandes, que se tocan bien con el dedo,
- * con la recarga de cada uno. Solo toca el DOM cuando cambia algo.
+ * El panel de Abe (el que mira): sus hechizos en botones grandes, que se tocan bien con el dedo, con la
+ * recarga de cada uno; y arriba, cuando le toca, las cartas de hechizo nuevo. Con todo lleno, elegir una
+ * carta pide en qué lugar va (o se queda como está). Solo toca el DOM cuando cambia algo.
  */
 const abeEl = document.getElementById('abe')!;
-const abeSpells = abeEl.querySelector('.spells') as HTMLElement;
-abeSpells.innerHTML = SPELL_ORDER.map((id, i) => {
-  const info = SPELL_INFO[id];
-  const color = `#${info.color.toString(16).padStart(6, '0')}`;
-  return `<button type="button" class="spell" data-i="${i}" style="--c:${color}"><span class="icon">${info.icon}</span><span class="name">${info.name}</span><kbd>${i + 1}</kbd><span class="cd"></span></button>`;
-}).join('');
-abeSpells.addEventListener('click', (e) => {
+const abeSlotsEl = abeEl.querySelector('.spells') as HTMLElement;
+const abeOfferEl = abeEl.querySelector('.offer') as HTMLElement;
+const abeNewBtn = abeEl.querySelector('.newspell') as HTMLButtonElement;
+abeSlotsEl.innerHTML = Array.from({ length: ABE_SLOTS }, (_, i) => `<button type="button" class="spell" data-i="${i}"><span class="icon"></span><span class="name"></span><span class="lv"></span><kbd>${i + 1}</kbd><span class="cd"></span></button>`).join('');
+/** La carta elegida con todo lleno, esperando a que diga en qué lugar va; y si las cartas están a la vista. */
+let abeSwap: number | null = null;
+let abeOfferOpen = true;
+let abeOfferKey = '';
+let abeLast: AbeStatus | null = null;
+const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+abeSlotsEl.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest('button.spell') as HTMLButtonElement | null;
   if (!btn) return;
   btn.blur();
-  spectator?.select(Number(btn.dataset.i));
+  const i = Number(btn.dataset.i);
+  if (abeSwap !== null) {
+    if (abeLast?.slots[i]) spectator?.pick(abeSwap, i);
+    abeSwap = null;
+  } else spectator?.select(i);
+  abeKey = '';
+});
+abeOfferEl.addEventListener('click', (e) => {
+  const el = e.target as HTMLElement;
+  const card = el.closest('button.card') as HTMLButtonElement | null;
+  if (card) {
+    card.blur();
+    const c = Number(card.dataset.c);
+    // con lugares libres va directo; con todo lleno, primero dice dónde
+    if ((abeLast?.slots.length ?? 0) < ABE_SLOTS) spectator?.pick(c, -1);
+    else abeSwap = c;
+  } else if (el.closest('button.keep')) {
+    spectator?.pick(-1, -1);
+    abeSwap = null;
+  } else if (el.closest('button.later')) {
+    abeOfferOpen = false;
+    abeSwap = null;
+  } else return;
+  abeKey = '';
+});
+abeNewBtn.addEventListener('click', () => {
+  abeNewBtn.blur();
+  abeOfferOpen = true;
+  abeKey = '';
 });
 let abeKey = '';
 function showAbe(s: AbeStatus): void {
-  const key = JSON.stringify([s.abe, s.selected, s.why, s.spells.map((x) => [x.ready, Math.ceil(x.left), Math.round((x.left / x.total) * 40)])]);
+  abeLast = s;
+  if (s.gone) {
+    abeEl.hidden = true;
+    abeKey = '';
+    return;
+  }
+  const offerKey = JSON.stringify(s.offer);
+  if (offerKey !== abeOfferKey) {
+    // llegó otra oferta: se muestra, y lo que estaba eligiendo se olvida
+    abeOfferKey = offerKey;
+    abeOfferOpen = true;
+    abeSwap = null;
+  }
+  // con la oleada esperándolo, las cartas no se pueden dejar para después
+  if (s.waiting) abeOfferOpen = true;
+  const key = JSON.stringify([s.abe, s.selected, s.why, offerKey, s.picks, abeSwap, abeOfferOpen, s.waiting,
+    s.slots.map((x) => [x.id, x.level, x.ready, Math.ceil(x.left), Math.round((x.left / x.total) * 40)])]);
   if (key === abeKey) return;
   abeKey = key;
   abeEl.hidden = false;
   abeEl.classList.toggle('other', !s.abe);
+  abeEl.classList.toggle('swap', abeSwap !== null);
   (abeEl.querySelector('.who') as HTMLElement).textContent = s.abe ? '🧙 Sos Abe, el mago que lo invocó' : 'Mirando · Abe es el primero que entró';
-  Array.from(abeSpells.children).forEach((el, i) => {
-    const st = s.spells[i];
-    el.classList.toggle('on', i === s.selected);
-    el.classList.toggle('ready', !!st?.ready);
+  Array.from(abeSlotsEl.children).forEach((el, i) => {
+    const st = s.slots[i];
+    const btn = el as HTMLButtonElement;
+    btn.classList.toggle('empty', !st);
+    btn.classList.toggle('on', !!st && i === s.selected && abeSwap === null);
+    btn.classList.toggle('ready', !!st?.ready);
+    btn.style.setProperty('--c', st ? hex(SPELL_INFO[st.id].color) : '#4a5666');
+    (btn.querySelector('.icon') as HTMLElement).textContent = st ? SPELL_INFO[st.id].icon : '·';
+    (btn.querySelector('.name') as HTMLElement).textContent = st ? SPELL_INFO[st.id].name : 'vacío';
+    (btn.querySelector('.lv') as HTMLElement).textContent = st ? `nv ${st.level}` : '';
     // lo que falta de la recarga tapa el botón, de arriba para abajo
-    (el.querySelector('.cd') as HTMLElement).style.height = st && !st.ready && !s.why ? `${Math.round((100 * st.left) / Math.max(0.1, st.total))}%` : '0';
+    (btn.querySelector('.cd') as HTMLElement).style.height = st && !st.ready && !s.why ? `${Math.round((100 * st.left) / Math.max(0.1, st.total))}%` : '0';
   });
-  const sel = SPELL_ORDER[s.selected];
-  const st = s.spells[s.selected];
-  (abeEl.querySelector('.help') as HTMLElement).textContent = s.why
-    ?? `${SPELL_INFO[sel].name}: ${SPELL_INFO[sel].hint.toLowerCase()} · ${st?.ready ? 'tocá el piso donde va' : `listo en ${Math.ceil(st?.left ?? 0)} s`}`;
+  // las cartas de hechizo nuevo (solo hechizos que el juego conoce: vienen por la red)
+  const offer = s.abe && s.offer ? { level: Math.max(1, Math.min(3, Math.round(s.offer.level))), spells: s.offer.spells.filter((id) => id in SPELL_INFO) } : null;
+  const full = s.slots.length >= ABE_SLOTS;
+  abeOfferEl.hidden = !offer || !abeOfferOpen;
+  abeNewBtn.hidden = !offer || abeOfferOpen;
+  abeNewBtn.textContent = s.picks > 1 ? `✨ ${s.picks} hechizos nuevos` : '✨ Hechizo nuevo';
+  if (offer) {
+    (abeOfferEl.querySelector('.title') as HTMLElement).textContent = abeSwap !== null
+      ? `¿En qué lugar va ${SPELL_INFO[offer.spells[abeSwap]].name} nv ${offer.level}? Tocá el hechizo que reemplaza`
+      : (s.waiting ? '⏳ La oleada espera a que elijas · ' : '')
+        + (full ? `Hechizos de nivel ${offer.level}: elegí uno y reemplazá otro, o quedate como estás` : s.slots.length ? 'Elegí un hechizo nuevo' : 'Elegí tu primer hechizo');
+    (abeOfferEl.querySelector('.later') as HTMLElement).hidden = s.waiting;
+    (abeOfferEl.querySelector('.cards') as HTMLElement).innerHTML = offer.spells.map((id, c) => {
+      const info = SPELL_INFO[id];
+      return `<button type="button" class="card${abeSwap === c ? ' on' : ''}" data-c="${c}" style="--c:${hex(info.color)}"><span class="icon">${info.icon}</span><span class="name">${info.name} <small>nv ${offer.level}</small></span><span class="shape">${spellSize(id, offer.level)}</span><span class="hint">${spellHint(id, offer.level)}</span></button>`;
+    }).join('');
+    (abeOfferEl.querySelector('.keep') as HTMLElement).hidden = !full;
+  }
+  const sel = s.slots[s.selected];
+  (abeEl.querySelector('.help') as HTMLElement).textContent = abeSwap !== null ? 'Tocá abajo el lugar donde va'
+    : s.why ?? (!sel ? (offer ? 'Elegí arriba tu hechizo' : 'Todavía no tenés hechizos')
+      : `${SPELL_INFO[sel.id].name}: ${spellHint(sel.id, sel.level)} · ${sel.ready ? 'tocá el piso donde va' : `listo en ${Math.ceil(sel.left)} s`}`);
 }
 
 /** El que mira: dónde cae en el piso un punto de la pantalla (-1..1). */
@@ -1903,6 +1979,7 @@ async function startHosting(code: string): Promise<string> {
         kills,
         pk: pocket ? [pocket.count, pocket.max] : undefined,
         abe: abe.status,
+        wa: abeChoosing(),
       }),
       player: () => player ?? null,
       horde,
@@ -1911,12 +1988,18 @@ async function startHosting(code: string): Promise<string> {
       abe,
     });
     const host = netHost;
-    // Abe pide un hechizo: sale si la partida está andando y ese ya recargó
-    host.onCast = (spell, x, z) => {
-      if (!started || paused || cardOpen || ended || !(spell in SPELL_INFO)) return;
-      const id = spell as SpellId;
-      if (abe.cast(id, x, z)) effects.blink(new THREE.Vector3(x, heightAt(x, z), z), SPELL_INFO[id].color);
+    // Abe pide un hechizo: sale si la partida está andando y ese lugar ya recargó
+    host.onCast = (slot, x, z) => {
+      if (!started || paused || cardOpen || ended) return;
+      const s = abe.slots[slot];
+      if (s && abe.cast(slot, x, z)) effects.blink(new THREE.Vector3(x, heightAt(x, z), z), SPELL_INFO[s.id].color);
     };
+    // y elige sus hechizos: la oleada que viene lo espera (ver abeChoosing)
+    host.onPick = (card, slot) => {
+      abe.pick(card, slot);
+    };
+    // la privada sigue al reiniciar: está en la URL
+    host.isPrivate = new URL(location.href).searchParams.has('privada');
     mirror(effects, MIRRORED.fx, (f, a) => host.record('fx', f, a));
     mirror(audio, MIRRORED.au, (f, a) => host.record('au', f, a));
     mirror(hud, MIRRORED.hud, (f, a) => host.record('hud', f, a));
@@ -1927,7 +2010,9 @@ async function startHosting(code: string): Promise<string> {
       watchersEl.textContent = n === 1 ? '🧙 Abe está con vos' : `🧙 Abe y ${n - 1} mirando`;
       intro.setWatchers(n);
       setPauseWatchers(n);
+      showNetControls();
     };
+    showNetControls();
   }
   const url = new URL(location.href);
   url.searchParams.set('transmitir', code);
@@ -1940,6 +2025,36 @@ async function startHosting(code: string): Promise<string> {
   }
   history.replaceState(null, '', url.toString().replace(/=(&|$)/g, '$1'));
   return watchLink(code);
+}
+
+/**
+ * Lo que el caballero manda en su sala, en la intro y en la pausa: echar a Abe (el que sigue pasa a ser
+ * Abe) y hacer la partida privada (no entra nadie más; los que miran siguen).
+ */
+const netControls = Array.from(document.querySelectorAll('.netctl')) as HTMLElement[];
+function showNetControls(): void {
+  for (const el of netControls) {
+    el.hidden = !netHost;
+    (el.querySelector('.kick') as HTMLElement).hidden = !netHost?.hasAbe;
+    (el.querySelector('.private') as HTMLElement).textContent = netHost?.isPrivate ? '🔒 Privada: no entra nadie más' : '🔓 Abierta: entra el que tenga el enlace';
+  }
+}
+for (const el of netControls) {
+  el.querySelector('.kick')!.addEventListener('click', (e) => {
+    (e.currentTarget as HTMLElement).blur();
+    netHost?.kickAbe();
+    showNetControls();
+  });
+  el.querySelector('.private')!.addEventListener('click', (e) => {
+    (e.currentTarget as HTMLElement).blur();
+    if (!netHost) return;
+    netHost.isPrivate = !netHost.isPrivate;
+    const url = new URL(location.href);
+    if (netHost.isPrivate) url.searchParams.set('privada', '');
+    else url.searchParams.delete('privada');
+    history.replaceState(null, '', url.toString().replace(/=(&|$)/g, '$1'));
+    showNetControls();
+  });
 }
 
 /** El botón de invitar: abre una sala (o usa la que ya hay) y devuelve el enlace. */
@@ -2159,7 +2274,19 @@ function updateCamera(dt: number): void {
   }
 }
 
+/**
+ * De a dos: la oleada que viene espera a que Abe elija su hechizo, como espera a la carta del caballero.
+ * Solo en el descanso entre oleadas, y solo si hay un Abe mirando.
+ */
+function abeChoosing(): boolean {
+  return !!netHost?.hasAbe && !!abe.offer && director.restLeft > 0;
+}
+
 function updateWaves(dt: number): void {
+  if (abeChoosing()) {
+    director.wait(dt);
+    return;
+  }
   for (const e of director.update(dt, horde.aliveCount)) {
     switch (e.type) {
       case 'wave': {
@@ -2198,6 +2325,8 @@ function updateWaves(dt: number): void {
         // al terminar un escenario: la puerta se arregla un poco y el golfista recupera toda su vida
         if (director.list[e.index + 1] && director.list[e.index + 1].scenario !== director.list[e.index].scenario) scenarioHeal();
         if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner('¡Oleada despejada!', '', 2.5);
+        // Abe también gana un hechizo por oleada (aunque todavía no haya entrado: los elige al llegar)
+        if (e.index + 1 < director.waveCount) abe.grantPick();
         break;
       case 'victory':
         endGame('victory', '¡Valdehoyo resiste!', 'La profecía se cumplió… con un hierro 7');
@@ -2295,6 +2424,12 @@ function frame(): void {
     if (!tutorial) hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScenario(director.list[director.index]?.scenario ?? -1);
     hud.setScore(score, kills);
+    // de a dos: la oleada espera a Abe, y se dice (este cartel, en el que juega, está libre)
+    const waiting = started && !ended && !tutorial && abeChoosing();
+    if (waiting !== !netNote.hidden) {
+      netNote.hidden = !waiting;
+      netNote.textContent = '🧙 Esperando a que Abe elija su hechizo…';
+    }
   }
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos
   debugPanel?.tick();

@@ -1,61 +1,50 @@
 // Abe, el mago que te invocó: el segundo jugador (ver docs/multijugador.md). Es el primero que entra a mirar
-// tu partida, y juega táctico: elige uno de sus **cuatro hechizos** y toca el piso donde va. Ahí aparece un
-// círculo que se llena, y al llenarse hace lo suyo. Ninguno pega: Abe prepara, el que mata sos vos. Por
-// eso todos duran poco (hay que aprovecharlos a tiempo), llegan a toda la cancha y agarran un área chica.
-//
-// - **Granizo**: los frena (frío). El único que tarda: es una marca para que veas dónde va a caer.
-// - **Fila**: los pone en fila **hacia vos**, sobre la línea que va de tu puesto al centro del círculo.
-//   Uno detrás del otro: el driver los atraviesa a todos.
-// - **Maldición**: crecen y reciben 1 más por golpe, un rato (la lupa del caballero).
-// - **Silencio**: se les apagan los poderes un rato (escudo, blindaje, burbuja, auras, esquiva).
+// tu partida. Mira la cancha desde arriba y juega táctico: tiene hasta cuatro hechizos (ver coop/spells),
+// elige uno y toca el piso donde va. Ahí aparece la marca (un círculo, o la línea desde el caballero), se
+// llena, y al llenarse el hechizo hace lo suyo. La trampa, en cambio, queda armada hasta que alguien la
+// pisa. Ninguno pega: Abe prepara, el que mata es el caballero.
 //
 // La magia cae de arriba: no la paran los escudos ni la burbuja, como a las pelotas. Silenciar al chamán
 // le apaga el aura a todos los que protegía.
 //
-// Todo pasa en el juego del que juega (`cast` y `update`); el que mira solo lo dibuja (`applyRemote`).
+// Todo pasa en el juego del que juega (`cast`, `pick` y `update`); el que mira solo lo dibuja
+// (`applyRemote`), y le manda a este lo que elige.
 import * as THREE from 'three';
 import { heightAt, relief } from '../core/terrain';
 import type { Effects } from '../game/effects';
 import type { Enemy, Horde } from '../game/enemies';
 import { FIELD_HALF_WIDTH, GATE_Z, SPAWN_Z } from '../game/world';
 import { r2, r3 } from '../net/snapshot';
+import { ABE_SPELLS, applyPick, at, nextOffer, sizeOf, SPELL_INFO, SPELL_ORDER, type AbeSlot, type Offer, type SpellId } from './spells';
 
-export type SpellId = 'hail' | 'row' | 'curse' | 'hush';
-/** El orden de los botones (y de las teclas 1 a 4). */
-export const SPELL_ORDER: SpellId[] = ['hail', 'row', 'curse', 'hush'];
+export { SPELL_INFO, SPELL_ORDER, type SpellId } from './spells';
 
 /**
- * Los números de cada hechizo. Se tocan en el panel de balance (tecla B): cuentan los del que juega.
- * `cooldown` es la recarga, `delay` lo que tarda en llenarse el círculo, `radius` su tamaño y `seconds`
- * lo que dura el efecto.
+ * Un hechizo en camino o una trampa armada: cuál, dónde, de qué tamaño, cuánto le falta para salir (0..1),
+ * hacia dónde va la línea y de qué largo, y cuánto le queda a la trampa (1 recién armada, 0 se va).
  */
-export const ABE_SPELLS = {
-  hail: { cooldown: 8, delay: 1.5, radius: 3.5, seconds: 4, freeze: 0 },
-  row: { cooldown: 8, delay: 0.6, radius: 3.5 },
-  curse: { cooldown: 10, delay: 0.6, radius: 3, seconds: 3 },
-  hush: { cooldown: 10, delay: 0.6, radius: 3, seconds: 2.5 },
-};
+export type StrikeSnap = [id: number, spell: number, x: number, z: number, size: number, t: number, yaw: number, len: number, life: number];
 
-/** Cómo se ve y cómo se explica cada hechizo, en los botones de Abe. */
-export const SPELL_INFO: Record<SpellId, { name: string; icon: string; color: number; hint: string }> = {
-  hail: { name: 'Granizo', icon: '❄', color: 0x9fe3ff, hint: 'Al rato cae hielo: los frena' },
-  row: { name: 'Fila', icon: '🌬', color: 0x8fe3b0, hint: 'Los pone en fila hacia el caballero' },
-  curse: { name: 'Maldición', icon: '🎯', color: 0xc6f06a, hint: 'Crecen y reciben 1 más por golpe' },
-  hush: { name: 'Silencio', icon: '🔇', color: 0xff8a6b, hint: 'Se les apagan los poderes' },
-};
-
-/** Un hechizo en camino: cuál, dónde, de qué tamaño, cuánto le falta (0 recién marcado, 1 sale) y hacia dónde va la fila. */
-export type StrikeSnap = [id: number, spell: number, x: number, z: number, r: number, t: number, yaw: number];
+/** Lo que el que mira necesita de Abe: sus lugares (hechizo, nivel, recarga y tamaño), la oferta y cuántas le deben. */
+export interface AbeSnap {
+  s: [id: SpellId, level: number, left: number, total: number, size: number][];
+  o: Offer | null;
+  p: number;
+}
 
 interface Strike {
   id: number;
   spell: SpellId;
+  level: number;
   x: number;
   z: number;
-  radius: number;
+  size: number;
   t: number;
-  /** La fila: hacia dónde mira la línea (de tu puesto al centro). */
   yaw: number;
+  len: number;
+  /** La trampa armada: segundos que le quedan (y de cuántos). */
+  life: number;
+  lifeMax: number;
   group: THREE.Group;
   fill: THREE.Mesh;
   edge: THREE.Mesh;
@@ -64,50 +53,121 @@ interface Strike {
 
 const discGeo = new THREE.CircleGeometry(1, 48);
 const edgeGeo = new THREE.RingGeometry(0.93, 1, 64);
+const planeGeo = new THREE.PlaneGeometry(1, 1);
+/** La flecha del empujón: un triángulo. */
+const arrowGeo = new THREE.CircleGeometry(1, 3);
+const toothGeo = new THREE.ConeGeometry(0.12, 0.45, 5);
 const shardGeo = new THREE.OctahedronGeometry(0.35, 0);
 const shardMat = new THREE.MeshStandardMaterial({ color: 0xdff6ff, emissive: SPELL_INFO.hail.color, emissiveIntensity: 0.8, roughness: 0.3 });
-/** La línea de la fila, a lo largo del círculo. */
-const lineGeo = new THREE.PlaneGeometry(0.22, 2);
+const toothMat = new THREE.MeshStandardMaterial({ color: 0xe8d2a8, roughness: 0.6, metalness: 0.3 });
 /** Dónde caen los trozos de hielo, en radios del círculo. */
 const SHARDS: [number, number][] = [[0, 0], [0.55, 0.2], [-0.45, 0.4], [0.2, -0.55], [-0.35, -0.4]];
-/** Desde qué parte de la espera empiezan a caer, y desde qué altura. */
 const FALL_FROM = 0.6;
 const FALL_HEIGHT = 16;
+/** La línea más corta, por si toca casi encima del caballero. */
+const MIN_LINE = 3;
 
-export class AbeStrikes {
-  /** Segundos que le faltan a cada hechizo para poder tirarlo otra vez. */
-  readonly cooldowns: Record<SpellId, number> = { hail: 0, row: 0, curse: 0, hush: 0 };
-  /** Salió un hechizo: cuál, dónde y a cuántos agarró (para el sonido y los avisos). */
+export class Abe {
+  /** Sus hechizos, en el orden de los botones. */
+  slots: AbeSlot[] = [];
+  /** Segundos que le faltan a cada lugar para poder tirar otra vez: cada lugar recarga por su lado. */
+  cooldowns: number[] = [];
+  /** Cuántos hechizos le deben (el primero, y uno por oleada), y lo que le ofrecen ahora. */
+  picks = 1;
+  offer: Offer | null = null;
+  /** Salió un hechizo (o saltó una trampa): cuál, dónde y a cuántos agarró. */
   onLand: ((spell: SpellId, pos: THREE.Vector3, hits: number) => void) | null = null;
-  /** Dónde está el caballero: la fila se arma hacia ahí. */
+  /** Dónde está el caballero: la corriente sale de ahí. */
   origin: () => { x: number; z: number } = () => ({ x: 0, z: 9 });
   private readonly strikes: Strike[] = [];
   private nextId = 1;
 
-  constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
+  constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {
+    this.refreshOffer();
+  }
 
-  /** Abe marca un hechizo en (x, z). Devuelve false si todavía está recargando. */
-  cast(spell: SpellId, x: number, z: number): boolean {
-    if (!(spell in ABE_SPELLS) || this.cooldowns[spell] > 0) return false;
-    this.cooldowns[spell] = ABE_SPELLS[spell].cooldown;
-    const cx = THREE.MathUtils.clamp(x, -FIELD_HALF_WIDTH, FIELD_HALF_WIDTH);
-    const cz = THREE.MathUtils.clamp(z, GATE_Z + 2, SPAWN_Z + 4);
-    const o = this.origin();
-    const yaw = Math.atan2(cx - o.x, cz - o.z);
-    this.strikes.push(this.make(this.nextId++, spell, cx, cz, ABE_SPELLS[spell].radius, yaw));
+  // ---- cómo gana hechizos ----
+
+  /** Terminó una oleada: le toca elegir otro. */
+  grantPick(): void {
+    this.picks++;
+    this.refreshOffer();
+  }
+
+  /** Si le deben uno y no tiene oferta, se la arma; si ya no hay nada que darle, no le deben más. */
+  private refreshOffer(): void {
+    if (this.offer || this.picks <= 0) return;
+    this.offer = nextOffer(this.slots);
+    if (!this.offer) this.picks = 0;
+  }
+
+  /** Abe elige de la oferta (`card`, o -1 para quedarse como está) y en qué lugar va. Devuelve si valió. */
+  pick(card: number, slot: number): boolean {
+    if (!this.offer) return false;
+    const next = applyPick(this.slots, this.offer, card, slot);
+    if (!next) return false;
+    if (card >= 0) {
+      if (next.length > this.slots.length) this.cooldowns.push(0);
+      else this.cooldowns[slot] = 0;
+    }
+    this.slots = next;
+    this.offer = null;
+    this.picks--;
+    this.refreshOffer();
     return true;
   }
 
-  /** El juego del que juega: corre la espera y hace salir el hechizo. */
+  // ---- los hechizos ----
+
+  /** Abe tira el hechizo del lugar `slot` en (x, z). Devuelve false si no hay o está recargando. */
+  cast(slot: number, x: number, z: number): boolean {
+    const s = this.slots[slot];
+    if (!s || this.cooldowns[slot] > 0) return false;
+    const t = ABE_SPELLS[s.id];
+    this.cooldowns[slot] = t.cooldown;
+    let cx = THREE.MathUtils.clamp(x, -FIELD_HALF_WIDTH, FIELD_HALF_WIDTH);
+    let cz = THREE.MathUtils.clamp(z, GATE_Z + 2, SPAWN_Z + 4);
+    let yaw = 0;
+    let len = 0;
+    if (s.id === 'current') {
+      // la línea va del caballero hasta donde tocó: se marca en su centro
+      const o = this.origin();
+      len = Math.max(MIN_LINE, Math.hypot(cx - o.x, cz - o.z));
+      yaw = Math.atan2(cx - o.x, cz - o.z);
+      cx = o.x + Math.sin(yaw) * len / 2;
+      cz = o.z + Math.cos(yaw) * len / 2;
+    }
+    this.strikes.push(this.make(this.nextId++, s.id, s.level, cx, cz, sizeOf(s.id, s.level), yaw, len));
+    return true;
+  }
+
+  /** El juego del que juega: corre las recargas, hace salir los hechizos y vigila las trampas. */
   update(dt: number): void {
-    for (const id of SPELL_ORDER) this.cooldowns[id] = Math.max(0, this.cooldowns[id] - dt);
+    for (let i = 0; i < this.cooldowns.length; i++) this.cooldowns[i] = Math.max(0, this.cooldowns[i] - dt);
     for (let i = this.strikes.length - 1; i >= 0; i--) {
       const s = this.strikes[i];
-      s.t = Math.min(1, s.t + dt / Math.max(0.1, ABE_SPELLS[s.spell].delay));
+      if (s.t < 1) {
+        s.t = Math.min(1, s.t + dt / Math.max(0.1, ABE_SPELLS[s.spell].delay));
+        this.draw(s);
+        if (s.t < 1) continue;
+        if (s.spell !== 'trap') {
+          this.land(s);
+          this.remove(i);
+        }
+        continue;
+      }
+      // la trampa armada: espera a que alguien la pise, o se va
+      s.life -= dt;
       this.draw(s);
-      if (s.t < 1) continue;
-      this.land(s);
-      this.remove(i);
+      const pos = new THREE.Vector3(s.x, heightAt(s.x, s.z), s.z);
+      const trigger = ABE_SPELLS.trap.trigger;
+      if (this.horde.enemies.some((e) => e.alive && !e.passed && Math.hypot(e.position.x - s.x, e.position.z - s.z) <= trigger + e.radius)) {
+        this.land(s);
+        this.remove(i);
+      } else if (s.life <= 0) {
+        this.effects.blink(pos, SPELL_INFO.trap.color);
+        this.remove(i);
+      }
     }
   }
 
@@ -116,40 +176,64 @@ export class AbeStrikes {
     return this.horde.enemies.filter((e) => e.alive && !e.passed && Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius <= radius);
   }
 
+  /** Al jefe no lo mueve ningún hechizo. */
+  private bosses(): Set<number> {
+    return new Set(this.horde.enemies.filter((e) => e.stats.boss).map((e) => e.id));
+  }
+
   private land(s: Strike): void {
     const pos = new THREE.Vector3(s.x, heightAt(s.x, s.z), s.z);
     const color = SPELL_INFO[s.spell].color;
+    const T = ABE_SPELLS;
     let hits = 0;
     switch (s.spell) {
-      case 'hail': {
-        const n = ABE_SPELLS.hail;
-        this.effects.frost(pos, s.radius);
-        for (const e of this.inside(pos, s.radius)) {
-          this.horde.applyIce(e, n.seconds);
-          if (n.freeze) this.horde.freeze(e);
+      case 'hail':
+        this.effects.frost(pos, s.size);
+        for (const e of this.inside(pos, s.size)) {
+          this.horde.applyIce(e, at(T.hail.seconds, s.level));
+          if (s.level >= T.hail.freezeFrom) this.horde.freeze(e);
           hits++;
         }
         break;
-      }
-      case 'row': {
-        // la fila va de tu puesto al centro del círculo: el jefe no se mueve
+      case 'whirl':
+        hits = this.horde.whirl(pos, s.size);
+        this.effects.swipe(pos, s.size);
+        break;
+      case 'current': {
         const along = new THREE.Vector3(Math.sin(s.yaw), 0, Math.cos(s.yaw));
-        const skip = new Set(this.horde.enemies.filter((e) => e.stats.boss).map((e) => e.id));
-        hits = this.horde.sweep(pos, along, s.radius, s.radius, skip, true);
-        this.effects.swipe(pos, s.radius);
+        hits = this.horde.sweep(pos, along, s.size, s.len / 2, this.bosses());
+        // un remolino cada tantos metros a lo largo de la línea
+        for (let d = -s.len / 2; d <= s.len / 2; d += 6) {
+          const p = pos.clone().addScaledVector(along, d);
+          p.y = heightAt(p.x, p.z);
+          this.effects.swipe(p, s.size);
+        }
         break;
       }
+      case 'push':
+        hits = this.horde.gust(pos, s.size, new THREE.Vector3(0, 0, 1), at(T.push.distance, s.level));
+        this.effects.swipe(pos, s.size);
+        break;
       case 'curse':
-        this.effects.explosion(pos, s.radius, color);
-        for (const e of this.inside(pos, s.radius)) {
-          e.grow(ABE_SPELLS.curse.seconds);
+        this.effects.explosion(pos, s.size, color);
+        for (const e of this.inside(pos, s.size)) {
+          e.grow(at(T.curse.seconds, s.level));
           hits++;
         }
         break;
       case 'hush':
-        this.effects.explosion(pos, s.radius, color);
-        for (const e of this.inside(pos, s.radius)) {
-          this.horde.silence(e, ABE_SPELLS.hush.seconds);
+        this.effects.explosion(pos, s.size, color);
+        for (const e of this.inside(pos, s.size)) {
+          this.horde.silence(e, at(T.hush.seconds, s.level));
+          hits++;
+        }
+        break;
+      case 'trap':
+        this.effects.explosion(pos, s.size, color);
+        // los pesados ni se enteran (ver Enemy.stagger)
+        for (const e of this.inside(pos, s.size)) {
+          if (e.stats.heavy) continue;
+          e.stagger(at(T.trap.seconds, s.level));
           hits++;
         }
         break;
@@ -157,75 +241,123 @@ export class AbeStrikes {
     this.onLand?.(s.spell, pos, hits);
   }
 
-  /** Para mandárselo al que mira. */
+  // ---- para el que mira ----
+
   get view(): StrikeSnap[] {
-    return this.strikes.map((s) => [s.id, SPELL_ORDER.indexOf(s.spell), r2(s.x), r2(s.z), r2(s.radius), r3(s.t), r3(s.yaw)]);
+    return this.strikes.map((s) => [s.id, SPELL_ORDER.indexOf(s.spell), r2(s.x), r2(s.z), r2(s.size), r3(s.t), r3(s.yaw), r2(s.len), r3(s.lifeMax ? Math.max(0, s.life / s.lifeMax) : 1)]);
   }
 
-  /** Cómo están las recargas, en el orden de los botones: lo que falta, de cuánto, y el radio. */
-  get status(): [number, number, number][] {
-    return SPELL_ORDER.map((id) => [Math.round(this.cooldowns[id] * 10) / 10, ABE_SPELLS[id].cooldown, ABE_SPELLS[id].radius]);
+  get status(): AbeSnap {
+    return {
+      s: this.slots.map((s, i) => [s.id, s.level, Math.round((this.cooldowns[i] ?? 0) * 10) / 10, ABE_SPELLS[s.id].cooldown, sizeOf(s.id, s.level)]),
+      o: this.offer,
+      p: this.picks,
+    };
   }
 
-  /** El que mira: los hechizos como están en el del que juega. */
+  /** El que mira: los hechizos y las trampas como están en el del que juega. */
   applyRemote(list: StrikeSnap[]): void {
     const ids = new Set<number>();
-    for (const [id, k, x, z, r, t, yaw] of list) {
+    for (const [id, k, x, z, size, t, yaw, len, life] of list) {
       const spell = SPELL_ORDER[k];
       if (!spell) continue;
       ids.add(id);
       let s = this.strikes.find((o) => o.id === id);
       if (!s) {
-        s = this.make(id, spell, x, z, r, yaw);
+        s = this.make(id, spell, 1, x, z, size, yaw, len);
         this.strikes.push(s);
       }
       s.t = t;
+      if (s.lifeMax) s.life = life * s.lifeMax;
       this.draw(s);
     }
     for (let i = this.strikes.length - 1; i >= 0; i--) if (!ids.has(this.strikes[i].id)) this.remove(i);
   }
 
-  private make(id: number, spell: SpellId, x: number, z: number, radius: number, yaw: number): Strike {
+  // ---- cómo se ve ----
+
+  private make(id: number, spell: SpellId, level: number, x: number, z: number, size: number, yaw: number, len: number): Strike {
     const color = SPELL_INFO[spell].color;
     const group = new THREE.Group();
     const fillMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
     const edgeMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
     // sobre una pendiente lo plano se hundiría en el terreno: con relieve va por encima
     if (relief.on) fillMat.depthTest = edgeMat.depthTest = false;
-    const fill = new THREE.Mesh(discGeo, fillMat);
-    const edge = new THREE.Mesh(edgeGeo, edgeMat);
-    fill.rotation.x = edge.rotation.x = -Math.PI / 2;
-    edge.scale.setScalar(radius);
-    group.add(fill, edge);
     const extras: THREE.Mesh[] = [];
+    let fill: THREE.Mesh;
+    let edge: THREE.Mesh;
+    if (spell === 'current') {
+      // la línea: un pasillo del caballero hasta donde tocó, que se llena de los costados al centro
+      group.rotation.y = yaw;
+      edge = new THREE.Mesh(planeGeo, edgeMat);
+      edge.rotation.x = -Math.PI / 2;
+      edge.scale.set(size * 2, len, 1);
+      edgeMat.opacity = 0.18;
+      fill = new THREE.Mesh(planeGeo, fillMat);
+      fill.rotation.x = -Math.PI / 2;
+      fill.scale.set(0.01, len, 1);
+      fill.position.y = 0.01;
+      group.add(edge, fill);
+    } else {
+      fill = new THREE.Mesh(discGeo, fillMat);
+      edge = new THREE.Mesh(edgeGeo, edgeMat);
+      fill.rotation.x = edge.rotation.x = -Math.PI / 2;
+      edge.scale.setScalar(size);
+      group.add(fill, edge);
+    }
     if (spell === 'hail') {
       for (const [sx, sz] of SHARDS) {
         const m = new THREE.Mesh(shardGeo, shardMat);
-        m.position.set(sx * radius, FALL_HEIGHT, sz * radius);
+        m.position.set(sx * size, FALL_HEIGHT, sz * size);
         m.scale.set(1, 2.2, 1);
         m.visible = false;
         group.add(m);
         extras.push(m);
       }
-    } else if (spell === 'row') {
-      // la línea donde van a quedar, apuntando a tu puesto
-      const line = new THREE.Mesh(lineGeo, edgeMat);
-      // acostada, y girada para que su largo quede sobre (sin yaw, cos yaw)
-      line.rotation.set(-Math.PI / 2, 0, yaw);
-      line.scale.set(1, radius, 1);
-      line.position.y = 0.01;
-      group.add(line);
+    } else if (spell === 'push') {
+      // la flecha: para atrás, hacia el fondo
+      const arrow = new THREE.Mesh(arrowGeo, edgeMat);
+      arrow.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
+      arrow.scale.setScalar(size * 0.4);
+      arrow.position.y = 0.02;
+      group.add(arrow);
+    } else if (spell === 'trap') {
+      // los dientes de la trampa, alrededor de donde hay que pisar
+      const trigger = ABE_SPELLS.trap.trigger;
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        const tooth = new THREE.Mesh(toothGeo, toothMat);
+        tooth.position.set(Math.cos(a) * trigger, 0.2, Math.sin(a) * trigger);
+        group.add(tooth);
+        extras.push(tooth);
+      }
     }
     group.position.set(x, heightAt(x, z) + 0.07, z);
     this.scene.add(group);
-    return { id, spell, x, z, radius, t: 0, yaw, group, fill, edge, extras };
+    const lifeMax = spell === 'trap' ? ABE_SPELLS.trap.life : 0;
+    return { id, spell, level, x, z, size, t: 0, yaw, len, life: lifeMax, lifeMax, group, fill, edge, extras };
   }
 
-  /** La marca se llena de afuera hacia el centro mientras espera; al granizo, al final, le caen los trozos de hielo. */
+  /** La marca se llena mientras espera; al granizo le caen los trozos de hielo; la trampa armada late despacio. */
   private draw(s: Strike): void {
-    s.fill.scale.setScalar(Math.max(0.01, s.radius * s.t));
+    const edgeMat = s.edge.material as THREE.MeshBasicMaterial;
+    if (s.spell === 'current') {
+      s.fill.scale.x = Math.max(0.01, s.size * 2 * s.t);
+      (s.fill.material as THREE.MeshBasicMaterial).opacity = 0.2 + 0.25 * s.t;
+      return;
+    }
+    if (s.spell === 'trap') {
+      const trigger = ABE_SPELLS.trap.trigger;
+      s.fill.scale.setScalar(Math.max(0.01, trigger * s.t));
+      const fade = s.t < 1 ? 1 : Math.min(1, s.life / 2);
+      edgeMat.opacity = (0.25 + 0.15 * Math.sin(s.life * 3)) * fade;
+      (s.fill.material as THREE.MeshBasicMaterial).opacity = 0.35 * fade;
+      for (const m of s.extras) m.scale.setScalar(Math.max(0.01, s.t * (0.4 + 0.6 * fade)));
+      return;
+    }
+    s.fill.scale.setScalar(Math.max(0.01, s.size * s.t));
     // late cada vez más rápido cuando está por salir
-    (s.edge.material as THREE.MeshBasicMaterial).opacity = 0.55 + 0.4 * Math.abs(Math.sin(s.t * (4 + 18 * s.t)));
+    edgeMat.opacity = 0.55 + 0.4 * Math.abs(Math.sin(s.t * (4 + 18 * s.t)));
     if (s.spell !== 'hail') return;
     const fall = (s.t - FALL_FROM) / (1 - FALL_FROM);
     for (const m of s.extras) {

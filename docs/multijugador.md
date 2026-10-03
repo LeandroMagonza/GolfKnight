@@ -3,8 +3,7 @@
 Un segundo jugador que no es otro golfista: mira la cancha desde arriba y ayuda con habilidades de
 utilidad (empujar, frenar, juntar). Poco daño, mucho control. La gracia es que tengan que coordinar.
 
-Estado: **hecho el espectador, y Abe con cuatro hechizos** (granizo, fila, maldición y silencio; ver
-abajo, «Hecho»).
+Estado: **hecho el espectador, y Abe con siete hechizos que va ganando** (ver abajo, «Hecho»).
 
 ## El jugador 2: "el de la torre"
 
@@ -184,37 +183,59 @@ Probado con `logs/check-abe.mjs`: un host y dos que miran.
 **Ideas para seguir**: más poderes de Abe (empujón, muro, imán) en teclas, energía que se carga cuando
 vos pegás, y que el que juega vea a Abe en algún lado (en la muralla, con su báculo).
 
-## Hecho: los cuatro hechizos de Abe (3/10/2026)
+## Hecho: los hechizos de Abe y cómo los gana (3/10/2026)
 
-Abe juega **táctico**, y se puede jugar desde el celular: abajo tiene **cuatro botones grandes** (o las
-teclas 1 a 4) para elegir el hechizo, y un toque en el piso lo pone ahí. Arrastrar sigue girando la
-cámara; en el celular, dos dedos acercan. La cámara arranca lo bastante lejos para que entre todo el
-ancho de la cancha, también con el celular parado.
+Abe mira la cancha **desde arriba, como un dios**: no está en el campo. Juega **táctico**, y se puede jugar
+desde el celular: abajo tiene **cuatro botones grandes** (o las teclas 1 a 4) para elegir el hechizo, y un
+toque en el piso lo pone ahí. Arrastrar gira la cámara; en el celular, dos dedos acercan. La cámara
+arranca lo bastante lejos para que entre todo el ancho de la cancha, también con el celular parado.
 
-**Las reglas que pidió Leandro**: los hechizos **generan jugadas con el caballero** (Abe prepara, el
+**Las reglas** (pedido de Leandro): los hechizos **generan jugadas con el caballero** (Abe prepara, el
 caballero pega), **duran poco** (para que el timing importe), **llegan a toda la cancha** y agarran
-**áreas chicas**. Ninguno hace daño. Cada uno tiene su recarga.
+**áreas chicas**. Ninguno hace daño. **Nunca se habla de palos**: cada hechizo es una **zona** (un círculo
+donde tocás), una **línea** (del caballero hasta donde tocás) o una **trampa** (queda en el piso).
 
-| Hechizo | Sale de | Qué hace | La jugada con el caballero | Números |
+| Hechizo | Forma | Qué hace (nivel 1 · 2 · 3) | La jugada con el caballero | Recarga |
 |---|---|---|---|---|
-| ❄ **Granizo** | el hielo | Marca, y a los 1.5 s cae hielo: los frena 4 s | Frenarlos donde querés pegar, o lejos de la puerta | recarga 8 s, radio 3.5 m |
-| 🌬 **Fila** | el driver de viento | Los pone en fila **sobre la línea de tu puesto al centro del círculo** | Uno detrás del otro: el driver los atraviesa a todos | recarga 8 s, radio 3.5 m, sale a los 0.6 s |
-| 🎯 **Maldición** | la lupa | Crecen y reciben 1 más por golpe, 3 s | Pegarles en esa ventana: más fáciles de acertar y pegan más | recarga 10 s, radio 3 m |
-| 🔇 **Silencio** | el wedge silenciador | Se les apagan los poderes 2.5 s (al élite, la mitad) | Escudo, blindaje, burbuja, esquiva y auras apagados: tirá ya | recarga 10 s, radio 3 m |
+| ❄ **Granizo** | zona 3 · 3.5 · 4 m | Marca, y a los 1.5 s cae hielo: los frena 3 · 4 · 5 s; en el 3 además los congela | Frenarlos donde querés pegar | 8 s |
+| 🌀 **Remolino** | zona 2.5 · 3 · 3.5 m | Los junta en el centro (a 1 m de él) | Amontonados para un tiro de área | 8 s |
+| 💨 **Corriente** | línea de 4 · 5 · 6 m de ancho | **Del caballero hasta donde tocás**: los que están en el pasillo quedan sobre la línea, uno detrás del otro | Una fila servida para el tiro que atraviesa | 10 s |
+| ✋ **Empujón** | zona 2.5 · 3 · 3.5 m | Los manda 6 · 8 · 10 m para atrás | Sacarlos de la puerta, o separar uno del grupo | 10 s |
+| 🎯 **Maldición** | zona 2.5 · 3 · 3.5 m | Crecen y reciben 1 más por golpe, 3 · 4 · 5 s | Pegarles en esa ventana | 10 s |
+| 🔇 **Silencio** | zona 2.5 · 3 · 3.5 m | Se les apagan los poderes 2 · 2.5 · 3 s (al élite, la mitad) | Escudo, blindaje, burbuja y auras apagados: tirá ya | 10 s |
+| 🪤 **Trampa** | trampa de 2 · 2.5 · 3 m | Queda en el piso hasta 15 s; el primero que pasa a 1.2 m la dispara y todos los de alrededor quedan atrapados 1.5 · 2 · 2.5 s (los pesados no) | Anticipar por dónde vienen y pegarles quietos | 10 s |
+
+Salen a los 0.5 s de tocar (el granizo a los 1.5): agarran a los que están adentro **en ese momento**, así
+que a los que caminan hay que adelantarlos un poco.
 
 **La magia cae de arriba**: a diferencia de las pelotas, no la paran el escudo ni la burbuja. Silenciar al
-chamán le apaga el aura a todos los que protegía. La fila no mueve al jefe.
+chamán le apaga el aura a todos los que protegía. El remolino, la corriente y el empujón no mueven al jefe.
 
-**Las que no se adaptaron, y por qué**:
-- El **carrito**, el **hoyo** y el **fuego** o el **rayo** hacen daño o matan: eso es del caballero.
-- La **bandera** y el **palazo** mueven a muchos y por mucho tiempo: rompen el balance (la fila es el
-  empujón de Abe, chico y con dirección).
-- La **lluvia de pelotas**, el **caddie**, el **clon**, el **eco** y la **potencia** son del golfista y de
-  sus tiros.
-- La **pólvora** quedaría bien como quinto hechizo más adelante (marca, y el que muere marcado explota).
+**Cómo los gana** (pedido de Leandro):
+- Arranca **eligiendo su primer hechizo** entre tres, y gana **otro al terminar cada oleada**, hasta tener 4.
+  Los gana aunque todavía no haya entrado: si llega tarde, elige todos los que le deben.
+- Con los cuatro lugares llenos le salen **hechizos de un nivel más que el más bajo que tiene** (cualquiera,
+  no solo los que ya tiene). Elige uno y **toca el lugar que reemplaza**, o **se queda con los suyos**.
+  Cuando todos son de nivel 2, salen de nivel 3.
+- Puede tener **el mismo hechizo dos veces, de distinto nivel**: cada lugar recarga por su lado.
+- **La oleada que viene espera a que elijan los dos**: el caballero su carta y Abe su hechizo. El caballero
+  ve «Esperando a que Abe elija su hechizo…», y a Abe le salen las cartas solas. Sin Abe, no espera a nadie.
 
-**Cómo está hecho**: `src/coop/abe.ts` tiene los cuatro (`ABE_SPELLS` con los números, `SPELL_INFO` con
-nombre, ícono y color). Abe manda `{ k: 'cast', s, x, z }`; el que juega decide y manda las recargas de
-los cuatro en cada foto. Los números están en el panel de balance, pestaña del tiro, «Abe». Probado con
-`logs/check-abe.mjs`: cada hechizo hace lo suyo (la fila deja a los de 2.5 m a 2 cm de la línea), las
-recargas son de cada uno, y el que no es Abe no puede tirar.
+**La sala** (en la intro y en la pausa, debajo del enlace):
+- **Echar a Abe**: al echado le avisa y se desconecta; el que sigue mirando pasa a ser Abe.
+- **Privada**: no entra nadie más (al que intenta le avisa); los que ya miran siguen. Queda en la URL, así
+  que sigue privada al reiniciar. Para que el echado no vuelva con otra pestaña, hacé la partida privada.
+
+**Las del caballero que no se adaptaron, y por qué**: el carrito, el hoyo, el fuego y el rayo hacen daño o
+matan (eso es del caballero); la bandera y el palazo mueven a muchos por mucho tiempo (el empujón de Abe
+es chico); la lluvia de pelotas, el caddie, el clon, el eco y la potencia son de los tiros del golfista. La
+pólvora quedaría bien como hechizo más adelante.
+
+**Cómo está hecho**: `src/coop/spells.ts` (lo puro, con tests: los números por nivel, cómo se explican y
+las ofertas), `src/coop/abe.ts` (en la partida: los lugares, las recargas, la oferta y cada hechizo, y cómo
+se ven). Abe manda `{ k: 'cast', i, x, z }` y `{ k: 'pick', c, s }`; el que juega decide y manda en cada
+foto los lugares, la oferta y si la oleada lo espera. Los números están en el panel de balance, pestaña del
+tiro, «Abe», por nivel; ahí también está «Darle un hechizo a Abe». Probado con `logs/check-abe.mjs` (los
+siete hechizos, la oferta, reemplazar, el mismo hechizo dos veces) y `logs/check-abe-sala.mjs` (la oleada
+que espera, la privada y echar a Abe).
+
