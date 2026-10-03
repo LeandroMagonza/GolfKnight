@@ -1948,6 +1948,11 @@ async function startWatching(code: string): Promise<void> {
       hud.setScenario(g.sc);
       hud.setScore(g.score, g.kills);
       if (g.pk) hud.setPocket(g.pk[0], g.pk[1]);
+      // el cartel del final sigue a la foto: sin esto, si el que juega reiniciaba, al que mira le quedaba
+      // «La puerta cayó» arriba de la partida nueva. Y el que entró con la partida ya terminada lo ve igual
+      const endEl = document.getElementById('end')!;
+      if (!g.en && !endEl.hidden) hud.hideEnd();
+      else if (g.en && endEl.hidden) hud.showEnd(g.en === 'victory' ? '¡Valdehoyo resiste!' : 'Terminó la partida', '');
     },
     onHello(h) {
       // la cancha se arma una sola vez al cargar: si no es la del que juega, se vuelve a entrar con la suya
