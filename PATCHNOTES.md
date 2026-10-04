@@ -29,6 +29,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Los escurridizos no ven venir el golpe fantasma: no saltan, y el golpe no les recarga la esquiva.
   `16cd59a`
 - Las pelotas con elemento van del color del elemento. `16cd59a`
+- Cartel del final nuevo. El título entra de golpe, el puntaje cuenta hacia arriba con tu récord al
+  lado («¡Nuevo récord!» si lo pasaste) y aparecen de a uno, cada uno con su nota, los números de la
+  partida: oleada, tiempo, bajas, daño, puntería, golpes perfectos, el mejor tiro, la racha sin errar,
+  habilidades y cómo quedó la puerta. Al ganar, además, rayos y papelitos. `39cda93`
+- Ganar con todos los puntos puestos ahora dice «¡Desbloqueaste el nivel N de dificultad!» en vez de
+  «Ganaste un punto de dificultad». `39cda93`
 
 ## 3 de octubre
 
