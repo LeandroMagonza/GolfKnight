@@ -326,6 +326,7 @@ const LABELS: Record<string, string> = {
   chainRange: 'salta hasta m', chainDamage: 'daño por salto',
   cooldownGrowth: 'recarga de más por nivel (todas menos el palazo)', meleeGrowth: 'la del palazo, por nivel', bonus: 'daño de más al vulnerable',
   gate: 'la puerta +', player: 'vos +',
+  floor: 'pegan por lo menos', putter: 'el putter, por lo menos',
 };
 
 /** Los números de cada mejora: de qué tabla y con qué nombre. */

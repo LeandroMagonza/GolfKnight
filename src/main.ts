@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ECHO, ELEMENTS, lv, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, ECHO, ELEMENT_INFO, ELEMENTS, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
@@ -478,12 +478,16 @@ function updatePreview(): void {
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
   // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
-  // la potencia y el herrero suman a lo que pega (menos a la pifia, que no sale)
-  const plus = (n: number) => (n > 0 ? n + nextShot.bonus + smithBonus : n);
+  // la potencia y el herrero suman a lo que pega (menos a la pifia, que no sale), y con la fuerza pega
+  // por lo menos lo suyo
+  const floor = balls.minDamage(club.id);
+  const plus = (n: number) => (n > 0 ? Math.max(n, floor) + nextShot.bonus + smithBonus : n);
   const damage = plus(damageFor(club, hitAt, quality));
   const areaHit = plus(areaDamageFor(club, hitAt, quality));
   const echo = nextShot.echoes ? ` · eco ×${nextShot.echoes}` : '';
-  const dmgLabel = (damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`) + echo;
+  // lo que dura unos segundos, con lo que le queda
+  const timed = (mightLeft > 0 ? ` · fuerza ${Math.ceil(mightLeft)} s` : '') + (glove ? ` · ${ELEMENT_INFO[glove.element].name.toLowerCase()} ${Math.ceil(glove.left)} s` : '');
+  const dmgLabel = (damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`) + echo + timed;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
   const duff = damageFor(club, hitAt, 1) <= 0 && areaDamageFor(club, hitAt, 1) <= 0;
   // tenis: el arco es el del timing, y aparece solo cuando se acerca la pelota (o en el saque)
@@ -892,8 +896,9 @@ function castAbility(index: number): void {
   player.teePosition(tee);
   const result = abilities.cast(index, tee, player.aimDir, aimPoint);
   const slot = abilities.slots[index];
-  // la esquiva salta también ni bien tirás una habilidad que se apunta (las que no tienen alcance, no)
-  if (result === 'ok' && ABILITIES[slot.id].range > 0) horde.dodgeAim(tee, player.aimDir);
+  // la esquiva salta también ni bien tirás una habilidad que se apunta (las que no tienen alcance, no).
+  // Al golpe fantasma no lo ve venir (4/10)
+  if (result === 'ok' && ABILITIES[slot.id].range > 0 && ABILITIES[slot.id].element !== 'ghost') horde.dodgeAim(tee, player.aimDir);
   if (result === 'ok') recorder?.ability();
   // el lugar vacío no dice nada: no hay nada que tirar
   if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
@@ -977,6 +982,10 @@ let giftPoints = 0;
 const quiver = { ready: true, timer: 0 };
 /** Caddie dorado: segundos que le quedan. */
 let caddieLeft = 0;
+/** Fuerza: segundos que le quedan (ver MIGHT). */
+let mightLeft = 0;
+/** Guante: de qué elemento, de qué nivel y cuántos segundos le quedan (ver GLOVE). */
+let glove: { element: Element; level: number; left: number } | null = null;
 /** Nivel del palazo que se está dando: lo pone la habilidad al salir, lo usa el golpe al conectar. */
 let meleeLevel = 1;
 
@@ -1277,7 +1286,19 @@ abilities.hooks = {
     nextShot.bonus = Math.max(nextShot.bonus, bonus);
     hud.feedback(`Potencia +${bonus}`, 'good');
   },
+  startMight(seconds: number) {
+    mightLeft = seconds;
+    hud.feedback(`¡Fuerza! Todo pega ${MIGHT.floor} o más`, 'good');
+  },
+  startGlove(element: Element, level: number, seconds: number) {
+    // uno nuevo reemplaza al que estaba: la pelota lleva un solo elemento
+    glove = { element, level, left: seconds };
+    hud.feedback(`¡Guante ${ELEMENT_INFO[element].adj}!`, 'good');
+  },
 };
+
+/** La fuerza: lo mínimo que pega una pelota de este palo que sale ahora (0 = sin fuerza). */
+balls.minDamage = (club) => (mightLeft > 0 ? (club === 'putter' ? MIGHT.putter : MIGHT.floor) : 0);
 
 /**
  * Espacio: clava el daño donde esté la barra. La barra se queda quieta en ese nivel (el alcance sigue
@@ -1627,9 +1648,10 @@ async function makePlayer(skin: Skin): Promise<Player> {
     tutorial?.onDuff();
   };
   // la esquiva salta ni bien soltás (pifie o no): siempre, si está lista. Se le gana haciéndola saltar
-  // con un tiro cualquiera y pegándole con el que importa antes de que recargue
+  // con un tiro cualquiera y pegándole con el que importa antes de que recargue. Al tiro fantasma (el
+  // guante fantasma) no lo ve venir
   p.onRelease = () => {
-    if (tennis) return;
+    if (tennis || glove?.element === 'ghost') return;
     p.teePosition(tee);
     horde.dodgeAim(tee, p.aimDir);
   };
@@ -1651,6 +1673,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     const bonus = nextShot.bonus + smithBonus;
     if (bonus) shot = { ...shot, bonus };
     smithBonus = 0;
+    // el guante: el tiro lleva su elemento, al nivel del guante, y pega como siempre (el eco y el clon, igual)
+    if (glove) shot = { ...shot, element: glove.element, level: glove.level, gloved: true };
     // tenis: si le pegó a una que venía de vuelta, esa ya está en la raqueta y sale como un saque, desde
     // tu lugar y por donde marca la línea de tiro
     const back = t?.back ?? null;
@@ -2373,6 +2397,8 @@ function frame(): void {
       if (i >= 0 && !tees.hasBall(i)) tees.place(i, true);
     }
     if (clone && (clone.left -= dt) <= 0) removeClone();
+    if (mightLeft > 0) mightLeft = Math.max(0, mightLeft - dt);
+    if (glove && (glove.left -= dt) <= 0) glove = null;
     // correrse cargando, en el modo continuo: mantener A o D corre con la pelota. El derecho de la
     // pantalla es hacia -x, como en `step`
     // Y el efecto: mantener A o D curva el tiro (continuo), y con «al soltar» vuelve a cero apenas no

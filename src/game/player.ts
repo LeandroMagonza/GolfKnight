@@ -34,6 +34,11 @@ export interface Shot {
   curve: number;
   /** Los tiros de habilidad de palo y elemento: el elemento que dejan. */
   element?: Element;
+  /**
+   * El elemento lo puso un guante (ver GLOVE): es un tiro de palo que pega como siempre y además deja el
+   * efecto. Sin esto, un tiro con elemento de efecto no pega (ver `effectOnly`).
+   */
+  gloved?: boolean;
   /** El tiro es de una habilidad, con pelota gratis: no cuenta para las rachas. */
   ability?: boolean;
   /** Daño de más a cada uno que alcanza (la potencia). */

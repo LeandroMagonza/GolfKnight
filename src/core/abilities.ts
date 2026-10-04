@@ -12,14 +12,15 @@
 //   uno que atraviesa.
 // - **Las demás**, cada una con su mecánica propia: hielo, carrito, hoyo, bandera, pólvora, lluvia de
 //   pelotas, caddie dorado, lupa, clon, palazo, eco y potencia. (El 1/10 se fueron el boomerang, que
-//   tiraba el palo de la mano, y la granada: el silencio en área es el wedge silenciador.)
+//   tiraba el palo de la mano, y la granada: el silencio en área es el wedge silenciador.) Desde el 4/10,
+//   también las que duran unos segundos y cambian todos tus tiros: la fuerza y los guantes.
 import { CLUBS, QUALITY_LEVELS, spreadFor, type ClubId } from './clubs';
 
 export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning' | 'wind' | 'ghost' | 'silence';
 export type AbilityKind =
   | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
-  | 'echo' | 'boost';
+  | 'echo' | 'boost' | 'might' | 'glove';
 
 export interface Ability {
   id: AbilityId;
@@ -34,6 +35,7 @@ export interface Ability {
   color: number;
   /** Solo las de palo y elemento. */
   club?: ClubId;
+  /** Las de palo y elemento, y los guantes. */
   element?: Element;
 }
 
@@ -159,6 +161,21 @@ export const ECHO = { shots: [1, 2, 3], delay: 0.25 };
 /** Potencia: tu próximo tiro le saca `bonus` de más a cada uno que alcanza. Se pierde igual que el eco. */
 export const BOOST = { bonus: [1, 2, 3] };
 /**
+ * Fuerza (4/10, pedido de Leandro): durante `seconds`, todos tus tiros pegan por lo menos `floor` (el
+ * putter, que ya pega 2 de cerca, `putter`). También los de habilidad, y los de efecto, que solos no
+ * pegan: pegan `floor` y dejan su efecto. Es para que el golpe fantasma de nivel 1 (que pega 1) mate de
+ * verdad, y para que todos los tiros de habilidad tengan con qué combinar.
+ */
+export const MIGHT = { seconds: [5, 6, 7], floor: 2, putter: 3 };
+/**
+ * Guantes (4/10): durante `seconds`, todos tus tiros de palo son de ese elemento, al nivel del guante.
+ * Pegan como siempre y además dejan el efecto (el de hielo, desde el nivel `iceFreezeFrom`, congela). El
+ * fantasma pasa las defensas. Hay de fantasma, hielo, fuego y rayo; uno nuevo reemplaza al que estaba.
+ */
+export const GLOVE = { seconds: [5, 6, 7] };
+/** Los elementos que tienen guante. */
+export const GLOVE_ELEMENTS: Element[] = ['ghost', 'ice', 'fire', 'lightning'];
+/**
  * Palazo: no hace daño. Empuja hacia atrás a todo lo que haya a `radius` metros de un paso adelante tuyo
  * (hasta `targets`), y les corta el ataque por `stagger` segundos. El empujón es `knockback` m/s, que
  * se frena solo: con 84 los manda unos 14 m.
@@ -169,7 +186,7 @@ export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1,
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
   elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
   bandera: FLAG, 'pólvora': POWDER, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
-  eco: ECHO, potencia: BOOST,
+  eco: ECHO, potencia: BOOST, fuerza: MIGHT, guante: GLOVE,
 };
 
 const BASE: Ability[] = [
@@ -216,6 +233,10 @@ const BASE: Ability[] = [
   {
     id: 'boost', kind: 'boost', name: 'Potencia', title: 'el próximo pega más', cooldown: 8, range: 0, color: 0xff9a3c,
     hint: 'Tu próximo tiro pega 1 más',
+  },
+  {
+    id: 'might', kind: 'might', name: 'Fuerza', title: 'todos pegan 2', cooldown: 20, range: 0, color: 0xf5b041,
+    hint: 'Unos segundos en que todos tus tiros pegan por lo menos 2 (el putter, 3), también los de habilidad',
   },
 ];
 
@@ -268,6 +289,22 @@ const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).fla
     cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
   })));
 
+/** Lo que hacen de más los tiros con guante. */
+const GLOVE_HINT: Partial<Record<Element, string>> = {
+  ghost: 'pasan escudos, blindaje, fantasmas e inmunes',
+  ice: 'además enfrían',
+  fire: 'además prenden fuego',
+  lightning: 'además les cae un rayo que salta a los de al lado',
+};
+
+/** Los guantes (ver GLOVE): unos segundos en que todos tus tiros de palo son de un elemento. */
+const GLOVES: Ability[] = GLOVE_ELEMENTS.map((element): Ability => ({
+  id: `glove-${element}`, kind: 'glove', element,
+  name: `Guante ${ELEMENT_INFO[element].adj}`, title: `tus tiros, ${ELEMENT_INFO[element].adj}`,
+  hint: `Unos segundos en que todos tus tiros de palo son ${ELEMENT_INFO[element].adj}: ${GLOVE_HINT[element]}`,
+  cooldown: 20, range: 0, color: ELEMENT_INFO[element].color,
+}));
+
 /**
  * Lo que dice la carta de una habilidad en un nivel. `hint` es el del nivel 1; las que cambian al subir
  * dicen lo de ese nivel, sin anunciar los de después: la potencia de nivel 2 pega 2 más, el hielo de
@@ -280,6 +317,7 @@ export function hintAt(a: Ability, level: number): string {
     return n > 1 ? `Tu próximo tiro se repite ${n} veces` : a.hint;
   }
   if (a.element === 'ice' && a.club && level >= freezeFrom(a.club)) return a.hint.replace('enfría', 'enfría y congela');
+  if (a.kind === 'glove' && a.element === 'ice' && level >= ELEMENTS.iceFreezeFrom) return a.hint.replace('enfrían', 'enfrían y congelan');
   return a.hint;
 }
 
@@ -344,6 +382,14 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
     case 'melee': table('Alcance', PALAZO.radius, ' m'); table('Les corta el ataque', PALAZO.stagger, ' s'); break;
     case 'echo': table('Repeticiones', ECHO.shots); break;
     case 'boost': table('Daño extra', BOOST.bonus); break;
+    case 'might': table('Dura', MIGHT.seconds, ' s'); break;
+    case 'glove':
+      table('Dura', GLOVE.seconds, ' s');
+      // el efecto va al nivel del guante
+      if (a.element === 'ice') { table('Enfría', ELEMENTS.iceSeconds, ' s'); gains('Congela', ELEMENTS.iceFreezeFrom); }
+      else if (a.element === 'fire') stat('Daño del fuego', (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage);
+      else if (a.element === 'lightning') table('Saltos por lado', ELEMENTS.chainJumps);
+      break;
     case 'shot': {
       const club = CLUBS[a.club!];
       switch (a.element) {
@@ -367,8 +413,8 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
   return parts.length ? parts.join(' · ') : null;
 }
 
-export const ABILITIES: Record<AbilityId, Ability> = Object.fromEntries([...BASE, ...SHOTS].map((a) => [a.id, a]));
-export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);
+export const ABILITIES: Record<AbilityId, Ability> = Object.fromEntries([...BASE, ...SHOTS, ...GLOVES].map((a) => [a.id, a]));
+export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS, ...GLOVES].map((a) => a.id);
 
 /** Las claves de ELEMENTS que usa cada elemento. */
 const ELEMENT_KEYS: Record<Element, string[]> = {
@@ -383,7 +429,7 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
   cart: 'carrito', hole: 'hoyo', flag: 'bandera',
   powder: 'pólvora', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
-  echo: 'eco', boost: 'potencia',
+  echo: 'eco', boost: 'potencia', might: 'fuerza', glove: 'guante',
 };
 
 /**

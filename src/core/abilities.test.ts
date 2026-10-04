@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, freezeFrom, hintAt, lv, MAX_LEVEL, shotQuality, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, freezeFrom, GLOVE_ELEMENTS, hintAt, lv, MAX_LEVEL, MIGHT, shotQuality, SLOTS, upgradeNote } from './abilities';
 import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
@@ -62,6 +62,27 @@ describe('habilidades', () => {
     expect(ABILITIES['wedge-silence']?.element).toBe('silence');
   });
 
+  it('la fuerza y los guantes: unos segundos que cambian todos tus tiros', () => {
+    expect(ABILITIES.might.kind).toBe('might');
+    expect(MIGHT.floor).toBe(2);
+    // el putter ya pega 2 de cerca: con la fuerza, 3
+    expect(MIGHT.putter).toBeGreaterThan(MIGHT.floor);
+    for (const element of GLOVE_ELEMENTS) {
+      const a = ABILITIES[`glove-${element}`];
+      expect(a.kind, element).toBe('glove');
+      // cuentan para la maestría de su elemento
+      expect(elementOf(a.id)).toBe(element);
+      expect(a.hint).toContain('todos tus tiros de palo');
+    }
+    expect(GLOVE_ELEMENTS).toEqual(['ghost', 'ice', 'fire', 'lightning']);
+    // el de hielo congela desde el mismo nivel que los tiros de hielo
+    expect(hintAt(ABILITIES['glove-ice'], 1)).not.toContain('congelan');
+    expect(hintAt(ABILITIES['glove-ice'], ELEMENTS.iceFreezeFrom)).toContain('enfrían y congelan');
+    expect(upgradeNote('glove-fire', 2)).toContain('Dura: 5 → 6 s');
+    expect(upgradeNote('glove-fire', 2)).toContain('Daño del fuego');
+    expect(upgradeNote('might', 3)).toBe('Dura: 6 → 7 s');
+  });
+
   it('el rayo salta pocas veces por rama: no puede dar vueltas matando a todo', () => {
     // sin daño de la pelota, salta una vez más que cuando pegaba (1/10): 2, 3 y 4 por rama
     expect(ELEMENTS.chainJumps[0]).toBe(2);
@@ -114,8 +135,8 @@ describe('habilidades', () => {
         expect(c).toBeNull();
         continue;
       }
-      // el fantasma no tiene números propios: pasa todo
-      if (ABILITIES[id].element === 'ghost') {
+      // el tiro fantasma no tiene números propios: pasa todo (el guante fantasma tiene los suyos)
+      if (ABILITIES[id].kind === 'shot' && ABILITIES[id].element === 'ghost') {
         expect(c!.keys).toEqual([]);
         continue;
       }

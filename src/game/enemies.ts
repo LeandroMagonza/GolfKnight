@@ -1868,8 +1868,8 @@ export class Horde {
     const q = this.shot ? Math.min(KNOCK.quality.length, Math.max(1, this.shot.quality)) - 1 : -1;
     const killed = enemy.damage(dealt, knockDir, q >= 0 ? knockback * KNOCK.quality[q] : knockback, q >= 0 ? KNOCK.stun[q] : undefined, !!ghost);
     // el escurridizo que recibe daño vuelve a tener la esquiva lista (4/10): después de cada golpe hay
-    // que volver a hacerlo saltar
-    if (dealt > 0 && !killed && enemy.mods.dodge) enemy.dodgeLeft = 0;
+    // que volver a hacerlo saltar. El golpe fantasma no se la recarga: no lo ve venir
+    if (dealt > 0 && !killed && enemy.mods.dodge && !ghost) enemy.dodgeLeft = 0;
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });

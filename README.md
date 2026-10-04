@@ -147,13 +147,14 @@ protege, no hace nada). Lo que hace cada una, por nivel:
   Con el putter no hay.
 - *Fantasma* (el único que pega: un golpe cargado al nivel de la habilidad): le entra entero a
   cualquiera. Pasa escudos (también el de la calavera), blindaje, el tope del enemigo fantasma, el aura de
-  invencible y la burbuja divina (sin gastarla). El del driver atraviesa además las lomas.
+  invencible y la burbuja divina (sin gastarla). El del driver atraviesa además las lomas. La esquiva no
+  lo ve venir: no salta, y el golpe no se la recarga.
 - *Silenciador*: silencia 5 s (6.5 y 8) a cada uno que toca (al élite, la mitad): se le apagan
   **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba),
   para que lo que venga después le entre. El wedge silenciador es el silencio en área (la granada se
   fue el 1/10).
 
-**Las demás** (11):
+**Las demás** (16):
 
 | Habilidad | Qué hace |
 | --- | --- |
@@ -166,6 +167,8 @@ protege, no hace nada). Lo que hace cada una, por nivel:
 | Lupa | los agranda: más fáciles de pegar, y vulnerables |
 | Clon | una copia tuya repite tus próximos tiros desde donde la dejaste |
 | Palazo | no hace daño: manda lejos hacia atrás a lo que tengas encima (a 4 m; 4.75 y 5.5 m en los niveles 2 y 3) y les corta el ataque |
+| Fuerza | 5 s (6 y 7) en que todos tus tiros pegan por lo menos 2, el putter 3. También los de habilidad: los de efecto, que solos no pegan, pegan 2 y dejan su efecto. Recarga 20 s |
+| Guante (fantasma, de hielo, de fuego, de rayo) | 5 s (6 y 7) en que todos tus tiros de palo llevan ese elemento al nivel del guante, y pegan como siempre. El de hielo congela en el nivel 3; con el fantasma, la esquiva no salta al soltar. Uno nuevo reemplaza al que estaba. Recarga 20 s |
 
 **Mejoras**: Muñeca rápida (el débil y el medio un 15 % más rápidos: llegás antes al golpe 3, y la
 ventana del perfecto dura lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y el rebote
@@ -252,7 +255,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Hechicero** | se planta a unos 25 m y cada 4.5 s te tira un hechizo al puesto donde estás. El piso se marca en rojo: corréte un puesto |
 | **Cura** | se planta cerca de la puerta y cada 3 s le devuelve 1 de vida a los que tiene a 6 m. Aura y cuerpo verdes |
 | **Invencible** | se planta cerca de la puerta y vuelve inmunes a los que tiene a 8 m. Aura violeta |
-| **Esquiva** | si le apuntás más o menos (a unos 2 m de la línea), salta 3 m al costado **ni bien soltás el tiro o tirás una habilidad**, siempre; recarga 5 s. Hacela saltar con algo (un tiro flojo, una habilidad) y pegale con lo que importa antes de que recargue, o agarrala con un área. **Recibir daño se la recarga en el acto**: después de cada golpe hay que volver a hacerla saltar |
+| **Esquiva** | si le apuntás más o menos (a unos 2 m de la línea), salta 3 m al costado **ni bien soltás el tiro o tirás una habilidad**, siempre; recarga 5 s. Hacela saltar con algo (un tiro flojo, una habilidad) y pegale con lo que importa antes de que recargue, o agarrala con un área. **Recibir daño se la recarga en el acto**: después de cada golpe hay que volver a hacerla saltar. Al golpe fantasma no lo ve venir: no salta, y no se la recarga |
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.

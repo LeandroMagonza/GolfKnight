@@ -5,8 +5,8 @@
 // no llevan poder: las habilidades van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
-import { burnSeconds, effectOnly, ELEMENTS, freezeFrom, lv, type Element } from '../core/abilities';
-import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club } from '../core/clubs';
+import { burnSeconds, effectOnly, ELEMENT_INFO, ELEMENTS, freezeFrom, lv, type Element } from '../core/abilities';
+import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club, type ClubId } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
 import type { Shot } from './player';
@@ -32,8 +32,17 @@ export interface Ball {
   level: number;
   /** De dónde salió, para saber a qué distancia pega. */
   from: THREE.Vector3;
-  /** Tiros de habilidad (palo y elemento): el elemento que deja en cada uno que alcanza. */
+  /** Tiros de habilidad (palo y elemento) y tiros con guante: el elemento que deja en cada uno que alcanza. */
   element: Element | null;
+  /** El elemento lo puso un guante: pega como siempre y además deja el efecto. */
+  gloved: boolean;
+  /** Es un tiro de efecto (ver `effectOnly`): por sí solo no pega ni empuja. */
+  effect: boolean;
+  /**
+   * La fuerza (ver MIGHT): pega por lo menos esto a cada uno que alcanza, también si es de efecto (que
+   * entonces pega y deja el efecto). 0 = como siempre.
+   */
+  floor: number;
   /** Es de una habilidad, no del puesto: no cuenta para las rachas. */
   ability: boolean;
   /** Driver de viento: hacia dónde sale, cuántos metros ya barrió el viento y a quiénes ya acomodó. */
@@ -154,6 +163,8 @@ export class Balls {
   traps: Traps | null = null;
   /** Dónde está el golfista: hacia ahí vuelve la pelota que para un escudo, siguiéndolo. Null = no hay. */
   playerAt: () => { x: number; z: number } | null = () => null;
+  /** La fuerza: lo mínimo que pega una pelota de este palo que sale ahora. 0 = sin fuerza. */
+  minDamage: (club: ClubId) => number = () => 0;
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
@@ -168,14 +179,15 @@ export class Balls {
       rollFriction: rollFrictionFor(shot.club, shot.quality),
     };
     // el plano del tenis sale rasante y a velocidad fija, y vuela con su propia física (ver src/tennis).
-    // Los tiros de habilidad con elemento no: esos son de una vez y no vuelven
-    const tennis = !!shot.club.returns && !shot.element;
+    // Los tiros de habilidad con elemento no: esos son de una vez y no vuelven (los del guante sí)
+    const tennis = !!shot.club.returns && (!shot.element || !!shot.gloved);
     const state = tennis
       ? tennisLaunch(shot)
       : lift
       ? launchWith({ x: shot.from.x, y: heightAt(shot.from.x, shot.from.z) + BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, lift.speed, lift.angle)
       : launch({ x: shot.from.x, y: BALL_RADIUS, z: shot.from.z }, shot.dir.x, shot.dir.z, range, loft, shot.club.gravity, bounce.rollFriction);
-    const color = shot.club.color;
+    // la que lleva elemento (de habilidad o de guante) va del color del elemento: se ve que el guante está puesto
+    const color = shot.element ? ELEMENT_INFO[shot.element].color : shot.club.color;
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: color, emissiveIntensity: shot.quality >= 3 ? 1.6 : 0.7 });
     // la fantasma se ve medio transparente, y se la sigue viendo adentro de una loma
     if (shot.element === 'ghost') Object.assign(mat, { transparent: true, opacity: 0.45, depthTest: false });
@@ -193,7 +205,8 @@ export class Balls {
     const ball: Ball = {
       state, club: shot.club, bounce, quality: shot.quality, level: shot.level ?? shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
-      element: shot.element ?? null, ability: !!shot.ability,
+      element: shot.element ?? null, ability: !!shot.ability, gloved: !!shot.gloved,
+      effect: effectOnly(shot.element) && !shot.gloved, floor: this.minDamage(shot.club.id),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
       hitIds: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
       phase: tennis ? 'out' : null, rally: 0, walls: 0,
@@ -204,6 +217,8 @@ export class Balls {
 
   /** El daño con el que pega esta pelota: el de la tabla, o el de «En racha» si le toca. */
   private damageOf(ball: Ball, base: number): number {
+    // la fuerza: por lo menos `floor`, también el de efecto, que solo no pega
+    if (ball.floor > 0) base = Math.max(ball.effect ? 0 : base, ball.floor);
     // la potencia suma a cada uno que alcanza (a la pifia no: esa no sale)
     if (base > 0 && ball.bonus) base += ball.bonus;
     // la racha del tenis: cada tantas devoluciones de la misma pelota, pega uno más
@@ -211,6 +226,11 @@ export class Balls {
     if (ball.ability) return base;
     if (ball.hot === undefined) ball.hot = this.hotDamage !== null;
     return ball.hot && this.hotDamage ? this.hotDamage(base) : base;
+  }
+
+  /** El tiro de efecto no pega: toca y deja el efecto. Con la fuerza, sí pega. */
+  private touchOnly(ball: Ball): boolean {
+    return ball.effect && ball.floor <= 0;
   }
 
   /** Avisa una sola vez por pelota que conectó con alguien. */
@@ -253,10 +273,10 @@ export class Balls {
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
     const shot = this.markShot(ball);
-    // el tiro de efecto no pega: toca a los del área y les deja el efecto
-    const hits = effectOnly(ball.element)
+    // el tiro de efecto no pega: toca a los del área y les deja el efecto (con la fuerza pega, sin empujar)
+    const hits = this.touchOnly(ball)
       ? this.horde.touchArea(pos, radius, ball.hitIds, (e) => this.applyElement(ball, e))
-      : this.horde.blast(pos, radius, damage, ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
+      : this.horde.blast(pos, radius, damage, ball.effect ? 0 : ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
@@ -280,7 +300,7 @@ export class Balls {
     this.effects.spark(pos, ball.club.color);
     const dir = push ?? new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
     // el tiro de efecto no pega ni empuja: si toca (escudo, aura y burbuja lo paran), deja el efecto
-    if (effectOnly(ball.element)) {
+    if (this.touchOnly(ball)) {
       const shot = this.markShot(ball);
       const touched = this.horde.touch(enemy, guard);
       if (touched) {
@@ -296,7 +316,8 @@ export class Balls {
     }
     const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
     const shot = this.markShot(ball);
-    const killed = this.horde.damage(enemy, damage, dir, ball.club.knockback, false, guard);
+    // el de efecto con la fuerza pega, pero no empuja
+    const killed = this.horde.damage(enemy, damage, dir, ball.effect ? 0 : ball.club.knockback, false, guard);
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
     const landed = guard === 0 || this.horde.lastDealt > 0;
     // la regla del toque: si se lo comió el divino o lo paró el aura, el elemento no sale
@@ -323,7 +344,8 @@ export class Balls {
     if (!ball.element || ball.element === 'wind' || ball.element === 'ghost') return;
     if (ball.element === 'ice') {
       this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.level));
-      if (ball.level >= freezeFrom(ball.club.id)) this.horde.freeze(enemy);
+      // el nivel del guante es el suyo, no el del tiro de habilidad de ese palo (el wedge llega a 2)
+      if (ball.level >= (ball.gloved ? ELEMENTS.iceFreezeFrom : freezeFrom(ball.club.id))) this.horde.freeze(enemy);
     } else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.level)));
     // a cada uno que toca le cae un rayo, y de ahí sale el suyo
     else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.level), true);

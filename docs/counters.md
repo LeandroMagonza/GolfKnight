@@ -43,7 +43,8 @@ enemigo potente. Recarga 20 s (antes 12). A los élites y al Gólem no los traga
 
 **La esquiva** salta ni bien soltás el tiro o tirás una habilidad apuntada, siempre, si la tiene lista.
 Se le gana haciéndola saltar con algo y pegándole con lo que importa antes de que recargue (5 s), o con
-un área que la agarre igual.
+un área que la agarre igual. Recibir daño se la recarga. Al golpe fantasma (el tiro o el guante) no lo
+ve venir: no salta, y no se la recarga (4/10).
 
 ## La tabla
 
@@ -60,9 +61,11 @@ Lo que no hace daño (hielo, viento) no resuelve nada solo: prepara.
 |---|---|---|---|---|---|---|
 | Palo de **hielo** | 4 | driver y putter ❌ | | | ❌ | wedge ½, los otros ❌ |
 | Palo de **fuego** | 4 | wedge ✅, hierro ½, driver y putter ❌ | ✅ | ✅ | ❌ | wedge ✅, los otros ❌ |
-| Palo de **rayo** | 4 | wedge ✅, los otros ½ | ❌ | ✅ | ½ | wedge ✅, los otros ½ |
+| Palo de **rayo** | 4 | wedge ✅, los otros ½ | ✅ (desde el 3/10) | ✅ | ½ | wedge ✅, los otros ½ |
 | Palo de **viento** | 3 | | | | | |
-| Palo **fantasma** | 4 | ✅ | ✅ | ✅ (desde nivel 2) | ✅ | wedge ✅, los otros ❌ |
+| Palo **fantasma** | 4 | ✅ | ✅ | ✅ | ✅ | ✅ (desde el 4/10 no lo ve venir) |
+| **Guante fantasma** (4/10) | 1 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Fuerza** (4/10) | 1 | ½ | ✅ | | ❌ | |
 | Palo **silenciador** | 4 | wedge ✅, hierro ½, driver y putter ❌ | ✅ | ✅ | ❌ | wedge ✅, los otros ❌ |
 | Hoyo (no a élites) | 1 | ✅ | ✅ | ✅ | ✅ | ½ |
 | Carrito | 1 | ✅ | ½ | ❌ | ❌ | ✅ |
@@ -128,6 +131,37 @@ Contra los 5 poderes de escenario: a cuántos resuelve y contra cuántos no le s
 | Perfecto de regalo | 1 + ½ | fantasma, divino |
 | Hielo (palo) | 0 (prepara: frena y congela) | divino; escudo con driver y putter |
 | Viento (palo) | 0 (prepara: mueve) | 0 |
+
+## Fortalezas mayores y menores (4/10)
+
+La tabla marca ✅ cuando la carta **pasa** el poder, pero no dice si con eso alcanza para matarlo. No es
+lo mismo:
+- **Mayor**: lo resuelve sola. Lo mata, o le apaga el poder y cualquier tiro común lo termina.
+- **Menor**: pasa el poder una vez, pero no lo mata: hace falta otra carta u otro tiro de la habilidad.
+
+| Carta | Pasa | Cuánto pesa |
+|---|---|---|
+| Silenciador | escudo (con wedge), blindaje, fantasma, esquiva (con wedge) | **Mayor**: lo apaga 5 s (6.5 y 8) y el tiro común siguiente le entra entero |
+| Hoyo | todos, menos élites y el Gólem | **Mayor**: se lo traga entero |
+| Golpe fantasma, nivel 1 | escudo, blindaje, fantasma, divino, esquiva | **Menor**: pega lo del golpe 1, casi siempre 1 (2 con el putter de cerca y el driver de lejos). A la goblina bendita de 2 la deja en 1 y con la burbuja: hace falta otro fantasma |
+| Golpe fantasma, nivel 2 y 3 | lo mismo | Mayor contra los de 2 o 3 de vida; menor contra los élites |
+| Fuego | blindaje, fantasma | **Menor**: 2, 3 y 4 de daño en total, de a 1 cada 2 s. Solo mata solo a los de 2 de vida |
+| Rayo | blindaje, fantasma | **Menor**: 1 por rayo |
+
+**¿El fantasma ya era fuerte?** En la tabla, sí: pasaba 4 de los 5 poderes, empatado con el hoyo. Pero
+la tabla solo pregunta si pasa. A nivel 1 era una fortaleza menor contra casi todo: pasa, pero pega 1.
+Lo que cambió el 4/10:
+- **La esquiva no ve el golpe fantasma.** No salta cuando tirás el fantasma (ni con el guante fantasma),
+  y el golpe fantasma no le recarga la esquiva. Ahora pasa los cinco poderes.
+- **La Fuerza** (habilidad nueva): unos segundos en que todos tus tiros pegan por lo menos 2 (el putter,
+  3), también los de habilidad. El fantasma de nivel 1 pasa a pegar 2: a la goblina bendita la mata de
+  una. Los tiros de efecto (hielo, fuego, rayo, viento, silencio), que solos no pegan, pegan 2 y dejan
+  su efecto.
+- **Los guantes** (habilidades nuevas, de fantasma, hielo, fuego y rayo): unos segundos en que todos
+  tus tiros de palo llevan ese elemento al nivel del guante, y pegan como siempre. El fantasma convierte
+  cada tiro en un golpe fantasma; los otros suman el efecto al daño del palo.
+
+Los números de «Por poder del enemigo» son del 1/10: no cuentan las cartas del 4/10.
 
 ## Los modificadores de oleada
 
@@ -213,8 +247,8 @@ A todos los élites el silencio les dura la mitad, y el hoyo no los traga.
 
 Los pesados nunca se aturden. Los tiros de efecto no aturden: no pegan.
 
-**¿El rayo afecta al blindado?** No: el blindaje se come el 1 de cada rayo. Con la Maestría del rayo
-pega 2, y a un blindaje 1 le entra 1.
+**¿El rayo afecta al blindado?** Sí: desde el 3/10 el blindaje no le resta al rayo (antes se comía
+el 1 de cada rayo).
 
 ## Historial (1/10)
 

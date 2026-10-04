@@ -4,10 +4,10 @@
 // Los números están en core/abilities.
 //
 // Lo que tiene que ver con el golfista o con los puestos (los tiros de palo y elemento, la lluvia de
-// pelotas, el caddie, el clon y el palazo) lo hace el juego, a través de `hooks`.
+// pelotas, el caddie, el clon, el palazo, la fuerza y los guantes) lo hace el juego, a través de `hooks`.
 import * as THREE from 'three';
 import {
-  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, HOLE, LENS, lv, maxLevelOf, POWDER, SLOTS,
+  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, GLOVE, HOLE, LENS, lv, maxLevelOf, MIGHT, POWDER, SLOTS,
   type AbilityId, type Element,
 } from '../core/abilities';
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
@@ -35,6 +35,10 @@ export interface AbilityHooks {
   armEcho(shots: number): void;
   /** Potencia: el próximo tiro pega `bonus` de más. */
   armBoost(bonus: number): void;
+  /** Fuerza: durante `seconds`, todos tus tiros pegan por lo menos lo de MIGHT. */
+  startMight(seconds: number): void;
+  /** Guante: durante `seconds`, todos tus tiros de palo son de `element`, al nivel `level`. */
+  startGlove(element: Element, level: number, seconds: number): void;
 }
 
 /** Cómo vuela la pelota de cada habilidad que se tira. */
@@ -202,6 +206,8 @@ export class Abilities {
       case 'clone': this.hooks?.placeClone(lv(CLONE.shots, level), CLONE.life); break;
       case 'echo': this.hooks?.armEcho(lv(ECHO.shots, level)); break;
       case 'boost': this.hooks?.armBoost(lv(BOOST.bonus, level)); break;
+      case 'might': this.hooks?.startMight(lv(MIGHT.seconds, level)); break;
+      case 'glove': this.hooks?.startGlove(a.element!, level, lv(GLOVE.seconds, level)); break;
       case 'melee':
         if (!this.hooks?.melee(level)) {
           // en pleno swing no sale, y no se gasta
