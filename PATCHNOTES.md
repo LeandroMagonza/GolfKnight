@@ -19,6 +19,16 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Los élites ya no se congelan: el hielo solo los frena. `c99b13f`
 - El golpe que rompe el hielo pega 1 más (antes pegaba el doble), como la lupa. Ahora también sirve
   contra los fantasmas: congelado, al fantasma le entran 2, y con la lupa encima, 3. `c99b13f`
+- Habilidad nueva, **Fuerza**: 5 s (6 y 7) en que todos tus tiros pegan por lo menos 2, y el putter 3.
+  Vale también para los tiros de habilidad: el fantasma de nivel 1 pasa a pegar 2, y los de hielo,
+  fuego, rayo, viento y silencio, que solos no pegan, pegan 2 y dejan su efecto. Recarga 20 s.
+  `16cd59a`
+- Habilidades nuevas, los **guantes** (fantasma, de hielo, de fuego y de rayo): 5 s (6 y 7) en que
+  todos tus tiros de palo llevan ese elemento y pegan como siempre. El de hielo congela en el nivel 3.
+  Uno nuevo reemplaza al que estaba, y la barra de carga dice cuánto le queda. Recarga 20 s. `16cd59a`
+- Los escurridizos no ven venir el golpe fantasma: no saltan, y el golpe no les recarga la esquiva.
+  `16cd59a`
+- Las pelotas con elemento van del color del elemento. `16cd59a`
 
 ## 3 de octubre
 
