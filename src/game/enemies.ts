@@ -33,7 +33,7 @@ const ROCK_FLIGHT = 1.6;
 export type EnemyState = 'walk' | 'attack' | 'dying' | 'gone';
 
 export type HordeEvent =
-  /** `crit`: rompió un congelado y pegó el doble. */
+  /** `crit`: rompió un congelado y pegó `ELEMENTS.breakBonus` más. */
   | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean }
   /** El escudo divino se comió el golpe. */
   | { type: 'divine'; enemy: Enemy }
@@ -418,7 +418,7 @@ export class Enemy {
   /** Silencio: todos los poderes apagados. Segundos que le quedan. */
   silenceTimer = 0;
   silenceMax = 1;
-  /** Congelado (maestría del hielo): no se mueve ni ataca, y el golpe que lo rompe pega el doble. */
+  /** Congelado (maestría del hielo): no se mueve ni ataca, y el golpe que lo rompe pega uno más. */
   frozenTimer = 0;
   /** Prendido fuego: segundos que le quedan, y cuánto falta para el próximo mordisco. */
   burnTimer = 0;
@@ -1023,7 +1023,7 @@ export class Enemy {
     }
   }
 
-  /** Congelado `seconds`: quieto del todo, sin atacar. El próximo golpe lo rompe y pega el doble. */
+  /** Congelado `seconds`: quieto del todo, sin atacar. El próximo golpe lo rompe y pega uno más. */
   freeze(seconds: number): void {
     if (!this.alive) return;
     this.frozenTimer = Math.max(this.frozenTimer, seconds);
@@ -1831,13 +1831,11 @@ export class Horde {
       return false;
     }
     // El vulnerable (agrandado por la lupa) cobra uno más por pelotazo, aunque el palo pegue cero. Y el
-    // congelado se rompe: ese golpe pega el doble.
-    let raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0);
+    // congelado se rompe: ese golpe pega `breakBonus` más, como la lupa, también al fantasma (hasta el
+    // 4/10 pegaba el doble, y al fantasma no le servía: igual le entraba 1)
     const crit = enemy.frozen && !dot;
-    if (crit) {
-      raw *= 2;
-      enemy.frozenTimer = 0;
-    }
+    const raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0) + (crit ? ELEMENTS.breakBonus : 0);
+    if (crit) enemy.frozenTimer = 0;
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
@@ -1854,8 +1852,9 @@ export class Horde {
       if (dealt === 0) this.emit({ type: 'shielded', enemy });
     }
     // el etéreo es el revés: ningún golpe le saca más de 1, por fuerte que sea. Agrandado por la lupa,
-    // hasta `LENS.ghostHit`; silenciado deja de ser fantasma, y el golpe fantasma le entra entero
-    if (enemy.ethereal && !enemy.silenced && !ghost) dealt = Math.min(dealt, enemy.enlarged ? LENS.ghostHit : 1);
+    // hasta `LENS.ghostHit`, y el que le rompe el hielo, `breakBonus` más; silenciado deja de ser
+    // fantasma, y el golpe fantasma le entra entero
+    if (enemy.ethereal && !enemy.silenced && !ghost) dealt = Math.min(dealt, (enemy.enlarged ? LENS.ghostHit : 1) + (crit ? ELEMENTS.breakBonus : 0));
     // el tutorial: con un tiro que no es el que se está enseñando, no lo mata
     if (this.mayKill && dealt >= enemy.hp && !this.mayKill(enemy, this.shot)) {
       dealt = Math.max(0, enemy.hp - 1);
@@ -1927,7 +1926,7 @@ export class Horde {
    */
   applyIce(e: Enemy, seconds: number): void {
     if (!e.alive || e.passed) return;
-    // al jefe el hielo lo frena pero nunca lo congela (ver `freeze`)
+    // al jefe y al élite el hielo los frena pero nunca los congela (ver `freeze`)
     if (this.mastery.ice && e.chilled) this.freeze(e);
     e.chill(seconds);
   }
@@ -1972,9 +1971,12 @@ export class Horde {
     return count;
   }
 
-  /** Congela a uno (el hielo de nivel alto, la maestría). Al jefe nunca: solo lo frena. */
+  /**
+   * Congela a uno (el hielo de nivel alto, la maestría, el granizo de Abe). Al jefe y al élite nunca:
+   * solo los frena (el élite, desde el 4/10).
+   */
   freeze(e: Enemy): void {
-    if (!e.alive || e.passed || e.stats.boss || e.frozen) return;
+    if (!e.alive || e.passed || e.stats.boss || e.size > 1 || e.frozen) return;
     e.freeze(ELEMENTS.freezeSeconds);
     this.emit({ type: 'frozen', enemy: e });
   }

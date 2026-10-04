@@ -197,8 +197,9 @@ A todos los élites el silencio les dura la mitad, y el hoyo no los traga.
 **¿El hielo congela?**
 - El tiro de hielo enfría (el enemigo camina al 40 %), y en el nivel 3 además congela 2 s.
 - Con la Maestría del hielo, cualquier hielo congela al que ya estaba frío.
-- El golpe que rompe el hielo pega el doble.
-- Al Gólem nunca lo congela.
+- El golpe que rompe el hielo pega 1 más, como la lupa: al fantasma le entran 2 (desde el 4/10; antes
+  pegaba el doble, y al fantasma igual le entraba 1).
+- Al Gólem y a los élites nunca los congela: solo los frena (a los élites, desde el 4/10).
 
 **¿Qué golpe aturde?**
 

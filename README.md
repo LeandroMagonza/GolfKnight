@@ -134,7 +134,7 @@ hierro y el wedge con viento. Es una pelota de ese palo, instantánea y gratis, 
 el efecto**: salvo el fantasma, **no pegan ni empujan**, solo dejan el efecto, y el efecto sale solo si
 la pelota **toca** (si el escudo la para, la burbuja divina se la come o el aura de invencible lo
 protege, no hace nada). Lo que hace cada una, por nivel:
-- *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela. El frío lleva a cada uno al 40 % de su velocidad pero no por debajo de 1 m/s, y a todos los frena por lo menos un 20 %: mucho a los rápidos, poco a los lentos.
+- *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela (al élite y al jefe no: solo los frena), y el golpe que rompe el hielo pega 1 más, también al fantasma. El frío lleva a cada uno al 40 % de su velocidad pero no por debajo de 1 m/s, y a todos los frena por lo menos un 20 %: mucho a los rápidos, poco a los lentos.
 - *Fuego*: lo prende; pierde 1 de vida en el acto y después cada 2 s: 2 en total (3 y 4), y el blindaje no le resta. Volver a prenderlo no suma: le alarga el fuego.
 - *Rayo*: **a cada uno que toca le cae un rayo**, y de ahí sale para los dos lados: en cada rama salta
   al más cercano 2 veces (3 y 4), a 6 m como mucho, sacándole 1 a cada uno. Un rayo **nunca toca dos
@@ -187,7 +187,7 @@ corta ninguna racha.
 
 **Maestrías**, que solo salen con dos habilidades del mismo elemento:
 - *Hielo*: un segundo hielo sobre el que ya está frío lo **congela**, y el golpe que rompe el hielo pega
-  el doble.
+  1 más.
 - *Fuego*: el que muere prendido contagia a los de al lado.
 - *Rayo*: salta una vez más, y cada salto pega el doble.
 

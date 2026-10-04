@@ -86,7 +86,8 @@ export function chilledSpeed(speed: number): number {
  *
  * - **Hielo**: enfría `iceSeconds` a cada uno que toca, y desde el nivel `iceFreezeFrom` además lo
  *   **congela** `freezeSeconds`. Con la maestría, al que ya estaba frío lo congela cualquier hielo. El
- *   golpe que rompe el hielo pega el doble. Al jefe nunca lo congela.
+ *   golpe que rompe el hielo pega `breakBonus` más, como la lupa: también al fantasma (hasta el 4/10
+ *   pegaba el doble). Al jefe y al élite nunca los congela: solo los frena.
  * - **Fuego**: lo prende y le saca `burnDamage` cada `burnTick` segundos, `burnTicks` veces según el nivel
  *   (2, 3 y 4 de daño en total, en 2, 4 y 6 s; hasta el 3/10 eran 4, 5 y 6 cada 1.5 s, y un tiro de
  *   fuego solo mataba a los élites antes de que llegaran). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
@@ -107,7 +108,7 @@ export function chilledSpeed(speed: number): number {
  *   área (antes era la granada).
  */
 export const ELEMENTS = {
-  iceSeconds: [5, 6.5, 8], iceFreezeFrom: 3, freezeSeconds: 2,
+  iceSeconds: [5, 6.5, 8], iceFreezeFrom: 3, freezeSeconds: 2, breakBonus: 1,
   // cuánto frena el frío (ver chilledSpeed)
   chillSlow: 0.4, chillFloor: 1, chillLeast: 0.8,
   burnTicks: [2, 3, 4], burnTick: 2, burnDamage: 1, spreadRadius: 2.5,
@@ -371,7 +372,7 @@ export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);
 
 /** Las claves de ELEMENTS que usa cada elemento. */
 const ELEMENT_KEYS: Record<Element, string[]> = {
-  ice: ['iceSeconds', 'iceFreezeFrom', 'freezeSeconds', 'chillSlow', 'chillFloor', 'chillLeast'],
+  ice: ['iceSeconds', 'iceFreezeFrom', 'freezeSeconds', 'breakBonus', 'chillSlow', 'chillFloor', 'chillLeast'],
   fire: ['burnTicks', 'burnTick', 'burnDamage', 'spreadRadius'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
   wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],

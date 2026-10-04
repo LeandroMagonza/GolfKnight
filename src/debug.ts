@@ -321,7 +321,7 @@ const LABELS: Record<string, string> = {
   damage: 'daño', speed: 'velocidad m/s', width: 'ancho m', swallows: 'se traga', life: 'dura s',
   seconds: 'dura s', blast: 'radio de la explosión m', reach: 'alcance m', hitRadius: 'radio del golpe m',
   scale: 'crecen ×', shots: 'tiros repetidos', ghostHit: 'al fantasma, hasta por golpe', eliteSilence: 'al élite, silencio ×', silenceSeconds: 'silencio s',
-  iceSeconds: 'frío s', freezeSeconds: 'congelado s (maestría)', burnTicks: 'fuego: mordiscos', burnTick: 'pierde cada s',
+  iceSeconds: 'frío s', freezeSeconds: 'congelado s (maestría)', breakBonus: 'romper el hielo: daño de más', burnTicks: 'fuego: mordiscos', burnTick: 'pierde cada s',
   burnDamage: 'daño por vez', spreadRadius: 'contagio m (maestría)', chainJumps: 'saltos',
   chainRange: 'salta hasta m', chainDamage: 'daño por salto',
   cooldownGrowth: 'recarga de más por nivel (todas menos el palazo)', meleeGrowth: 'la del palazo, por nivel', bonus: 'daño de más al vulnerable',
@@ -341,7 +341,7 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
   giftPerfect: [[PERK_NUMBERS, 'giftPerfect', 'dobletes para el perfecto']],
   quiver: [[PERK_NUMBERS, 'quiverCooldown', 'una cada s']],
   secondWind: [[PERK_NUMBERS, 'secondWindCooldown', 'recarga s']],
-  masteryIce: [[ELEMENTS, 'freezeSeconds', 'congelado s']],
+  masteryIce: [[ELEMENTS, 'freezeSeconds', 'congelado s'], [ELEMENTS, 'breakBonus', 'romper el hielo: daño de más']],
   masteryFire: [[ELEMENTS, 'spreadRadius', 'contagio m']],
 };
 
