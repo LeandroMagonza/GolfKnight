@@ -564,6 +564,9 @@ function toScreen(pos: THREE.Vector3, height: number): { x: number; y: number } 
   return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
 }
 
+/** Cuánto festeja el golfista, ya sin el cartel encima, antes de que aparezca el de la victoria. */
+const VICTORY_CARD_DELAY_MS = 3500;
+
 function endGame(result: 'victory' | 'defeat', title: string, detail: string): void {
   if (ended) return;
   ended = result;
@@ -572,13 +575,18 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string): v
   horde.ceaseFire = true;
   // si se perdió por la puerta, el golfista termina igual que cuando muere: tirado en el piso
   if (result === 'defeat') player.fall();
+  // y si ganó, festeja: se da vuelta hacia la ciudad con los brazos en alto
+  else player.celebrate();
   // ganar con todos los puntos de dificultad puestos suma uno (el bot no: juega para probar)
   const level = used(progress.picks);
   const earned = result === 'victory' && !BOT && earnPoint(progress);
   if (earned) saveProgress(progress);
   paintDifficulty();
   const earnedText = earned ? (progress.points === 1 ? '¡Ganaste tu primer punto de dificultad! Ponelo para la próxima' : '¡Ganaste un punto de dificultad!') : '';
-  hud.showEnd(title, `${detail} · dificultad ${level} · ${score} puntos · ${kills} bajas · ${shots} tiros`, earnedText);
+  const summary = `${detail} · dificultad ${level} · ${score} puntos · ${kills} bajas · ${shots} tiros`;
+  // al ganar, el cartel espera a que se vea el festejo: tapa la cancha con un velo oscuro
+  if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(title, summary, earnedText); }, VICTORY_CARD_DELAY_MS);
+  else hud.showEnd(title, summary, earnedText);
   recorder?.finish(result, { cause: detail, score, hp: player.hp, gate: gateHp, build: buildForLog() });
   if (result === 'victory') audio.victory();
   else audio.defeat();

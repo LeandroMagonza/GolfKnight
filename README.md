@@ -488,12 +488,12 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
 La horda y los dos caballeros salen de `public/models/dungeon.glb`: los 16 personajes de PolygonDungeon
 (`Assets/PolygonDungeon/Models/Characters.fbx` del proyecto Unity), que comparten un esqueleto y no
 traen animaciones. `tools/retarget_to_glb.py` renombra los huesos a los de Mixamo, les retargetea
-los clips (locomoción, golf y `Dropping`) y exporta todo junto; el juego se queda con la malla que
+los clips (locomoción, golf, `Dropping` y `Rallying`, el festejo al ganar) y exporta todo junto; el juego se queda con la malla que
 necesita en cada caso (`mesh` en `ENEMIES`, `src/core/waves.ts`). El putter ya no se usa para pegar, así que
 `Golf Putt` queda sin uso por ahora (serviría para animar el tiro del portal). Para rearmarlo:
 
 ```
-blender -b --python tools/retarget_to_glb.py -- "<PolygonDungeon>/Models/Characters.fbx" "<PolygonDungeon>/Textures/Dungeons_Texture_01.png" public/models/dungeon.glb "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "Golf Drive=assets/mixamo/Golf Drive.fbx" "Golf Chip=assets/mixamo/Golf Chip.fbx" "Golf Putt=assets/mixamo/Golf Putt.fbx" "Dropping=assets/mixamo/Dropping.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx"
+blender -b --python tools/retarget_to_glb.py -- "<PolygonDungeon>/Models/Characters.fbx" "<PolygonDungeon>/Textures/Dungeons_Texture_01.png" public/models/dungeon.glb "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "Golf Drive=assets/mixamo/Golf Drive.fbx" "Golf Chip=assets/mixamo/Golf Chip.fbx" "Golf Putt=assets/mixamo/Golf Putt.fbx" "Dropping=assets/mixamo/Dropping.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx" "Rallying=assets/mixamo/Rallying.fbx"
 ```
 
 Sumar un enemigo es agregar una entrada en `ENEMIES` con la malla del personaje (quedan sin usar
@@ -509,10 +509,11 @@ Los bichos del pack cute (lobos, caparazón, bombín, dragón) ya no se usan; su
 ## Personajes y palo
 
 - `player.glb`: el guardia `castle_guard_01` (Guard02) de Mixamo, con `Idle`, `Running`, `Walking`,
-  `Falling To Roll` y `Hard Landing` del Action Adventure Pack de MonsterTamer y los clips `Golf Drive`
-  (driver y hierro), `Golf Chip` (wedge) y `Golf Putt` (putter).
-- `player-guard3.glb` y `guard.glb` (el mismo archivo): el guardia de `Dropping.fbx` (Guard03) con todos
-  los clips del jugador más `Dropping`. Es el segundo skin, y el que hace guardia al lado de la puerta.
+  `Falling To Roll` y `Hard Landing` del Action Adventure Pack de MonsterTamer, los clips `Golf Drive`
+  (driver y hierro), `Golf Chip` (wedge) y `Golf Putt` (putter), y `Rallying` (los brazos en alto: el
+  festejo al ganar, el mismo clip de la cinemática). Los cuatro skins lo tienen.
+- `player-guard3.glb` y `guard.glb`: el guardia de `Dropping.fbx` (Guard03) con todos los clips del
+  jugador más `Dropping` (`guard.glb` es el armado anterior, sin `Rallying`: los de la puerta no festejan). Es el segundo skin, y el que hace guardia al lado de la puerta.
   Sus hombros descansan a 31° de los del esqueleto de los clips, así que se arma con
   `retarget_to_glb.py` (con `-` en lugar del atlas) y no con `fbx_to_glb.py`.
 - Los skins Caballero y Caballera salen de `dungeon.glb`. La lista está en `SKINS` (`src/main.ts`).
@@ -524,7 +525,7 @@ otras proporciones; `fbx_to_glb.py` descarta las pistas de los huesos que el gua
 reescala el recorrido de la cadera. Para rearmar:
 
 ```
-blender -b --python tools/fbx_to_glb.py -- assets/mixamo/castle_guard_01.fbx public/models/player.glb --normalize-humanoid "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "assets/mixamo/Golf Drive.fbx" "assets/mixamo/Golf Chip.fbx" "assets/mixamo/Golf Putt.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx"
+blender -b --python tools/fbx_to_glb.py -- assets/mixamo/castle_guard_01.fbx public/models/player.glb --normalize-humanoid "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "assets/mixamo/Golf Drive.fbx" "assets/mixamo/Golf Chip.fbx" "assets/mixamo/Golf Putt.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx" "Rallying=assets/mixamo/Rallying.fbx"
 blender -b --python tools/club_to_glb.py -- "<Used Golf Club>/Assets/Meshes/Golf Club Model.fbx" "<Used Golf Club>/Assets/Textures" public/models/club.glb
 ```
 

@@ -113,6 +113,18 @@ export class LayeredAnimator {
     return duration;
   }
 
+  /** Un clip de cuerpo entero en loop, arrancando en el segundo `from`, hasta que se pida otra cosa (el festejo). */
+  playLoop(name: string, from = 0, timeScale = 1): void {
+    const a = this.action(name, 'full');
+    a.reset();
+    a.paused = false;
+    a.setLoop(THREE.LoopRepeat, Infinity);
+    a.timeScale = timeScale;
+    a.time = from;
+    a.play();
+    this.oneShot = { action: a, until: Infinity, freezeAt: null, name };
+  }
+
   clearOneShot(): void {
     this.oneShot = null;
   }

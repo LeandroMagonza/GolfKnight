@@ -84,6 +84,12 @@ const MELEE_SPEED = 3.2;
 const MELEE_FOLLOW = 0.22;
 /** Palazo sin clips de golf: segundos hasta el golpe. */
 const MELEE_WINDUP = 0.09;
+/**
+ * El festejo al ganar: el clip de la cinemática con los brazos en alto. Arranca en el segundo 2, donde
+ * suben los dos brazos (antes hay un gesto con el derecho solo), y sigue en loop.
+ */
+const CHEER = 'Rallying';
+const CHEER_FROM = 2;
 
 export class Player {
   readonly root: THREE.Object3D;
@@ -578,6 +584,19 @@ export class Player {
     this.animator.playOneShot('Hard Landing', 1, true, 0.42);
   }
 
+  /** Ganó: festeja hasta que empiece otra partida. */
+  cheering = false;
+  private cheerStarted = false;
+
+  /** Se da vuelta hacia la ciudad y levanta los brazos. Si estaba en medio de un swing, lo termina primero. */
+  celebrate(): void {
+    if (this.downed || !this.alive) return;
+    this.cheering = true;
+    this.cheerStarted = false;
+    this.grabbedBy = null;
+    this.knockTimer = 0;
+  }
+
   heal(amount: number): void {
     if (this.alive) this.hp = Math.min(this.maxHp, this.hp + amount);
   }
@@ -586,6 +605,7 @@ export class Player {
   revive(): void {
     this.hp = this.maxHp;
     this.downed = false;
+    this.cheering = false;
     this.grabbedBy = null;
     this.knockTimer = 0;
     this.mode = 'free';
@@ -650,6 +670,15 @@ export class Player {
       stance = true;
       if (this.swingClip) this.updateClipSwing(dt, this.swingClip);
       else this.updateSwing(dt);
+      this.animator.setLocomotion('Idle', 1);
+    } else if (this.cheering) {
+      // ganó: de cara a la ciudad (la cámara), con los brazos en alto
+      this.yaw = lerpAngle(this.yaw, Math.PI, 1 - Math.exp(-6 * dt));
+      if (!this.cheerStarted) {
+        this.cheerStarted = true;
+        this.animator.clearOneShot();
+        if (this.animator.has(CHEER)) this.animator.playLoop(CHEER, CHEER_FROM);
+      }
       this.animator.setLocomotion('Idle', 1);
     } else if (this.freeMove) {
       if (this.moveDir) {
