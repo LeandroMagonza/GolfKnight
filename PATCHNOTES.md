@@ -14,6 +14,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   en los tiros de palo. `3073ca0`
 - Los escurridizos se recargan la esquiva cada vez que reciben daño: después de cada golpe hay que
   volver a hacerlos saltar. `3073ca0`
+- Los élites ya no se congelan: el hielo solo los frena. `c99b13f`
+- El golpe que rompe el hielo pega 1 más (antes pegaba el doble), como la lupa. Ahora también sirve
+  contra los fantasmas: congelado, al fantasma le entran 2, y con la lupa encima, 3. `c99b13f`
 
 ## 3 de octubre
 
