@@ -7,6 +7,14 @@ de entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 4 de octubre
+
+**Golf**
+- Se va la habilidad Hielo (la zona en el piso): se parecía demasiado al wedge de hielo. El hielo queda
+  en los tiros de palo. `3073ca0`
+- Los escurridizos se recargan la esquiva cada vez que reciben daño: después de cada golpe hay que
+  volver a hacerlos saltar. `3073ca0`
+
 ## 3 de octubre
 
 **De a dos (nuevo)**
