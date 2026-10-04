@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ECHO, ICE, lv, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, ECHO, ELEMENTS, lv, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
@@ -826,11 +826,6 @@ abilities.onEvent = (e) => {
   switch (e.type) {
     case 'cast':
       audio.whoosh(0.7);
-      break;
-    case 'zone':
-      lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
-      audio.frost();
-      if (e.hits) hud.feedback(e.hits > 2 ? `¡Hielo ×${e.hits}!` : `Hielo ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
       break;
     case 'mark':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
@@ -2533,7 +2528,7 @@ addEventListener('resize', () => {
     castAbility(abilities.slots.findIndex((s) => s.id === id));
   },
   /** A qué fracción de su velocidad camina el que pisa hielo, para la anticipación del bot. */
-  get iceSlow() { return ICE.slow; },
+  get iceSlow() { return ELEMENTS.chillSlow; },
   cycleClub, castAbility, selectClub, setIronMode, ironMode,
   /** Pelotas de reserva (S): cuántas quedan y cuánto falta para la próxima. */
   /** Qué campo salió esta partida, y el panel de balance. */

@@ -18,7 +18,7 @@ import { CLUBS, QUALITY_LEVELS, spreadFor, type ClubId } from './clubs';
 export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning' | 'wind' | 'ghost' | 'silence';
 export type AbilityKind =
-  | 'iceZone' | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
+  | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
   | 'echo' | 'boost';
 
 export interface Ability {
@@ -62,19 +62,13 @@ export function lv(table: number[], level: number): number {
 export const VULNERABLE = { bonus: 1 };
 
 /**
- * Hielo: la zona que deja al caer. Todo enemigo que esté adentro cuando cae, o que entre mientras dura,
- * camina más lento; al salir, el frío se le va a los `linger` segundos.
- *
- * **Cuánto frena el frío** (el de la zona y el de los tiros de hielo, ver `chilledSpeed`): lo lleva a
- * `slow` de su velocidad, pero sin bajarlo de `floor` m/s, y a todos los frena por lo menos hasta `least`
- * de la suya. Así frena mucho a los rápidos y poco a los lentos: el goblin pasa de 3.6 a 1.4 m/s, y el
- * caballero de 1.5 a 1 (hasta el 3/10 quedaba en 0.6, casi quieto).
+ * **Cuánto frena el frío** (el de los tiros de hielo y el granizo de Abe): lo lleva a `chillSlow` de su
+ * velocidad, pero sin bajarlo de `chillFloor` m/s, y a todos los frena por lo menos hasta `chillLeast` de
+ * la suya. Así frena mucho a los rápidos y poco a los lentos: el goblin pasa de 3.6 a 1.4 m/s, y el
+ * caballero de 1.5 a 1 (hasta el 3/10 quedaba en 0.6, casi quieto). Los números están en ELEMENTS.
  */
-export const ICE = { radius: [4, 4.75, 5.5], duration: [5, 6.5, 8], linger: 0.5, slow: 0.4, floor: 1, least: 0.8 };
-
-/** A qué velocidad camina con frío uno que sin frío va a `speed` m/s (ver ICE). */
 export function chilledSpeed(speed: number): number {
-  return Math.min(speed * ICE.least, Math.max(speed * ICE.slow, ICE.floor));
+  return Math.min(speed * ELEMENTS.chillLeast, Math.max(speed * ELEMENTS.chillSlow, ELEMENTS.chillFloor));
 }
 
 /** Vendaval: el pasillo de viento que va detrás de la pelota, `halfWidth` a cada lado de la línea. */
@@ -114,6 +108,8 @@ export function chilledSpeed(speed: number): number {
  */
 export const ELEMENTS = {
   iceSeconds: [5, 6.5, 8], iceFreezeFrom: 3, freezeSeconds: 2,
+  // cuánto frena el frío (ver chilledSpeed)
+  chillSlow: 0.4, chillFloor: 1, chillLeast: 0.8,
   burnTicks: [2, 3, 4], burnTick: 2, burnDamage: 1, spreadRadius: 2.5,
   chainJumps: [2, 3, 4], chainRange: 6, chainDamage: 1,
   // el viento hace algo distinto con cada palo (ver WIND_HINT): el driver junta sobre la línea a los de
@@ -170,16 +166,12 @@ export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1,
 
 /** Todas las tablas de números de las habilidades, por nombre: el panel de balance las recorre. */
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
-  hielo: ICE, elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
+  elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
   bandera: FLAG, 'pólvora': POWDER, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
   eco: ECHO, potencia: BOOST,
 };
 
 const BASE: Ability[] = [
-  {
-    id: 'ice', kind: 'iceZone', name: 'Hielo', title: 'zona fría', cooldown: 10, range: 55, color: 0x7fd4ff,
-    hint: 'Hiela el piso donde apuntás: los que lo pisan caminan lento',
-  },
   {
     id: 'cart', kind: 'cart', name: 'Carrito', title: 'atropella', cooldown: 14, range: 60, color: 0xe9e2cf,
     hint: 'Un carrito de golf cruza el campo a la altura que apuntás y atropella a todos',
@@ -341,7 +333,6 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
   // lo que pasa de no tenerlo a tenerlo, sin números
   const gains = (label: string, from: number) => { if (level >= from && level - 1 < from) parts.push(label); };
   switch (a.kind) {
-    case 'iceZone': table('Radio', ICE.radius, ' m'); table('Dura', ICE.duration, ' s'); break;
     case 'cart': table('Daño', CART.damage); break;
     case 'hole': table('Se traga a', HOLE.swallows); break;
     case 'flag': table('Radio', FLAG.radius, ' m'); table('Dura', FLAG.seconds, ' s'); break;
@@ -380,7 +371,7 @@ export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS].map((a) => a.id);
 
 /** Las claves de ELEMENTS que usa cada elemento. */
 const ELEMENT_KEYS: Record<Element, string[]> = {
-  ice: ['iceSeconds', 'iceFreezeFrom', 'freezeSeconds'],
+  ice: ['iceSeconds', 'iceFreezeFrom', 'freezeSeconds', 'chillSlow', 'chillFloor', 'chillLeast'],
   fire: ['burnTicks', 'burnTick', 'burnDamage', 'spreadRadius'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
   wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],
@@ -389,7 +380,7 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
   silence: ['silenceSeconds', 'silenceElite'],
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
-  iceZone: 'hielo', cart: 'carrito', hole: 'hoyo', flag: 'bandera',
+  cart: 'carrito', hole: 'hoyo', flag: 'bandera',
   powder: 'pólvora', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
   echo: 'eco', boost: 'potencia',
 };
@@ -409,10 +400,7 @@ export function configOf(id: AbilityId): { name: string; table: Record<string, n
   return { name, table, keys: Object.keys(table), shared: false };
 }
 
-/** Qué elemento aporta una habilidad, para las maestrías: el hielo cuenta como hielo. */
+/** Qué elemento aporta una habilidad, para las maestrías. */
 export function elementOf(id: AbilityId): Element | null {
-  const a = ABILITIES[id];
-  if (!a) return null;
-  if (a.kind === 'iceZone') return 'ice';
-  return a.element ?? null;
+  return ABILITIES[id]?.element ?? null;
 }

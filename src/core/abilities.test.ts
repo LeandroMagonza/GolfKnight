@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, freezeFrom, hintAt, ICE, lv, MAX_LEVEL, shotQuality, SLOTS } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, freezeFrom, hintAt, lv, MAX_LEVEL, shotQuality, SLOTS } from './abilities';
 import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
@@ -52,7 +52,8 @@ describe('habilidades', () => {
   });
 
   it('el hielo y los tiros de hielo cuentan como hielo para la maestría', () => {
-    expect(elementOf('ice')).toBe('ice');
+    // la zona de hielo sola se fue (4/10): el hielo son los tiros de palo
+    expect(ABILITIES.ice).toBeUndefined();
     expect(elementOf('driver-ice')).toBe('ice');
     expect(elementOf('wedge-fire')).toBe('fire');
     expect(elementOf('cart')).toBeNull();
@@ -96,14 +97,13 @@ describe('habilidades', () => {
     expect(freezeFrom('iron')).toBe(ELEMENTS.iceFreezeFrom);
   });
 
-  it('la zona de hielo frena y al salir se va enseguida', () => {
-    expect(ICE.linger).toBe(0.5);
-    expect(ICE.slow).toBeGreaterThan(0);
-    expect(ICE.slow).toBeLessThan(1);
-    // frena mucho a los rápidos (el goblin, a 3.6) y poco a los lentos (el caballero, a 1.5), y a todos algo
-    expect(chilledSpeed(3.6)).toBeCloseTo(3.6 * ICE.slow);
-    expect(chilledSpeed(1.5)).toBe(ICE.floor);
-    expect(chilledSpeed(1.1)).toBeCloseTo(1.1 * ICE.least);
+  it('el frío frena mucho a los rápidos y poco a los lentos, y a todos algo', () => {
+    expect(ELEMENTS.chillSlow).toBeGreaterThan(0);
+    expect(ELEMENTS.chillSlow).toBeLessThan(1);
+    // el goblin va a 3.6 y el caballero a 1.5
+    expect(chilledSpeed(3.6)).toBeCloseTo(3.6 * ELEMENTS.chillSlow);
+    expect(chilledSpeed(1.5)).toBe(ELEMENTS.chillFloor);
+    expect(chilledSpeed(1.1)).toBeCloseTo(1.1 * ELEMENTS.chillLeast);
     expect(chilledSpeed(3.6) / 3.6).toBeLessThan(chilledSpeed(1.5) / 1.5);
   });
 

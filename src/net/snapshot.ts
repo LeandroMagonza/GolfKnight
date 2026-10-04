@@ -110,10 +110,10 @@ export interface ProjSnap {
   m?: [number, number, number, number];
 }
 
-/** Zona de hielo, hoyo o bandera en el piso. */
+/** Hoyo o bandera en el piso. */
 export interface MarkSnap {
   id: number;
-  k: 'ice' | 'hole' | 'flag';
+  k: 'hole' | 'flag';
   x: number;
   y: number;
   z: number;

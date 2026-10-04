@@ -316,7 +316,7 @@ function note(text: string): HTMLElement {
 
 /** Cómo se llama cada número de las tablas de habilidades, en el panel. Si falta, se muestra la clave. */
 const LABELS: Record<string, string> = {
-  radius: 'radio m', duration: 'dura s', linger: 'el frío sigue s', slow: 'con frío, velocidad ×', floor: 'pero no menos de m/s', least: 'y por lo menos ×',
+  radius: 'radio m', chillSlow: 'con frío, velocidad ×', chillFloor: 'pero no menos de m/s', chillLeast: 'y por lo menos ×',
   halfWidth: 'ancho a cada lado m', push: 'los corre hasta m', core: 'centro quieto (fracción)', silence: 'silencio s',
   damage: 'daño', speed: 'velocidad m/s', width: 'ancho m', swallows: 'se traga', life: 'dura s',
   seconds: 'dura s', blast: 'radio de la explosión m', reach: 'alcance m', hitRadius: 'radio del golpe m',

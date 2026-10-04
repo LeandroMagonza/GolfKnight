@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { burnSeconds, chilledSpeed, ELEMENTS, ICE, LENS, POWDER, VULNERABLE } from '../core/abilities';
+import { burnSeconds, chilledSpeed, ELEMENTS, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { chainJumps } from '../core/chain';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
@@ -730,7 +730,7 @@ export class Enemy {
   get walkSpeed(): number {
     if (this.frozen) return 0;
     const speed = this.stats.speed * this.speedMul * (this.mods.speed ?? 1);
-    // el frío frena mucho a los rápidos y poco a los lentos (ver ICE)
+    // el frío frena mucho a los rápidos y poco a los lentos (ver chilledSpeed)
     return this.chilled ? chilledSpeed(speed) : speed;
   }
 
@@ -1168,7 +1168,7 @@ export class Enemy {
     this.growScale += (size - this.growScale) * (1 - Math.exp(-8 * dt));
     this.group.scale.setScalar(this.growScale * this.bodyScale);
     this.refreshChill();
-    const slow = this.chilled ? ICE.slow : 1;
+    const slow = this.chilled ? ELEMENTS.chillSlow : 1;
     const behavior = this.behavior;
     const castGesture = this.casting || this.digState === 'raising' ? 1 : 0;
     this.refreshPipsIfChanged();
@@ -1868,6 +1868,9 @@ export class Horde {
     // carrito, las explosiones) empuja como siempre
     const q = this.shot ? Math.min(KNOCK.quality.length, Math.max(1, this.shot.quality)) - 1 : -1;
     const killed = enemy.damage(dealt, knockDir, q >= 0 ? knockback * KNOCK.quality[q] : knockback, q >= 0 ? KNOCK.stun[q] : undefined, !!ghost);
+    // el escurridizo que recibe daño vuelve a tener la esquiva lista (4/10): después de cada golpe hay
+    // que volver a hacerlo saltar
+    if (dealt > 0 && !killed && enemy.mods.dodge) enemy.dodgeLeft = 0;
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });
@@ -2082,22 +2085,6 @@ export class Horde {
     return guard;
   }
 
-  /**
-   * Frío en área: a todos los que alcanza les deja `seconds` de frío. La zona de hielo lo llama en cada
-   * cuadro con lo que le dura el frío al que sale, así que adentro nunca se le acaba. `seen` junta a
-   * todos los que alguna vez pisaron la zona. Devuelve a cuántos alcanzó ahora.
-   */
-  chillAround(pos: THREE.Vector3, radius: number, seconds: number, seen?: Set<number>): number {
-    let count = 0;
-    for (const e of this.enemies) {
-      if (!e.alive || e.passed) continue;
-      if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
-      e.chill(seconds);
-      seen?.add(e.id);
-      count++;
-    }
-    return count;
-  }
 
   /**
    * Vendaval: barre un rectángulo centrado en `pos` y orientado según la línea del tiro (`along`,

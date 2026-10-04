@@ -7,7 +7,7 @@
 // pelotas, el caddie, el clon y el palazo) lo hace el juego, a través de `hooks`.
 import * as THREE from 'three';
 import {
-  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, HOLE, ICE, LENS, lv, maxLevelOf, POWDER, SLOTS,
+  ABILITIES, BOOST, CADDIE, CART, CLONE, ECHO, cooldownAt, FLAG, HOLE, LENS, lv, maxLevelOf, POWDER, SLOTS,
   type AbilityId, type Element,
 } from '../core/abilities';
 import { BALL_RADIUS, launchSpeed, launchWith, stepBall, type BallState, type BounceParams } from '../core/ballistics';
@@ -62,11 +62,11 @@ interface AbilityBall {
   trailPositions: Float32Array;
 }
 
-/** Algo que queda en el campo un rato: zona de hielo, hoyo o bandera. */
+/** Algo que queda en el campo un rato: hoyo o bandera. */
 interface Mark {
   /** Para el espectador (ver net/). */
   id: number;
-  kind: 'ice' | 'hole' | 'flag';
+  kind: 'hole' | 'flag';
   pos: THREE.Vector3;
   radius: number;
   left: number;
@@ -91,7 +91,6 @@ interface Cart {
 export type AbilityEvent =
   | { type: 'cast'; id: AbilityId }
   /** Cayó el hielo: la zona quedó armada y agarró a `hits` de entrada. */
-  | { type: 'zone'; pos: THREE.Vector3; hits: number }
   /** Cayó una habilidad que marca o agranda: `hits` alcanzados. */
   | { type: 'mark'; id: AbilityId; pos: THREE.Vector3; hits: number }
   /** El hoyo se tragó a uno. */
@@ -193,7 +192,7 @@ export class Abilities {
     const at = new THREE.Vector3(from.x + dir.x * range, 0, from.z + dir.z * range);
     at.y = heightAt(at.x, at.z);
     switch (a.kind) {
-      case 'iceZone': case 'powder': case 'lens': this.throwBall(s.id, level, LOB, from, dir, range); break;
+      case 'powder': case 'lens': this.throwBall(s.id, level, LOB, from, dir, range); break;
       case 'hole': this.makeMark('hole', at, HOLE.radius, HOLE.life, lv(HOLE.swallows, level)); break;
       case 'flag': this.makeMark('flag', at, lv(FLAG.radius, level), lv(FLAG.seconds, level), 0); break;
       case 'cart': this.sendCart(at.z, from.x, level); break;
@@ -245,18 +244,7 @@ export class Abilities {
     const pos = new THREE.Vector3(s.pos.x, heightAt(s.pos.x, s.pos.z), s.pos.z);
     const level = ball.level;
     const kind = ABILITIES[ball.id].kind;
-    if (kind === 'iceZone') {
-      const radius = lv(ICE.radius, level);
-      this.effects.frost(pos, radius);
-      this.makeMark('ice', pos, radius, lv(ICE.duration, level), 0);
-      // al caer es una fuente de hielo de verdad: con la maestría, congela al que ya estaba frío
-      let hits = 0;
-      for (const e of this.inside(pos, radius)) {
-        this.horde.applyIce(e, ICE.linger);
-        hits++;
-      }
-      this.onEvent?.({ type: 'zone', pos, hits });
-    } else if (kind === 'powder') {
+    if (kind === 'powder') {
       const radius = lv(POWDER.radius, level);
       this.effects.explosion(pos, radius, ABILITIES[ball.id].color);
       this.horde.powderDamage = lv(POWDER.damage, level);
@@ -277,21 +265,11 @@ export class Abilities {
     return this.horde.enemies.filter((e) => e.alive && !e.passed && Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius <= radius);
   }
 
-  /** Zona de hielo, hoyo o bandera: queda en el campo un rato. */
+  /** Hoyo o bandera: queda en el campo un rato. */
   private makeMark(kind: Mark['kind'], pos: THREE.Vector3, radius: number, life: number, swallows: number, id = this.nextId++): Mark {
     const group = new THREE.Group();
     const mats: THREE.Material[] = [];
-    if (kind === 'ice') {
-      const color = ABILITIES.ice.color;
-      const fill = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false });
-      const edge = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
-      mats.push(fill, edge);
-      const disc = new THREE.Group();
-      disc.add(new THREE.Mesh(discGeo, fill), new THREE.Mesh(edgeGeo, edge));
-      disc.rotation.x = -Math.PI / 2;
-      disc.scale.setScalar(radius);
-      group.add(disc);
-    } else if (kind === 'hole') {
+    if (kind === 'hole') {
       // un hoyo de golf: negro, con su borde claro y su banderita
       const dark = new THREE.MeshBasicMaterial({ color: 0x050607, side: THREE.DoubleSide });
       const rim = new THREE.MeshBasicMaterial({ color: 0xe9e2cf, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
@@ -329,7 +307,7 @@ export class Abilities {
     const mark: Mark = { id, kind, pos: pos.clone(), radius, left: life, total: life, swallows, seen: new Set(), group, mats };
     this.marks.push(mark);
     // el destello del que mira ya llega como efecto
-    if (kind !== 'ice' && !this.remote) this.effects.blink(pos, kind === 'hole' ? 0x9aa4b2 : ABILITIES.flag.color);
+    if (!this.remote) this.effects.blink(pos, kind === 'hole' ? 0x9aa4b2 : ABILITIES.flag.color);
     return mark;
   }
 
@@ -445,12 +423,8 @@ export class Abilities {
       const m = this.marks[i];
       m.left -= dt;
       if (m.left > 0) {
-        if (m.kind === 'ice') {
-          // al que está adentro se le renueva el frío en cada cuadro: nunca se le acaba mientras esté
-          // ahí. Al salir le quedan `linger` segundos
-          this.horde.chillAround(m.pos, m.radius, ICE.linger, m.seen);
-        } else if (m.kind === 'flag') {
-          // igual que el hielo: mientras estén cerca siguen yendo a la bandera
+        if (m.kind === 'flag') {
+          // mientras estén cerca siguen yendo a la bandera
           for (const e of this.inside(m.pos, m.radius)) e.lureTo(m.pos.x, m.pos.z, 0.4);
         } else {
           for (const e of this.horde.enemies) {

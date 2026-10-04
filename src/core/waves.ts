@@ -229,8 +229,9 @@ export const RANGED = { holdZ: 34, every: 4.5, flight: 1.6, radius: 1.4, damage:
  * apuntado (a menos de `aimWidth` metros de la línea, más su radio) salta `distance` metros al costado,
  * siempre, y no vuelve a saltar hasta `cooldown` segundos después. Se le gana haciéndolo saltar con
  * algo (un tiro flojo, una pifia, una habilidad) y pegándole con lo que importa antes de que recargue, o
- * con un área que lo agarre igual (el wedge). Silenciado, aturdido o congelado no esquiva. (Hasta el
- * 1/10 saltaba cuando la carga pasaba al golpe 2.)
+ * con un área que lo agarre igual (el wedge). Silenciado, aturdido o congelado no esquiva. **Recibir daño
+ * le recarga la esquiva en el acto** (4/10): después de cada golpe hay que volver a hacerlo saltar. (Hasta
+ * el 1/10 saltaba cuando la carga pasaba al golpe 2.)
  */
 export const DODGE = { cooldown: 5, distance: 3.2, aimWidth: 2.2, hop: 0.6, hopTime: 0.35 };
 

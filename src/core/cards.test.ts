@@ -39,8 +39,8 @@ describe('cartas', () => {
 
   it('la maestría de un elemento sale recién con dos habilidades de ese elemento', () => {
     const has = (b: Build) => candidates(b).some((c) => c.card.kind === 'perk' && c.card.id === 'masteryIce');
-    expect(has(fresh({ slots: [{ id: 'ice', level: 1 }] }))).toBe(false);
-    expect(has(fresh({ slots: [{ id: 'ice', level: 1 }, { id: 'driver-ice', level: 1 }] }))).toBe(true);
+    expect(has(fresh({ slots: [{ id: 'iron-ice', level: 1 }] }))).toBe(false);
+    expect(has(fresh({ slots: [{ id: 'iron-ice', level: 1 }, { id: 'driver-ice', level: 1 }] }))).toBe(true);
     expect(PERKS.masteryIce.needs).toBe('ice');
   });
 
