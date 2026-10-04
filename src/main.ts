@@ -9,7 +9,8 @@ import { ABILITIES, ABILITY_KEYS, ECHO, ELEMENT_INFO, ELEMENTS, lv, MIGHT, PALAZ
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
-import { earnPoint, hillsOn, loadProgress, rulesFor, saveProgress, setLevel, TALENTS, used } from './core/difficulty';
+import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used } from './core/difficulty';
+import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls, RICOCHET_COLOR } from './game/balls';
@@ -571,6 +572,51 @@ function toScreen(pos: THREE.Vector3, height: number): { x: number; y: number } 
 /** Cuánto festeja el golfista, ya sin el cartel encima, antes de que aparezca el de la victoria. */
 const VICTORY_CARD_DELAY_MS = 3500;
 
+// cada número del cartel del final suena con la nota siguiente del arpegio de las bajas; al perder, un
+// golpe seco. El que mira no: le llegan los sonidos del que juega
+if (!WATCH) hud.end.onBeat = (i, result) => (result === 'victory' ? audio.kill(i) : audio.tock(false));
+
+/** El mejor puntaje de este navegador. */
+const RECORD_KEY = 'gk.record';
+function readRecord(): number {
+  try {
+    return Math.max(0, Number(localStorage.getItem(RECORD_KEY)) || 0);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Lo que dice el cartel del final (ver src/endscreen.ts): el puntaje, el récord, los números de la
+ * partida (del registro, ver src/telemetry.ts) y cómo quedó la dificultad.
+ */
+function endInfo(result: 'victory' | 'defeat', title: string, detail: string, level: number, earned: string): EndInfo {
+  const before = readRecord();
+  // el bot no cuenta para el récord: juega para probar
+  const record = !BOT && score > before;
+  if (record) {
+    try { localStorage.setItem(RECORD_KEY, String(score)); } catch { /* sin localStorage: no se guarda */ }
+  }
+  const t = recorder?.totals ?? { seconds: gameClock, shots, hits: 0, perfects: 0, damage: 0, abilities: 0, best: 0 };
+  const stats: EndStat[] = [
+    { label: 'Oleada', value: result === 'victory' ? director.waveCount : Math.max(1, director.index + 1), of: director.waveCount },
+    // desde que arrancó, sin pausas ni cartas (el registro cuenta desde la primera oleada)
+    { label: 'Tiempo', value: gameClock, kind: 'time' },
+    { label: 'Bajas', value: kills },
+    { label: 'Daño hecho', value: t.damage },
+    { label: 'Puntería', value: t.shots > 0 ? Math.min(100, (100 * t.hits) / t.shots) : 0, kind: 'pct' },
+    { label: 'Golpes perfectos', value: t.perfects },
+    { label: 'Mejor tiro', value: Math.max(1, t.best), unit: t.best > 1 ? 'bajas' : 'baja' },
+    { label: 'Racha sin errar', value: bestStreak, unit: 'tiros' },
+    { label: 'Habilidades', value: t.abilities },
+    { label: 'Puerta', value: gateHp, of: GATE_MAX },
+  ];
+  return {
+    result, title, detail, score, best: Math.max(before, record ? score : 0), record, stats, earned,
+    level: progress.points > 0 ? `Dificultad: jugaste en el nivel ${level} · tenés ${progress.points} de ${MAX_POINTS} desbloqueados` : '',
+  };
+}
+
 function endGame(result: 'victory' | 'defeat', title: string, detail: string): void {
   if (ended) return;
   ended = result;
@@ -581,16 +627,18 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string): v
   if (result === 'defeat') player.fall();
   // y si ganó, festeja: se da vuelta hacia la ciudad con los brazos en alto
   else player.celebrate();
-  // ganar con todos los puntos de dificultad puestos suma uno (el bot no: juega para probar)
+  // ganar con todos los puntos de dificultad puestos desbloquea un nivel más (el bot no: juega para probar)
   const level = used(progress.picks);
   const earned = result === 'victory' && !BOT && earnPoint(progress);
   if (earned) saveProgress(progress);
   paintDifficulty();
-  const earnedText = earned ? (progress.points === 1 ? '¡Ganaste tu primer punto de dificultad! Ponelo para la próxima' : '¡Ganaste un punto de dificultad!') : '';
-  const summary = `${detail} · dificultad ${level} · ${score} puntos · ${kills} bajas · ${shots} tiros`;
+  const earnedText = !earned ? '' : progress.points === 1
+    ? '¡Desbloqueaste tu primer nivel de dificultad! Elegí en Dificultad qué se pone más difícil'
+    : `¡Desbloqueaste el nivel ${progress.points} de dificultad!`;
+  const info = endInfo(result, title, detail, level, earnedText);
   // al ganar, el cartel espera a que se vea el festejo: tapa la cancha con un velo oscuro
-  if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(title, summary, earnedText); }, VICTORY_CARD_DELAY_MS);
-  else hud.showEnd(title, summary, earnedText);
+  if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(info); }, VICTORY_CARD_DELAY_MS);
+  else hud.showEnd(info);
   recorder?.finish(result, { cause: detail, score, hp: player.hp, gate: gateHp, build: buildForLog() });
   if (result === 'victory') audio.victory();
   else audio.defeat();
@@ -814,7 +862,7 @@ balls.onEvent = (e) => {
       audio.kill(e.quality - 1 + e.kills);
       // el doblete se canta (y suma) en el acto, cuando cae el segundo; el tercero suma otra vez
       if (e.ability || e.kills < 2) break;
-      recorder?.extraKill();
+      recorder?.extraKill(e.kills);
       const name = MULTI_KILL[e.kills] ?? `¡${e.kills} de un tiro!`;
       // el albañil y el herrero: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio;
       // matar a varios de un tiro es lo que se les pide
@@ -956,11 +1004,14 @@ const MULTI_KILL: Record<number, string> = { 2: '¡Doblete!', 3: '¡Triplete!', 
  * Suma cuando el tiro conecta y vuelve a 0 cuando uno termina sin pegarle a nadie.
  */
 let cleanStreak = 0;
+/** La racha más larga de la partida, para el cartel del final. */
+let bestStreak = 0;
 
 /** Cambia la racha sin errar y lo que depende de ella: el apuro del ritmo y el bonus de «En racha». */
 function setCleanStreak(n: number): void {
   const wasHot = hotStreakOn();
   cleanStreak = n;
+  bestStreak = Math.max(bestStreak, n);
   const hot = hotStreakOn();
   if (hot && !wasHot) hud.feedback('¡En racha!', 'good');
   else if (!hot && wasHot) hud.feedback('Se cortó la racha', 'bad');
@@ -1825,6 +1876,8 @@ const netNote = document.getElementById('netnote')!;
 const watchersEl = document.getElementById('watchers')!;
 let netHost: NetHost | null = null;
 let spectator: NetSpectator | null = null;
+/** El que mira: desde cuándo la partida del que juega está terminada (0 = no lo está). */
+let watchEndSince = 0;
 
 // sale un hechizo de Abe: su sonido (también le llega al que mira) y, acá, a cuántos agarró
 abe.origin = () => player?.anchor ?? { x: 0, z: TEE_Z };
@@ -2149,9 +2202,15 @@ async function startWatching(code: string): Promise<void> {
       if (g.pk) hud.setPocket(g.pk[0], g.pk[1]);
       // el cartel del final sigue a la foto: sin esto, si el que juega reiniciaba, al que mira le quedaba
       // «La puerta cayó» arriba de la partida nueva. Y el que entró con la partida ya terminada lo ve igual
+      // El cartel animado llega como evento (al ganar, después del festejo): el simple sale solo si no
+      // llegó, porque se entró con la partida ya terminada
       const endEl = document.getElementById('end')!;
+      if (!g.en) watchEndSince = 0;
+      else if (!watchEndSince) watchEndSince = performance.now();
       if (!g.en && !endEl.hidden) hud.hideEnd();
-      else if (g.en && endEl.hidden) hud.showEnd(g.en === 'victory' ? '¡Valdehoyo resiste!' : 'Terminó la partida', '');
+      else if (g.en && endEl.hidden && performance.now() - watchEndSince > VICTORY_CARD_DELAY_MS + 1500) {
+        hud.showEndPlain(g.en === 'victory' ? '¡Valdehoyo resiste!' : 'Terminó la partida', g.en === 'victory' ? 'victory' : 'defeat');
+      }
     },
     onHello(h) {
       // la cancha se arma una sola vez al cargar: si no es la del que juega, se vuelve a entrar con la suya
@@ -2317,11 +2376,12 @@ function updateWaves(dt: number): void {
   for (const e of director.update(dt, horde.aliveCount)) {
     switch (e.type) {
       case 'wave': {
-        if (RECORD && !recorder && e.index === 0) {
+        // se anota siempre (los números del cartel del final salen de acá), pero solo se manda con RECORD
+        if (!WATCH && !recorder && e.index === 0) {
           recorder = new RunRecorder({
             version: __BUILD__, level: used(progress.picks), picks: { ...progress.picks }, points: progress.points,
             powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
-          });
+          }, RECORD);
         }
         recorder?.wave(e.index + 1, e.wave.title, e.wave.mod);
         audio.waveHorn();

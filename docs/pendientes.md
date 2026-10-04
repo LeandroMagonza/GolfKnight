@@ -18,6 +18,12 @@ Queda de la idea original:
 - Cómo se presenta lo que llega con las cartas (habilidades, mejoras), que no depende de la oleada.
 - Quizás un paso de moverse entre puestos con A y D, y uno del golpe perfecto (hoy solo se lo menciona).
 
+## La cinemática del final
+
+4/10, pedido de Leandro: al ganar, una cinemática antes del cartel del final. Hoy el golfista festeja con
+los brazos en alto unos segundos y después aparece el cartel con los números (`src/endscreen.ts`). La
+cinemática iría en ese hueco, con el reproductor de la de la intro (ver `cinematica.md`).
+
 ## Los campos
 
 Revisar los mapas (29/9: la meseta se bajó y se sacó *Los dos carriles*). Qué pregunta hace cada uno,

@@ -313,7 +313,15 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 Cada partida ganada **con todos los puntos puestos** da un punto de dificultad, y cada punto puesto hace
 la partida más difícil. Se reparten como uno quiera en un menú entre partidas (en la pantalla de inicio,
 con el primer punto, y en el cartel del final), y se pueden mover cuando se quiera: vale para la próxima
-partida. Se guarda en el navegador. Son 15 puntos en 10 talentos:
+partida. Se guarda en el navegador. Son 15 puntos en 10 talentos. En el juego, ganar un punto se anuncia
+como «¡Desbloqueaste el nivel N de dificultad!».
+
+**El cartel del final** (`src/endscreen.ts`): el título entra de golpe, el puntaje cuenta hacia arriba
+con el récord del navegador al lado, y aparecen de a uno, cada uno con su nota, los números de la
+partida: oleada, tiempo, bajas, daño, puntería, golpes perfectos, el mejor tiro, la racha sin errar,
+habilidades y cómo quedó la puerta. Al final, el aviso del nivel desbloqueado. Al ganar, además, rayos y
+papelitos. Los números salen del registro de la partida (`src/telemetry.ts`), que ahora se anota siempre
+aunque solo se mande cuando corresponde.
 
 | Talento | Niveles |
 | --- | --- |

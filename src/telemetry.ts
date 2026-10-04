@@ -139,8 +139,14 @@ export class RunRecorder {
   private clock = 0;
   private waveStart = 0;
   private done = false;
+  /** Lo más que mató un mismo tiro. */
+  private best = 0;
 
-  constructor(private readonly info: RunInfo) {}
+  /**
+   * @param send si se manda al terminar. Sin esto solo junta los números, para el cartel del final (el
+   * bot y las pruebas automáticas no mandan nada, pero el cartel los muestra igual)
+   */
+  constructor(private readonly info: RunInfo, private readonly send = true) {}
 
   /** Corre el reloj de la partida (sin pausas ni cartas). */
   tick(dt: number): void {
@@ -186,9 +192,10 @@ export class RunRecorder {
     if (killed) w.kills++;
   }
 
-  /** Una baja de más de un mismo tiro. */
-  extraKill(): void {
+  /** Una baja de más de un mismo tiro, que ya lleva `kills`. */
+  extraKill(kills = 2): void {
     if (this.now) this.now.extra++;
+    this.best = Math.max(this.best, kills);
   }
 
   ability(): void {
@@ -216,12 +223,25 @@ export class RunRecorder {
     if (last && last.picked === null) last.picked = card;
   }
 
+  private sum(k: 'shots' | 'hits' | 'perfects' | 'kills' | 'extra' | 'damage' | 'shotDamage' | 'abilities'): number {
+    return this.waves.reduce((n, w) => n + w[k], 0);
+  }
+
+  /** Los números de toda la partida, para el cartel del final. */
+  get totals(): { seconds: number; shots: number; hits: number; perfects: number; damage: number; abilities: number; best: number } {
+    return {
+      seconds: this.clock, shots: this.sum('shots'), hits: this.sum('hits'), perfects: this.sum('perfects'),
+      damage: this.sum('damage'), abilities: this.sum('abilities'), best: this.best,
+    };
+  }
+
   /** Terminó (o se dejó): queda en la cola y se intenta mandar. */
   finish(result: Row['result'], extra: { cause?: string; score: number; hp: number; gate: number; build: unknown }): void {
     if (this.done) return;
     this.done = true;
     this.closeWave();
-    const sum = (k: 'shots' | 'hits' | 'perfects' | 'kills' | 'extra' | 'damage' | 'shotDamage') => this.waves.reduce((n, w) => n + w[k], 0);
+    if (!this.send) return;
+    const sum = (k: 'shots' | 'hits' | 'perfects' | 'kills' | 'extra' | 'damage' | 'shotDamage') => this.sum(k);
     enqueue({
       id: this.id,
       player_id: playerId(),

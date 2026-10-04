@@ -78,7 +78,7 @@
       #watchers { position: absolute; top: 62px; left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
       body.watching #meter, body.watching #bottom, body.watching #perks, body.watching #skin, body.watching #balancebtn,
       body.watching #balance, body.watching #card, body.watching #choice, body.watching #tutorial, body.watching #pause,
-      body.watching #end p:last-child { display: none !important; }
+      body.watching #end .again { display: none !important; }
       /* la cinemática de la intro, arriba de todo mientras el juego carga por debajo */
       #cine { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 100; background: #000; }
 
@@ -122,9 +122,63 @@
       #difficulty .lines .got { color: #ffd66b; }
       #difficulty .foot { margin: 0; font-size: 13px; color: #9aa4b2; }
       #difficulty .done { align-self: center; font-size: 17px; padding: 8px 28px; border-radius: 8px; border: 0; background: #5be07a; color: #102; font-weight: 600; cursor: pointer; }
-      #end .earned { color: #ffd66b; }
       #end #enddiff { margin: 10px 0 6px; pointer-events: auto; font-size: 15px; padding: 6px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
       #end #enddiff[hidden], #end .earned[hidden] { display: none; }
+      /* el cartel del final (ver src/endscreen.ts): el título entra de golpe, el puntaje cuenta, los
+         números aparecen de a uno y al final el aviso del nivel desbloqueado. Al ganar, rayos y papelitos */
+      #end { overflow: hidden; }
+      #end.victory { background: radial-gradient(ellipse at 50% 32%, rgba(74, 56, 14, 0.84), rgba(8, 12, 18, 0.92) 72%); }
+      #end.defeat { background: radial-gradient(ellipse at 50% 32%, rgba(58, 16, 16, 0.82), rgba(6, 8, 12, 0.93) 72%); }
+      #end .confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+      #end .rays { position: absolute; left: 50%; top: 30%; width: 170vmax; height: 170vmax; margin: -85vmax 0 0 -85vmax; border-radius: 50%; pointer-events: none; opacity: 0;
+        background: repeating-conic-gradient(rgba(255, 214, 107, 0.11) 0deg 8deg, transparent 8deg 22.5deg);
+        -webkit-mask-image: radial-gradient(circle, #000 0, transparent 55%); mask-image: radial-gradient(circle, #000 0, transparent 55%); }
+      #end.victory.play .rays { animation: endrays 1.4s ease-out 0.1s forwards, endspin 60s linear infinite; }
+      #end .endcard { position: relative; display: flex; flex-direction: column; align-items: center; width: min(620px, calc(100vw - 32px)); max-height: 100%; overflow-y: auto; padding: 14px 0; box-sizing: border-box; }
+      #end .endcard h2 { font-size: clamp(34px, 7vw, 62px); line-height: 1.1; margin: 0 0 6px; }
+      #end.victory h2 { color: transparent; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(100deg, #ffd66b 42%, #fffbea 50%, #ffd66b 58%); background-size: 260% 100%; background-position: 100% 0; filter: drop-shadow(0 0 18px rgba(255, 196, 70, 0.55)) drop-shadow(0 3px 0 #6e4f0c); }
+      #end.defeat h2 { color: #ff8a7a; filter: drop-shadow(0 3px 0 #4a1010); }
+      #end.play h2 { animation: endtitle 0.75s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+      #end.victory.play h2 { animation: endtitle 0.75s cubic-bezier(0.2, 1.5, 0.4, 1) both, endshine 2.8s ease-in-out 0.9s infinite; }
+      #end.play .detail { animation: endfade 0.6s ease-out 0.3s both; }
+      #end .score { display: flex; align-items: baseline; gap: 10px; margin-top: 10px; }
+      #end .score .num { font-size: clamp(48px, 11vw, 88px); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0 22px rgba(255, 255, 255, 0.25); }
+      #end .score .unit { font-size: 15px; letter-spacing: 3px; text-transform: uppercase; color: #cfd6e0; }
+      #end.play .score { animation: endfade 0.4s ease-out 0.35s both; }
+      #end .score.in .num { animation: endpop 0.5s ease-out; color: #ffd66b; }
+      #end .best { min-height: 22px; font-size: 15px; color: #9aa4b2; }
+      #end .best.record { font-size: 19px; font-weight: 700; color: #ffd66b; opacity: 0; }
+      #end .best.record.in { opacity: 1; animation: endbadge 0.6s cubic-bezier(0.2, 1.6, 0.4, 1); }
+      #end .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; width: 100%; margin: 14px 0 6px; }
+      #end .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+        opacity: 0; transform: translateY(14px) scale(0.94); transition: opacity 0.3s ease-out, transform 0.4s cubic-bezier(0.2, 1.5, 0.4, 1); }
+      #end .stat.in { opacity: 1; transform: none; }
+      #end .stat .label { font-size: 14px; color: #9aa4b2; text-align: left; }
+      #end .stat .value { font-size: 18px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      #end.victory .stat .value { color: #fff4c2; }
+      #end .earned { margin: 10px 0 2px; padding: 10px 18px; border-radius: 12px; font-size: 19px; font-weight: 700; color: #ffd66b; border: 2px solid #ffd66b; background: rgba(255, 214, 107, 0.12); opacity: 0; transform: scale(0.6); }
+      #end .earned.in { opacity: 1; transform: none; animation: endbadge 0.6s cubic-bezier(0.2, 1.6, 0.4, 1), endglow 1.8s ease-in-out 0.6s infinite; }
+      #end .level { font-size: 14px; color: #9aa4b2; opacity: 0; transition: opacity 0.5s; }
+      #end .foot { opacity: 0; transition: opacity 0.5s; }
+      #end.done .level, #end.done .foot { opacity: 1; }
+      #end.plain .score, #end.plain .best, #end.plain .stats, #end.plain .level { display: none; }
+      #end.calm *, #end.calm *::before { animation: none !important; transition: none !important; }
+      @keyframes endtitle { from { opacity: 0; transform: scale(2.4); } to { opacity: 1; transform: none; } }
+      @keyframes endshine { 0% { background-position: 100% 0; } 55%, 100% { background-position: 0 0; } }
+      @keyframes endfade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+      @keyframes endpop { 0% { transform: scale(1.3); text-shadow: 0 0 40px rgba(255, 214, 107, 0.9); } 100% { transform: none; } }
+      @keyframes endbadge { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: none; } }
+      @keyframes endglow { 0%, 100% { box-shadow: 0 0 0 rgba(255, 214, 107, 0); } 50% { box-shadow: 0 0 26px rgba(255, 214, 107, 0.55); } }
+      @keyframes endrays { to { opacity: 1; } }
+      @keyframes endspin { to { transform: rotate(360deg); } }
+      /* en pantallas angostas, el título caía encima de Balance y Sonido: el cartel va arriba de ellos */
+      @media (max-width: 700px) { #end { z-index: 8; } }
+      @media (max-width: 460px) {
+        #end .stat { padding: 6px 9px; }
+        #end .stat .label { font-size: 12px; }
+        #end .stat .value { font-size: 16px; }
+        #end .earned { font-size: 16px; }
+      }
       #notes { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.62); z-index: 20; }
       #notes[hidden] { display: none; }
       #notes .book { position: relative; width: min(640px, 92vw); height: min(80vh, 760px); display: flex; flex-direction: column; background: #f6efdc; color: #2b2a33; border-radius: 3px 3px 8px 8px; box-shadow: 0 3px 0 -1px #e8dec3, 0 6px 0 -2px #d9cca9, 0 22px 50px rgba(0, 0, 0, 0.6); }
@@ -451,7 +505,18 @@
           </div>
         </div>
       </div>
-      <div id="end" hidden><h2></h2><p class="detail"></p><p class="earned" hidden></p><button id="enddiff" type="button" tabindex="-1" hidden>Dificultad</button><p>R para jugar de nuevo</p></div>
+      <div id="end" hidden>
+        <canvas class="confetti"></canvas><div class="rays"></div>
+        <div class="endcard">
+          <h2></h2><p class="detail"></p>
+          <div class="score"><span class="num">0</span><span class="unit">puntos</span></div>
+          <div class="best"></div>
+          <div class="stats"></div>
+          <p class="earned" hidden></p>
+          <p class="level"></p>
+          <div class="foot"><button id="enddiff" type="button" tabindex="-1" hidden>Dificultad</button><p class="again">R para jugar de nuevo</p></div>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

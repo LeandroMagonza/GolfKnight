@@ -3,6 +3,7 @@
 import { ABILITIES, ABILITY_KEYS, SLOTS, type AbilityId } from './core/abilities';
 import { CLUB_KEYS, CLUB_ORDER, CLUBS, type Club, type ClubId } from './core/clubs';
 import { arcAngle, type ArcLayout } from './core/swing';
+import { EndScreen, type EndInfo } from './endscreen';
 
 /** Hasta dónde se abre el arco de carga, de arriba a cada borde: con las mejoras puede pasar de 90°. */
 const ARC_MAX = 105;
@@ -49,7 +50,8 @@ export class Hud {
   private hint = $('hint');
   private clubsEl = $('clubs');
   private pauseEl = $('pause');
-  private endEl = $('end');
+  /** El cartel del final. `onBeat` suena con cada cosa que aparece (lo pone el juego). */
+  readonly end = new EndScreen($('end'));
   private skinBtn = $<HTMLButtonElement>('skin');
   private enchantsEl = $('enchants');
   onSkinClick: (() => void) | null = null;
@@ -435,19 +437,17 @@ export class Hud {
     this.pauseEl.hidden = !on;
   }
 
-  /** El cartel del final. `earned`: el aviso del punto de dificultad ganado, si se ganó. */
-  showEnd(title: string, detail: string, earned = ''): void {
-    (this.endEl.querySelector('h2') as HTMLElement).textContent = title;
-    (this.endEl.querySelector('.detail') as HTMLElement).textContent = detail;
-    const note = this.endEl.querySelector('.earned') as HTMLElement | null;
-    if (note) {
-      note.textContent = earned;
-      note.hidden = !earned;
-    }
-    this.endEl.hidden = false;
+  /** El cartel del final, animado (ver EndScreen). */
+  showEnd(info: EndInfo): void {
+    this.end.show(info);
+  }
+
+  /** El cartel del final sin animación ni números: el que mira y llegó cuando ya había terminado. */
+  showEndPlain(title: string, result: EndInfo['result']): void {
+    this.end.showPlain(title, result);
   }
 
   hideEnd(): void {
-    this.endEl.hidden = true;
+    this.end.hide();
   }
 }
