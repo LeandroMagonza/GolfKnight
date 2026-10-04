@@ -10,6 +10,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 4 de octubre
 
 **Golf**
+- Al ganar, el golfista se da vuelta hacia la ciudad y festeja con los brazos en alto (el mismo gesto
+  del mago en la intro). El cartel de victoria espera unos segundos para que se vea. `03c3613`
 - Se va la habilidad Hielo (la zona en el piso): se parecía demasiado al wedge de hielo. El hielo queda
   en los tiros de palo. `3073ca0`
 - Los escurridizos se recargan la esquiva cada vez que reciben daño: después de cada golpe hay que
