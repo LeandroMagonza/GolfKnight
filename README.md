@@ -172,11 +172,10 @@ protege, no hace nada). Lo que hace cada una, por nivel:
 | Fuerza | 5 s (6 y 7) en que todos tus tiros pegan por lo menos 2, el putter 3. También los de habilidad: los de efecto, que solos no pegan, pegan 2 y dejan su efecto. Recarga 20 s |
 | Guante (fantasma, de hielo, de fuego, de rayo) | 5 s (6 y 7) en que todos tus tiros de palo llevan ese elemento al nivel del guante, y pegan como siempre. El de hielo congela en el nivel 3; con el fantasma, la esquiva no salta al soltar. Uno nuevo reemplaza al que estaba. Recarga 20 s |
 
-**Mejoras**: Muñeca rápida (el débil y el medio un 15 % más rápidos: llegás antes al golpe 3, y la
-ventana del perfecto dura lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y el rebote
-llega más tarde), Swing parejo (hasta 3 niveles: cada uno acerca un tercio los tiempos de la barra a
-partes iguales, y al tercero débil, medio y fuerte duran lo mismo; las otras mejoras de la barra van
-encima, así que el fuerte puede terminar durando más que el débil), Ritmo (cada tiro seguido **sin errar** te hace llegar antes
+**Mejoras**: Muñeca rápida (el tramo débil dura un 20 % menos: el golpe 2 y el 3 llegan antes, y duran
+lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y el rebote llega más tarde). Cada una
+mueve un solo número; con las dos la barra queda más pareja, pero el fuerte sigue siendo el tramo más
+corto. Ritmo (cada tiro seguido **sin errar** te hace llegar antes
 al golpe 3, hasta tres, y ahí se queda hasta que errás), En racha (después de 4 tiros seguidos sin errar,
 los golpes de palo que pegan 1 pasan a pegar 2 hasta que errás: sube el piso de cada palo sin tocar el techo, y al putter no le hace nada), El albañil (cada tiro que mata a dos suma 1, a tres suma 2, y así; cada 3, la puerta +1 y vos +1; no se corta),
 El herrero (cuenta igual; cada 2, la próxima pelota pega +1, y no se pierde al cancelar, cambiar de palo ni pifiar),

@@ -87,7 +87,7 @@ Lo que no hace daño (hielo, viento) no resuelve nada solo: prepara.
 | Maestría del hielo | 1 | | ✅ | ❌ | ❌ | ✅ |
 | Maestría del fuego | 1 | | ✅ | ✅ | ½ | |
 | Maestría del rayo | 1 | | ½ | ✅ | ½ | |
-| Punto dulce, Swing parejo | 2 | | ½ | ❌ | | |
+| Punto dulce | 2 | | ½ | ❌ | | |
 | Muñeca rápida | 1 | | ½ | | | |
 | Ritmo, Carcaj, Pelota extra | 3 | | | ½ | ½ | |
 | Albañil, Botiquín, Segundo aire | 3 | | | | | |

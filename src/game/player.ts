@@ -330,8 +330,8 @@ export class Player {
   }
 
   /**
-   * Los segundos de cada tramo de la barra, con las mejoras encima (muñeca rápida, ritmo, punto dulce,
-   * swing parejo). Los calcula el juego; el tiro que ya se está cargando sigue con los que arrancó.
+   * Los segundos de cada tramo de la barra, con las mejoras encima (muñeca rápida, ritmo, punto
+   * dulce). Los calcula el juego; el tiro que ya se está cargando sigue con los que arrancó.
    */
   timing: ChargeTimes = { ...CHARGE };
   /** El próximo tiro arranca clavado en el perfecto (la mejora «Perfecto de regalo»). */

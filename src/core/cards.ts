@@ -11,7 +11,7 @@
 import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, hintAt, maxLevelOf, SLOTS, upgradeNote, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
-  | 'quickWrist' | 'sweetSpot' | 'evenSwing' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'smithStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
+  | 'quickWrist' | 'sweetSpot' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'smithStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
   | 'masteryIce' | 'masteryFire' | 'masteryLightning';
 
 export interface Perk {
@@ -29,20 +29,17 @@ export interface Perk {
 /** Los números de las mejoras. Se tocan en el panel de balance. */
 export const PERK_NUMBERS = {
   /**
-   * Muñeca rápida: los tramos débil y medio de la barra tardan esta fracción, por cada vez que la
-   * tomás. El fuerte y el rebote van a su ritmo: la ventana del perfecto dura lo mismo.
+   * Muñeca rápida: el tramo débil de la barra tarda esta fracción, por cada vez que la tomás. El medio y
+   * el fuerte llegan antes y duran lo mismo: la ventana del perfecto no cambia. (Hasta el 5/10 apuraba
+   * el débil y el medio ×0.85; ×0.8 del débil solo abre el fuerte casi en el mismo momento, y el medio
+   * un poco antes.)
    */
-  quickWrist: 0.85,
+  quickWrist: 0.8,
   /**
    * Punto dulce: el tramo fuerte dura esta proporción más, por cada vez. Abre en el mismo momento: lo
    * que cambia es que el rebote llega más tarde.
    */
   sweetSpot: 1.35,
-  /**
-   * Swing parejo: cuánto se acercan los tres tramos a durar lo mismo, por cada vez (1 = del todo). Con
-   * un tercio por nivel, al tercero el débil, el medio y el fuerte duran lo mismo.
-   */
-  evenSwingStep: 1 / 3,
   /**
    * Ritmo: cada tiro seguido **sin errar** (le pegó a alguien, mate o no) carga esta fracción más
    * rápido, hasta `rhythmMax` tiros. Ahí se queda hasta que errás.
@@ -85,9 +82,8 @@ export const PERK_NUMBERS = {
 };
 
 export const PERKS: Record<PerkId, Perk> = {
-  quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'Cargás un 15 % más rápido' },
+  quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'El tramo débil dura un 20 % menos: el medio y el fuerte llegan antes' },
   sweetSpot: { id: 'sweetSpot', name: 'Punto dulce', title: 'perfecto más largo', max: 2, color: 0xff6b6b, hint: 'El golpe perfecto dura un 35 % más' },
-  evenSwing: { id: 'evenSwing', name: 'Swing parejo', title: 'tramos iguales', max: 3, color: 0xffa3d1, hint: 'Los tramos de la barra se emparejan' },
   rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada acierto seguido te hace cargar un 10 % más rápido, hasta 3 veces' },
   hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Con 4 aciertos seguidos, los golpes que pegan 1 pasan a pegar 2' },
   masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada 3 disparos que maten a más de un enemigo, la puerta +1 y vos +1' },

@@ -36,33 +36,30 @@ export interface ChargeTimes {
   rebound: number;
 }
 
-/** Cómo cambian los tiempos las mejoras. Las tres cosas se pueden combinar. */
+/** Cómo cambian los tiempos las mejoras. Se pueden combinar. */
 export interface TimingMods {
-  /**
-   * Cuánto se acercan los tres tramos a durar lo mismo, de 0 a 1 («Swing parejo»). Reparte el total
-   * de la barra: lo que le saca al débil se lo da al medio y al fuerte. Va primero.
-   */
-  even: number;
-  /** El débil y el medio tardan esto (muñeca rápida y ritmo): el fuerte abre antes y dura lo mismo. */
+  /** El débil tarda esto (muñeca rápida): el medio y el fuerte llegan antes, y duran lo mismo. */
+  weakMul: number;
+  /** El débil y el medio tardan esto (ritmo): el fuerte abre antes y dura lo mismo. */
   lowMul: number;
   /** El fuerte dura esto (punto dulce): abre en el mismo momento y el rebote llega más tarde. */
   strongMul: number;
 }
 
-export const NO_MODS: TimingMods = { even: 0, lowMul: 1, strongMul: 1 };
+export const NO_MODS: TimingMods = { weakMul: 1, lowMul: 1, strongMul: 1 };
 
 /**
- * Los tiempos de la barra con las mejoras encima. El reparto parejo va primero y sobre los tiempos base,
- * y las otras después: por eso, con todo junto, el fuerte puede terminar durando más que el débil.
+ * Los tiempos de la barra con las mejoras encima. Cada mejora mueve un solo número: la muñeca acorta el
+ * débil y el punto dulce alarga el fuerte. Con las dos la barra queda más pareja (el débil era el más
+ * largo y el fuerte el más corto), pero el fuerte sigue siendo el tramo más difícil de clavar. Hasta el
+ * 5/10 había un «swing parejo» que llevaba los tres tramos a durar lo mismo: adelantaba y alargaba el
+ * fuerte a la vez, y con un nivel ya daba más ventana que el punto dulce al máximo.
  */
 export function timingWith(base: ChargeTimes, mods: TimingMods): ChargeTimes {
-  const f = Math.min(1, Math.max(0, mods.even));
-  const third = (base.weak + base.mid + base.strong) / 3;
-  const even = (t: number) => t + (third - t) * f;
   return {
-    weak: even(base.weak) * mods.lowMul,
-    mid: even(base.mid) * mods.lowMul,
-    strong: even(base.strong) * mods.strongMul,
+    weak: base.weak * mods.weakMul * mods.lowMul,
+    mid: base.mid * mods.lowMul,
+    strong: base.strong * mods.strongMul,
     rebound: base.rebound,
   };
 }
@@ -74,8 +71,8 @@ const MIN_SEGMENT = 1e-4;
  * en el arco lo que dura: así el tamaño del tramo es la ventana de tiempo, que es lo que importa. La
  * velocidad sale de la barra sin mejoras (`base`): de borde a tope, 90°. Con las mejoras el arco cambia
  * de tamaño en vez de cambiar la velocidad: el punto dulce agranda el rojo (y el arco entero, un poco);
- * la muñeca rápida y el ritmo achican el verde y el amarillo (el arco se achica: el rojo llega antes); el
- * swing parejo achica el verde y agranda los otros dos.
+ * la muñeca rápida achica el verde y el ritmo el verde y el amarillo (el arco se achica: el rojo llega
+ * antes).
  *
  * Todo en grados. `weak` y `mid` son lo que ocupan esos tramos de cada lado; `strong` es **media**
  * ventana del fuerte (de cada lado del tope, porque la aguja pasa por el tope y vuelve); `span` es de

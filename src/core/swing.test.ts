@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHARGE, qualityMarks, qualityOf, QUALITY_FROM } from './clubs';
 import { arcAngle, arcLayout, MIN_POWER, NO_MODS, SwingMeter, timingWith, type ChargeTimes } from './swing';
+import { PERK_NUMBERS, PERKS } from './cards';
 
 const T: ChargeTimes = { weak: 0.6, mid: 0.2, strong: 0.1, rebound: 0.3 };
 const MARKS: [number, number] = [0.55, 0.92];
@@ -118,12 +119,20 @@ describe('las mejoras sobre los tiempos', () => {
     expect(timingWith(T, NO_MODS)).toEqual(T);
   });
 
-  it('apurar el débil y el medio (muñeca, ritmo) adelanta el fuerte pero no achica su ventana', () => {
+  it('apurar el débil y el medio (ritmo) adelanta el fuerte pero no achica su ventana', () => {
     // la muñeca rápida achicaba toda la barra: el perfecto llegaba antes, pero duraba un 15 % menos
     const plain = strongWindow(T);
     const quick = strongWindow(timingWith(T, { ...NO_MODS, lowMul: 0.7 }));
     expect(quick.opens).toBeCloseTo(plain.opens * 0.7, 2);
     expect(quick.lasts).toBeCloseTo(plain.lasts, 2);
+  });
+
+  it('acortar el débil (muñeca) adelanta el medio y el fuerte lo mismo, sin tocar cuánto duran', () => {
+    const quick = timingWith(T, { ...NO_MODS, weakMul: 0.8 });
+    expect(quick.weak).toBeCloseTo(T.weak * 0.8);
+    expect(quick.mid).toBe(T.mid);
+    expect(quick.strong).toBe(T.strong);
+    expect(strongWindow(quick).opens).toBeCloseTo(strongWindow(T).opens - T.weak * 0.2, 2);
   });
 
   it('alargar el fuerte (punto dulce) abre en el mismo momento y dura más', () => {
@@ -133,22 +142,15 @@ describe('las mejoras sobre los tiempos', () => {
     expect(sweet.lasts).toBeCloseTo(plain.lasts * 1.5, 2);
   });
 
-  it('swing parejo reparte el total: del todo, los tres tramos duran lo mismo', () => {
-    const total = T.weak + T.mid + T.strong;
-    const third = timingWith(T, { ...NO_MODS, even: 1 / 3 });
-    expect(third.weak + third.mid + third.strong).toBeCloseTo(total);
-    expect(third.weak).toBeLessThan(T.weak);
-    expect(third.strong).toBeGreaterThan(T.strong);
-    const full = timingWith(T, { ...NO_MODS, even: 1 });
-    expect(full.weak).toBeCloseTo(total / 3);
-    expect(full.mid).toBeCloseTo(total / 3);
-    expect(full.strong).toBeCloseTo(total / 3);
-    expect(full.rebound).toBe(T.rebound);
-  });
-
-  it('el reparto va primero y las otras encima: con todo, el fuerte puede durar más que el débil', () => {
-    const all = timingWith(T, { even: 1, lowMul: 0.72, strongMul: 1.8 });
-    expect(all.strong).toBeGreaterThan(all.weak);
+  it('con la muñeca y el punto dulce al máximo la barra queda más pareja, pero el fuerte sigue siendo el más corto', () => {
+    const all = timingWith(CHARGE, {
+      weakMul: PERK_NUMBERS.quickWrist ** PERKS.quickWrist.max,
+      lowMul: 1,
+      strongMul: PERK_NUMBERS.sweetSpot ** PERKS.sweetSpot.max,
+    });
+    expect(all.weak / all.strong).toBeLessThan(CHARGE.weak / CHARGE.strong);
+    expect(all.strong).toBeLessThan(all.mid);
+    expect(all.strong).toBeLessThan(all.weak);
   });
 });
 
@@ -178,19 +180,17 @@ describe('el arco a velocidad pareja', () => {
     for (const t of [0.1, 0.5, 0.7, 0.8, 0.83]) expect(speed(t)).toBeCloseTo(v, 3);
   });
 
-  it('el punto dulce agranda el rojo y deja igual el verde y el amarillo; la muñeca los achica', () => {
+  it('el punto dulce agranda el rojo y deja igual el verde y el amarillo; la muñeca achica el verde', () => {
     const base = arcLayout(CHARGE, CHARGE);
     const sweet = arcLayout(timingWith(CHARGE, { ...NO_MODS, strongMul: 1.35 }), CHARGE);
     expect(sweet.weak).toBeCloseTo(base.weak, 9);
     expect(sweet.mid).toBeCloseTo(base.mid, 9);
     expect(sweet.strong).toBeCloseTo(base.strong * 1.35, 9);
     expect(sweet.span).toBeGreaterThan(base.span);
-    const wrist = arcLayout(timingWith(CHARGE, { ...NO_MODS, lowMul: 0.85 }), CHARGE);
-    expect(wrist.weak).toBeCloseTo(base.weak * 0.85, 9);
+    const wrist = arcLayout(timingWith(CHARGE, { ...NO_MODS, weakMul: 0.8 }), CHARGE);
+    expect(wrist.weak).toBeCloseTo(base.weak * 0.8, 9);
+    expect(wrist.mid).toBeCloseTo(base.mid, 9);
     expect(wrist.strong).toBeCloseTo(base.strong, 9);
     expect(wrist.span).toBeLessThan(base.span);
-    const even = arcLayout(timingWith(CHARGE, { ...NO_MODS, even: 1 }), CHARGE);
-    expect(even.weak).toBeLessThan(base.weak);
-    expect(even.strong).toBeGreaterThan(base.strong);
   });
 });

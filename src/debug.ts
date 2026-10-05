@@ -332,9 +332,8 @@ const LABELS: Record<string, string> = {
 
 /** Los números de cada mejora: de qué tabla y con qué nombre. */
 const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, string, string][]>> = {
-  quickWrist: [[PERK_NUMBERS, 'quickWrist', 'débil y medio tardan ×']],
+  quickWrist: [[PERK_NUMBERS, 'quickWrist', 'el débil tarda ×']],
   sweetSpot: [[PERK_NUMBERS, 'sweetSpot', 'el fuerte dura ×']],
-  evenSwing: [[PERK_NUMBERS, 'evenSwingStep', 'se acerca a tercios, por nivel']],
   medkit: [[PERK_NUMBERS, 'medkitGate', 'puerta + por nivel'], [PERK_NUMBERS, 'medkitPlayer', 'vida + por nivel']],
   rhythm: [[PERK_NUMBERS, 'rhythmStep', 'más rápido por tiro'], [PERK_NUMBERS, 'rhythmMax', 'hasta tiros']],
   hotStreak: [[PERK_NUMBERS, 'hotStreakShots', 'tiros sin errar'], [PERK_NUMBERS, 'hotStreakAdd', 'daño de más'], [PERK_NUMBERS, 'hotStreakCap', 'sin pasar de']],
@@ -656,7 +655,7 @@ export class DebugPanel {
     el.append(heading('Dónde se dibuja cada tramo'), thresholds, note(
       'La barra se define por tiempos, iguales para los cuatro palos: cuánto tarda en cruzar el tramo débil, cuánto el medio, y cuánto dura el fuerte '
       + 'cada vez que pasa por arriba (en la subida y en cada rebote). Los porcentajes de abajo son solo dónde se dibuja cada tramo: no cambian cuánto dura. '
-      + 'Las mejoras van encima: swing parejo reparte el total entre los tres; la muñeca rápida y el ritmo apuran el débil y el medio (el fuerte abre antes y dura lo mismo); '
+      + 'Las mejoras van encima: la muñeca rápida apura el débil (el medio y el fuerte llegan antes y duran lo mismo); el ritmo apura el débil y el medio; '
       + 'el punto dulce alarga el fuerte (abre en el mismo momento y el rebote llega más tarde).',
     ));
   }

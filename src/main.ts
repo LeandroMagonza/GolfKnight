@@ -1114,15 +1114,15 @@ function applyPerks(): void {
 }
 
 /**
- * Los tiempos de la barra con las mejoras: swing parejo reparte, la muñeca y el ritmo (según la racha)
- * apuran el débil y el medio, y el punto dulce alarga el fuerte.
+ * Los tiempos de la barra con las mejoras: la muñeca apura el débil, el ritmo (según la racha) el débil y
+ * el medio, y el punto dulce alarga el fuerte.
  */
 function currentTiming() {
   const wrist = Math.pow(PERK_NUMBERS.quickWrist, perks.quickWrist ?? 0);
   const rhythm = perks.rhythm ? 1 - PERK_NUMBERS.rhythmStep * Math.min(cleanStreak, PERK_NUMBERS.rhythmMax) : 1;
   return timingWith(CHARGE, {
-    even: PERK_NUMBERS.evenSwingStep * (perks.evenSwing ?? 0),
-    lowMul: wrist * rhythm,
+    weakMul: wrist,
+    lowMul: rhythm,
     strongMul: Math.pow(PERK_NUMBERS.sweetSpot, perks.sweetSpot ?? 0),
   });
 }

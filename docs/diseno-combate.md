@@ -2314,6 +2314,7 @@ cambiaron, solo cómo se dibujan:
 - el **punto dulce** agranda el rojo y deja igual el verde y el amarillo (el arco crece un poco);
 - la **muñeca rápida** y el **ritmo** achican el verde y el amarillo: el arco se achica y el rojo llega antes;
 - el **swing parejo** achica el verde y agranda el amarillo y el rojo.
+(5/10: el swing parejo se fue y la muñeca rápida achica solo el verde; ver «Fuera el swing parejo».)
 
 El rebote tiene su propio tiempo: al bajar, la aguja no va pareja. Si el rojo sin mejoras se ve
 demasiado finito, se puede volver atrás o darle un mínimo de ancho.
@@ -2550,3 +2551,33 @@ pelota es legible y predecible, y lo que hace el jugador es ubicarse. Todo en `s
 - **La vuelta se ve rebotar en los costados**: va en línea recta hacia donde caería sin paredes y se
   dobla contra el costado, así se entiende para dónde va después de un rebote de costado y otro en el
   fondo (antes cruzaba la cancha en diagonal derecho al punto final).
+
+## Hecho: fuera el swing parejo, la muñeca solo acorta el débil (5/10/2026)
+
+Leandro: el swing parejo y el punto dulce eran demasiado parecidos. Medido, era peor: el swing parejo
+hacía lo del punto dulce y lo de la muñeca a la vez, y mejor.
+
+| Carta | Abre el fuerte | Dura el fuerte | Abre el medio |
+| --- | --- | --- | --- |
+| Sin nada | 0.82 s | 0.06 s | 0.63 s |
+| Punto dulce 1 / 2 | 0.82 | 0.08 / 0.11 | 0.63 |
+| Muñeca rápida 1 / 2 (la de antes) | 0.69 / 0.59 | 0.06 | 0.54 / 0.46 |
+| Swing parejo 1 / 2 / 3 | 0.74 / 0.66 / 0.58 | 0.14 / 0.21 / 0.29 | 0.52 / 0.40 / 0.29 |
+
+Con un nivel, el swing parejo ya daba más ventana que el punto dulce al máximo, y además abría antes.
+Rompía la regla de la barra por tiempos: cada mejora mueve un solo número.
+
+Quedan dos formas, una por número:
+- **Muñeca rápida acorta el débil** (×0.8 por nivel, antes débil y medio ×0.85): el medio y el fuerte
+  llegan antes y duran lo mismo. El fuerte abre casi igual que antes (0.69 / 0.59 s), y el medio, un poco
+  antes (0.50 / 0.40 s).
+- **Punto dulce alarga el fuerte** (×1.35 por nivel), sin cambios.
+
+Con las dos al máximo la barra queda más pareja (débil 0.40 s, medio 0.19 s, fuerte 0.11 s), porque el
+débil era el más largo y el fuerte el más corto, pero no llega a tercios: el fuerte sigue siendo el más
+difícil de clavar. La idea es que siempre haya desafío. El ritmo no cambió: apura el débil y el medio
+según la racha.
+
+**Idea para los que ya clavan el 3 siempre (por decidir):** un golpe 4 como talento de dificultad. Todos
+los enemigos vienen con más vida, pero en el medio del rojo hay un tramo más corto que el fuerte de hoy
+que pega más. Ver el mensaje del 5/10.
