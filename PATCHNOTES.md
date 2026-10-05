@@ -9,6 +9,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 5 de octubre
 
+**Idiomas**
+- El juego está también en **inglés**. En la pantalla de entrada, abajo a la derecha junto a la versión,
+  el botón **ES · EN** lo cambia. La primera vez arranca en el idioma del navegador: si entre tus
+  idiomas está el español, en español. `ed47596`
+- La intro en inglés tiene sus subtítulos y sus propias voces. `ed47596`
+- Estas notas siguen solo en español. `ed47596`
+
 **De a dos**
 - Abe tiene ataque básico, la **chispa**: tocar el piso la tira (recarga 1.2 s) y los que agarra quedan
   clavados medio segundo. Elegir un hechizo es para el próximo toque: lo tira y vuelve a la chispa.
@@ -54,6 +61,11 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   4, que pega 1 más que el 3. El 3 queda a los costados, en naranja: entre los dos duran lo que duraba
   el 3, así que no es más fácil, es más fino. A cambio los enemigos traen 1 de vida más, los élites 2 y
   el jefe 8. Las habilidades no tienen golpe 4. `6573aa2`
+
+**Detrás de escena**
+- Todo texto que ve el jugador va con su inglés al lado, `L('español', 'english')` (`src/i18n.ts`), y
+  `npm test` frena los que quedan solo en español. Estrategia y glosario en `docs/localizacion.md`.
+  `ed47596`
 
 ## 4 de octubre
 
