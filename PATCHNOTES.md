@@ -65,7 +65,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **Detrás de escena**
 - Todo texto que ve el jugador va con su inglés al lado, `L('español', 'english')` (`src/i18n.ts`), y
   `npm test` frena los que quedan solo en español. Estrategia y glosario en `docs/localizacion.md`.
-  `ed47596`
+  `ed47596` `72b1b36`
 
 ## 4 de octubre
 
