@@ -23,8 +23,15 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   el que mira se reconecta solo si pierde la partida un rato. `41bda16`
 
 **Golf**
-- El silenciador ya no rebota en el escudo común: lo silencia al tocarlo y la pelota sigue. El muro de
-  la calavera sí lo para. `41bda16`
+- El silenciador ya no rebota en el escudo común: lo silencia al tocarlo y la pelota sigue. `41bda16`
+- Tampoco lo para el muro de la calavera (al élite el silencio le dura la mitad), ni la burbuja divina.
+  `a7ce2c3`
+- El silencio gasta la burbuja divina y la esquiva: recién empiezan a recargar cuando se le pasa el
+  silencio. Antes silenciar al bendito era lo mismo que pegarle un tiro flojo. `a7ce2c3`
+- La burbuja divina se come la pelota que la rompe: el driver ya no sigue de largo detrás del bendito.
+  La fantasma y la silenciadora siguen. `a7ce2c3`
+- Al élite bendito cada golpe que le entra le devuelve la burbuja, como al que esquiva: hay que
+  rompérsela antes de cada golpe. `a7ce2c3`
 
 ## 4 de octubre
 
