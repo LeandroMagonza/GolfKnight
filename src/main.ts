@@ -116,7 +116,7 @@ const difficultyMenu = new DifficultyMenu(progress);
 let rules = rulesFor(progress.picks);
 let run = buildRun(Math.random, rules);
 const director = new WaveDirector(run.waves, rules.rest);
-const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva' };
+const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura' };
 function showRun(): void {
   hud.setRun([
     ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),
@@ -768,6 +768,8 @@ horde.onEvent = (e) => {
     case 'healed': {
       const s = toScreen(e.enemy.position, e.enemy.height);
       hud.float(s.x, s.y, `+${e.amount}`, 'heal');
+      // el que se cura entero: un destello verde (el cuerpo ya brilla), que se vea que perdiste lo hecho
+      if (e.enemy.mods.regen) effects.blink(e.enemy.position.clone(), 0x3ee07a);
       break;
     }
     case 'mound':

@@ -250,7 +250,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Escudo calavera (10)** | de frente no entra nada: por detrás, de costado, silenciado o con el golpe fantasma |
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
-| **Divino** | con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto: el primero se lo come y se le recarga a los 5 s. **La pelota que la rompe desaparece** (el driver no sigue de largo). La pasan el golpe fantasma (sin gastarla) y el hoyo (que se lo traga entero), y el silencio se la apaga: recién empieza a recargar cuando se le pasa. Al élite, cada golpe que le entra le devuelve la burbuja |
+| **Divino** | con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto: el primero se lo come y se le recarga a los 5 s. **La pelota que la rompe desaparece** (el driver no sigue de largo). La pasan el golpe fantasma (sin gastarla) y el hoyo (que se lo traga entero), y el silencio se la apaga: recién empieza a recargar cuando se le pasa. Y cada golpe que le entra le devuelve la burbuja (5/10): hay que rompérsela antes de cada golpe |
 | **Etéreo** | ningún golpe le saca más de 1 (agrandado por la lupa, hasta 2; el golpe fantasma de nivel 2, entero): hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |
@@ -258,6 +258,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Cura** | se planta cerca de la puerta y cada 3 s le devuelve 1 de vida a los que tiene a 6 m. Aura y cuerpo verdes |
 | **Invencible** | se planta cerca de la puerta y vuelve inmunes a los que tiene a 8 m. Aura violeta |
 | **Esquiva** | si le apuntás más o menos (a unos 2 m de la línea), salta 3 m al costado **ni bien soltás el tiro o tirás una habilidad**, siempre; recarga 5 s. Hacela saltar con algo (un tiro flojo, una habilidad) y pegale con lo que importa antes de que recargue, o agarrala con un área. **Recibir daño se la recarga en el acto**: después de cada golpe hay que volver a hacerla saltar. Al golpe fantasma no lo ve venir: no salta, y no se la recarga |
+| **Se cura** (5/10) | se cura **entero** cada tanto: la barra verde debajo de la vida se llena y al llenarse el cuerpo brilla verde. El ciclo sale de su vida: alcanza para matarlo con golpes medios seguidos (uno cada 1.5 s) y sobran 1.2 s (al élite, 0.8). Con 6 de vida, cada 4.2 s. Conviene arrancar ya cargando justo después de la cura. Silenciado no se cura, y el ciclo vuelve a empezar cuando se le pasa |
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.

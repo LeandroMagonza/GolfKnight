@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, POWERS, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, POWERS, REGEN, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -457,5 +457,23 @@ describe('waves', () => {
     const order = spawnOrder(wave);
     expect(order.filter((s) => s.kind === 'skeleton').every((s) => s.mods?.armor === 2)).toBe(true);
     expect(order.find((s) => s.kind === 'goblin')?.mods).toBeUndefined();
+  });
+
+  it('el que se cura: el ciclo alcanza para matarlo con golpes medios, y con flojos no', () => {
+    // 6 de vida: 3 medios (3 s) y el margen
+    expect(regenPeriod(6, REGEN.margin)).toBeCloseTo(REGEN.margin + 2 * REGEN.gap);
+    // al de 2 de vida, el ciclo mínimo
+    expect(regenPeriod(2, REGEN.margin)).toBe(REGEN.min);
+    for (const hp of [3, 4, 5, 6, 8, 11, 14]) {
+      const period = regenPeriod(hp, REGEN.margin);
+      // los medios entran con margen; los flojos (1 de daño cada 0.88 s, lo medido) no, desde 6 de vida
+      expect((Math.ceil(hp / REGEN.hit) - 1) * REGEN.gap, `${hp} de vida, con medios`).toBeLessThan(period);
+      if (hp >= 6) expect((hp - 1) * 0.88, `${hp} de vida, con flojos`).toBeGreaterThan(period);
+    }
+    // el élite, con menos margen; y al goblin de 1 no le toca
+    expect(elite(0, 'regen').mods!.regen).toBe(REGEN.eliteMargin);
+    expect(canTake('goblin', { regen: 1 })).toBe(false);
+    expect(canTake('goblina', { regen: 1 })).toBe(true);
+    expect(SCENARIO_POWERS).toContain('regen');
   });
 });

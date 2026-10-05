@@ -58,6 +58,8 @@ export interface EnemyMods {
   dodge?: boolean;
   /** Segundos que tarda en volver a esquivar, si no son los de DODGE (con poca dificultad, más). */
   dodgeEvery?: number;
+  /** Se cura entero cada tanto (ver REGEN): los segundos de margen que da su ciclo. */
+  regen?: number;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
   /**
@@ -174,7 +176,7 @@ export function behaviorOf(stats: EnemyStats, mods: EnemyMods = {}): Behavior {
  * blindaje 3 (que al mejor golpe le deja pasar 1) solo en los de hasta 4. Y el etéreo tampoco va en los
  * de 1 de vida: al goblin no le cambia nada, así que el fantasma pasa al próximo que pueda tenerlo.
  */
-export const LIMITS = { etherealMinHp: 2, etherealMaxHp: 8, armor3MaxHp: 4 };
+export const LIMITS = { etherealMinHp: 2, etherealMaxHp: 8, armor3MaxHp: 4, regenMinHp: 2 };
 
 /**
  * ¿Este cuerpo puede recibir este poder? Los jefes, ninguno; los que ya se comportan distinto, solo los
@@ -184,6 +186,8 @@ export function canTake(kind: EnemyKind, mods: EnemyMods): boolean {
   const s = ENEMIES[kind];
   if (s.boss) return false;
   if (mods.ethereal && (s.hp > LIMITS.etherealMaxHp || s.hp < LIMITS.etherealMinHp)) return false;
+  // el que se cura, como el fantasma, desde 2 de vida: al goblin se lo mata de un golpe y la cura no se ve
+  if (mods.regen && s.hp < LIMITS.regenMinHp) return false;
   if ((mods.armor ?? 0) >= 3 && s.hp > LIMITS.armor3MaxHp) return false;
   const changesBehavior = BEHAVIOR_POWERS.some((k) => mods[k]);
   return !changesBehavior || s.behavior === 'melee';
@@ -258,7 +262,7 @@ export interface WaveGroup {
 }
 
 /** Los poderes que se reparten al azar. */
-export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner';
+export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner' | 'regen';
 
 /**
  * Qué tan duros salen los poderes, según la dificultad: hasta qué nivel llegan el escudo y el blindaje
@@ -270,8 +274,29 @@ export interface PowerHardness {
 }
 export const HARDEST_POWERS: PowerHardness = { cap: 3, recharge: 1 };
 
-/** Lo que tarda en recargar el escudo divino, en segundos (el del élite, `elite`). */
+/**
+ * Lo que tarda en recargar el escudo divino, en segundos (el del élite, `elite`). Además, **cada golpe que
+ * le entra le devuelve la burbuja** (5/10, primero al élite y después a todos, pedido de Leandro): como el
+ * que esquiva, hay que rompérsela antes de cada golpe.
+ */
 export const DIVINE = { every: 5, elite: 3 };
+
+/**
+ * **El que se cura** (5/10, idea de Leandro): cada tanto se cura **entero**, con aviso (la barra verde
+ * debajo de la vida se llena, y al llenarse el cuerpo brilla verde). Hay que meterle todo el daño entre
+ * una cura y la siguiente, y conviene arrancar justo después de la cura, ya cargando.
+ *
+ * El ciclo sale de su vida: alcanza para matarlo **con golpes medios** (`hit` de daño cada `gap` s, el
+ * ritmo medido del caballero: ver docs/tiempos-poderes.md) y sobran `margin` s (el élite, `eliteMargin`).
+ * Con 6 de vida: 3 medios, 3 s, más el margen. Con flojos no llega. Silenciado no se cura, y el ciclo
+ * vuelve a empezar cuando se le pasa.
+ */
+export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5 };
+
+/** Cada cuántos segundos se cura uno de `maxHp` de vida con `margin` de margen. */
+export function regenPeriod(maxHp: number, margin: number): number {
+  return Math.max(REGEN.min, margin + (Math.ceil(maxHp / REGEN.hit) - 1) * REGEN.gap);
+}
 
 /** La esquiva, con la recarga que diga la dificultad. */
 function dodgeMods(hard: PowerHardness): EnemyMods {
@@ -296,13 +321,15 @@ export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: 
   dodge: (_tier, _rand, hard = HARDEST_POWERS) => dodgeMods(hard),
   divine: (_tier, _rand, hard = HARDEST_POWERS) => ({ divine: DIVINE.every * hard.recharge }),
   banner: () => ({ banner: true }),
+  // con poca dificultad, más margen (como la recarga de la esquiva y del divino)
+  regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.recharge }),
 };
 
 /**
  * **Los poderes de escenario**: cada partida sortea tres de estos, uno por escenario. Son los que se
  * defienden de los golpes; los que cambian cómo se mueve el que los lleva van aparte (SUPPORT_POWERS).
  */
-export const SCENARIO_POWERS = ['shield', 'armor', 'ethereal', 'divine', 'dodge'] as const;
+export const SCENARIO_POWERS = ['shield', 'armor', 'ethereal', 'divine', 'dodge', 'regen'] as const;
 export type ScenarioPower = (typeof SCENARIO_POWERS)[number];
 
 /**
@@ -322,6 +349,8 @@ export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardn
   // el divino se le recarga más rápido
   divine: (_tier, hard = HARDEST_POWERS) => ({ divine: DIVINE.elite * hard.recharge }),
   dodge: (_tier, hard = HARDEST_POWERS) => dodgeMods(hard),
+  // menos margen: se lo mata con golpes medios, pero sin errar
+  regen: (_tier, hard = HARDEST_POWERS) => ({ regen: REGEN.eliteMargin * hard.recharge }),
 };
 
 /** Qué parte de los enemigos de una oleada sale con poder, y de esos, cuántos con el del escenario. */
@@ -457,9 +486,11 @@ export const HARDEST: RunRules = {
 
 const TITLES: Record<ScenarioPower, string> = {
   shield: 'Escudos al frente', armor: 'Acorazados', ethereal: 'Fantasmas', divine: 'Los benditos', dodge: 'Los escurridizos',
+  regen: 'Los que se curan',
 };
 const BOSS_TITLES: Record<ScenarioPower, string> = {
   shield: 'con la calavera', armor: 'blindado', ethereal: 'fantasma', divine: 'bendito', dodge: 'escurridizo',
+  regen: 'que se cura',
 };
 
 /** La escalera de vida, de menor a mayor. */

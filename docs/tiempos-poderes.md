@@ -45,18 +45,17 @@ El tiempo va desde el primer impacto hasta el que lo mata (se suman los huecos e
 | | 6 wedges medios (1 de área) | 6 | 7.6 s, más 1.7 s de vuelo |
 | **Esquiva** (el daño se la recarga) | cebo flojo + fuerte, dos veces | 4 | 4.4 s |
 | | cebo flojo + medio, tres veces | 6 | 6.3 s |
-| **Divino** común (vuelve a los 8 s) | romper la burbuja con un flojo + 2 fuertes | 3 | 3.6 s |
+| **Divino** común, hasta el 5/10 (vuelve solo a los 8 s) | romper la burbuja con un flojo + 2 fuertes | 3 | 3.6 s |
 | | flojo + 3 medios (entran en los 8 s, y en los 5 de la difícil) | 4 | 4.6 s |
-| **Divino élite**, hasta hoy (vuelve a los 4.8 s; 3 en la difícil) | flojo + 2 fuertes; en la difícil el segundo llega tarde (3.56 s) | 3 · 4 | 3.6 s · 4.4 s |
-| **Divino élite, desde hoy** (cada golpe le devuelve la burbuja) | flojo + fuerte, dos veces | 4 | 4.4 s |
+| **Divino, desde el 5/10** (todos: cada golpe le devuelve la burbuja, y además vuelve sola) | flojo + fuerte, dos veces | 4 | 4.4 s |
 | | flojo + medio, tres veces | 6 | 6.3 s |
+| **Se cura** (6 de vida: cada 4.2 s) | arrancar ya cargando justo después de la cura: 3 medios | 3 | 3.0 s, dentro del ciclo |
 
 **Lo que dicen los números:**
-- El **divino común** es el más blando: cuesta un tiro flojo de más (0.9 s), y después la ventana de 8 s
-  alcanza para cualquier cosa. Es fuerte contra las cartas, no contra los palos: se come los tiros de
-  efecto.
-- El **élite bendito**, con la burbuja que vuelve en cada golpe, queda **igual que el élite que esquiva**
-  (4 tiros fuertes o 6 medios). Antes era el élite más fácil.
+- El **divino** era el más blando: costaba un tiro flojo de más (0.9 s), y después la ventana de 8 s
+  alcanzaba para cualquier cosa. Desde el 5/10 **a todos los benditos cada golpe les devuelve la
+  burbuja** (pedido de Leandro): quedan **igual que el que esquiva** (4 tiros fuertes o 6 medios), pero
+  con otra pregunta: romper y pegar, en vez de hacerlo saltar y pegar. La burbuja también vuelve sola.
 - El **blindaje** es el más lento si no clavás el golpe 3, y el blindaje 2 sin cartas es el peor de todos
   (9 s). El fantasma se resuelve con ritmo: 6 flojos, 4.4 s.
 - El **escudo** pide el wedge, que vuela 1.7 s: el tiempo es parecido al blindaje, pero hay que anticiparlo.
@@ -73,7 +72,7 @@ El tiempo va desde el primer impacto hasta el que lo mata (se suman los huecos e
 | **Rayo** (1 por rayo) | entra | no le resta | | | ½ |
 | **Lupa** / **Maldición** de Abe | hasta 2 por golpe: 3 medios | +1 antes del blindaje | | | |
 | **Romper el hielo** (+1) | hasta 2 por golpe | +1 | | | |
-| **Eco**, **Clon** (dos pelotas por tiro) | el doble de golpes por tiro | | | no: salta al soltar, y las dos van adonde estaba | una rompe, la otra pega |
+| **Eco**, **Clon** (dos pelotas por tiro) | el doble de golpes por tiro | | | sin cebo, no: salta al soltar y las dos van adonde estaba. **Después del cebo pegan las dos**: la esquiva salta solo al soltar o al tirar una habilidad, y ni el clon ni el eco son un soltar nuevo | una rompe, la otra pega |
 | **Potencia**, **Herrero**, **En racha** | no cambian (tope 1) | +1 por golpe | | | |
 | **Chispa** de Abe (clavado 0.5 s) | — | — | — | no le impide saltar (salta igual) | — |
 | **Silencio** de Abe (2 a 3 s) | como el silenciador, más corto | | | | |
@@ -100,3 +99,35 @@ Tres versiones (idea de Leandro), con 6 de vida:
 - **Lo que lo resuelve**: el silencio (no se cura mientras dure, y el reloj arranca cuando termina, como
   el divino), la fuerza, la potencia, la lupa y la maldición, el eco y el clon (más daño en la ventana), y
   el fuego si los mordiscos caen dentro.
+
+### Cómo quedó (5/10): la C, con el ciclo sacado de su vida
+
+Leandro eligió la C, con este criterio: **al élite se lo tiene que poder matar con golpes medios, usando
+todo el ciclo, con un poco de margen** (el fuerte es difícil de clavar), arrancando ya cargando antes de la
+cura. Así que el ciclo no es fijo: sale de su vida (`REGEN` y `regenPeriod` en core/waves).
+
+`ciclo = margen + (golpes medios que le hacen falta − 1) × 1.5 s`, con un golpe medio de 2.
+
+| Vida | Golpes medios | Ciclo (común, margen 1.2 s) | Ciclo (élite, margen 0.8 s) | Con flojos (1 cada 0.88 s) |
+|---|---|---|---|---|
+| 3 (orco) | 2 | 2.7 s | — | 1.8 s: llega |
+| 4 (esqueleto) | 2 | 2.7 s | — | 2.6 s: justo |
+| 6 (chamán) | 3 | 4.2 s | — | 4.4 s: no llega |
+| 7 (élite del primer escenario) | 4 | — | 5.3 s | 5.3 s: justo, sin errar uno |
+| 11 (élite del segundo) | 6 | — | 8.3 s | 8.8 s: no llega |
+| 14 (élite del tercero) | 7 | — | 9.8 s | 11.4 s: no llega |
+
+- **3 s son cuatro flojos**, no tres: a 0, 0.9, 1.8 y 2.6 s del primero, corriendo a la pelota entre
+  uno y otro (los 0.88 s ya incluyen correr un puesto y medio).
+- Con poca dificultad el margen se multiplica por la recarga (×1.6): un poco más de aire.
+- Se cura **entero** y brilla verde aunque esté sano: así se le lee el ritmo. La barra verde debajo de la
+  vida es el ciclo; silenciado se pone gris y no corre.
+- Va desde los de 2 de vida (como el fantasma): al goblin se lo mata de un golpe y la cura no se vería.
+
+### El fuego contra el que se cura
+
+Los tiros de fuego **no pegan con el palo**: solo prenden (el palo pega, la habilidad pone el efecto,
+desde el 1/10). El primer mordisco es en el acto, y después uno cada 2 s: 2, 3 y 4 de daño en total, en
+2, 4 y 6 s. Contra el que se cura sirve poco, porque los mordiscos se reparten en varios ciclos y cada cura
+borra lo hecho: con el ciclo de 4.2 s entran dos o tres. Con la Fuerza el tiro de fuego además pega 2 al
+tocar.

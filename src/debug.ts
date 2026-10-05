@@ -18,7 +18,7 @@ import { RICOCHET } from './core/shield';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER } from './coop/spells';
-import { ENEMIES, GEOMANCER, HEAL_AURA, MARKS, type EnemyKind, type WaveDirector } from './core/waves';
+import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
@@ -36,7 +36,7 @@ export interface DebugFlags {
 const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
   carga: CHARGE as unknown as Record<string, number>,
-  curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS,
+  curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, divino: DIVINE,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
   // los hechizos de Abe, uno por tabla (ver coop/spells)
   'abe chispa': ABE_BOLT,
@@ -1074,6 +1074,18 @@ export class DebugPanel {
       ['daño', () => RICOCHET.damage, (v) => { RICOCHET.damage = Math.max(0, Math.round(v)); }, 1, 'de vida'],
     ]);
     el.append(ricochet.table, note('La pelota que para un escudo vuelve por el aire hacia vos, con una marca roja que te sigue hasta poco antes de caer: ahí se queda quieta. Si seguís adentro cuando cae, te pega.'));
+
+    el.append(heading('El que se cura y el bendito'));
+    const regen = this.numbers([
+      ['se cura: daño del golpe medio', () => REGEN.hit, (v) => { REGEN.hit = Math.max(1, Math.round(v)); }, 1, ''],
+      ['se cura: un golpe medio cada', () => REGEN.gap, (v) => { REGEN.gap = Math.max(0.3, v); }, 0.1, 's'],
+      ['se cura: margen', () => REGEN.margin, (v) => { REGEN.margin = Math.max(0, v); }, 0.1, 's'],
+      ['se cura: margen del élite', () => REGEN.eliteMargin, (v) => { REGEN.eliteMargin = Math.max(0, v); }, 0.1, 's'],
+      ['se cura: ciclo mínimo', () => REGEN.min, (v) => { REGEN.min = Math.max(0.5, v); }, 0.1, 's'],
+      ['burbuja: vuelve sola a los', () => DIVINE.every, (v) => { DIVINE.every = Math.max(0.5, v); }, 0.5, 's'],
+      ['burbuja del élite: a los', () => DIVINE.elite, (v) => { DIVINE.elite = Math.max(0.5, v); }, 0.5, 's'],
+    ]);
+    el.append(regen.table, note('El que se cura se cura entero cada tanto: el ciclo alcanza para matarlo con golpes medios (cuántos le hacen falta por su vida, uno cada tanto) y sobra el margen. Con poca dificultad el margen y la burbuja se multiplican por la recarga de arriba. Al bendito, además, cada golpe que le entra le devuelve la burbuja. Vale desde la próxima partida.'));
   }
 
   // ---- campo y cámara ----

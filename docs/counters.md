@@ -199,7 +199,11 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
 | 9 | **Élite 3**. Apoyo 2 en 2 enemigos |
 | 10 | **El Gólem de roca**, con los tres poderes, los dos apoyos (uno de cada uno) y **alma en pena ×1** |
 
-- **Poderes de escenario** (5; cada partida sortea 3): escudo, blindaje, fantasma, divino, esquiva.
+- **Poderes de escenario** (6; cada partida sortea 3): escudo, blindaje, fantasma, divino, esquiva, y
+  desde el 5/10 **el que se cura** (entero, cada tanto: hay que meterle todo el daño entre una cura y la
+  siguiente; con golpes medios seguidos alcanza, con flojos no). Lo resuelven el silencio (no se cura
+  mientras dure), y todo lo que mete más daño en poco tiempo: fuerza, potencia, lupa, maldición de Abe,
+  eco, clon. Los tiempos, en `tiempos-poderes.md`.
   Un tercio de cada oleada trae poder: la mitad el del escenario, la otra mitad los anteriores. En
   «todos con poder», todos.
 - **Poderes de apoyo** (4; cada partida sortea 2): hechicero, cura, invencible, bandera. No se

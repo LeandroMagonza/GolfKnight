@@ -52,6 +52,8 @@ export const EF = {
   passed: 64,
   flash: 128,
   bannered: 256,
+  /** El que se cura, recién curado: brilla verde. */
+  regenGlow: 512,
 } as const;
 
 export interface EnemySnap {
@@ -73,6 +75,8 @@ export interface EnemySnap {
   sc: number;
   /** Altura del saltito de la esquiva. */
   hop: number;
+  /** El que se cura: cuánto lleva de su ciclo, de 0 a 1. */
+  rg?: number;
   /** El gesto de brazos por código: cuánto, y en qué punto del ataque va. */
   g: number;
   u: number;
