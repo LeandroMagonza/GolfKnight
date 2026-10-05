@@ -7,6 +7,25 @@ de entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 5 de octubre
+
+**De a dos**
+- Abe tiene ataque básico, la **chispa**: tocar el piso la tira (recarga 1.2 s) y los que agarra quedan
+  clavados medio segundo. Elegir un hechizo es para el próximo toque: lo tira y vuelve a la chispa.
+  Tocar otra vez el hechizo elegido lo suelta. Con teclado, 1 a 4 eligen y Q W E R tiran ya donde está
+  el mouse. `41bda16`
+- Abe ve adónde apunta el caballero: una línea punteada y el anillo donde cae. `41bda16`
+- La cámara de Abe ya no gira libre: va para adelante y para atrás por la cancha, cambia el ángulo
+  (botón derecho, o dos dedos para arriba y abajo) y acerca. `41bda16`
+- Si Abe entra durante el tutorial, elige sus hechizos mientras tanto y juega cuando empieza la
+  partida. `41bda16`
+- Si a Abe se le corta la conexión y vuelve, sigue siendo Abe (antes volvía como uno que solo mira). Y
+  el que mira se reconecta solo si pierde la partida un rato. `41bda16`
+
+**Golf**
+- El silenciador ya no rebota en el escudo común: lo silencia al tocarlo y la pelota sigue. El muro de
+  la calavera sí lo para. `41bda16`
+
 ## 4 de octubre
 
 **Golf**
