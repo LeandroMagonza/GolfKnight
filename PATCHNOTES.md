@@ -36,7 +36,14 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Poder nuevo, **el que se cura** (un corazón verde): cada tanto se cura entero. La barra verde debajo
   de su vida se llena, y al llenarse brilla verde y vuelve a tener toda la vida. Hay que meterle todo el
   daño entre una cura y la siguiente: con golpes medios seguidos alcanza (y sobra un poco), con flojos
-  no. Conviene arrancar ya cargando, justo después de la cura. Silenciado no se cura. `a45fa8a`
+  no. Conviene arrancar ya cargando, justo después de la cura. Silenciado no se cura. `a45fa8a` Y trae 2
+  de vida de más: al de 2 de vida se lo mataba de un golpe. `edb6e9b`
+- Poder nuevo, **el intocable** (un reloj de arena violeta): casi todo el tiempo es invulnerable, y las
+  pelotas le rebotan. Su barra violeta se descarga, y cuando se vacía queda vulnerable un segundo y
+  medio (la barra se pone dorada). Hay que tirar para que la pelota llegue justo en esa ventana. El
+  golpe fantasma le entra siempre, y silenciado es vulnerable. `edb6e9b`
+- El fuego ya no muerde en el acto: el primer mordisco llega a los 2 s, y después uno cada 2 s.
+  `edb6e9b`
 
 ## 4 de octubre
 
