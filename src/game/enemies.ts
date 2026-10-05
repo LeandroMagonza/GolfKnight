@@ -1492,8 +1492,10 @@ export class Enemy {
       const step = Math.min(speed * dt, dist);
       this.position.x += (dx / dist) * step;
       this.position.z += (dz / dist) * step;
-      // los clips de Mixamo avanzan ~1.5 m/s caminando y ~4 m/s corriendo a velocidad 1, para un modelo de 1.8 m
-      const stride = this.stats.height / 1.8;
+      // los clips de Mixamo avanzan ~1.5 m/s caminando y ~4 m/s corriendo a velocidad 1, para un modelo de 1.8 m.
+      // Con la altura que se ve: el élite y el gigante dan pasos más largos, así que mueven las piernas más
+      // despacio (antes el élite agrandado caminaba a los saltitos)
+      const stride = this.height / 1.8;
       if (this.stats.runs || this.passed) this.animator.setLocomotion('Running', speed / (4 * stride));
       else this.animator.setLocomotion('Walking', speed / (1.5 * stride));
     }
@@ -1612,7 +1614,7 @@ export class Enemy {
       this.position.z += (dz / dist) * step;
       lookX = dx;
       lookZ = dz;
-      const stride = this.stats.height / 1.8;
+      const stride = this.height / 1.8;
       if (this.stats.runs) this.animator.setLocomotion('Running', speed / (4 * stride));
       else this.animator.setLocomotion('Walking', speed / (1.5 * stride));
     } else {
