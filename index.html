@@ -42,11 +42,16 @@
       #abe { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: rgba(10, 14, 20, 0.75); border: 1px solid rgba(159, 227, 255, 0.35); width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box; text-align: center; pointer-events: auto; }
       #abe[hidden] { display: none; }
       #abe .who { font-weight: 800; font-size: 15px; color: #dff6ff; }
-      #abe .spells { display: grid; grid-template-columns: repeat(4, minmax(64px, 92px)); gap: 6px; }
+      #abe .spells { display: grid; grid-template-columns: repeat(5, minmax(58px, 88px)); gap: 6px; }
+      /* la chispa, el ataque básico: lo que sale si no hay hechizo elegido */
+      #abe .spell.bolt { border-style: dashed; }
+      #abe .spell.bolt .lv { text-transform: uppercase; letter-spacing: 0.5px; }
       #abe .spell { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; padding: 6px 4px; border-radius: 10px; border: 2px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: #cfd6e0; font: inherit; cursor: pointer; touch-action: manipulation; }
       #abe .spell .icon { font-size: 24px; line-height: 1.1; filter: grayscale(0.7); opacity: 0.6; }
       #abe .spell .name { font-size: 12px; font-weight: 700; }
       #abe .spell kbd { position: absolute; top: 3px; left: 5px; font-size: 10px; opacity: 0.5; }
+      /* en el celular no hay teclado */
+      @media (pointer: coarse) { #abe .spell kbd { display: none; } }
       #abe .spell .cd { position: absolute; left: 0; right: 0; top: 0; height: 0; background: rgba(0, 0, 0, 0.55); pointer-events: none; }
       #abe .spell.ready { color: #fff; }
       #abe .spell.ready .icon { filter: none; opacity: 1; }
@@ -476,7 +481,7 @@
         <button type="button" class="newspell" hidden></button>
         <div class="spells"></div>
         <div class="help"></div>
-        <div class="cam">Arrastrá para girar la cámara · rueda o dos dedos para acercar</div>
+        <div class="cam">Arrastrá para ir adelante y atrás · rueda o pellizcar: acercar · botón derecho o dos dedos arriba y abajo: el ángulo</div>
       </div>
       <button id="skin" type="button" tabindex="-1"></button>
       <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>

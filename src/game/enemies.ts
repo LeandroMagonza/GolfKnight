@@ -420,6 +420,8 @@ export class Enemy {
   silenceMax = 1;
   /** Congelado (maestría del hielo): no se mueve ni ataca, y el golpe que lo rompe pega uno más. */
   frozenTimer = 0;
+  /** Clavado (la chispa de Abe): no camina, pero ataca. Segundos que le quedan. */
+  rootTimer = 0;
   /** Prendido fuego: segundos que le quedan, y cuánto falta para el próximo mordisco. */
   burnTimer = 0;
   burnTick = 0;
@@ -728,7 +730,7 @@ export class Enemy {
   /** Con frío encima: camina lento. Nada más: el escudo y el aura ya no se los saca el hielo. */
   /** A qué velocidad camina ahora, con el frío encima. */
   get walkSpeed(): number {
-    if (this.frozen) return 0;
+    if (this.frozen || this.rootTimer > 0) return 0;
     const speed = this.stats.speed * this.speedMul * (this.mods.speed ?? 1);
     // el frío frena mucho a los rápidos y poco a los lentos (ver chilledSpeed)
     return this.chilled ? chilledSpeed(speed) : speed;
@@ -1023,6 +1025,15 @@ export class Enemy {
     }
   }
 
+  /**
+   * Clavado `seconds` (la chispa de Abe): no camina, pero ataca y se cubre como siempre. Al jefe no. Se
+   * queda en el paso que estaba dando: la animación de caminar se frena con él.
+   */
+  root(seconds: number): void {
+    if (!this.alive || this.stats.boss) return;
+    this.rootTimer = Math.max(this.rootTimer, seconds);
+  }
+
   /** Congelado `seconds`: quieto del todo, sin atacar. El próximo golpe lo rompe y pega uno más. */
   freeze(seconds: number): void {
     if (!this.alive) return;
@@ -1151,6 +1162,7 @@ export class Enemy {
     if (this.chillTimer > 0) this.chillTimer = Math.max(0, this.chillTimer - dt);
     if (this.silenceTimer > 0) this.silenceTimer = Math.max(0, this.silenceTimer - dt);
     if (this.frozenTimer > 0) this.frozenTimer = Math.max(0, this.frozenTimer - dt);
+    if (this.rootTimer > 0) this.rootTimer = Math.max(0, this.rootTimer - dt);
     if (this.lureTimer > 0) this.lureTimer = Math.max(0, this.lureTimer - dt);
     if (this.growTimer > 0) this.growTimer = Math.max(0, this.growTimer - dt);
     if (this.powderTimer > 0) this.powderTimer = Math.max(0, this.powderTimer - dt);
@@ -1958,13 +1970,15 @@ export class Horde {
    * escudo tapa (como en `blast`) y a los de `skip`. Llama `onTouch` con cada uno que tocó de verdad y
    * devuelve cuántos fueron.
    */
-  touchArea(pos: THREE.Vector3, radius: number, skip: Set<number> | undefined, onTouch: (e: Enemy) => void): number {
+  touchArea(pos: THREE.Vector3, radius: number, skip: Set<number> | undefined, onTouch: (e: Enemy) => void, overShields = false): number {
     let count = 0;
     for (const e of this.enemies) {
       if (!e.alive || e.passed || skip?.has(e.id)) continue;
       if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
       skip?.add(e.id);
-      if (!this.touch(e, this.shadeOf(pos, e))) continue;
+      // `overShields` (el silencio): el escudo común no lo tapa; el muro de la calavera, sí
+      const guard = this.shadeOf(pos, e);
+      if (!this.touch(e, overShields && guard < SHIELD_WALL ? 0 : guard)) continue;
       onTouch(e);
       count++;
     }

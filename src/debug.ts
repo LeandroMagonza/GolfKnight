@@ -17,7 +17,7 @@ import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
-import { ABE_SPELLS, SPELL_INFO, SPELL_ORDER } from './coop/spells';
+import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER } from './coop/spells';
 import { ENEMIES, GEOMANCER, HEAL_AURA, MARKS, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
@@ -39,6 +39,7 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
   // los hechizos de Abe, uno por tabla (ver coop/spells)
+  'abe chispa': ABE_BOLT,
   ...Object.fromEntries(SPELL_ORDER.map((id) => [`abe ${SPELL_INFO[id].name.toLowerCase()}`, ABE_SPELLS[id] as Record<string, number | number[]>])),
 };
 
@@ -706,19 +707,22 @@ export class DebugPanel {
    */
   private buildAbe(el: HTMLElement): void {
     el.append(heading('Abe (el que mira)'));
-    el.append(note('Los tira el primero que entra a mirar tu partida (Invitar, en la intro o en la pausa): elige uno de sus hechizos y toca el piso. Ninguno hace daño. '
+    el.append(note('Los tira el primero que entra a mirar tu partida (Invitar, en la intro o en la pausa). Tocando el piso tira la chispa, su ataque básico; si elige un hechizo, el próximo toque lo tira. Ninguno hace daño. '
       + 'Arranca eligiendo uno y gana otro por oleada, hasta 4; después le salen de nivel más alto. Cuenta lo de este panel, el del que juega.'));
     if (this.hooks.abeGrant) el.append(this.row(this.button('Darle un hechizo a Abe', () => this.hooks.abeGrant?.())));
     const LABEL: Record<string, string> = {
       cooldown: 'recarga (s)', delay: 'demora hasta que sale (s)', radius: 'radio (m)', width: 'ancho a cada lado (m)',
       seconds: 'dura (s)', distance: 'empuja (m)', freezeFrom: 'congela desde el nivel', life: 'la trampa dura (s)', trigger: 'se dispara a (m)',
     };
-    for (const id of SPELL_ORDER) {
-      const info = SPELL_INFO[id];
-      const table = ABE_SPELLS[id] as Record<string, number | number[]>;
+    // la chispa (el ataque básico) primero: no tiene niveles
+    const entries: [string, Record<string, number | number[]>][] = [
+      [`${BOLT_INFO.icon} ${BOLT_INFO.name} (básico)`, ABE_BOLT],
+      ...SPELL_ORDER.map((id): [string, Record<string, number | number[]>] => [`${SPELL_INFO[id].icon} ${SPELL_INFO[id].name} (${SPELL_INFO[id].shape})`, ABE_SPELLS[id] as Record<string, number | number[]>]),
+    ];
+    for (const [title, table] of entries) {
       const t = document.createElement('table');
       const head = t.insertRow();
-      for (const h of [`${info.icon} ${info.name} (${info.shape})`, 'nv 1', 'nv 2', 'nv 3']) {
+      for (const h of [title, 'nv 1', 'nv 2', 'nv 3']) {
         const th = document.createElement('th');
         th.textContent = h;
         if (!h.startsWith('nv')) th.className = 'l';

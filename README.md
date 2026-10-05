@@ -152,7 +152,8 @@ protege, no hace nada). Lo que hace cada una, por nivel:
 - *Silenciador*: silencia 5 s (6.5 y 8) a cada uno que toca (al élite, la mitad): se le apagan
   **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba),
   para que lo que venga después le entre. El wedge silenciador es el silencio en área (la granada se
-  fue el 1/10).
+  fue el 1/10). El escudo común no lo para: lo silencia al tocarlo y la pelota sigue (el muro de la
+  calavera sí lo para, salvo con el wedge).
 
 **Las demás** (16):
 

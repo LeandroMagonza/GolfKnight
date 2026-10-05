@@ -47,6 +47,20 @@ export const ABE_SPELLS = {
   trap: { cooldown: 10, delay: 0.4, life: 15, trigger: 1.2, radius: [2, 2.5, 3], seconds: [1.5, 2, 2.5] },
 };
 
+/**
+ * El ataque básico de Abe (5/10, pedido de Leandro): la **chispa**. Es lo que sale al tocar el piso sin
+ * hechizo elegido, así Abe siempre tiene algo para hacer. Recarga `cooldown` s, cae a los `delay` s en un
+ * círculo de `radius` m (unos dos enemigos de ancho), y los que agarra quedan **clavados** `seconds` s:
+ * no caminan, pero sí atacan, y el escudo sigue arriba. Al jefe no. No pega.
+ */
+export const ABE_BOLT = { cooldown: 1.2, delay: 0.25, radius: 1.1, seconds: 0.5 };
+export const BOLT_INFO = { name: 'Chispa', icon: '✨', color: 0xe6b3ff };
+
+/** Qué hace la chispa, para el panel. */
+export function boltHint(): string {
+  return `Los que agarra quedan clavados ${n(ABE_BOLT.seconds)} s`;
+}
+
 /** El número de un nivel en una tabla por nivel (o el número, si es igual en todos). */
 export function at(v: number | number[], level: number): number {
   return Array.isArray(v) ? v[Math.min(v.length, Math.max(1, level)) - 1] : v;

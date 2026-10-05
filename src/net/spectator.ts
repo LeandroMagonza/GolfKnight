@@ -1,12 +1,12 @@
 // El que mira (ver docs/multijugador.md). No simula nada: arma los mismos enemigos que el que juega, los
 // pone donde dicen las fotos (suavizando entre una y otra), y repite los efectos, sonidos y carteles a su
-// hora. La cámara es suya: arrastrar gira, la rueda acerca, el botón derecho desplaza.
+// hora. La cámara es suya (ver fieldcam.ts): adelante y atrás por la cancha, el ángulo y el zoom.
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { BALL_RADIUS } from '../core/ballistics';
 import { heightAt, mounds, type Mound } from '../core/terrain';
-import { SPELL_INFO, type Abe, type SpellId } from '../coop/abe';
-import type { Offer } from '../coop/spells';
+import { BOLT_SLOT, castColor, type Abe, type SpellId } from '../coop/abe';
+import { ABE_BOLT, type Offer } from '../coop/spells';
+import { FieldCamera } from './fieldcam';
 import { ENEMIES, type EnemyKind, type EnemyMods } from '../core/waves';
 import type { Abilities } from '../game/abilities';
 import type { Enemy, Horde } from '../game/enemies';
@@ -27,6 +27,25 @@ const previewGeo = new THREE.RingGeometry(0.9, 1, 48);
 const STALE_MS = 4000;
 /** Sin encontrar al que juega en este tiempo (ms), se avisa. */
 const LOST_MS = 15000;
+/**
+ * Sin el que juega por este tiempo (ms), se vuelve a entrar a la sala de cero (5/10): con mal wifi la
+ * conexión se moría y no volvía sola. Abe sigue siendo Abe: lo reconoce su pestaña (ver `me`).
+ */
+const RELINK_MS = 12000;
+
+/** El de esta pestaña: el mismo aunque se recargue, para que Abe vuelva a ser Abe (ver host.ts). */
+function tabId(): string {
+  try {
+    let id = sessionStorage.getItem('gk.me');
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 12);
+      sessionStorage.setItem('gk.me', id);
+    }
+    return id;
+  } catch {
+    return Math.random().toString(36).slice(2, 12);
+  }
+}
 
 /** Con qué dibuja el que mira: las mismas piezas del juego. */
 export interface SpectatorDeps {
@@ -50,16 +69,27 @@ export interface SpectatorDeps {
   groundAt(x: number, y: number): { x: number; z: number } | null;
   /** El panel de Abe: si lo es, cuál eligió y cómo están sus hechizos. */
   showAbe(s: AbeStatus): void;
+  /** Vuelve a entrar a la sala de cero: una conexión nueva. */
+  reconnect(): Promise<Link>;
+}
+
+/** Cómo está un lugar: si se puede tirar ya, y los segundos que le faltan de cuántos. */
+export interface SlotState {
+  ready: boolean;
+  left: number;
+  total: number;
 }
 
 /** Cómo están los hechizos, para el panel de Abe. */
 export interface AbeStatus {
   /** Este es Abe (el primero que entró). */
   abe: boolean;
-  /** El lugar elegido (0 a 3, el orden de los botones). */
+  /** El hechizo elegido para el próximo toque (0 a 3, el orden de los botones), o -1: la chispa. */
   selected: number;
+  /** La chispa, el ataque básico. */
+  bolt: SlotState;
   /** Cada lugar: qué hechizo y de qué nivel, si se puede tirar ya, y los segundos que le faltan de cuántos. */
-  slots: { id: SpellId; level: number; ready: boolean; left: number; total: number }[];
+  slots: ({ id: SpellId; level: number } & SlotState)[];
   /** Lo que le ofrecen ahora, y cuántos le deben (contando ese). */
   offer: Offer | null;
   picks: number;
@@ -71,7 +101,7 @@ export interface AbeStatus {
   why: string | null;
 }
 
-const NO_ABE: AbeStatus = { abe: false, selected: 0, slots: [], offer: null, picks: 0, waiting: false, why: null };
+const NO_ABE: AbeStatus = { abe: false, selected: BOLT_SLOT, bolt: { ready: false, left: 0, total: 1 }, slots: [], offer: null, picks: 0, waiting: false, why: null };
 
 interface RemoteBall {
   mesh: THREE.Mesh;
@@ -98,11 +128,23 @@ export class NetSpectator {
   private paused = false;
   /** El juego del que juega está frenado (pausa o carta): acá todo quieto, también los efectos. */
   frozen = false;
-  readonly controls: OrbitControls;
+  readonly cam: FieldCamera;
   /** Es Abe: el primero que entró, que tira los hechizos. */
   isAbe = false;
-  /** El lugar elegido (botones o teclas 1 a 4). */
-  selected = 0;
+  /**
+   * Lo que sale con el próximo toque: un hechizo (0 a 3, botones o teclas 1 a 4) o la chispa (-1). Después
+   * de tirar un hechizo vuelve a la chispa; tocar otra vez el elegido, también.
+   */
+  selected = BOLT_SLOT;
+  /** El de esta pestaña (ver `tabId`). */
+  private readonly me = tabId();
+  /** Desde cuándo no hay que juega (para volver a entrar a la sala), y si se está reconectando. */
+  private lostSince = performance.now();
+  private relinking = false;
+  private relinks = 0;
+  /** Adónde apunta el caballero: la línea desde su pelota y la marca donde cae. */
+  private readonly knightLine: THREE.Line;
+  private readonly knightRing: THREE.Mesh;
   /** Cómo están los hechizos según la última foto, y hasta cuándo no se manda otro pedido. */
   private abeState: AbeStatus = NO_ABE;
   /** El tamaño de cada lugar (radio, o ancho de la línea), según el que juega. */
@@ -113,13 +155,8 @@ export class NetSpectator {
   private readonly preview: THREE.Mesh;
   private readonly previewLine: THREE.Line;
 
-  constructor(private readonly link: Link, private readonly d: SpectatorDeps) {
-    link.onPeer = (id, joined) => {
-      // a cada uno que aparece se le pregunta: si es el que juega, contesta con el saludo
-      if (joined) link.send({ k: 'watch' }, id);
-      else if (id === this.host) this.lost();
-    };
-    link.onMessage = (m, from) => this.receive(m as unknown as HostMsg, from);
+  constructor(private link: Link, private readonly d: SpectatorDeps) {
+    this.attach(link);
     d.note('Conectando con la partida…');
 
     // arranca alta, desde atrás del golfista, mirando toda la cancha
@@ -129,16 +166,12 @@ export class NetSpectator {
     // lo bastante lejos para que entre todo el ancho de la cancha: en un celular parado, bastante más
     const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect);
     const dist = Math.max(68, Math.min(130, (FIELD_HALF_WIDTH + 3) / Math.tan(halfFov)));
-    const back = new THREE.Vector3(0, 52, -44).normalize().multiplyScalar(dist);
-    cam.position.set(back.x, back.y, 30 + back.z);
-    this.controls = new OrbitControls(cam, d.dom);
-    this.controls.target.set(0, 0, 30);
-    this.controls.enableDamping = true;
-    this.controls.minDistance = 10;
-    this.controls.maxDistance = 140;
-    // nunca por debajo del piso
-    this.controls.maxPolarAngle = THREE.MathUtils.degToRad(80);
-    this.controls.update();
+    this.cam = new FieldCamera(cam, d.dom, dist);
+    // un toque en el piso: lo que esté elegido (la chispa, o el hechizo)
+    this.cam.onTap = (x, y) => {
+      const at = d.groundAt(x, y);
+      if (at) this.cast(at.x, at.z);
+    };
     // la niebla, más lejos: desde arriba se ve todo el campo
     const fog = d.scene.fog as THREE.Fog | null;
     if (fog) {
@@ -155,45 +188,74 @@ export class NetSpectator {
     this.previewLine.visible = false;
     this.previewLine.frustumCulled = false;
     d.scene.add(this.preview, this.previewLine);
-    let down: { x: number; y: number; t: number } | null = null;
-    const ndc = (e: PointerEvent) => {
-      const r = d.dom.getBoundingClientRect();
-      return { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 };
-    };
-    d.dom.addEventListener('pointerdown', (e) => {
-      if (e.button === 0) down = { x: e.clientX, y: e.clientY, t: performance.now() };
-    });
+    // adónde apunta el caballero: la línea desde su pelota y el anillo donde cae (lo ven todos los que miran)
+    const kGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    this.knightLine = new THREE.Line(kGeo, new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.5, depthTest: false }));
+    this.knightLine.frustumCulled = false;
+    this.knightRing = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
+    this.knightRing.rotation.x = -Math.PI / 2;
+    this.knightLine.visible = this.knightRing.visible = false;
+    d.scene.add(this.knightLine, this.knightRing);
+    // el mouse encima del piso: ahí va el círculo de lo que saldría
     d.dom.addEventListener('pointermove', (e) => {
-      const p = ndc(e);
-      this.aim = d.groundAt(p.x, p.y);
+      const r = d.dom.getBoundingClientRect();
+      this.aim = d.groundAt(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     });
     d.dom.addEventListener('pointerleave', () => {
       this.aim = null;
     });
-    d.dom.addEventListener('pointerup', (e) => {
-      const tap = down && e.button === 0 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6 && performance.now() - down.t < 500;
-      down = null;
-      if (!tap) return;
-      const p = ndc(e);
-      const at = d.groundAt(p.x, p.y);
-      if (at) this.cast(at.x, at.z);
-    });
   }
 
-  /** Abe pide el hechizo elegido en (x, z). Lo decide el que juega: acá solo se manda, si parece que se puede. */
+  /** Escucha esta conexión (la primera, o la nueva al reconectar). */
+  private attach(link: Link): void {
+    this.link = link;
+    link.onPeer = (id, joined) => {
+      if (link !== this.link) return;
+      // a cada uno que aparece se le pregunta: si es el que juega, contesta con el saludo
+      if (joined) link.send({ k: 'watch', me: this.me }, id);
+      else if (id === this.host) this.lost();
+    };
+    link.onMessage = (m, from) => {
+      if (link === this.link) this.receive(m as unknown as HostMsg, from);
+    };
+  }
+
+  /** Cómo está lo que saldría con `slot` (-1 la chispa). */
+  private stateOf(slot: number): SlotState | undefined {
+    return slot === BOLT_SLOT ? this.abeState.bolt : this.abeState.slots[slot];
+  }
+
+  /**
+   * Abe pide lo elegido (la chispa o el hechizo) en (x, z). Lo decide el que juega: acá solo se manda, si
+   * parece que se puede. Tirado el hechizo, lo que sigue es la chispa.
+   */
   cast(x: number, z: number): boolean {
-    const ready = this.abeState.slots[this.selected]?.ready;
-    if (!this.isAbe || !this.host || !ready || performance.now() < this.castLock) return false;
-    this.castLock = performance.now() + 400;
-    this.link.send({ k: 'cast', i: this.selected, x, z }, this.host);
+    const slot = this.selected;
+    if (!this.send(slot, x, z)) return false;
+    if (slot !== BOLT_SLOT) this.select(BOLT_SLOT);
     return true;
   }
 
-  /** Elige el lugar `i` (0 a 3, en el orden de los botones). */
+  /** Q, W, E y R: el hechizo de ese lugar sale ya, donde está el mouse, sin cambiar lo elegido. */
+  quickCast(slot: number): boolean {
+    return !!this.aim && this.send(slot, this.aim.x, this.aim.z);
+  }
+
+  private send(slot: number, x: number, z: number): boolean {
+    const ready = this.stateOf(slot)?.ready;
+    if (!this.isAbe || !this.host || !ready || performance.now() < this.castLock) return false;
+    // la chispa recarga rápido: el freno de pedidos repetidos es más corto
+    this.castLock = performance.now() + (slot === BOLT_SLOT ? 150 : 400);
+    this.link.send({ k: 'cast', i: slot, x, z }, this.host);
+    return true;
+  }
+
+  /** Elige el hechizo `i` (0 a 3) para el próximo toque; el que ya estaba elegido, o -1, vuelve a la chispa. */
   select(i: number): void {
-    if (!this.isAbe || !this.abeState.slots[i]) return;
-    this.selected = i;
-    this.d.showAbe({ ...this.abeState, selected: i });
+    if (!this.isAbe) return;
+    this.selected = i !== BOLT_SLOT && this.abeState.slots[i] && i !== this.selected ? i : BOLT_SLOT;
+    this.abeState = { ...this.abeState, selected: this.selected };
+    this.d.showAbe(this.abeState);
   }
 
   /** Abe elige de lo que le ofrecen: la carta `card` (-1, quedarse como está) y, con todo lleno, en qué lugar va. */
@@ -219,6 +281,8 @@ export class NetSpectator {
       this.host = from;
       this.everHost = true;
       this.heard = performance.now();
+      this.lostSince = 0;
+      this.relinks = 0;
       this.reset();
       this.d.onHello(m);
       this.d.note('Esperando la primera foto…');
@@ -242,7 +306,9 @@ export class NetSpectator {
   private lost(): void {
     if (this.out) return;
     this.host = null;
+    if (!this.lostSince) this.lostSince = performance.now();
     this.preview.visible = this.previewLine.visible = false;
+    this.knightLine.visible = this.knightRing.visible = false;
     this.abeState = NO_ABE;
     this.d.showAbe(NO_ABE);
     this.d.note('El que juega se fue (o reinició). Esperando a que vuelva…');
@@ -260,22 +326,24 @@ export class NetSpectator {
     this.d.abilities.applyRemote([], []);
     this.d.abe.applyRemote([]);
     this.isAbe = false;
+    this.selected = BOLT_SLOT;
     mounds.length = 0;
   }
 
   update(dt: number): void {
-    this.controls.update();
-    // el centro de la cámara no se va del campo
-    const t = this.controls.target;
-    t.set(THREE.MathUtils.clamp(t.x, -25, 25), 0, THREE.MathUtils.clamp(t.z, -5, 80));
+    this.cam.update(dt);
     const now = performance.now();
     if (!this.everHost && now - this.born > LOST_MS) {
       this.everHost = true;
-      this.d.note('No encuentro la partida. ¿El que juega sigue con la página abierta? ¿Es el enlace de ahora?');
+      this.d.note('No encuentro la partida (sigo buscando). ¿El que juega sigue con la página abierta? ¿Es el enlace de ahora?');
     }
+    // sin noticias del que juega hace rato: se vuelve a entrar a la sala, de cero
+    const stale = this.host && now - this.heard > STALE_MS;
+    if (stale && !this.lostSince) this.lostSince = this.heard + STALE_MS;
+    if ((!this.host || stale) && this.lostSince && now - this.lostSince > RELINK_MS) void this.relink();
     if (!this.host || !this.clock.ready) return;
-    if (now - this.heard > STALE_MS) {
-      this.d.note('Se cortó la conexión con el que juega. Esperando…');
+    if (stale) {
+      this.d.note(this.relinks ? `Se cortó la conexión. Reconectando… (intento ${this.relinks})` : 'Se cortó la conexión con el que juega. Esperando…');
       return;
     }
     const at = this.clock.renderTime(now);
@@ -303,17 +371,59 @@ export class NetSpectator {
     this.updateAbe(b);
   }
 
+  /** Vuelve a entrar a la sala con una conexión nueva (la vieja se cierra). */
+  private async relink(): Promise<void> {
+    if (this.relinking || this.out) return;
+    this.relinking = true;
+    this.relinks++;
+    this.lostSince = performance.now();
+    this.d.note(`Reconectando con la partida… (intento ${this.relinks})`);
+    try {
+      this.link.close();
+      const link = await this.d.reconnect();
+      if (this.out) link.close();
+      else this.attach(link);
+    } catch (e) {
+      console.warn('reconectar', e);
+    } finally {
+      this.relinking = false;
+    }
+  }
+
+  /** Adónde apunta el caballero, como lo dice la foto. */
+  private showKnightAim(am: GameSnap['am']): void {
+    const on = !!am;
+    this.knightLine.visible = this.knightRing.visible = on;
+    if (!am) return;
+    const [x, z, tx, tz, r, charging] = am;
+    const pos = this.knightLine.geometry.attributes.position as THREE.BufferAttribute;
+    pos.setXYZ(0, x, heightAt(x, z) + 0.12, z);
+    pos.setXYZ(1, tx, heightAt(tx, tz) + 0.12, tz);
+    pos.needsUpdate = true;
+    this.knightLine.computeLineDistances();
+    const opacity = charging ? 0.8 : 0.35;
+    (this.knightLine.material as THREE.LineDashedMaterial).opacity = opacity;
+    (this.knightRing.material as THREE.MeshBasicMaterial).opacity = opacity;
+    this.knightRing.position.set(tx, heightAt(tx, tz) + 0.1, tz);
+    this.knightRing.scale.setScalar(Math.max(0.6, r));
+  }
+
   /** Los hechizos en camino, el panel de Abe y el círculo de dónde caería el elegido. */
   private updateAbe(b: Snap): void {
     this.d.abe.applyRemote(b.ab);
     const g = b.g;
-    const why = !g.st ? 'Todavía no empezó la partida' : g.pa ? 'En pausa' : g.cd ? 'Está eligiendo una carta' : g.en ? 'Terminó la partida' : null;
+    this.showKnightAim(g.am);
+    const why = !g.st ? 'Todavía no empezó la partida'
+      : g.tu ? 'El caballero está en el tutorial: elegí tus hechizos, vas a poder tirar cuando empiece la partida'
+        : g.pa ? 'En pausa' : g.cd ? 'Está eligiendo una carta' : g.en ? 'Terminó la partida' : null;
     const a = g.abe;
     this.sizes = a.s.map(([, , , , size]) => size);
-    if (this.selected >= a.s.length) this.selected = 0;
+    if (this.selected >= a.s.length) this.selected = BOLT_SLOT;
+    const [boltLeft, boltTotal] = a.b ?? [0, ABE_BOLT.cooldown];
     this.abeState = {
       abe: this.isAbe,
       selected: this.selected,
+      bolt: { ready: !why && boltLeft <= 0, left: boltLeft, total: boltTotal },
       slots: a.s.map(([id, level, left, total]) => ({ id, level, ready: !why && left <= 0, left, total })),
       offer: a.o,
       picks: a.p,
@@ -321,18 +431,19 @@ export class NetSpectator {
       why,
     };
     this.d.showAbe(this.abeState);
-    const slot = this.abeState.slots[this.selected];
-    const aim = this.isAbe && slot ? this.aim : null;
+    const bolt = this.selected === BOLT_SLOT;
+    const slot = bolt ? null : this.abeState.slots[this.selected];
+    const aim = this.isAbe && (bolt || slot) ? this.aim : null;
     // la corriente se ve como la línea desde el caballero; lo demás, como el círculo donde cae
     const line = slot?.id === 'current';
     this.preview.visible = !!aim && !line;
     this.previewLine.visible = !!aim && line;
-    if (!aim || !slot) return;
-    const ready = slot.ready;
-    const color = ready ? SPELL_INFO[slot.id].color : 0x8a94a3;
+    if (!aim) return;
+    const ready = (bolt ? this.abeState.bolt : slot!).ready;
+    const color = ready ? castColor(bolt ? 'bolt' : slot!.id) : 0x8a94a3;
     const y = heightAt(aim.x, aim.z) + 0.09;
     this.preview.position.set(aim.x, y, aim.z);
-    this.preview.scale.setScalar(this.sizes[this.selected] ?? 3);
+    this.preview.scale.setScalar(bolt ? ABE_BOLT.radius : this.sizes[this.selected] ?? 3);
     const mat = this.preview.material as THREE.MeshBasicMaterial;
     mat.color.setHex(color);
     mat.opacity = ready ? 0.75 : 0.35;
@@ -358,6 +469,7 @@ export class NetSpectator {
     }
     this.d.note(
       !g.st ? 'El que juega está en la pantalla de inicio…'
+        : g.tu && !g.pa ? 'El caballero está haciendo el tutorial…'
         : g.pa ? 'Pausa'
           : g.cd ? 'Eligiendo una carta…'
             : null,

@@ -239,3 +239,36 @@ tiro, «Abe», por nivel; ahí también está «Darle un hechizo a Abe». Probad
 siete hechizos, la oferta, reemplazar, el mismo hechizo dos veces) y `logs/check-abe-sala.mjs` (la oleada
 que espera, la privada y echar a Abe).
 
+
+## Hecho: la chispa, la cámara nueva y Abe que no pierde su lugar (5/10/2026)
+
+Lo que Leandro vio jugando de a dos, con Abe desde el celular:
+
+- **La chispa, el ataque básico.** Tocar el piso sin hechizo elegido tira la chispa: recarga 1.2 s, cae a
+  los 0.25 s en un círculo de 1.1 m de radio (unos dos enemigos de ancho) y los que agarra quedan
+  **clavados** 0.5 s: no caminan, pero atacan y se cubren como siempre (no es aturdir: si lo fuera, cada
+  1.2 s bajaría escudos). Al jefe no. Así Abe siempre tiene algo para hacer.
+- **Elegir el hechizo es para el próximo toque.** Tocar un hechizo lo elige; el próximo toque en el piso lo
+  tira y Abe vuelve a la chispa. Tocar otra vez el elegido, o la chispa, lo suelta. Con teclado: 1 a 4
+  eligen, y **Q W E R lo tiran ya donde está el mouse**, sin cambiar lo elegido.
+- **Abe ve adónde apunta el caballero**: la línea punteada desde su pelota y el anillo donde cae (más
+  fuertes mientras carga). Viaja en la foto (`am`).
+- **La cámara**: antes era una órbita libre y uno se perdía. Ahora (`src/net/fieldcam.ts`) mira siempre la
+  cancha de frente, desde atrás de la puerta: arrastrar va **para adelante y para atrás**, el botón derecho
+  o dos dedos para arriba o abajo cambian **el ángulo** (de casi de costado a desde arriba), y la rueda o
+  pellizcar acercan. No gira ni se corre para el costado. Las flechas también la mueven.
+- **El tutorial**: si Abe entra mientras el caballero hace el tutorial, ve «El caballero está haciendo el
+  tutorial…» y **elige sus hechizos**, pero no tira (un empujón le desarmaba el paso). Cuando empieza la
+  partida ya juega.
+- **Abe no pierde su lugar.** Lo que le pasó a Leandro (entraba y no podía hacer nada) era la reconexión:
+  Abe era «el primero que entró» por el id de la conexión, y al cortarse y volver entraba con otro id,
+  como uno que solo mira, mientras la conexión vieja seguía ocupando el lugar. Ahora cada pestaña tiene su
+  id (`me`, en sessionStorage, que sobrevive a recargar): el que vuelve recupera su lugar, y si Abe se va,
+  el lugar lo espera 30 s antes de pasar al que sigue. El echado tampoco vuelve desde esa pestaña.
+- **Reconectar solo.** Sin noticias del que juega por 12 s, el que mira vuelve a entrar a la sala de cero
+  («Reconectando… (intento N)»), y sigue buscando si al principio no la encuentra. Con mal wifi la
+  conexión se moría y no volvía sola.
+
+Probado con `logs/check-abe-chispa.mjs` (la chispa clava a los de adentro y no al de al lado; elegir, tirar
+y volver a la chispa; Q; ver la puntería; la cámara; recargar la pestaña y seguir siendo Abe) y
+`logs/check-abe-tutorial.mjs`.

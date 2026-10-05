@@ -1,8 +1,9 @@
 // Abe, el mago que te invocó: el segundo jugador (ver docs/multijugador.md). Es el primero que entra a mirar
-// tu partida. Mira la cancha desde arriba y juega táctico: tiene hasta cuatro hechizos (ver coop/spells),
-// elige uno y toca el piso donde va. Ahí aparece la marca (un círculo, o la línea desde el caballero), se
-// llena, y al llenarse el hechizo hace lo suyo. La trampa, en cambio, queda armada hasta que alguien la
-// pisa. Ninguno pega: Abe prepara, el que mata es el caballero.
+// tu partida. Mira la cancha desde arriba y juega táctico: tocar el piso tira la **chispa**, su ataque
+// básico (recarga rápido y deja clavados medio segundo a los que agarra). Además tiene hasta cuatro hechizos
+// (ver coop/spells): elige uno y el próximo toque lo tira ahí; después vuelve a la chispa. Aparece la marca
+// (un círculo, o la línea desde el caballero), se llena, y al llenarse el hechizo hace lo suyo. La trampa,
+// en cambio, queda armada hasta que alguien la pisa. Ninguno pega: Abe prepara, el que mata es el caballero.
 //
 // La magia cae de arriba: no la paran los escudos ni la burbuja, como a las pelotas. Silenciar al chamán
 // le apaga el aura a todos los que protegía.
@@ -15,26 +16,41 @@ import type { Effects } from '../game/effects';
 import type { Enemy, Horde } from '../game/enemies';
 import { FIELD_HALF_WIDTH, GATE_Z, SPAWN_Z } from '../game/world';
 import { r2, r3 } from '../net/snapshot';
-import { ABE_SPELLS, applyPick, at, nextOffer, sizeOf, SPELL_INFO, SPELL_ORDER, type AbeSlot, type Offer, type SpellId } from './spells';
+import { ABE_BOLT, ABE_SPELLS, applyPick, at, BOLT_INFO, nextOffer, sizeOf, SPELL_INFO, SPELL_ORDER, type AbeSlot, type Offer, type SpellId } from './spells';
 
 export { SPELL_INFO, SPELL_ORDER, type SpellId } from './spells';
 
+/** Un hechizo, o la chispa (el ataque básico). */
+export type CastId = SpellId | 'bolt';
+/** El lugar de la chispa, en los pedidos de Abe: los hechizos van de 0 a 3. */
+export const BOLT_SLOT = -1;
+
+/** El color de lo que tira Abe. */
+export function castColor(id: CastId): number {
+  return id === 'bolt' ? BOLT_INFO.color : SPELL_INFO[id].color;
+}
+
 /**
- * Un hechizo en camino o una trampa armada: cuál, dónde, de qué tamaño, cuánto le falta para salir (0..1),
- * hacia dónde va la línea y de qué largo, y cuánto le queda a la trampa (1 recién armada, 0 se va).
+ * Un hechizo en camino o una trampa armada: cuál (-1 la chispa), dónde, de qué tamaño, cuánto le falta
+ * para salir (0..1), hacia dónde va la línea y de qué largo, y cuánto le queda a la trampa (1 recién
+ * armada, 0 se va).
  */
 export type StrikeSnap = [id: number, spell: number, x: number, z: number, size: number, t: number, yaw: number, len: number, life: number];
 
-/** Lo que el que mira necesita de Abe: sus lugares (hechizo, nivel, recarga y tamaño), la oferta y cuántas le deben. */
+/**
+ * Lo que el que mira necesita de Abe: sus lugares (hechizo, nivel, recarga y tamaño), la oferta, cuántas le
+ * deben, y la recarga de la chispa (lo que falta y de cuánto).
+ */
 export interface AbeSnap {
   s: [id: SpellId, level: number, left: number, total: number, size: number][];
   o: Offer | null;
   p: number;
+  b: [left: number, total: number];
 }
 
 interface Strike {
   id: number;
-  spell: SpellId;
+  spell: CastId;
   level: number;
   x: number;
   z: number;
@@ -60,6 +76,7 @@ const toothGeo = new THREE.ConeGeometry(0.12, 0.45, 5);
 const shardGeo = new THREE.OctahedronGeometry(0.35, 0);
 const shardMat = new THREE.MeshStandardMaterial({ color: 0xdff6ff, emissive: SPELL_INFO.hail.color, emissiveIntensity: 0.8, roughness: 0.3 });
 const toothMat = new THREE.MeshStandardMaterial({ color: 0xe8d2a8, roughness: 0.6, metalness: 0.3 });
+const boltMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: BOLT_INFO.color, emissiveIntensity: 1.4, roughness: 0.2 });
 /** Dónde caen los trozos de hielo, en radios del círculo. */
 const SHARDS: [number, number][] = [[0, 0], [0.55, 0.2], [-0.45, 0.4], [0.2, -0.55], [-0.35, -0.4]];
 const FALL_FROM = 0.6;
@@ -75,8 +92,10 @@ export class Abe {
   /** Cuántos hechizos le deben (el primero, y uno por oleada), y lo que le ofrecen ahora. */
   picks = 1;
   offer: Offer | null = null;
-  /** Salió un hechizo (o saltó una trampa): cuál, dónde y a cuántos agarró. */
-  onLand: ((spell: SpellId, pos: THREE.Vector3, hits: number) => void) | null = null;
+  /** Lo que le falta a la chispa para volver a salir. */
+  boltCooldown = 0;
+  /** Salió un hechizo, la chispa, o saltó una trampa: cuál, dónde y a cuántos agarró. */
+  onLand: ((spell: CastId, pos: THREE.Vector3, hits: number) => void) | null = null;
   /** Dónde está el caballero: la corriente sale de ahí. */
   origin: () => { x: number; z: number } = () => ({ x: 0, z: 9 });
   private readonly strikes: Strike[] = [];
@@ -119,14 +138,23 @@ export class Abe {
 
   // ---- los hechizos ----
 
-  /** Abe tira el hechizo del lugar `slot` en (x, z). Devuelve false si no hay o está recargando. */
+  /**
+   * Abe tira el hechizo del lugar `slot` en (x, z), o la chispa (`BOLT_SLOT`). Devuelve false si no hay o
+   * está recargando.
+   */
   cast(slot: number, x: number, z: number): boolean {
+    let cx = THREE.MathUtils.clamp(x, -FIELD_HALF_WIDTH, FIELD_HALF_WIDTH);
+    let cz = THREE.MathUtils.clamp(z, GATE_Z + 2, SPAWN_Z + 4);
+    if (slot === BOLT_SLOT) {
+      if (this.boltCooldown > 0) return false;
+      this.boltCooldown = ABE_BOLT.cooldown;
+      this.strikes.push(this.make(this.nextId++, 'bolt', 1, cx, cz, ABE_BOLT.radius, 0, 0));
+      return true;
+    }
     const s = this.slots[slot];
     if (!s || this.cooldowns[slot] > 0) return false;
     const t = ABE_SPELLS[s.id];
     this.cooldowns[slot] = t.cooldown;
-    let cx = THREE.MathUtils.clamp(x, -FIELD_HALF_WIDTH, FIELD_HALF_WIDTH);
-    let cz = THREE.MathUtils.clamp(z, GATE_Z + 2, SPAWN_Z + 4);
     let yaw = 0;
     let len = 0;
     if (s.id === 'current') {
@@ -144,10 +172,12 @@ export class Abe {
   /** El juego del que juega: corre las recargas, hace salir los hechizos y vigila las trampas. */
   update(dt: number): void {
     for (let i = 0; i < this.cooldowns.length; i++) this.cooldowns[i] = Math.max(0, this.cooldowns[i] - dt);
+    this.boltCooldown = Math.max(0, this.boltCooldown - dt);
     for (let i = this.strikes.length - 1; i >= 0; i--) {
       const s = this.strikes[i];
       if (s.t < 1) {
-        s.t = Math.min(1, s.t + dt / Math.max(0.1, ABE_SPELLS[s.spell].delay));
+        const delay = s.spell === 'bolt' ? ABE_BOLT.delay : ABE_SPELLS[s.spell].delay;
+        s.t = Math.min(1, s.t + dt / Math.max(0.05, delay));
         this.draw(s);
         if (s.t < 1) continue;
         if (s.spell !== 'trap') {
@@ -183,10 +213,18 @@ export class Abe {
 
   private land(s: Strike): void {
     const pos = new THREE.Vector3(s.x, heightAt(s.x, s.z), s.z);
-    const color = SPELL_INFO[s.spell].color;
+    const color = castColor(s.spell);
     const T = ABE_SPELLS;
     let hits = 0;
     switch (s.spell) {
+      case 'bolt':
+        this.effects.explosion(pos, s.size, color);
+        for (const e of this.inside(pos, s.size)) {
+          if (e.stats.boss) continue;
+          e.root(ABE_BOLT.seconds);
+          hits++;
+        }
+        break;
       case 'hail':
         this.effects.frost(pos, s.size);
         for (const e of this.inside(pos, s.size)) {
@@ -244,7 +282,7 @@ export class Abe {
   // ---- para el que mira ----
 
   get view(): StrikeSnap[] {
-    return this.strikes.map((s) => [s.id, SPELL_ORDER.indexOf(s.spell), r2(s.x), r2(s.z), r2(s.size), r3(s.t), r3(s.yaw), r2(s.len), r3(s.lifeMax ? Math.max(0, s.life / s.lifeMax) : 1)]);
+    return this.strikes.map((s) => [s.id, s.spell === 'bolt' ? BOLT_SLOT : SPELL_ORDER.indexOf(s.spell), r2(s.x), r2(s.z), r2(s.size), r3(s.t), r3(s.yaw), r2(s.len), r3(s.lifeMax ? Math.max(0, s.life / s.lifeMax) : 1)]);
   }
 
   get status(): AbeSnap {
@@ -252,6 +290,7 @@ export class Abe {
       s: this.slots.map((s, i) => [s.id, s.level, Math.round((this.cooldowns[i] ?? 0) * 10) / 10, ABE_SPELLS[s.id].cooldown, sizeOf(s.id, s.level)]),
       o: this.offer,
       p: this.picks,
+      b: [Math.round(this.boltCooldown * 10) / 10, ABE_BOLT.cooldown],
     };
   }
 
@@ -259,7 +298,7 @@ export class Abe {
   applyRemote(list: StrikeSnap[]): void {
     const ids = new Set<number>();
     for (const [id, k, x, z, size, t, yaw, len, life] of list) {
-      const spell = SPELL_ORDER[k];
+      const spell: CastId | undefined = k === BOLT_SLOT ? 'bolt' : SPELL_ORDER[k];
       if (!spell) continue;
       ids.add(id);
       let s = this.strikes.find((o) => o.id === id);
@@ -276,8 +315,8 @@ export class Abe {
 
   // ---- cómo se ve ----
 
-  private make(id: number, spell: SpellId, level: number, x: number, z: number, size: number, yaw: number, len: number): Strike {
-    const color = SPELL_INFO[spell].color;
+  private make(id: number, spell: CastId, level: number, x: number, z: number, size: number, yaw: number, len: number): Strike {
+    const color = castColor(spell);
     const group = new THREE.Group();
     const fillMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
     const edgeMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
@@ -305,7 +344,14 @@ export class Abe {
       edge.scale.setScalar(size);
       group.add(fill, edge);
     }
-    if (spell === 'hail') {
+    if (spell === 'bolt') {
+      // la chispa: un cristal que cae del cielo justo en el centro
+      const m = new THREE.Mesh(shardGeo, boltMat);
+      m.position.y = FALL_HEIGHT;
+      m.scale.set(0.8, 2.4, 0.8);
+      group.add(m);
+      extras.push(m);
+    } else if (spell === 'hail') {
       for (const [sx, sz] of SHARDS) {
         const m = new THREE.Mesh(shardGeo, shardMat);
         m.position.set(sx * size, FALL_HEIGHT, sz * size);
@@ -358,6 +404,11 @@ export class Abe {
     s.fill.scale.setScalar(Math.max(0.01, s.size * s.t));
     // late cada vez más rápido cuando está por salir
     edgeMat.opacity = 0.55 + 0.4 * Math.abs(Math.sin(s.t * (4 + 18 * s.t)));
+    if (s.spell === 'bolt') {
+      // la chispa cae en todo el tiempo que tarda (es corto)
+      for (const m of s.extras) m.position.y = FALL_HEIGHT * (1 - s.t * s.t);
+      return;
+    }
     if (s.spell !== 'hail') return;
     const fall = (s.t - FALL_FROM) / (1 - FALL_FROM);
     for (const m of s.extras) {

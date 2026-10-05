@@ -45,9 +45,15 @@ export interface HostSource {
   abe: Abe;
 }
 
+/**
+ * Si Abe se corta, su lugar lo espera este tiempo (ms) antes de pasar al que sigue: con mal wifi se va y
+ * vuelve, y antes volvía como uno que solo mira.
+ */
+const ABE_SEAT_MS = 30000;
+
 export class NetHost {
-  /** Los que están mirando. */
-  readonly watchers = new Set<string>();
+  /** Los que están mirando: la conexión, y de qué pestaña es (ver `Watch.me`). */
+  readonly watchers = new Map<string, string>();
   /** Cambió cuántos miran. */
   onWatchers: ((n: number) => void) | null = null;
   /** Enemigos que el que mira ya sabe cómo armar. Se vacía cuando entra alguien. */
@@ -58,8 +64,13 @@ export class NetHost {
   private last = -Infinity;
   private readonly kinds = new WeakMap<object, string>();
 
-  /** Abe: el primero de los que miran. Si se va, pasa al que sigue. */
+  /**
+   * Abe: el primero de los que miran. Se lo reconoce por su pestaña (`abeMe`): si se corta y vuelve, vuelve
+   * a ser Abe. Si se va, su lugar lo espera `ABE_SEAT_MS` y después pasa al que sigue.
+   */
   private abeId: string | null = null;
+  private abeMe: string | null = null;
+  private abeGoneAt = 0;
   /** Abe pidió el hechizo del lugar `slot` en (x, z). */
   onCast: ((slot: number, x: number, z: number) => void) | null = null;
   /** Abe eligió de lo que le ofrecen: la carta (o -1) y el lugar. */
@@ -74,7 +85,7 @@ export class NetHost {
   constructor(private readonly link: Link, private readonly src: HostSource) {
     link.onMessage = (m, from) => {
       if (this.banned.has(from)) return;
-      if (m.k === 'watch') this.join(from);
+      if (m.k === 'watch') this.join(from, typeof m.me === 'string' && m.me ? m.me.slice(0, 40) : from);
       else if (from !== this.abeId) return;
       else if (m.k === 'cast' && Number.isInteger(m.i) && Number.isFinite(m.x) && Number.isFinite(m.z)) this.onCast?.(m.i as number, m.x as number, m.z as number);
       else if (m.k === 'pick' && Number.isInteger(m.c) && Number.isInteger(m.s)) this.onPick?.(m.c as number, m.s as number);
@@ -90,13 +101,22 @@ export class NetHost {
     });
   }
 
-  private join(id: string): void {
-    // privada: el que no estaba no entra (se le avisa, así no se queda esperando)
-    if (this.isPrivate && !this.watchers.has(id)) {
+  private join(id: string, me: string): void {
+    // al echado no se le hace caso tampoco si vuelve a entrar desde la misma pestaña
+    if (this.banned.has(me)) {
+      this.banned.add(id);
+      this.link.send({ k: 'kicked' }, id);
+      return;
+    }
+    // la misma pestaña que vuelve (se cortó): la conexión vieja ya no sirve, la nueva toma su lugar
+    const back = [...this.watchers].some(([, m]) => m === me);
+    // privada: el que no estaba no entra (se le avisa, así no se queda esperando). El que vuelve, sí
+    if (this.isPrivate && !this.watchers.has(id) && !back && me !== this.abeMe) {
       this.link.send({ k: 'closed' }, id);
       return;
     }
-    this.watchers.add(id);
+    for (const [peer, m] of [...this.watchers]) if (m === me && peer !== id) this.watchers.delete(peer);
+    this.watchers.set(id, me);
     this.announced.clear();
     this.link.send({ k: 'hello', ...this.src.hello() }, id);
     this.updateRoles();
@@ -110,24 +130,42 @@ export class NetHost {
     return this.abeId !== null;
   }
 
-  /** El caballero echa a Abe: se le avisa, no se le hace caso nunca más, y el que sigue pasa a ser Abe. */
+  /**
+   * El caballero echa a Abe: se le avisa, no se le hace caso nunca más (tampoco si vuelve a entrar desde
+   * esa pestaña), y el que sigue pasa a ser Abe en el acto.
+   */
   kickAbe(): void {
     const id = this.abeId;
     if (!id) return;
     this.link.send({ k: 'kicked' }, id);
     this.banned.add(id);
+    if (this.abeMe) this.banned.add(this.abeMe);
     this.watchers.delete(id);
+    this.abeMe = null;
     this.updateRoles();
     this.onWatchers?.(this.watchers.size);
   }
 
-  /** El primero que mira es Abe: si cambió, se les avisa al de antes y al nuevo. */
-  private updateRoles(): void {
-    const first = this.watchers.values().next().value ?? null;
-    if (first === this.abeId) return;
+  /**
+   * Quién es Abe: la pestaña que ya lo era, si está; si se fue, nadie hasta que pasa `ABE_SEAT_MS` (por si
+   * vuelve); y si no hay Abe, el primero que mira. Si cambió, se les avisa al de antes y al nuevo.
+   */
+  private updateRoles(now = performance.now()): void {
+    // Abe se fue (se cortó o cerró la página): desde ahora corre lo que se le guarda el lugar
+    if (this.abeId && !this.watchers.has(this.abeId)) {
+      this.abeId = null;
+      this.abeGoneAt = now;
+    }
+    let next: string | null = null;
+    for (const [peer, me] of this.watchers) if (me === this.abeMe) next = peer;
+    if (!next && !(this.abeMe && now - this.abeGoneAt < ABE_SEAT_MS)) {
+      next = this.watchers.keys().next().value ?? null;
+      this.abeMe = next ? this.watchers.get(next)! : null;
+    }
+    if (next === this.abeId) return;
     if (this.abeId && this.watchers.has(this.abeId)) this.link.send({ k: 'role', abe: false }, this.abeId);
-    this.abeId = first;
-    if (first) this.link.send({ k: 'role', abe: true }, first);
+    this.abeId = next;
+    if (next) this.link.send({ k: 'role', abe: true }, next);
   }
 
   /** Un efecto, sonido o cartel que acaba de pasar. */
@@ -139,6 +177,8 @@ export class NetHost {
 
   /** En cada cuadro: si toca, manda la foto. */
   tick(now: number): void {
+    // el lugar de Abe que se guardaba para él se venció: pasa al que sigue
+    if (this.abeMe && !this.abeId && this.watchers.size) this.updateRoles();
     if (!this.watchers.size || now - this.last < 1000 / SNAP_HZ) return;
     this.last = now;
     this.link.send(this.snap(now) as unknown as NetMsg);

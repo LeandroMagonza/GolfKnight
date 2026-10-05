@@ -42,9 +42,9 @@ import type { Ball } from './game/balls';
 import { connect, roomCode } from './net/link';
 import { MIRRORED, mirror, NetHost } from './net/host';
 import { NetSpectator } from './net/spectator';
-import type { GameSnap, Hello } from './net/snapshot';
-import { Abe, SPELL_INFO } from './coop/abe';
-import { ABE_SLOTS, spellHint, spellSize } from './coop/spells';
+import { r2, type GameSnap, type Hello } from './net/snapshot';
+import { Abe, BOLT_SLOT, castColor, SPELL_INFO } from './coop/abe';
+import { ABE_SLOTS, BOLT_INFO, boltHint, spellHint, spellSize } from './coop/spells';
 import type { AbeStatus } from './net/spectator';
 
 // ---------- escena ----------
@@ -938,6 +938,11 @@ function selectClub(index: number): void {
  * puestos. Los lugares se llenan eligiendo cartas entre oleadas.
  */
 function castAbility(index: number): void {
+  // Abe, con teclado: Q, W, E y R tiran ese hechizo ya, donde está el mouse
+  if (WATCH) {
+    spectator?.quickCast(index);
+    return;
+  }
   if (!started || paused || ended || cardOpen || !player || index < 0 || index >= SLOTS) return;
   // congelado por el alma en pena, tampoco
   if (!player.alive || player.stunned || player.grabbedBy) return;
@@ -1882,6 +1887,11 @@ let watchEndSince = 0;
 // sale un hechizo de Abe: su sonido (también le llega al que mira) y, acá, a cuántos agarró
 abe.origin = () => player?.anchor ?? { x: 0, z: TEE_Z };
 abe.onLand = (spell, pos, hits) => {
+  // la chispa sale seguido: un ruidito corto, y sin cartel
+  if (spell === 'bolt') {
+    audio.bounce();
+    return;
+  }
   if (spell === 'hail') audio.frost();
   else if (spell === 'whirl' || spell === 'current' || spell === 'push') audio.whoosh(0.9);
   else if (spell === 'curse') audio.zap();
@@ -1900,7 +1910,12 @@ const abeEl = document.getElementById('abe')!;
 const abeSlotsEl = abeEl.querySelector('.spells') as HTMLElement;
 const abeOfferEl = abeEl.querySelector('.offer') as HTMLElement;
 const abeNewBtn = abeEl.querySelector('.newspell') as HTMLButtonElement;
-abeSlotsEl.innerHTML = Array.from({ length: ABE_SLOTS }, (_, i) => `<button type="button" class="spell" data-i="${i}"><span class="icon"></span><span class="name"></span><span class="lv"></span><kbd>${i + 1}</kbd><span class="cd"></span></button>`).join('');
+// primero la chispa (el ataque básico, lo que sale si no hay hechizo elegido), y después los cuatro
+// hechizos: 1 a 4 los eligen, Q W E R los tiran ya donde está el mouse
+abeSlotsEl.innerHTML = `<button type="button" class="spell bolt" data-i="${BOLT_SLOT}" style="--c:${`#${BOLT_INFO.color.toString(16).padStart(6, '0')}`}"><span class="icon">${BOLT_INFO.icon}</span><span class="name">${BOLT_INFO.name}</span><span class="lv">básico</span><span class="cd"></span></button>`
+  + Array.from({ length: ABE_SLOTS }, (_, i) => `<button type="button" class="spell" data-i="${i}"><span class="icon"></span><span class="name"></span><span class="lv"></span><kbd>${i + 1} · ${ABILITY_KEYS[i]}</kbd><span class="cd"></span></button>`).join('');
+const abeBoltBtn = abeSlotsEl.querySelector('.bolt') as HTMLButtonElement;
+const abeSpellBtns = Array.from(abeSlotsEl.querySelectorAll('.spell:not(.bolt)')) as HTMLButtonElement[];
 /** La carta elegida con todo lleno, esperando a que diga en qué lugar va; y si las cartas están a la vista. */
 let abeSwap: number | null = null;
 let abeOfferOpen = true;
@@ -1916,6 +1931,7 @@ abeSlotsEl.addEventListener('click', (e) => {
     if (abeLast?.slots[i]) spectator?.pick(abeSwap, i);
     abeSwap = null;
   } else spectator?.select(i);
+  // (la chispa es -1: elegirla es soltar el hechizo; tocar el hechizo elegido, también)
   abeKey = '';
 });
 abeOfferEl.addEventListener('click', (e) => {
@@ -1959,6 +1975,7 @@ function showAbe(s: AbeStatus): void {
   // con la oleada esperándolo, las cartas no se pueden dejar para después
   if (s.waiting) abeOfferOpen = true;
   const key = JSON.stringify([s.abe, s.selected, s.why, offerKey, s.picks, abeSwap, abeOfferOpen, s.waiting,
+    s.bolt.ready, Math.round((s.bolt.left / s.bolt.total) * 20),
     s.slots.map((x) => [x.id, x.level, x.ready, Math.ceil(x.left), Math.round((x.left / x.total) * 40)])]);
   if (key === abeKey) return;
   abeKey = key;
@@ -1966,9 +1983,12 @@ function showAbe(s: AbeStatus): void {
   abeEl.classList.toggle('other', !s.abe);
   abeEl.classList.toggle('swap', abeSwap !== null);
   (abeEl.querySelector('.who') as HTMLElement).textContent = s.abe ? '🧙 Sos Abe, el mago que lo invocó' : 'Mirando · Abe es el primero que entró';
-  Array.from(abeSlotsEl.children).forEach((el, i) => {
+  // la chispa: elegida cuando no hay hechizo elegido
+  abeBoltBtn.classList.toggle('on', s.selected === BOLT_SLOT && abeSwap === null);
+  abeBoltBtn.classList.toggle('ready', s.bolt.ready);
+  (abeBoltBtn.querySelector('.cd') as HTMLElement).style.height = !s.bolt.ready && !s.why ? `${Math.round((100 * s.bolt.left) / Math.max(0.1, s.bolt.total))}%` : '0';
+  abeSpellBtns.forEach((btn, i) => {
     const st = s.slots[i];
-    const btn = el as HTMLButtonElement;
     btn.classList.toggle('empty', !st);
     btn.classList.toggle('on', !!st && i === s.selected && abeSwap === null);
     btn.classList.toggle('ready', !!st?.ready);
@@ -1997,10 +2017,11 @@ function showAbe(s: AbeStatus): void {
     }).join('');
     (abeOfferEl.querySelector('.keep') as HTMLElement).hidden = !full;
   }
-  const sel = s.slots[s.selected];
+  const sel = s.selected === BOLT_SLOT ? null : s.slots[s.selected];
   (abeEl.querySelector('.help') as HTMLElement).textContent = abeSwap !== null ? 'Tocá abajo el lugar donde va'
-    : s.why ?? (!sel ? (offer ? 'Elegí arriba tu hechizo' : 'Todavía no tenés hechizos')
-      : `${SPELL_INFO[sel.id].name}: ${spellHint(sel.id, sel.level)} · ${sel.ready ? 'tocá el piso donde va' : `listo en ${Math.ceil(sel.left)} s`}`);
+    : s.why ?? (sel
+      ? `${SPELL_INFO[sel.id].name}: ${spellHint(sel.id, sel.level)} · ${sel.ready ? 'el próximo toque lo tira (tocá el botón otra vez para volver a la chispa)' : `listo en ${Math.ceil(sel.left)} s`}`
+      : `Tocá el piso: ${BOLT_INFO.name.toLowerCase()}, ${boltHint().toLowerCase()}. ${s.slots.length ? 'Elegí un hechizo y el próximo toque lo tira' : offer ? 'Elegí arriba tu primer hechizo' : ''}`);
 }
 
 /** El que mira: dónde cae en el piso un punto de la pantalla (-1..1). */
@@ -2060,6 +2081,9 @@ async function startHosting(code: string): Promise<string> {
         pk: pocket ? [pocket.count, pocket.max] : undefined,
         abe: abe.status,
         wa: abeChoosing(),
+        tu: !!tutorial,
+        // adónde apunta: lo mismo que se le dibuja a él (la línea de tiro y la marca de caída)
+        am: landing.visible && player ? [r2(tee.x), r2(tee.z), r2(landing.position.x), r2(landing.position.z), r2(landing.scale.x), player.mode === 'charging' ? 1 : 0] : null,
       }),
       player: () => player ?? null,
       horde,
@@ -2068,11 +2092,12 @@ async function startHosting(code: string): Promise<string> {
       abe,
     });
     const host = netHost;
-    // Abe pide un hechizo: sale si la partida está andando y ese lugar ya recargó
+    // Abe pide un hechizo o la chispa: sale si la partida está andando y ese lugar ya recargó. En el
+    // tutorial no: ahí los enemigos los pone el tutorial, y un empujón le desarma el paso
     host.onCast = (slot, x, z) => {
-      if (!started || paused || cardOpen || ended) return;
-      const s = abe.slots[slot];
-      if (s && abe.cast(slot, x, z)) effects.blink(new THREE.Vector3(x, heightAt(x, z), z), SPELL_INFO[s.id].color);
+      if (!started || paused || cardOpen || ended || tutorial) return;
+      const s = slot === BOLT_SLOT ? 'bolt' : abe.slots[slot]?.id;
+      if (s && abe.cast(slot, x, z) && s !== 'bolt') effects.blink(new THREE.Vector3(x, heightAt(x, z), z), castColor(s));
     };
     // y elige sus hechizos: la oleada que viene lo espera (ver abeChoosing)
     host.onPick = (card, slot) => {
@@ -2242,6 +2267,7 @@ async function startWatching(code: string): Promise<void> {
     abe,
     groundAt,
     showAbe,
+    reconnect: () => connect(code, NET_LOCAL),
   });
 }
 
@@ -2300,7 +2326,11 @@ function tiltCamera(delta: number): void {
 }
 
 function raiseCamera(delta: number): void {
-  if (WATCH) return;
+  // el que mira: las flechas lo llevan para adelante y para atrás por la cancha
+  if (WATCH) {
+    spectator?.cam.walk(delta * 3);
+    return;
+  }
   cam.rise = THREE.MathUtils.clamp(cam.rise + delta * 0.6, CAM_LIMITS.rise[0], CAM_LIMITS.rise[1]);
   hud.feedback(`Cámara: ${cam.rise >= 0 ? '+' : ''}${cam.rise.toFixed(1)} m de altura`, 'neutral');
   debugPanel?.save();
@@ -2542,6 +2572,8 @@ addEventListener('resize', () => {
     get host() { return netHost; },
     get spectator() { return spectator; },
     invite,
+    /** Dónde está la cámara (para ver que la del que mira no se va para el costado). */
+    get eye() { return camera.position.toArray().map((v) => +v.toFixed(2)); },
   },
   get player() { return player; },
   get audio() { return audio; },

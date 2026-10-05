@@ -275,7 +275,7 @@ export class Balls {
     const shot = this.markShot(ball);
     // el tiro de efecto no pega: toca a los del área y les deja el efecto (con la fuerza pega, sin empujar)
     const hits = this.touchOnly(ball)
-      ? this.horde.touchArea(pos, radius, ball.hitIds, (e) => this.applyElement(ball, e))
+      ? this.horde.touchArea(pos, radius, ball.hitIds, (e) => this.applyElement(ball, e), ball.element === 'silence')
       : this.horde.blast(pos, radius, damage, ball.effect ? 0 : ball.club.knockback, null, ball.hitIds, (e) => this.applyElement(ball, e));
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
@@ -458,7 +458,10 @@ export class Balls {
       // de vuelta le llega por la espalda: el escudo de frente no la para. Al golpe fantasma no lo para
       // ningún escudo, ni el aura del chamán
       const ghost = ball.element === 'ghost';
-      if (ball.phase !== 'back' && !ghost && (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
+      // el silenciador tampoco (5/10, pedido de Leandro): el escudo común es justo lo que viene a apagar.
+      // Lo silencia al tocarlo y sigue. El muro de la calavera y el aura del chamán sí lo paran
+      const hush = ball.element === 'silence' && !e.warded && !e.shieldWall;
+      if (ball.phase !== 'back' && !ghost && !hush && (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
         // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
         // número entra. El muro y el aura del chamán no dejan pasar nada
         // lo que pasa del escudo entra, con su elemento; si el escudo se come todo, el elemento tampoco

@@ -154,6 +154,13 @@ export interface GameSnap {
   abe: AbeSnap;
   /** La oleada que viene espera a que Abe elija su hechizo. */
   wa: boolean;
+  /** El caballero está haciendo el tutorial: Abe elige, pero todavía no tira. */
+  tu?: boolean;
+  /**
+   * Adónde apunta el caballero: de dónde sale la pelota, dónde cae, el radio de la marca, y si está
+   * cargando (1) o solo apuntando (0). Null cuando no apunta.
+   */
+  am?: [x: number, z: number, toX: number, toZ: number, r: number, charging: number] | null;
 }
 
 export interface Snap {
@@ -214,15 +221,19 @@ export interface Out {
 
 export type HostMsg = Snap | Hello | NetEvent | Bye | Role | Out;
 
-/** El que mira se presenta: el que juega le contesta con el saludo. */
+/**
+ * El que mira se presenta: el que juega le contesta con el saludo. `me` es el de esa pestaña, el mismo
+ * aunque se corte y vuelva a entrar (la conexión nueva tiene otro id): así Abe vuelve a ser Abe.
+ */
 export interface Watch {
   k: 'watch';
+  me?: string;
 }
 
-/** Abe tira el granizo en (x, z). */
+/** Abe tira un hechizo, o la chispa, en (x, z). */
 export interface Cast {
   k: 'cast';
-  /** El lugar del hechizo (0 a 3, el orden de los botones). */
+  /** El lugar del hechizo (0 a 3, el orden de los botones), o -1 la chispa (ver BOLT_SLOT). */
   i: number;
   x: number;
   z: number;

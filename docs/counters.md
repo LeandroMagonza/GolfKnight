@@ -66,7 +66,7 @@ Lo que no hace daño (hielo, viento) no resuelve nada solo: prepara.
 | Palo **fantasma** | 4 | ✅ | ✅ | ✅ | ✅ | ✅ (desde el 4/10 no lo ve venir) |
 | **Guante fantasma** (4/10) | 1 | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Fuerza** (4/10) | 1 | ½ | ✅ | | ❌ | |
-| Palo **silenciador** | 4 | wedge ✅, hierro ½, driver y putter ❌ | ✅ | ✅ | ❌ | wedge ✅, los otros ❌ |
+| Palo **silenciador** | 4 | ✅ (desde el 5/10 el escudo común no lo para; el muro, solo con wedge) | ✅ | ✅ | ❌ | wedge ✅, los otros ❌ |
 | Hoyo (no a élites) | 1 | ✅ | ✅ | ✅ | ✅ | ½ |
 | Carrito | 1 | ✅ | ½ | ❌ | ❌ | ✅ |
 | Pólvora | 1 | ½ | ❌ | ✅ | ✅ | ✅ |
