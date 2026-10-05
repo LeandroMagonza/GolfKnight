@@ -12,7 +12,7 @@
 // e incorporarlo al juego.
 import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, ELEMENTS, LEVELS, MAX_LEVEL, SLOTS, VULNERABLE, type AbilityId } from './core/abilities';
 import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from './core/cards';
-import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
+import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, FOURTH, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
 import { COURSES } from './core/terrain';
@@ -658,6 +658,15 @@ export class DebugPanel {
       + 'Las mejoras van encima: la muñeca rápida apura el débil (el medio y el fuerte llegan antes y duran lo mismo); el ritmo apura el débil y el medio; '
       + 'el punto dulce alarga el fuerte (abre en el mismo momento y el rebote llega más tarde).',
     ));
+    el.append(heading('Golpe 4'));
+    const fourth = this.numbers([
+      ['parte del fuerte que es el 4', () => FOURTH.share, (v) => { FOURTH.share = Math.min(1, Math.max(0.05, v)); }, 0.05, 'el medio de cada pasada'],
+      ['pega más que el 3', () => FOURTH.bonus, (v) => { FOURTH.bonus = Math.max(0, Math.round(v)); }, 1, ''],
+    ]);
+    el.append(fourth.table, note(
+      'Es un talento de la dificultad (la vida de más que trae está en Enemigos, Dificultad). El rojo se parte: el 4 en el medio y el 3 a los costados, '
+      + 'en naranja. Entre los dos duran lo que el fuerte. ' + (FOURTH.on ? 'En esta partida está prendido.' : 'En esta partida no está.'),
+    ));
   }
 
 
@@ -1056,6 +1065,9 @@ export class DebugPanel {
       ['recarga del escurridizo y el bendito, sin el punto', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×'],
       ['vida de menos del élite, sin el punto', () => d.eliteHpLess[0], (v) => { d.eliteHpLess[0] = Math.max(0, Math.round(v)); }, 1, ''],
       ['descanso con «sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's'],
+      ['golpe 4: vida de más de los comunes', () => d.fourthHp, (v) => { d.fourthHp = Math.max(0, Math.round(v)); }, 1, ''],
+      ['golpe 4: de los élites', () => d.fourthEliteHp, (v) => { d.fourthEliteHp = Math.max(0, Math.round(v)); }, 1, ''],
+      ['golpe 4: del jefe', () => d.fourthBossHp, (v) => { d.fourthBossHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['estampida: chicos de más por oleada', () => MARKS.stampede, (v) => { MARKS.stampede = Math.max(0, Math.round(v)); }, 1, ''],
       ['gigantes: por oleada', () => MARKS.giants, (v) => { MARKS.giants = Math.max(0, Math.round(v)); }, 1, ''],
       ['todos con poder: con los que no salieron', () => MARKS.foreign, (v) => { MARKS.foreign = Math.max(0, Math.round(v)); }, 1, ''],

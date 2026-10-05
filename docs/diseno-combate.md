@@ -2578,6 +2578,22 @@ débil era el más largo y el fuerte el más corto, pero no llega a tercios: el 
 difícil de clavar. La idea es que siempre haya desafío. El ritmo no cambió: apura el débil y el medio
 según la racha.
 
-**Idea para los que ya clavan el 3 siempre (por decidir):** un golpe 4 como talento de dificultad. Todos
-los enemigos vienen con más vida, pero en el medio del rojo hay un tramo más corto que el fuerte de hoy
-que pega más. Ver el mensaje del 5/10.
+## Hecho: el golpe 4, un talento de dificultad (5/10/2026)
+
+Idea de Leandro, para los que se acostumbraron al timing y le pegan al 3 siempre: un talento que es
+mitad dificultad y mitad poder. Con el punto puesto:
+- **En el medio del rojo aparece el golpe 4**, que pega 1 más que el 3 (también en el área). **El 3 y el
+  4 juntos duran lo que el 3 sin el talento** (pedido de Leandro: si no, se agranda la ventana y sube el
+  daño promedio). Mitad y mitad: de los 0.06 s de cada pasada, el 4 son los 0.03 s del medio, alrededor
+  del tope, y el 3 los dos costados. Como la aguja va pareja, alcanza con un umbral de potencia más
+  (`fourthFrom()`, 0.96). El punto dulce agranda los dos.
+- **A cambio, todos traen vida de más**: los comunes +1, los élites +2 y el jefe +8 (`DIFFICULTY.fourthHp`
+  y compañía, panel B, Enemigos). Si clavás el 4 seguido el +1 compensa y sobra; si no, es más difícil.
+- **Colores**: verde, amarillo, naranja (el 3) y rojo (el 4), en el arco y en la línea de tiro. Con el
+  palo que pifia, todo un color más abajo: gris, verde, amarillo y naranja. El número de arriba del arco
+  es el del 4; el del 3 solo se escribe si su tramo es ancho como para leerse (sin mejoras no lo es).
+- **El perfecto es el golpe más alto que haya**: con el talento, el sonido y el cartel («¡Golpe 4!») son
+  del 4, y el perfecto de regalo clava el 4. Para las estadísticas, «golpes perfectos» sigue contando
+  desde el 3.
+- **Las habilidades no tienen golpe 4**: salen como mucho con el 3, así no se multiplica todo.
+- En el tenis no hay.

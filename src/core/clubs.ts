@@ -193,7 +193,13 @@ export const CLUB_KEYS = ['1', '2', '3', '4'];
 
 /** Daño de un tiro: lo deciden el palo, a qué distancia pega, y qué tan bien se le pegó. */
 export function damageFor(club: Club, meters: number, quality: number): number {
-  return club.damage[bandOf(meters)][Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1];
+  return fromTable(club.damage, meters, quality);
+}
+
+/** El número de la tabla para esa distancia y ese golpe. El golpe 4 es el 3 más `FOURTH.bonus`. */
+function fromTable(table: number[][], meters: number, quality: number): number {
+  const n = table[bandOf(meters)][Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1];
+  return quality > QUALITY_LEVELS && n > 0 ? n + FOURTH.bonus : n;
 }
 
 /**
@@ -201,8 +207,7 @@ export function damageFor(club: Club, meters: number, quality: number): number {
  * a varios y no hay que apuntarle a nadie. En los que solo hacen área, es su tabla de siempre.
  */
 export function areaDamageFor(club: Club, meters: number, quality: number): number {
-  const table = club.areaDamage ?? club.damage;
-  return table[bandOf(meters)][Math.min(QUALITY_LEVELS, Math.max(1, quality)) - 1];
+  return fromTable(club.areaDamage ?? club.damage, meters, quality);
 }
 
 /**
@@ -237,7 +242,8 @@ export const CURVE_CLUBS: ClubId[] = ['driver', 'putter'];
 
 /**
  * Calidad del golpe: puro timing, tres niveles. La barra sube y después rebota; soltar arriba del
- * todo es el nivel 3. No tiene nada que ver con la distancia, que la decide el mouse.
+ * todo es el nivel 3. No tiene nada que ver con la distancia, que la decide el mouse. Con el talento del
+ * golpe 4 (ver FOURTH), el medio del rojo es un cuarto nivel.
  */
 export const QUALITY_LEVELS = 3;
 /** Potencia a partir de la cual empieza cada nivel. */
@@ -245,7 +251,32 @@ export const QUALITY_FROM = [0, 0.55, 0.92];
 export function qualityOf(power: number): number {
   let q = 1;
   for (let i = 1; i < QUALITY_FROM.length; i++) if (power >= QUALITY_FROM[i]) q = i + 1;
+  if (FOURTH.on && q === QUALITY_LEVELS && power >= fourthFrom()) q++;
   return q;
+}
+
+/**
+ * **El golpe 4** (5/10, idea de Leandro): un talento de dificultad para los que ya clavan el 3 siempre.
+ * En el medio del rojo hay un tramo más angosto que pega `bonus` más que el 3, también en el área. **El 3
+ * y el 4 juntos duran lo que dura el 3 sin el talento**: no se agranda la ventana, se parte. `share` es
+ * qué parte de cada pasada por el fuerte es el 4 (la del medio, alrededor del tope). Como la aguja sube
+ * y baja a velocidad pareja, la parte del tiempo es la parte de la potencia, y el 4 arranca en
+ * `fourthFrom()`. A cambio, todos traen vida de más (ver DIFFICULTY.fourthHp). `on` lo prende la partida
+ * según la dificultad; en el tenis no hay.
+ *
+ * Las habilidades no tienen golpe 4: salen como mucho con el 3.
+ */
+export const FOURTH = { on: false, share: 0.5, bonus: 1 };
+
+/** Desde qué potencia es golpe 4. */
+export function fourthFrom(): number {
+  const b = QUALITY_FROM[QUALITY_LEVELS - 1];
+  return b + (1 - b) * (1 - Math.min(1, Math.max(0, FOURTH.share)));
+}
+
+/** El golpe más alto que se puede sacar ahora: el 4 con el talento, si no el 3. Es el «perfecto». */
+export function topQuality(): number {
+  return FOURTH.on ? QUALITY_LEVELS + 1 : QUALITY_LEVELS;
 }
 
 /**
@@ -292,7 +323,7 @@ export const TRAP_KNOCKBACK = 40;
 export const TRAP_LIFE = 25;
 export const TRAP_MAX = 3;
 export function trapDamage(power: number, perfect = false): number {
-  return TRAP_DAMAGE[perfect ? QUALITY_LEVELS : qualityOf(power) - 1];
+  return TRAP_DAMAGE[perfect ? QUALITY_LEVELS : Math.min(QUALITY_LEVELS, qualityOf(power)) - 1];
 }
 
 /** Alcance en metros para una potencia 0..1. Solo lo usan las pruebas: en el juego lo da el mouse. */

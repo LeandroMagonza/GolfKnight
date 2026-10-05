@@ -7,7 +7,7 @@ import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, pre
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
 import { ABILITIES, ABILITY_KEYS, ECHO, ELEMENT_INFO, ELEMENTS, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
 import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
@@ -105,6 +105,9 @@ const GATE_MAX = 10;
 const QUALITY_COLORS = [0xffffff, 0xffe066, 0xff2d3c];
 /** La del palo que pifia con el golpe 1 (el wedge), como su arco: gris, verde y amarillo. */
 const DUFF_COLORS = [0x6b7480, 0x5be07a, 0xffd21f];
+/** Con el golpe 4, como el arco: el 3 en naranja y el 4 en rojo (con la pifia, el 3 amarillo y el 4 naranja). */
+const QUALITY_COLORS_4 = [0xffffff, 0xffe066, 0xff9a2e, 0xff2d3c];
+const DUFF_COLORS_4 = [0x6b7480, 0x5be07a, 0xffd21f, 0xff9a2e];
 const hud = new Hud();
 const audio = new GameAudio();
 const difficultyMenu = new DifficultyMenu(progress);
@@ -114,6 +117,8 @@ const difficultyMenu = new DifficultyMenu(progress);
  * cambia la dificultad antes de empezar, se vuelve a armar al arrancar (`rebuildRun`).
  */
 let rules = rulesFor(progress.picks);
+// el golpe 4 es un talento de la dificultad, y en el tenis no hay
+FOURTH.on = rules.fourth && !TENNIS_ON;
 let run = buildRun(Math.random, rules);
 const director = new WaveDirector(run.waves, rules.rest);
 const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura', phase: 'Intocable' };
@@ -129,6 +134,7 @@ showRun();
 function rebuildRun(): void {
   difficultyMenu.dirty = false;
   rules = rulesFor(progress.picks);
+  FOURTH.on = rules.fourth && !TENNIS_ON;
   run = buildRun(Math.random, rules);
   director.load(run.waves, rules.rest);
   showRun();
@@ -501,7 +507,10 @@ function updatePreview(): void {
     if (g) placeMeter();
   }
   // mientras carga, los tiempos con los que arrancó la carga; si no, los de ahora
-  if (!tennis) hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, [1, 2, 3].map((q) => plus(damageFor(club, hitAt, q))));
+  if (!tennis) {
+    const levels = Array.from({ length: topQuality() }, (_, i) => i + 1);
+    hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, levels.map((q) => plus(damageFor(club, hitAt, q))), FOURTH.on ? FOURTH.share : 0);
+  }
   // en el tenis, el arco es el del timing (arriba)
   if (!tennis) {
     hud.setMeter(charging, player.meter.power, player.meter.locked, `${hitAt.toFixed(0)} m · ${BAND_NAMES[bandOf(hitAt)]} · ${dmgLabel}`, player.meter.side);
@@ -524,9 +533,10 @@ function updatePreview(): void {
   path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
   pos.needsUpdate = true;
   // la línea toma el color del palo; mientras se carga, el de la calidad del golpe
-  const lineColor = charging ? (duff ? DUFF_COLORS : QUALITY_COLORS)[quality - 1] : club.color;
+  const lineColors = FOURTH.on ? (duff ? DUFF_COLORS_4 : QUALITY_COLORS_4) : duff ? DUFF_COLORS : QUALITY_COLORS;
+  const lineColor = charging ? lineColors[quality - 1] : club.color;
   previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
-  previewMat.size = charging ? (quality >= QUALITY_LEVELS ? 10 : 4 + quality * 1.5) : 5;
+  previewMat.size = charging ? (quality >= topQuality() ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
   // (la esquiva ya no salta con la carga: salta al soltar o al tirar una habilidad, ver onRelease)
   if (charging && quality !== lastLevel) audio.chargeTick(quality);
@@ -1275,7 +1285,7 @@ function fireEchoes(): void {
     const e = echoQueue[i];
     if (e.at > gameClock) continue;
     echoQueue.splice(i, 1);
-    audio.tock(e.shot.quality >= QUALITY_LEVELS);
+    audio.tock(e.shot.quality >= topQuality());
     effects.blink(e.shot.from.clone(), ABILITIES.echo.color);
     balls.fire(e.shot, e.range, e.lift);
   }
@@ -1722,9 +1732,10 @@ async function makePlayer(skin: Skin): Promise<Player> {
     const t = tennis?.shot();
     if (t) shot = { ...shot, quality: t.quality };
     shots++;
+    // el perfecto es el golpe más alto que hay: el 3, o el 4 con su talento
     recorder?.shot(shot.quality >= QUALITY_LEVELS);
-    audio.tock(shot.quality >= QUALITY_LEVELS);
-    if (shot.quality >= QUALITY_LEVELS) hud.feedback('¡Golpe perfecto!', 'good');
+    audio.tock(shot.quality >= topQuality());
+    if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? '¡Golpe 4!' : '¡Golpe perfecto!', 'good');
     const range = shotRange(shot.club);
     // la potencia y el herrero van en este tiro, y el eco lo repite igual (con eso incluido). El herrero
     // se gasta recién acá, cuando sale la pelota: cancelar, cambiar de palo o pifiar no lo tocan
@@ -1766,7 +1777,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
       if (--clone.shots <= 0) removeClone();
     }
   };
-  p.onGift = () => audio.chargeTick(QUALITY_LEVELS);
+  p.onGift = () => audio.chargeTick(topQuality());
   // Palazo (una habilidad más): no hace daño. Empuja hacia atrás a todo lo que haya alrededor de un punto
   // un paso adelante del golfista, hacia donde apunta.
   p.onMelee = () => {

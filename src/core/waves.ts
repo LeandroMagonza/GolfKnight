@@ -410,6 +410,10 @@ export interface Wave {
   share?: number;
   /** Velocidad de todos (menos el jefe), sobre la de su cuerpo. Sin esto, 1. */
   speed?: number;
+  /** Vida de más de los comunes (no el élite ni el jefe), con el golpe 4. */
+  extraHp?: number;
+  /** Vida de más del jefe, con el golpe 4. */
+  bossHp?: number;
   /** Qué tan duros salen los poderes. Sin esto, HARDEST_POWERS. */
   hard?: PowerHardness;
   /** La marca de los gigantes: cuántos de esta oleada salen gigantes. */
@@ -492,6 +496,12 @@ export interface RunRules {
   escort: boolean;
   /** Segundos de descanso entre oleadas. */
   rest: number;
+  /** El golpe 4 (ver FOURTH en core/clubs). La vida de más que trae, en `eliteHp`, `extraHp` y `bossHp`. */
+  fourth: boolean;
+  /** Vida de más de cada enemigo común (no el élite, que la trae en `eliteHp`, ni el jefe). */
+  extraHp: number;
+  /** Vida de más del jefe. */
+  bossHp: number;
 }
 
 /** Segundos de descanso entre oleadas. */
@@ -500,6 +510,7 @@ export const INTERMISSION = 6;
 /** Todo al máximo: lo que arma `buildRun()` sin reglas. */
 export const HARDEST: RunRules = {
   stack: true, specials: 2, supports: 2, hard: HARDEST_POWERS, speed: 1, share: 1 / 3, eliteHp: [2, 3, 4], escort: true, rest: INTERMISSION,
+  fourth: false, extraHp: 0, bossHp: 0,
 };
 
 const TITLES: Record<ScenarioPower, string> = {
@@ -644,6 +655,8 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
     w.share = rules.share;
     w.speed = rules.speed;
     w.hard = rules.hard;
+    if (rules.extraHp) w.extraHp = rules.extraHp;
+    if (rules.bossHp) w.bossHp = rules.bossHp;
     // las marcas de las olas especiales que ya pasaron
     if (specials.includes('stampede')) {
       addBodies(w.groups, 'goblin', Math.ceil(MARKS.stampede * 0.6));
@@ -800,6 +813,13 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   // la velocidad de la dificultad, encima de la que traigan
   if (wave.speed !== undefined && wave.speed !== 1) {
     for (const s of order) if (!ENEMIES[s.kind].boss) s.mods = { ...s.mods, speed: (s.mods?.speed ?? 1) * wave.speed };
+  }
+  // la vida de más del golpe 4: a los comunes y al jefe (el élite, el que tiene tamaño, ya la trae)
+  if (wave.extraHp || wave.bossHp) {
+    for (const s of order) {
+      const add = ENEMIES[s.kind].boss ? wave.bossHp ?? 0 : s.mods?.size ? 0 : wave.extraHp ?? 0;
+      if (add) s.mods = { ...s.mods, hp: (s.mods?.hp ?? 0) + add };
+    }
   }
   return order;
 }

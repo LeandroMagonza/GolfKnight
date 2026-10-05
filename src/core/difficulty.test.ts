@@ -3,9 +3,9 @@ import { DIFFICULTY, earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, set
 import { ELITE, HARDEST, INTERMISSION } from './waves';
 
 describe('dificultad', () => {
-  it('diez talentos, quince puntos: la velocidad tiene tres, y olas especiales, apoyos y más con poder, dos', () => {
-    expect(TALENTS).toHaveLength(10);
-    expect(MAX_POINTS).toBe(15);
+  it('once talentos, dieciséis puntos: la velocidad tiene tres, y olas especiales, apoyos y más con poder, dos', () => {
+    expect(TALENTS).toHaveLength(11);
+    expect(MAX_POINTS).toBe(16);
     expect(TALENTS.filter((t) => t.levels.length === 3).map((t) => t.id)).toEqual(['speed']);
     expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['powered', 'special', 'support']);
     for (const t of TALENTS) for (const text of t.levels) expect(text(), t.id).not.toBe('');
@@ -21,7 +21,8 @@ describe('dificultad', () => {
     expect(easy.hard.recharge).toBeGreaterThan(1);
     expect(easy.eliteHp).toEqual(ELITE.hp.map((h) => h - 2));
     const all = Object.fromEntries(TALENTS.map((t) => [t.id, t.levels.length]));
-    const hard = rulesFor(all);
+    // el golpe 4 es aparte: no existía antes del 3/10
+    const hard = rulesFor({ ...all, fourth: 0 });
     // lo mismo que la de antes del 3/10 en todo, salvo que va más rápido, descansa menos y la mitad trae poder
     expect({ ...hard, speed: 1, rest: INTERMISSION, share: HARDEST.share }).toEqual(HARDEST);
     expect(hard.speed).toBeGreaterThan(1);
@@ -34,6 +35,15 @@ describe('dificultad', () => {
     expect(rulesFor({ special: 9 }).specials).toBe(2);
     // un solo punto en poderes más duros pone todo: escudos hasta 3 y la recarga de siempre
     expect(rulesFor({ powers: 1 }).hard).toEqual(HARDEST.hard);
+  });
+
+  it('el golpe 4: lo prende, y todos traen vida de más (los élites y el jefe, más)', () => {
+    const off = rulesFor({});
+    const on = rulesFor({ fourth: 1 });
+    expect(off).toMatchObject({ fourth: false, extraHp: 0, bossHp: 0 });
+    expect(on).toMatchObject({ fourth: true, extraHp: DIFFICULTY.fourthHp, bossHp: DIFFICULTY.fourthBossHp });
+    expect(on.eliteHp).toEqual(off.eliteHp.map((h) => h + DIFFICULTY.fourthEliteHp));
+    expect(DIFFICULTY.fourthEliteHp).toBeGreaterThan(DIFFICULTY.fourthHp);
   });
 
   it('sin el talento se juega en el campo liso', () => {

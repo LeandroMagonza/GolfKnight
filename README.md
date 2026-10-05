@@ -316,7 +316,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 Cada partida ganada **con todos los puntos puestos** da un punto de dificultad, y cada punto puesto hace
 la partida más difícil. Se reparten como uno quiera en un menú entre partidas (en la pantalla de inicio,
 con el primer punto, y en el cartel del final), y se pueden mover cuando se quiera: vale para la próxima
-partida. Se guarda en el navegador. Son 15 puntos en 10 talentos. En el juego, ganar un punto se anuncia
+partida. Se guarda en el navegador. Son 16 puntos en 11 talentos. En el juego, ganar un punto se anuncia
 como «¡Desbloqueaste el nivel N de dificultad!».
 
 **El cartel del final** (`src/endscreen.ts`): el título entra de golpe, el puntaje cuenta hacia arriba
@@ -338,6 +338,7 @@ aunque solo se mande cuando corresponde.
 | Élites más duros | +2 de vida (sin el punto, el élite trae 2 menos) |
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
 | Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
+| Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +2 y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga) |
 
 Con todo puesto es la partida de antes del 3/10, más rápida y con menos descanso, y con dos olas especiales
 que dejan marca en vez de tres. Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas

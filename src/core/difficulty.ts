@@ -7,9 +7,10 @@
 // con menos vida y el jefe con enemigos comunes. Con todos los puntos puestos es más difícil que la de
 // antes del 3/10.
 
+import { FOURTH } from './clubs';
 import { ELITE, INTERMISSION, type RunRules } from './waves';
 
-export type TalentId = 'stack' | 'special' | 'support' | 'powers' | 'speed' | 'terrain' | 'powered' | 'elite' | 'escort' | 'rest';
+export type TalentId = 'stack' | 'special' | 'support' | 'powers' | 'speed' | 'terrain' | 'powered' | 'elite' | 'escort' | 'rest' | 'fourth';
 
 export interface Talent {
   id: TalentId;
@@ -26,6 +27,8 @@ export interface Talent {
  *   del escurridizo y el bendito. Los dos van con el mismo punto.
  * - eliteHpLess: cuánta vida de más le sacan al élite (sobre ELITE.hp).
  * - rest: segundos de descanso entre oleadas.
+ * - fourthHp, fourthEliteHp, fourthBossHp: el golpe 4 (ver FOURTH en core/clubs), la vida de más que
+ *   traen con el talento los comunes, los élites y el jefe. Es el único talento que también te da algo.
  */
 export const DIFFICULTY = {
   // tres puntos de velocidad (3/10): sin puntos ×0.76, y el tercero llega a lo que antes era el segundo
@@ -35,6 +38,9 @@ export const DIFFICULTY = {
   recharge: [1.6, 1],
   eliteHpLess: [2, 0],
   rest: [INTERMISSION, 4],
+  fourthHp: 1,
+  fourthEliteHp: 2,
+  fourthBossHp: 8,
 };
 
 /** Una fracción como se dice: un cuarto, un tercio. */
@@ -54,6 +60,10 @@ export const TALENTS: Talent[] = [
   { id: 'elite', name: 'Élites más duros', levels: [() => `Los élites tienen ${DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]} de vida más`] },
   { id: 'escort', name: 'Escolta del jefe', levels: [() => 'El jefe viene con enemigos con poderes'] },
   { id: 'rest', name: 'Sin respiro', levels: [() => 'Menos descanso entre oleadas'] },
+  { id: 'fourth', name: 'Golpe 4', levels: [
+    () => `En el medio del rojo aparece el golpe 4: pega ${FOURTH.bonus} más que el 3, y entre los dos duran lo que el 3 de siempre. `
+      + `A cambio, los enemigos traen ${DIFFICULTY.fourthHp} de vida más, los élites ${DIFFICULTY.fourthEliteHp} y el jefe ${DIFFICULTY.fourthBossHp}`,
+  ] },
 ];
 const BY_ID = Object.fromEntries(TALENTS.map((t) => [t.id, t])) as Record<TalentId, Talent>;
 
@@ -85,6 +95,7 @@ const at = (table: number[], level: number) => table[Math.min(level, table.lengt
 /** Lo que la dificultad elegida cambia en la partida. */
 export function rulesFor(picks: Picks): RunRules {
   const lv = (id: TalentId) => levelOf(picks, id);
+  const fourth = lv('fourth') >= 1;
   return {
     stack: lv('stack') >= 1,
     specials: lv('special'),
@@ -92,9 +103,12 @@ export function rulesFor(picks: Picks): RunRules {
     hard: { cap: at(DIFFICULTY.cap, lv('powers')), recharge: at(DIFFICULTY.recharge, lv('powers')) },
     speed: at(DIFFICULTY.speed, lv('speed')),
     share: at(DIFFICULTY.share, lv('powered')),
-    eliteHp: ELITE.hp.map((hp) => Math.max(0, hp - at(DIFFICULTY.eliteHpLess, lv('elite')))),
+    eliteHp: ELITE.hp.map((hp) => Math.max(0, hp - at(DIFFICULTY.eliteHpLess, lv('elite'))) + (fourth ? DIFFICULTY.fourthEliteHp : 0)),
     escort: lv('escort') >= 1,
     rest: at(DIFFICULTY.rest, lv('rest')),
+    fourth,
+    extraHp: fourth ? DIFFICULTY.fourthHp : 0,
+    bossHp: fourth ? DIFFICULTY.fourthBossHp : 0,
   };
 }
 

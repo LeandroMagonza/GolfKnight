@@ -288,6 +288,29 @@ describe('waves', () => {
     }
   });
 
+  it('con el golpe 4 todos traen vida de más: los comunes y el jefe acá, el élite en su vida de élite', () => {
+    const rules = rulesFor({ fourth: 1 });
+    const run = buildRun(seeded(9), rules);
+    let bosses = 0;
+    for (const w of run.waves) {
+      const plain = spawnOrder({ ...w, extraHp: 0, bossHp: 0 }, seeded(5));
+      const more = spawnOrder(w, seeded(5));
+      expect(more.map((o) => o.kind)).toEqual(plain.map((o) => o.kind));
+      more.forEach((o, i) => {
+        const add = ENEMIES[o.kind].boss ? DIFFICULTY.fourthBossHp : o.mods?.size ? 0 : DIFFICULTY.fourthHp;
+        if (ENEMIES[o.kind].boss) bosses++;
+        expect((o.mods?.hp ?? 0) - (plain[i].mods?.hp ?? 0), `${w.title}: ${o.kind}`).toBe(add);
+      });
+    }
+    expect(bosses).toBe(1);
+    // el élite: su vida de élite, más la del golpe 4
+    const off = buildRun(seeded(9), rulesFor({}));
+    for (let s = 0; s < 3; s++) {
+      const e = (run: typeof off) => run.waves[s * 3 + 2].groups.find((g) => g.mods?.size)!;
+      expect(e(run).mods!.hp! - e(off).mods!.hp!).toBe(DIFFICULTY.fourthEliteHp);
+    }
+  });
+
   it('los apoyos: con un punto, uno solo en el último escenario; con dos, desde el segundo', () => {
     for (let r = 1; r <= 20; r++) {
       const one = buildRun(seeded(r), rulesFor({ support: 1 }));

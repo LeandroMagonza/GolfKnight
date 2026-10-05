@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  areaDamageFor, bandOf, BAND_LIMITS, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
-  isLob, QUALITY_FROM, QUALITY_LEVELS, qualityOf,
+  areaDamageFor, bandOf, BAND_LIMITS, CHARGE, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, FOURTH, fourthFrom, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
+  isLob, QUALITY_FROM, QUALITY_LEVELS, qualityMarks, qualityOf, topQuality,
 } from './clubs';
-import { MIN_POWER, PERFECT_FROM } from './swing';
+import { MIN_POWER, PERFECT_FROM, SwingMeter } from './swing';
 import { ENEMIES } from './waves';
 
 describe('palos', () => {
@@ -149,6 +149,42 @@ describe('calidad del golpe', () => {
   it('el nivel más alto es el del swing perfecto, y es una ventana angosta', () => {
     expect(QUALITY_FROM[QUALITY_LEVELS - 1]).toBe(PERFECT_FROM);
     expect(1 - PERFECT_FROM).toBeLessThan(0.1);
+  });
+
+  it('el golpe 4 (talento): el medio del rojo pega 1 más, y el 3 y el 4 juntos duran lo que el 3 solo', () => {
+    expect(topQuality()).toBe(3);
+    FOURTH.on = true;
+    try {
+      expect(topQuality()).toBe(4);
+      expect(qualityOf(QUALITY_FROM[2])).toBe(3);
+      expect(qualityOf(fourthFrom() - 0.001)).toBe(3);
+      expect(qualityOf(fourthFrom())).toBe(4);
+      expect(qualityOf(1)).toBe(4);
+      for (const id of CLUB_ORDER) {
+        for (const meters of [10, 30, 50]) {
+          expect(damageFor(CLUBS[id], meters, 4)).toBe(damageFor(CLUBS[id], meters, 3) + FOURTH.bonus);
+          expect(areaDamageFor(CLUBS[id], meters, 4)).toBe(areaDamageFor(CLUBS[id], meters, 3) + FOURTH.bonus);
+        }
+      }
+      // la barra de verdad, en la primera pasada por arriba: cuánto rato es 3 o 4, y cuánto es 4
+      const m = new SwingMeter();
+      m.start(CHARGE, qualityMarks());
+      const dt = 1 / 20000;
+      let strong = 0;
+      let four = 0;
+      for (let t = 0; t < CHARGE.weak + CHARGE.mid + CHARGE.strong; t += dt) {
+        m.update(dt);
+        const q = qualityOf(m.power);
+        if (q >= 3) strong += dt;
+        if (q === 4) four += dt;
+      }
+      expect(strong).toBeCloseTo(CHARGE.strong, 3);
+      expect(four).toBeCloseTo(CHARGE.strong * FOURTH.share, 3);
+    } finally {
+      FOURTH.on = false;
+    }
+    expect(qualityOf(1)).toBe(3);
+    expect(damageFor(CLUBS.driver, 50, 3)).toBe(CLUBS.driver.damage[2][2]);
   });
 });
 
