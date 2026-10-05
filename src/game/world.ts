@@ -5,6 +5,7 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { BAND_LIMITS } from '../core/clubs';
 import { heightAt, relief } from '../core/terrain';
+import { L } from '../i18n';
 
 /**
  * La línea de los puestos: desde acá se pega, así que es el 0 de las marcas de distancia. Vive acá y
@@ -261,7 +262,7 @@ export class World {
       }
     }
     // el nombre de cada banda, en el medio de su tramo, del lado izquierdo
-    for (const [name, from, to] of [['corta', 0, BAND_LIMITS[0]], ['media', BAND_LIMITS[0], BAND_LIMITS[1]], ['larga', BAND_LIMITS[1], 60]] as const) {
+    for (const [name, from, to] of [[L('corta', 'short'), 0, BAND_LIMITS[0]], [L('media', 'mid'), BAND_LIMITS[0], BAND_LIMITS[1]], [L('larga', 'long'), BAND_LIMITS[1], 60]] as const) {
       const z = TEE_LINE_Z + (from + to) / 2;
       const x = -(FIELD_HALF_WIDTH + 5.2);
       const label = labelSprite(name, '#ffd66b');

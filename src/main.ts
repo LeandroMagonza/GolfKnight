@@ -46,6 +46,7 @@ import { r2, type GameSnap, type Hello } from './net/snapshot';
 import { Abe, BOLT_SLOT, castColor, SPELL_INFO } from './coop/abe';
 import { ABE_SLOTS, BOLT_INFO, boltHint, spellHint, spellSize } from './coop/spells';
 import type { AbeStatus } from './net/spectator';
+import { L } from './i18n';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -121,11 +122,23 @@ let rules = rulesFor(progress.picks);
 FOURTH.on = rules.fourth && !TENNIS_ON;
 let run = buildRun(Math.random, rules);
 const director = new WaveDirector(run.waves, rules.rest);
-const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura', phase: 'Intocable' };
+const POWER_NAMES: Record<ScenarioPower, string> = L(
+  { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura', phase: 'Intocable' },
+  { shield: 'Shield', armor: 'Armor', ethereal: 'Ghost', divine: 'Divine shield', dodge: 'Dodge', regen: 'Regenerates', phase: 'Untouchable' },
+);
+/** Los títulos de las insignias de la partida: un escenario con su poder, y el jefe. */
+const stageTitle = L((n: number, power: string) => `Escenario ${n}: ${power}`, (n: number, power: string) => `Stage ${n}: ${power}`);
+const BOSS_TITLE = L('El jefe', 'The boss');
+/** El cartel grande de cada oleada. */
+const waveTitle = L((n: number) => `Oleada ${n}`, (n: number) => `Wave ${n}`);
+/** El título del cartel del final al ganar (también en el que mira). */
+const VICTORY_TITLE = L('¡Valdehoyo resiste!', 'Valdehoyo stands!');
+/** Abe y los que miran además de él, en la intro y en la pausa. */
+const abeAndWatchers = L((others: number) => `🧙 Abe y ${others} mirando`, (others: number) => `🧙 Abe + ${others} watching`);
 function showRun(): void {
   hud.setRun([
-    ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),
-    { src: badgeImage('skull'), title: 'El jefe' },
+    ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: stageTitle(i + 1, POWER_NAMES[p]) })),
+    { src: badgeImage('skull'), title: BOSS_TITLE },
   ]);
 }
 showRun();
@@ -147,7 +160,7 @@ function paintDifficulty(): void {
   const start = document.getElementById('diffbtn');
   if (start) {
     start.hidden = !on;
-    start.textContent = `Dificultad: nivel ${used(progress.picks)} (de ${progress.points} ganados)`;
+    start.textContent = L(`Dificultad: nivel ${used(progress.picks)} (de ${progress.points} ganados)`, `Difficulty: level ${used(progress.picks)} (of ${progress.points} earned)`);
   }
   const end = document.getElementById('enddiff');
   if (end) end.hidden = !on;
@@ -180,7 +193,7 @@ let recorder: RunRecorder | null = null;
 /** Cómo se anota quién pegó: el cuerpo, y si es élite o hace algo distinto, eso también. */
 function sourceOf(enemy: { stats: { kind: EnemyKind }; size: number; behavior: string } | null, fallback: string): string {
   if (!enemy) return fallback;
-  return `${enemy.size > 1 ? 'élite ' : ''}${enemy.stats.kind}${enemy.behavior !== 'melee' ? ` (${enemy.behavior})` : ''}`;
+  return `${enemy.size > 1 ? 'élite ' : ''}${enemy.stats.kind}${enemy.behavior !== 'melee' ? ` (${enemy.behavior})` : ''}`; // i18n-ok: el registro
 }
 /** La carta, para el registro: clase, cuál y nivel. */
 function cardKey(card: Card): string {
@@ -491,10 +504,14 @@ function updatePreview(): void {
   const plus = (n: number) => (n > 0 ? Math.max(n, floor) + nextShot.bonus + smithBonus : n);
   const damage = plus(damageFor(club, hitAt, quality));
   const areaHit = plus(areaDamageFor(club, hitAt, quality));
-  const echo = nextShot.echoes ? ` · eco ×${nextShot.echoes}` : '';
+  const echo = nextShot.echoes ? L(` · eco ×${nextShot.echoes}`, ` · echo ×${nextShot.echoes}`) : '';
   // lo que dura unos segundos, con lo que le queda
-  const timed = (mightLeft > 0 ? ` · fuerza ${Math.ceil(mightLeft)} s` : '') + (glove ? ` · ${ELEMENT_INFO[glove.element].name.toLowerCase()} ${Math.ceil(glove.left)} s` : '');
-  const dmgLabel = (damage <= 0 && areaHit <= 0 ? 'pifia: no sale' : club.areaDamage && club.pierces ? `${damage} al pegarle · ${areaHit} en área` : `${damage} de daño`) + echo + timed;
+  const timed = (mightLeft > 0 ? L(` · fuerza ${Math.ceil(mightLeft)} s`, ` · might ${Math.ceil(mightLeft)} s`) : '') + (glove ? ` · ${ELEMENT_INFO[glove.element].name.toLowerCase()} ${Math.ceil(glove.left)} s` : '');
+  const dmgLabel = (damage <= 0 && areaHit <= 0
+    ? L('pifia: no sale', 'whiff: no shot')
+    : club.areaDamage && club.pierces
+      ? L(`${damage} al pegarle · ${areaHit} en área`, `${damage} on hit · ${areaHit} area`)
+      : L(`${damage} de daño`, `${damage} damage`)) + echo + timed;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
   const duff = damageFor(club, hitAt, 1) <= 0 && areaDamageFor(club, hitAt, 1) <= 0;
   // tenis: el arco es el del timing, y aparece solo cuando se acerca la pelota (o en el saque)
@@ -502,7 +519,7 @@ function updatePreview(): void {
     const g = tennis.gauge;
     const times = gaugeTimes();
     hud.setMarks(arcLayout(times, times), qualityMarks(), false, [1, 2, 3].map((q) => plus(damageFor(club, hitAt, q))));
-    hud.setMeter(!!g && !ended, g ? gaugePower(g.err, qualityMarks()) : 0, !!g?.locked, g ? (g.inReach ? `a tiro · ${plus(damageFor(club, hitAt, timingQuality(g.err)))} de daño` : 'no llegás') : '', g && g.err > 0 ? 1 : -1);
+    hud.setMeter(!!g && !ended, g ? gaugePower(g.err, qualityMarks()) : 0, !!g?.locked, g ? (g.inReach ? L(`a tiro · ${plus(damageFor(club, hitAt, timingQuality(g.err)))} de daño`, `in reach · ${plus(damageFor(club, hitAt, timingQuality(g.err)))} damage`) : L('no llegás', 'too far')) : '', g && g.err > 0 ? 1 : -1);
     hud.setMeterReach(!g || g.inReach);
     if (g) placeMeter();
   }
@@ -609,25 +626,31 @@ function endInfo(result: 'victory' | 'defeat', title: string, detail: string, le
   }
   const t = recorder?.totals ?? { seconds: gameClock, shots, hits: 0, perfects: 0, damage: 0, abilities: 0, best: 0 };
   const stats: EndStat[] = [
-    { label: 'Oleada', value: result === 'victory' ? director.waveCount : Math.max(1, director.index + 1), of: director.waveCount },
+    { label: L('Oleada', 'Wave'), value: result === 'victory' ? director.waveCount : Math.max(1, director.index + 1), of: director.waveCount },
     // desde que arrancó, sin pausas ni cartas (el registro cuenta desde la primera oleada)
-    { label: 'Tiempo', value: gameClock, kind: 'time' },
-    { label: 'Bajas', value: kills },
-    { label: 'Daño hecho', value: t.damage },
-    { label: 'Puntería', value: t.shots > 0 ? Math.min(100, (100 * t.hits) / t.shots) : 0, kind: 'pct' },
-    { label: 'Golpes perfectos', value: t.perfects },
-    { label: 'Mejor tiro', value: Math.max(1, t.best), unit: t.best > 1 ? 'bajas' : 'baja' },
-    { label: 'Racha sin errar', value: bestStreak, unit: 'tiros' },
-    { label: 'Habilidades', value: t.abilities },
-    { label: 'Puerta', value: gateHp, of: GATE_MAX },
+    { label: L('Tiempo', 'Time'), value: gameClock, kind: 'time' },
+    { label: L('Bajas', 'Kills'), value: kills },
+    { label: L('Daño hecho', 'Damage dealt'), value: t.damage },
+    { label: L('Puntería', 'Accuracy'), value: t.shots > 0 ? Math.min(100, (100 * t.hits) / t.shots) : 0, kind: 'pct' },
+    { label: L('Golpes perfectos', 'Perfect hits'), value: t.perfects },
+    { label: L('Mejor tiro', 'Best shot'), value: Math.max(1, t.best), unit: t.best > 1 ? L('bajas', 'kills') : L('baja', 'kill') },
+    { label: L('Racha sin errar', 'Hit streak'), value: bestStreak, unit: L('tiros', 'shots') },
+    { label: L('Habilidades', 'Abilities'), value: t.abilities },
+    { label: L('Puerta', 'Gate'), value: gateHp, of: GATE_MAX },
   ];
   return {
     result, title, detail, score, best: Math.max(before, record ? score : 0), record, stats, earned,
-    level: progress.points > 0 ? `Dificultad: jugaste en el nivel ${level} · tenés ${progress.points} de ${MAX_POINTS} desbloqueados` : '',
+    level: progress.points > 0
+      ? L(`Dificultad: jugaste en el nivel ${level} · tenés ${progress.points} de ${MAX_POINTS} desbloqueados`, `Difficulty: you played level ${level} · ${progress.points} of ${MAX_POINTS} unlocked`)
+      : '',
   };
 }
 
-function endGame(result: 'victory' | 'defeat', title: string, detail: string): void {
+/**
+ * Termina la partida. `title` y `detail` van al cartel, en el idioma del jugador; `cause` es lo que guarda
+ * el registro: siempre en español (el `detail` de siempre), así se comparan las partidas de los dos idiomas.
+ */
+function endGame(result: 'victory' | 'defeat', title: string, detail: string, cause: string): void {
   if (ended) return;
   ended = result;
   player.cancelSwing();
@@ -643,13 +666,13 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string): v
   if (earned) saveProgress(progress);
   paintDifficulty();
   const earnedText = !earned ? '' : progress.points === 1
-    ? '¡Desbloqueaste tu primer nivel de dificultad! Elegí en Dificultad qué se pone más difícil'
-    : `¡Desbloqueaste el nivel ${progress.points} de dificultad!`;
+    ? L('¡Desbloqueaste tu primer nivel de dificultad! Elegí en Dificultad qué se pone más difícil', 'You unlocked your first difficulty level! Pick what gets harder in Difficulty')
+    : L(`¡Desbloqueaste el nivel ${progress.points} de dificultad!`, `You unlocked difficulty level ${progress.points}!`);
   const info = endInfo(result, title, detail, level, earnedText);
   // al ganar, el cartel espera a que se vea el festejo: tapa la cancha con un velo oscuro
   if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(info); }, VICTORY_CARD_DELAY_MS);
   else hud.showEnd(info);
-  recorder?.finish(result, { cause: detail, score, hp: player.hp, gate: gateHp, build: buildForLog() });
+  recorder?.finish(result, { cause, score, hp: player.hp, gate: gateHp, build: buildForLog() });
   if (result === 'victory') audio.victory();
   else audio.defeat();
 }
@@ -681,12 +704,12 @@ horde.onEvent = (e) => {
     }
     case 'armored': {
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, 'blindado', 'hurt');
+      hud.float(s.x, s.y, L('blindado', 'armored'), 'hurt');
       break;
     }
     case 'frozen': {
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, '❄ congelado', '');
+      hud.float(s.x, s.y, L('❄ congelado', '❄ frozen'), '');
       audio.frost();
       break;
     }
@@ -702,13 +725,19 @@ horde.onEvent = (e) => {
       audio.growl();
       break;
     case 'playerHit': {
-      recorder?.hurt(e.amount, sourceOf(e.enemy, ricochetHit ? 'rebote del escudo' : 'hechizo'), false);
+      recorder?.hurt(e.amount, sourceOf(e.enemy, ricochetHit ? 'rebote del escudo' : 'hechizo'), false); // i18n-ok: el registro
       if (godMode.godPlayer) player.hp = player.maxHp;
       audio.hurt();
       shake = Math.max(shake, e.enemy?.grabbing ? 0.1 : 0.3);
       const s = toScreen(player.position, 2);
       hud.float(s.x, s.y, Number.isFinite(e.amount) ? `-${e.amount}` : '☠', 'hurt');
-      if (!player.alive) endGame('defeat', 'Caíste en combate', (e.enemy?.size ?? 1) > 1 ? 'Te atropelló el élite' : 'Valdehoyo se quedó sin golfista');
+      if (!player.alive) {
+        const elite = (e.enemy?.size ?? 1) > 1;
+        const cause = elite ? 'Te atropelló el élite' : 'Valdehoyo se quedó sin golfista'; // i18n-ok: el registro, en español
+        endGame('defeat', L('Caíste en combate', 'You fell in battle'), elite
+          ? L('Te atropelló el élite', 'The elite ran you over')
+          : L('Valdehoyo se quedó sin golfista', 'Valdehoyo ran out of golfers'), cause);
+      }
       break;
     }
     case 'gateHit':
@@ -718,7 +747,13 @@ horde.onEvent = (e) => {
       world.flashDoor();
       hud.gateAlert();
       // el élite que entra la tira abajo de una, le quede la vida que le quede
-      if (gateHp <= 0) endGame('defeat', 'La puerta cayó', e.enemy.size > 1 ? 'Entró el élite' : 'Las hordas entraron a Valdehoyo');
+      if (gateHp <= 0) {
+        const elite = e.enemy.size > 1;
+        const cause = elite ? 'Entró el élite' : 'Las hordas entraron a Valdehoyo'; // i18n-ok: el registro, en español
+        endGame('defeat', L('La puerta cayó', 'The gate fell'), elite
+          ? L('Entró el élite', 'The elite got in')
+          : L('Las hordas entraron a Valdehoyo', 'The hordes stormed Valdehoyo'), cause);
+      }
       break;
     case 'trample': {
       // lo atropelló y murió en el choque: ese enemigo ya no llega a la puerta
@@ -729,7 +764,7 @@ horde.onEvent = (e) => {
       // entró por la puerta: una nube de polvo donde estaba, y el cartel del daño
       effects.explosion(new THREE.Vector3(e.enemy.position.x, 0.8, e.enemy.position.z), 1.6, 0xc9b38a);
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, Number.isFinite(e.enemy.gateDamage) ? `puerta -${e.enemy.gateDamage}` : 'puerta ☠', 'hurt');
+      hud.float(s.x, s.y, Number.isFinite(e.enemy.gateDamage) ? L(`puerta -${e.enemy.gateDamage}`, `gate -${e.enemy.gateDamage}`) : L('puerta ☠', 'gate ☠'), 'hurt');
       break;
     }
     case 'explosion':
@@ -739,7 +774,7 @@ horde.onEvent = (e) => {
       break;
     case 'immune': {
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, 'inmune', 'hurt');
+      hud.float(s.x, s.y, L('inmune', 'immune'), 'hurt');
       break;
     }
     case 'shielded': {
@@ -751,7 +786,7 @@ horde.onEvent = (e) => {
       audio.growl();
       audio.frost();
       effects.frost(player.position, 1.4);
-      hud.feedback('¡El alma en pena te congeló!', 'bad');
+      hud.feedback(L('¡El alma en pena te congeló!', 'The wraith froze you!'), 'bad');
       break;
     case 'release':
       // agarra una vez y se va
@@ -785,11 +820,11 @@ horde.onEvent = (e) => {
     case 'mound':
       shake = Math.max(shake, 0.12);
       hud.feedback(e.settled
-        ? 'La loma quedó para siempre. El geomante va para la puerta'
-        : '¡El geomante levanta la tierra! Matalo antes de que termine, o la loma queda', 'bad');
+        ? L('La loma quedó para siempre. El geomante va para la puerta', 'The hill is here to stay. The geomancer heads for the gate')
+        : L('¡El geomante levanta la tierra! Matalo antes de que termine, o la loma queda', "The geomancer is raising a hill! Kill him before he's done or it stays"), 'bad');
       break;
     case 'banner':
-      hud.feedback(e.up ? '¡La bandera en alto! Todos tienen 1 de vida más' : 'Cayó la bandera', e.up ? 'bad' : 'good');
+      hud.feedback(e.up ? L('¡La bandera en alto! Todos tienen 1 de vida más', 'Banner up! They all get +1 HP') : L('Cayó la bandera', 'Banner down'), e.up ? 'bad' : 'good');
       break;
   }
 };
@@ -831,7 +866,7 @@ balls.onEvent = (e) => {
       audio.explosion();
       audio.thud();
       if (e.pos.distanceTo(player.position) < 16) shake = Math.max(shake, 0.2);
-      if (e.hits > 1) hud.feedback(`¡Le pegó a ${e.hits}!`, 'good');
+      if (e.hits > 1) hud.feedback(L(`¡Le pegó a ${e.hits}!`, `Hit ${e.hits} at once!`), 'good');
       break;
     case 'bounce':
       audio.bounce();
@@ -847,7 +882,7 @@ balls.onEvent = (e) => {
     case 'blocked': {
       audio.bounce();
       const s = toScreen(e.enemy.position, e.enemy.height);
-      hud.float(s.x, s.y, e.warded ? 'inmune' : '¡Bloqueado!', 'hurt');
+      hud.float(s.x, s.y, e.warded ? L('inmune', 'immune') : L('¡Bloqueado!', 'Blocked!'), 'hurt');
       break;
     }
     case 'ricochet': {
@@ -875,7 +910,7 @@ balls.onEvent = (e) => {
       // el doblete se canta (y suma) en el acto, cuando cae el segundo; el tercero suma otra vez
       if (e.ability || e.kills < 2) break;
       recorder?.extraKill(e.kills);
-      const name = MULTI_KILL[e.kills] ?? `¡${e.kills} de un tiro!`;
+      const name = MULTI_KILL[e.kills] ?? L(`¡${e.kills} de un tiro!`, `${e.kills} in one shot!`);
       // el albañil y el herrero: las bajas de más de un mismo tiro. Matar para avanzar es obligatorio;
       // matar a varios de un tiro es lo que se les pide
       const progress: string[] = [];
@@ -906,7 +941,7 @@ abilities.onEvent = (e) => {
       break;
     case 'swallow':
       audio.thud();
-      hud.feedback('¡Al hoyo!', 'good');
+      hud.feedback(L('¡Al hoyo!', 'Hole in one!'), 'good');
       break;
     case 'bump':
       audio.thud();
@@ -966,8 +1001,11 @@ function castAbility(index: number): void {
   if (result === 'ok' && ABILITIES[slot.id].range > 0 && ABILITIES[slot.id].element !== 'ghost') horde.dodgeAim(tee, player.aimDir);
   if (result === 'ok') recorder?.ability();
   // el lugar vacío no dice nada: no hay nada que tirar
-  if (result === 'cooling') hud.feedback(`${ABILITIES[slot.id].name} recargando: ${abilities.cooldowns[index].toFixed(1)} s`, 'neutral');
-  else if (result === 'blocked') hud.feedback(ABILITIES[slot.id].kind === 'melee' ? 'En pleno swing no hay palazo' : 'No hay palo para tirar ahora', 'neutral');
+  if (result === 'cooling') {
+    const name = ABILITIES[slot.id].name;
+    const left = abilities.cooldowns[index].toFixed(1);
+    hud.feedback(L(`${name} recargando: ${left} s`, `${name} on cooldown: ${left} s`), 'neutral');
+  } else if (result === 'blocked') hud.feedback(ABILITIES[slot.id].kind === 'melee' ? L('En pleno swing no hay palazo', "Can't whack mid-swing") : L('No hay palo para tirar ahora', "Can't shoot right now"), 'neutral');
 }
 
 // ---------- cartas y mejoras ----------
@@ -988,9 +1026,9 @@ function masonStep(): string {
   if (masonPoints % every === 0 && (gateHp < GATE_MAX || player.hp < player.maxHp)) {
     gateHp = Math.min(GATE_MAX, gateHp + 1);
     player.heal(1);
-    return '¡Los albañiles! La puerta +1 y vos +1';
+    return L('¡Los albañiles! La puerta +1 y vos +1', 'The masons! Gate +1, you +1');
   }
-  return `Albañil ${masonPoints % every || every}/${every}`;
+  return L(`Albañil ${masonPoints % every || every}/${every}`, `Mason ${masonPoints % every || every}/${every}`);
 }
 
 /** Una baja de más para el perfecto de regalo: cada tantas, el próximo tiro arranca clavado. */
@@ -999,9 +1037,9 @@ function giftStep(): string {
   giftPoints++;
   if (giftPoints % every === 0) {
     player.giftPerfect = true;
-    return '¡Próximo tiro: perfecto!';
+    return L('¡Próximo tiro: perfecto!', 'Next shot: perfect!');
   }
-  return `Perfecto ${giftPoints % every}/${every}`;
+  return L(`Perfecto ${giftPoints % every}/${every}`, `Perfect ${giftPoints % every}/${every}`);
 }
 
 /** Una baja de más para el herrero: cada tantas, la próxima pelota pega más. Devuelve qué decir. */
@@ -1010,12 +1048,15 @@ function smithStep(): string {
   smithPoints++;
   if (smithPoints % every === 0) {
     smithBonus += PERK_NUMBERS.smithBonus;
-    return `¡El herrero! Próxima pelota +${smithBonus}`;
+    return L(`¡El herrero! Próxima pelota +${smithBonus}`, `The smith! Next ball +${smithBonus}`);
   }
-  return `Herrero ${smithPoints % every}/${every}`;
+  return L(`Herrero ${smithPoints % every}/${every}`, `Smith ${smithPoints % every}/${every}`);
 }
 /** Cómo se canta un tiro que mata a varios; de 5 para arriba, «¡N de un tiro!». */
-const MULTI_KILL: Record<number, string> = { 2: '¡Doblete!', 3: '¡Triplete!', 4: '¡Cuádruple!' };
+const MULTI_KILL: Record<number, string> = L(
+  { 2: '¡Doblete!', 3: '¡Triplete!', 4: '¡Cuádruple!' },
+  { 2: 'Double!', 3: 'Triple!', 4: 'Quadruple!' },
+);
 /**
  * Tiros seguidos del puesto **sin errar** (le pegaron a alguien, maten o no): el ritmo y «En racha».
  * Suma cuando el tiro conecta y vuelve a 0 cuando uno termina sin pegarle a nadie.
@@ -1030,8 +1071,8 @@ function setCleanStreak(n: number): void {
   cleanStreak = n;
   bestStreak = Math.max(bestStreak, n);
   const hot = hotStreakOn();
-  if (hot && !wasHot) hud.feedback('¡En racha!', 'good');
-  else if (!hot && wasHot) hud.feedback('Se cortó la racha', 'bad');
+  if (hot && !wasHot) hud.feedback(L('¡En racha!', 'Hot streak!'), 'good');
+  else if (!hot && wasHot) hud.feedback(L('Se cortó la racha', 'Streak broken'), 'bad');
   updateStreakEffects();
 }
 
@@ -1094,21 +1135,21 @@ function applyCard(card: Card): void {
   if (card.kind === 'ability') {
     // desde el panel se puede pedir una quinta: no hay lugar, y se avisa en vez de perderla callada
     if (!abilities.learn(card.id)) {
-      hud.feedback(`${d.name}: no hay lugar (o ya está en el nivel máximo)`, 'neutral');
+      hud.feedback(L(`${d.name}: no hay lugar (o ya está en el nivel máximo)`, `${d.name}: no room (or already max level)`), 'neutral');
       return;
     }
     const slot = abilities.slots.findIndex((s) => s.id === card.id);
-    hud.feedback(card.level > 1 ? `${d.name}: nivel ${card.level}` : `${d.name} en la ${ABILITY_KEYS[slot]}`, 'good');
+    hud.feedback(card.level > 1 ? L(`${d.name}: nivel ${card.level}`, `${d.name}: level ${card.level}`) : L(`${d.name} en la ${ABILITY_KEYS[slot]}`, `${d.name} on ${ABILITY_KEYS[slot]}`), 'good');
   } else if (card.kind === 'perk') {
     perks[card.id] = (perks[card.id] ?? 0) + 1;
     applyPerks();
     hud.feedback(d.name, 'good');
   } else if (card.id === 'gate') {
     gateHp = Math.min(GATE_MAX, gateHp + HEALS.gate);
-    hud.feedback('Los albañiles remiendan la puerta', 'good');
+    hud.feedback(L('Los albañiles remiendan la puerta', 'The masons patch up the gate'), 'good');
   } else {
     player.heal(HEALS.player);
-    hud.feedback('Recuperás el aliento', 'good');
+    hud.feedback(L('Recuperás el aliento', 'You catch your breath'), 'good');
   }
 }
 
@@ -1153,7 +1194,10 @@ function medkitHeal(): void {
   const hp = Math.min(player.maxHp - player.hp, n * PERK_NUMBERS.medkitPlayer);
   gateHp += gate;
   player.heal(hp);
-  if (gate > 0 || hp > 0) hud.feedback(`Botiquín: ${[gate ? `la puerta +${gate}` : '', hp ? `vos +${hp}` : ''].filter(Boolean).join(' · ')}`, 'good');
+  if (gate > 0 || hp > 0) {
+    const parts = [gate ? L(`la puerta +${gate}`, `gate +${gate}`) : '', hp ? L(`vos +${hp}`, `you +${hp}`) : ''];
+    hud.feedback(`${L('Botiquín', 'First-aid kit')}: ${parts.filter(Boolean).join(' · ')}`, 'good');
+  }
 }
 
 /** Al terminar cada escenario: la puerta recupera `SCENARIO_HEAL.gate` y el golfista, toda su vida. */
@@ -1162,7 +1206,9 @@ function scenarioHeal(): void {
   const gate = Math.min(GATE_MAX - gateHp, SCENARIO_HEAL.gate);
   gateHp += gate;
   player.heal(player.maxHp);
-  hud.feedback(gate > 0 ? `Fin del escenario: la puerta +${gate}, y vos a pleno` : 'Fin del escenario: vos a pleno', 'good');
+  hud.feedback(gate > 0
+    ? L(`Fin del escenario: la puerta +${gate}, y vos a pleno`, `Stage cleared: gate +${gate}, you at full HP`)
+    : L('Fin del escenario: vos a pleno', 'Stage cleared: you at full HP'), 'good');
 }
 
 /** Carcaj: vas a pegar donde no hay pelota y te aparece una a los pies, si está lista. */
@@ -1173,7 +1219,7 @@ function useQuiver(): void {
     quiver.ready = false;
     quiver.timer = PERK_NUMBERS.quiverCooldown;
     pocket.add(1);
-    hud.feedback('Carcaj', 'neutral');
+    hud.feedback(L('Carcaj', 'Quiver'), 'neutral');
     return;
   }
   if (!perks.quiver || !quiver.ready || !player.atSpot || hasBallHere()) return;
@@ -1181,7 +1227,7 @@ function useQuiver(): void {
   quiver.timer = PERK_NUMBERS.quiverCooldown;
   tees.place(player.spotIndex);
   audio.bounce();
-  hud.feedback('Carcaj', 'neutral');
+  hud.feedback(L('Carcaj', 'Quiver'), 'neutral');
 }
 
 // ---------- modo tenis ----------
@@ -1207,6 +1253,11 @@ function heldRight(): number {
  * Las fichas de las mejoras tomadas, para la columna del HUD: las que saltan solas muestran cuánto les
  * falta, y las rachas, cuánto llevás.
  */
+/** Cuántas bajas de más lleva una mejora que las junta (el albañil, el herrero, el perfecto de regalo). */
+const doubles = L(
+  (points: number, every: number) => `dobletes ${points % every}/${every}`,
+  (points: number, every: number) => `doubles ${points % every}/${every}`,
+);
 function perkStatus(): PerkChip[] {
   const out: PerkChip[] = [];
   for (const id of PERK_LIST) {
@@ -1217,42 +1268,45 @@ function perkStatus(): PerkChip[] {
     switch (id) {
       case 'giftPerfect':
         chip.ready = player.giftReady;
-        chip.status = chip.ready ? '¡listo!' : `dobletes ${giftPoints % PERK_NUMBERS.giftPerfect}/${PERK_NUMBERS.giftPerfect}`;
+        chip.status = chip.ready ? L('¡listo!', 'ready!') : doubles(giftPoints, PERK_NUMBERS.giftPerfect);
         break;
       case 'quiver':
         chip.ready = quiver.ready;
-        chip.status = quiver.ready ? 'lista' : `⟳ ${Math.ceil(quiver.timer)} s`;
+        chip.status = quiver.ready ? L('lista', 'ready') : `⟳ ${Math.ceil(quiver.timer)} s`;
         chip.cooling = quiver.ready ? 0 : quiver.timer / PERK_NUMBERS.quiverCooldown;
         break;
       case 'secondWind': {
         const left = abilities.secondWind.left;
         chip.ready = left <= 0;
-        chip.status = chip.ready ? 'listo' : `⟳ ${Math.ceil(left)} s`;
+        chip.status = chip.ready ? L('listo', 'ready') : `⟳ ${Math.ceil(left)} s`;
         chip.cooling = left / PERK_NUMBERS.secondWindCooldown;
         break;
       }
       case 'rhythm': {
         const k = Math.min(cleanStreak, PERK_NUMBERS.rhythmMax);
-        chip.status = `racha ${k}/${PERK_NUMBERS.rhythmMax}`;
+        chip.status = L(`racha ${k}/${PERK_NUMBERS.rhythmMax}`, `streak ${k}/${PERK_NUMBERS.rhythmMax}`);
         chip.ready = k >= PERK_NUMBERS.rhythmMax;
         break;
       }
       case 'masonStreak':
-        chip.status = `dobletes ${masonPoints % PERK_NUMBERS.masonStreak}/${PERK_NUMBERS.masonStreak}`;
+        chip.status = doubles(masonPoints, PERK_NUMBERS.masonStreak);
         break;
       case 'smithStreak': {
-        const count = `dobletes ${smithPoints % PERK_NUMBERS.smithStreak}/${PERK_NUMBERS.smithStreak}`;
+        const count = doubles(smithPoints, PERK_NUMBERS.smithStreak);
         chip.ready = smithBonus > 0;
-        chip.status = chip.ready ? `¡próxima +${smithBonus}! · ${count}` : count;
+        chip.status = chip.ready ? L(`¡próxima +${smithBonus}! · ${count}`, `next +${smithBonus}! · ${count}`) : count;
         break;
       }
-      case 'medkit':
-        chip.status = `+${n * PERK_NUMBERS.medkitGate} puerta · +${n * PERK_NUMBERS.medkitPlayer} vida`;
+      case 'medkit': {
+        const gate = n * PERK_NUMBERS.medkitGate;
+        const hp = n * PERK_NUMBERS.medkitPlayer;
+        chip.status = L(`+${gate} puerta · +${hp} vida`, `+${gate} gate · +${hp} HP`);
         break;
+      }
       case 'hotStreak': {
         chip.ready = hotStreakOn();
-        const bonus = `+${PERK_NUMBERS.hotStreakAdd} hasta ${PERK_NUMBERS.hotStreakCap}`;
-        chip.status = chip.ready ? `¡en racha! ${bonus}` : `sin errar ${cleanStreak}/${PERK_NUMBERS.hotStreakShots}`;
+        const bonus = L(`+${PERK_NUMBERS.hotStreakAdd} hasta ${PERK_NUMBERS.hotStreakCap}`, `+${PERK_NUMBERS.hotStreakAdd} up to ${PERK_NUMBERS.hotStreakCap}`);
+        chip.status = chip.ready ? L(`¡en racha! ${bonus}`, `hot streak! ${bonus}`) : L(`sin errar ${cleanStreak}/${PERK_NUMBERS.hotStreakShots}`, `no misses ${cleanStreak}/${PERK_NUMBERS.hotStreakShots}`);
         break;
       }
       case 'extraBall':
@@ -1274,7 +1328,9 @@ const echoQueue: { at: number; shot: Shot; range: number; lift: ReturnType<typeo
 
 function dropNextShot(): void {
   if (!nextShot.echoes && !nextShot.bonus) return;
-  hud.feedback(nextShot.echoes && nextShot.bonus ? 'Se perdieron el eco y la potencia' : nextShot.echoes ? 'Se perdió el eco' : 'Se perdió la potencia', 'bad');
+  hud.feedback(nextShot.echoes && nextShot.bonus
+    ? L('Se perdieron el eco y la potencia', 'Echo and boost lost')
+    : nextShot.echoes ? L('Se perdió el eco', 'Echo lost') : L('Se perdió la potencia', 'Boost lost'), 'bad');
   nextShot.echoes = 0;
   nextShot.bonus = 0;
 }
@@ -1330,16 +1386,16 @@ abilities.hooks = {
   fillSpots() {
     if (pocket) {
       for (let i = 0; i < POCKET_RAIN; i++) pocket.toss(player.anchor);
-      hud.feedback(`¡Lluvia de pelotas! +${POCKET_RAIN}`, 'good');
+      hud.feedback(L(`¡Lluvia de pelotas! +${POCKET_RAIN}`, `Ball shower! +${POCKET_RAIN}`), 'good');
       return POCKET_RAIN;
     }
     const n = tees.fillAll();
-    if (n) hud.feedback(`¡Lluvia de pelotas! +${n}`, 'good');
+    if (n) hud.feedback(L(`¡Lluvia de pelotas! +${n}`, `Ball shower! +${n}`), 'good');
     return n;
   },
   startCaddie(seconds: number) {
     caddieLeft = seconds;
-    hud.feedback('¡Caddie dorado!', 'good');
+    hud.feedback(L('¡Caddie dorado!', 'Golden caddie!'), 'good');
   },
   placeClone,
   melee(level: number) {
@@ -1348,20 +1404,22 @@ abilities.hooks = {
   },
   armEcho(shots: number) {
     nextShot.echoes = Math.max(nextShot.echoes, shots);
-    hud.feedback(shots > 1 ? `Eco ×${shots}` : 'Eco', 'good');
+    hud.feedback(shots > 1 ? L(`Eco ×${shots}`, `Echo ×${shots}`) : L('Eco', 'Echo'), 'good');
   },
   armBoost(bonus: number) {
     nextShot.bonus = Math.max(nextShot.bonus, bonus);
-    hud.feedback(`Potencia +${bonus}`, 'good');
+    hud.feedback(L(`Potencia +${bonus}`, `Boost +${bonus}`), 'good');
   },
   startMight(seconds: number) {
     mightLeft = seconds;
-    hud.feedback(`¡Fuerza! Todo pega ${MIGHT.floor} o más`, 'good');
+    hud.feedback(L(`¡Fuerza! Todo pega ${MIGHT.floor} o más`, `Might! Every hit deals ${MIGHT.floor}+`), 'good');
   },
   startGlove(element: Element, level: number, seconds: number) {
     // uno nuevo reemplaza al que estaba: la pelota lleva un solo elemento
     glove = { element, level, left: seconds };
-    hud.feedback(`¡Guante ${ELEMENT_INFO[element].adj}!`, 'good');
+    // en inglés el elemento va adelante: «Fire Glove!»
+    const adj = ELEMENT_INFO[element].adj;
+    hud.feedback(L(`¡Guante ${adj}!`, `${adj} Glove!`), 'good');
   },
 };
 
@@ -1396,7 +1454,7 @@ function finishTutorial(): void {
   saveTutorialDone();
   for (const id of CLUB_ORDER) player.unlocked.add(id);
   player.setClub(CLUBS.driver);
-  hud.showBanner('¡A defender Valdehoyo!', 'Que no lleguen a la puerta', 2.5);
+  hud.showBanner(L('¡A defender Valdehoyo!', 'Defend Valdehoyo!'), L('Que no lleguen a la puerta', "Don't let them reach the gate"), 2.5);
 }
 
 function dismissCard(): void {
@@ -1436,7 +1494,7 @@ async function startGame(withTutorial = false): Promise<void> {
   if (BOT) {
     const { startBot } = await import('./bot');
     startBot();
-    hud.feedback('Juega el bot', 'neutral');
+    hud.feedback(L('Juega el bot', 'Bot playing'), 'neutral');
   }
 }
 
@@ -1483,7 +1541,7 @@ function makeDebugPanel(): DebugPanel {
         gateHp = GATE_MAX;
       }
       director.goTo(index);
-      hud.showBanner(`Oleada ${index + 1}`, 'saltada desde el panel', 2);
+      hud.showBanner(waveTitle(index + 1), L('saltada desde el panel', 'skipped from the panel'), 2);
     },
     disabled: disabledKinds,
     setCourse(index) {
@@ -1519,7 +1577,7 @@ function makeDebugPanel(): DebugPanel {
 /** El botón (y la N) de todo el sonido: música y efectos, en el que juega y en el que mira. */
 const muteBtn = document.getElementById('muteall') as HTMLButtonElement;
 function showAllSound(): void {
-  muteBtn.textContent = audio.allMuted ? '🔇 Sin sonido (N)' : '🔊 Sonido (N)';
+  muteBtn.textContent = audio.allMuted ? L('🔇 Sin sonido (N)', '🔇 Muted (N)') : L('🔊 Sonido (N)', '🔊 Sound (N)');
 }
 function toggleAllSound(): void {
   audio.toggleAll();
@@ -1548,7 +1606,7 @@ const input = new Input({
     if (tennis) {
       if (player.mode === 'charging') return;
       if (!tennis.press()) {
-        hud.feedback('¡Sin pelota!', 'bad');
+        hud.feedback(L('¡Sin pelota!', 'No ball!'), 'bad');
         return;
       }
       // si todavía no puede (terminando el golpe anterior, aturdido), no hay nada preparado
@@ -1634,10 +1692,10 @@ interface Skin {
 const MODELS = `${import.meta.env.BASE_URL}models/`;
 
 const SKINS: Skin[] = [
-  { id: 'guard2', name: 'Guardia del castillo', url: `${MODELS}player.glb` },
-  { id: 'guard3', name: 'Guardia veterano', url: `${MODELS}player-guard3.glb` },
-  { id: 'knight', name: 'Caballero', url: `${MODELS}dungeon.glb`, mesh: 'Character_Hero_Knight_Male' },
-  { id: 'knightF', name: 'Caballera', url: `${MODELS}dungeon.glb`, mesh: 'Character_Hero_Knight_Female' },
+  { id: 'guard2', name: L('Guardia del castillo', 'Castle guard'), url: `${MODELS}player.glb` },
+  { id: 'guard3', name: L('Guardia veterano', 'Veteran guard'), url: `${MODELS}player-guard3.glb` },
+  { id: 'knight', name: L('Caballero', 'Knight'), url: `${MODELS}dungeon.glb`, mesh: 'Character_Hero_Knight_Male' },
+  { id: 'knightF', name: L('Caballera', 'Lady knight'), url: `${MODELS}dungeon.glb`, mesh: 'Character_Hero_Knight_Female' },
 ];
 const SKIN_KEY = 'gk.skin';
 const PLAYER_HEIGHT = 1.75;
@@ -1711,7 +1769,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
     // la pifia también gasta el eco y la potencia
     dropNextShot();
     audio.duff();
-    hud.feedback('¡Pifia!', 'bad');
+    hud.feedback(L('¡Pifia!', 'Whiff!'), 'bad');
     setCleanStreak(0);
     tutorial?.onDuff();
   };
@@ -1725,7 +1783,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
   };
   p.onWhiff = () => {
     audio.whoosh(0.3);
-    hud.feedback('¡Sin pelota!', 'bad');
+    hud.feedback(L('¡Sin pelota!', 'No ball!'), 'bad');
   };
   p.onShot = (shot) => {
     // tenis: el nivel lo decidió el timing, y quizás es una que volvía
@@ -1735,7 +1793,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
     // el perfecto es el golpe más alto que hay: el 3, o el 4 con su talento
     recorder?.shot(shot.quality >= QUALITY_LEVELS);
     audio.tock(shot.quality >= topQuality());
-    if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? '¡Golpe 4!' : '¡Golpe perfecto!', 'good');
+    if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? L('¡Golpe 4!', 'Hit 4!') : L('¡Golpe perfecto!', 'Perfect hit!'), 'good');
     const range = shotRange(shot.club);
     // la potencia y el herrero van en este tiro, y el eco lo repite igual (con eso incluido). El herrero
     // se gasta recién acá, cuando sale la pelota: cancelar, cambiar de palo o pifiar no lo tocan
@@ -1797,7 +1855,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
     if (targets.length) {
       audio.thud();
       shake = Math.max(shake, 0.12);
-      hud.feedback(targets.length > 1 ? `¡Palazo! ×${targets.length}` : '¡Palazo!', 'neutral');
+      hud.feedback(targets.length > 1 ? L(`¡Palazo! ×${targets.length}`, `Whack! ×${targets.length}`) : L('¡Palazo!', 'Whack!'), 'neutral');
     }
   };
   return p;
@@ -1886,7 +1944,7 @@ loadModels().then(() => {
   if (WATCH) void startWatching(WATCH);
 }).catch((e) => {
   console.error(e);
-  intro.setError('Error cargando modelos');
+  intro.setError(L('Error cargando modelos', 'Error loading models'));
 });
 
 // ---------- espectador (src/net) ----------
@@ -1925,7 +1983,7 @@ const abeOfferEl = abeEl.querySelector('.offer') as HTMLElement;
 const abeNewBtn = abeEl.querySelector('.newspell') as HTMLButtonElement;
 // primero la chispa (el ataque básico, lo que sale si no hay hechizo elegido), y después los cuatro
 // hechizos: 1 a 4 los eligen, Q W E R los tiran ya donde está el mouse
-abeSlotsEl.innerHTML = `<button type="button" class="spell bolt" data-i="${BOLT_SLOT}" style="--c:${`#${BOLT_INFO.color.toString(16).padStart(6, '0')}`}"><span class="icon">${BOLT_INFO.icon}</span><span class="name">${BOLT_INFO.name}</span><span class="lv">básico</span><span class="cd"></span></button>`
+abeSlotsEl.innerHTML = `<button type="button" class="spell bolt" data-i="${BOLT_SLOT}" style="--c:${`#${BOLT_INFO.color.toString(16).padStart(6, '0')}`}"><span class="icon">${BOLT_INFO.icon}</span><span class="name">${BOLT_INFO.name}</span><span class="lv">${L('básico', 'basic')}</span><span class="cd"></span></button>`
   + Array.from({ length: ABE_SLOTS }, (_, i) => `<button type="button" class="spell" data-i="${i}"><span class="icon"></span><span class="name"></span><span class="lv"></span><kbd>${i + 1} · ${ABILITY_KEYS[i]}</kbd><span class="cd"></span></button>`).join('');
 const abeBoltBtn = abeSlotsEl.querySelector('.bolt') as HTMLButtonElement;
 const abeSpellBtns = Array.from(abeSlotsEl.querySelectorAll('.spell:not(.bolt)')) as HTMLButtonElement[];
@@ -1935,6 +1993,8 @@ let abeOfferOpen = true;
 let abeOfferKey = '';
 let abeLast: AbeStatus | null = null;
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+/** El nivel de un hechizo, corto: «nv 2». */
+const spellLevel = L((n: number) => `nv ${n}`, (n: number) => `lv ${n}`);
 abeSlotsEl.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest('button.spell') as HTMLButtonElement | null;
   if (!btn) return;
@@ -1995,7 +2055,9 @@ function showAbe(s: AbeStatus): void {
   abeEl.hidden = false;
   abeEl.classList.toggle('other', !s.abe);
   abeEl.classList.toggle('swap', abeSwap !== null);
-  (abeEl.querySelector('.who') as HTMLElement).textContent = s.abe ? '🧙 Sos Abe, el mago que lo invocó' : 'Mirando · Abe es el primero que entró';
+  (abeEl.querySelector('.who') as HTMLElement).textContent = s.abe
+    ? L('🧙 Sos Abe, el mago que lo invocó', "🧙 You're Abe, the wizard who summoned him")
+    : L('Mirando · Abe es el primero que entró', 'Watching · Abe is the first to join');
   // la chispa: elegida cuando no hay hechizo elegido
   abeBoltBtn.classList.toggle('on', s.selected === BOLT_SLOT && abeSwap === null);
   abeBoltBtn.classList.toggle('ready', s.bolt.ready);
@@ -2007,8 +2069,8 @@ function showAbe(s: AbeStatus): void {
     btn.classList.toggle('ready', !!st?.ready);
     btn.style.setProperty('--c', st ? hex(SPELL_INFO[st.id].color) : '#4a5666');
     (btn.querySelector('.icon') as HTMLElement).textContent = st ? SPELL_INFO[st.id].icon : '·';
-    (btn.querySelector('.name') as HTMLElement).textContent = st ? SPELL_INFO[st.id].name : 'vacío';
-    (btn.querySelector('.lv') as HTMLElement).textContent = st ? `nv ${st.level}` : '';
+    (btn.querySelector('.name') as HTMLElement).textContent = st ? SPELL_INFO[st.id].name : L('vacío', 'empty');
+    (btn.querySelector('.lv') as HTMLElement).textContent = st ? spellLevel(st.level) : '';
     // lo que falta de la recarga tapa el botón, de arriba para abajo
     (btn.querySelector('.cd') as HTMLElement).style.height = st && !st.ready && !s.why ? `${Math.round((100 * st.left) / Math.max(0.1, st.total))}%` : '0';
   });
@@ -2017,24 +2079,35 @@ function showAbe(s: AbeStatus): void {
   const full = s.slots.length >= ABE_SLOTS;
   abeOfferEl.hidden = !offer || !abeOfferOpen;
   abeNewBtn.hidden = !offer || abeOfferOpen;
-  abeNewBtn.textContent = s.picks > 1 ? `✨ ${s.picks} hechizos nuevos` : '✨ Hechizo nuevo';
+  abeNewBtn.textContent = s.picks > 1 ? L(`✨ ${s.picks} hechizos nuevos`, `✨ ${s.picks} new spells`) : L('✨ Hechizo nuevo', '✨ New spell');
   if (offer) {
-    (abeOfferEl.querySelector('.title') as HTMLElement).textContent = abeSwap !== null
-      ? `¿En qué lugar va ${SPELL_INFO[offer.spells[abeSwap]].name} nv ${offer.level}? Tocá el hechizo que reemplaza`
-      : (s.waiting ? '⏳ La oleada espera a que elijas · ' : '')
-        + (full ? `Hechizos de nivel ${offer.level}: elegí uno y reemplazá otro, o quedate como estás` : s.slots.length ? 'Elegí un hechizo nuevo' : 'Elegí tu primer hechizo');
+    let title: string;
+    if (abeSwap !== null) {
+      const name = SPELL_INFO[offer.spells[abeSwap]].name;
+      title = L(`¿En qué lugar va ${name} nv ${offer.level}? Tocá el hechizo que reemplaza`, `Where does ${name} lv ${offer.level} go? Tap the spell it replaces`);
+    } else {
+      title = (s.waiting ? L('⏳ La oleada espera a que elijas · ', '⏳ The wave is waiting for you · ') : '')
+        + (full
+          ? L(`Hechizos de nivel ${offer.level}: elegí uno y reemplazá otro, o quedate como estás`, `Level ${offer.level} spells: pick one to replace another, or keep yours`)
+          : s.slots.length ? L('Elegí un hechizo nuevo', 'Pick a new spell') : L('Elegí tu primer hechizo', 'Pick your first spell'));
+    }
+    (abeOfferEl.querySelector('.title') as HTMLElement).textContent = title;
     (abeOfferEl.querySelector('.later') as HTMLElement).hidden = s.waiting;
     (abeOfferEl.querySelector('.cards') as HTMLElement).innerHTML = offer.spells.map((id, c) => {
       const info = SPELL_INFO[id];
-      return `<button type="button" class="card${abeSwap === c ? ' on' : ''}" data-c="${c}" style="--c:${hex(info.color)}"><span class="icon">${info.icon}</span><span class="name">${info.name} <small>nv ${offer.level}</small></span><span class="shape">${spellSize(id, offer.level)}</span><span class="hint">${spellHint(id, offer.level)}</span></button>`;
+      return `<button type="button" class="card${abeSwap === c ? ' on' : ''}" data-c="${c}" style="--c:${hex(info.color)}"><span class="icon">${info.icon}</span><span class="name">${info.name} <small>${spellLevel(offer.level)}</small></span><span class="shape">${spellSize(id, offer.level)}</span><span class="hint">${spellHint(id, offer.level)}</span></button>`;
     }).join('');
     (abeOfferEl.querySelector('.keep') as HTMLElement).hidden = !full;
   }
   const sel = s.selected === BOLT_SLOT ? null : s.slots[s.selected];
-  (abeEl.querySelector('.help') as HTMLElement).textContent = abeSwap !== null ? 'Tocá abajo el lugar donde va'
+  (abeEl.querySelector('.help') as HTMLElement).textContent = abeSwap !== null ? L('Tocá abajo el lugar donde va', 'Tap the slot below where it goes')
     : s.why ?? (sel
-      ? `${SPELL_INFO[sel.id].name}: ${spellHint(sel.id, sel.level)} · ${sel.ready ? 'el próximo toque lo tira (tocá el botón otra vez para volver a la chispa)' : `listo en ${Math.ceil(sel.left)} s`}`
-      : `Tocá el piso: ${BOLT_INFO.name.toLowerCase()}, ${boltHint().toLowerCase()}. ${s.slots.length ? 'Elegí un hechizo y el próximo toque lo tira' : offer ? 'Elegí arriba tu primer hechizo' : ''}`);
+      ? `${SPELL_INFO[sel.id].name}: ${spellHint(sel.id, sel.level)} · ${sel.ready
+        ? L('el próximo toque lo tira (tocá el botón otra vez para volver a la chispa)', 'your next tap casts it (tap the button again to go back to the spark)')
+        : L(`listo en ${Math.ceil(sel.left)} s`, `ready in ${Math.ceil(sel.left)} s`)}`
+      : `${L('Tocá el piso', 'Tap the ground')}: ${BOLT_INFO.name.toLowerCase()}, ${boltHint().toLowerCase()}. ${s.slots.length
+        ? L('Elegí un hechizo y el próximo toque lo tira', 'Pick a spell and your next tap casts it')
+        : offer ? L('Elegí arriba tu primer hechizo', 'Pick your first spell above') : ''}`);
 }
 
 /** El que mira: dónde cae en el piso un punto de la pantalla (-1..1). */
@@ -2125,7 +2198,7 @@ async function startHosting(code: string): Promise<string> {
     host.onWatchers = (n) => {
       watchersEl.hidden = n === 0;
       // el primero que entra es Abe, el mago que te invocó; los demás miran
-      watchersEl.textContent = n === 1 ? '🧙 Abe está con vos' : `🧙 Abe y ${n - 1} mirando`;
+      watchersEl.textContent = n === 1 ? L('🧙 Abe está con vos', '🧙 Abe is with you') : abeAndWatchers(n - 1);
       intro.setWatchers(n);
       setPauseWatchers(n);
       showNetControls();
@@ -2154,7 +2227,9 @@ function showNetControls(): void {
   for (const el of netControls) {
     el.hidden = !netHost;
     (el.querySelector('.kick') as HTMLElement).hidden = !netHost?.hasAbe;
-    (el.querySelector('.private') as HTMLElement).textContent = netHost?.isPrivate ? '🔒 Privada: no entra nadie más' : '🔓 Abierta: entra el que tenga el enlace';
+    (el.querySelector('.private') as HTMLElement).textContent = netHost?.isPrivate
+      ? L('🔒 Privada: no entra nadie más', '🔒 Private: nobody else can join')
+      : L('🔓 Abierta: entra el que tenga el enlace', '🔓 Open: anyone with the link can join');
   }
 }
 for (const el of netControls) {
@@ -2196,7 +2271,9 @@ function showPauseInvite(link: string): void {
   (pauseInvite.querySelector('input') as HTMLInputElement).value = link;
 }
 function setPauseWatchers(n: number): void {
-  (pauseInvite.querySelector('.who') as HTMLElement).textContent = n === 0 ? 'Todavía no entró nadie: puede entrar ahora, con la partida empezada.' : n === 1 ? '🧙 Abe ya está en la partida' : `🧙 Abe y ${n - 1} mirando`;
+  (pauseInvite.querySelector('.who') as HTMLElement).textContent = n === 0
+    ? L('Todavía no entró nadie: puede entrar ahora, con la partida empezada.', "Nobody's joined yet: they can still join mid-game.")
+    : n === 1 ? L('🧙 Abe ya está en la partida', '🧙 Abe is already in the game') : abeAndWatchers(n - 1);
 }
 setPauseWatchers(0);
 pauseInviteOpen.addEventListener('click', () => {
@@ -2207,7 +2284,7 @@ pauseInviteOpen.addEventListener('click', () => {
   }).catch((e) => {
     console.error(e);
     pauseInviteOpen.disabled = false;
-    pauseInviteOpen.textContent = 'No se pudo abrir la sala. Probar de nuevo';
+    pauseInviteOpen.textContent = L('No se pudo abrir la sala. Probar de nuevo', "Couldn't open the room. Try again");
   });
 });
 pauseInvite.querySelector('.copy')!.addEventListener('click', (e) => {
@@ -2217,7 +2294,7 @@ pauseInvite.querySelector('.copy')!.addEventListener('click', (e) => {
     document.execCommand('copy');
   });
   const btn = e.currentTarget as HTMLButtonElement;
-  btn.textContent = '¡Copiado!';
+  btn.textContent = L('¡Copiado!', 'Copied!');
   // el foco fuera del botón: así Esc vuelve a sacar la pausa
   btn.blur();
 });
@@ -2247,7 +2324,7 @@ async function startWatching(code: string): Promise<void> {
       else if (!watchEndSince) watchEndSince = performance.now();
       if (!g.en && !endEl.hidden) hud.hideEnd();
       else if (g.en && endEl.hidden && performance.now() - watchEndSince > VICTORY_CARD_DELAY_MS + 1500) {
-        hud.showEndPlain(g.en === 'victory' ? '¡Valdehoyo resiste!' : 'Terminó la partida', g.en === 'victory' ? 'victory' : 'defeat');
+        hud.showEndPlain(g.en === 'victory' ? VICTORY_TITLE : L('Terminó la partida', 'Game over'), g.en === 'victory' ? 'victory' : 'defeat');
       }
     },
     onHello(h) {
@@ -2265,13 +2342,13 @@ async function startWatching(code: string): Promise<void> {
       }
       const powers = h.powers.filter((p): p is ScenarioPower => p in POWER_NAMES);
       hud.setRun([
-        ...powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),
-        { src: badgeImage('skull'), title: 'El jefe' },
+        ...powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: stageTitle(i + 1, POWER_NAMES[p]) })),
+        { src: badgeImage('skull'), title: BOSS_TITLE },
       ]);
       visuals.setDayProgress(h.day, true);
       const skin = SKINS.findIndex((s) => s.id === h.skin);
       if (skin >= 0 && skin !== skinIndex) void cycleSkin(skin - skinIndex, false);
-      if (h.v !== __BUILD__) hud.feedback('El que juega tiene otra versión: recarguen los dos', 'bad');
+      if (h.v !== __BUILD__) hud.feedback(L('El que juega tiene otra versión: recarguen los dos', 'The knight is on another version: both of you, reload'), 'bad');
     },
     note(text) {
       netNote.hidden = !text;
@@ -2334,7 +2411,7 @@ function tiltCamera(delta: number): void {
   // espectador acerca con la rueda su propia cámara
   if (paused || WATCH) return;
   cam.pitch = THREE.MathUtils.clamp(cam.pitch + delta * 2.5, CAM_LIMITS.pitch[0], CAM_LIMITS.pitch[1]);
-  hud.feedback(`Cámara: ${cam.pitch.toFixed(0)}° de inclinación`, 'neutral');
+  hud.feedback(L(`Cámara: ${cam.pitch.toFixed(0)}° de inclinación`, `Camera: ${cam.pitch.toFixed(0)}° tilt`), 'neutral');
   debugPanel?.save();
 }
 
@@ -2345,7 +2422,8 @@ function raiseCamera(delta: number): void {
     return;
   }
   cam.rise = THREE.MathUtils.clamp(cam.rise + delta * 0.6, CAM_LIMITS.rise[0], CAM_LIMITS.rise[1]);
-  hud.feedback(`Cámara: ${cam.rise >= 0 ? '+' : ''}${cam.rise.toFixed(1)} m de altura`, 'neutral');
+  const rise = `${cam.rise >= 0 ? '+' : ''}${cam.rise.toFixed(1)}`;
+  hud.feedback(L(`Cámara: ${rise} m de altura`, `Camera: ${rise} m height`), 'neutral');
   debugPanel?.save();
 }
 
@@ -2428,7 +2506,7 @@ function updateWaves(dt: number): void {
         }
         recorder?.wave(e.index + 1, e.wave.title, e.wave.mod);
         audio.waveHorn();
-        hud.showBanner(`Oleada ${e.index + 1}`, `${e.wave.scenario < 3 ? `Escenario ${e.wave.scenario + 1}` : 'El jefe'} · ${e.wave.title}`);
+        hud.showBanner(waveTitle(e.index + 1), `${e.wave.scenario < 3 ? L(`Escenario ${e.wave.scenario + 1}`, `Stage ${e.wave.scenario + 1}`) : BOSS_TITLE} · ${e.wave.title}`);
         // el día avanza con la partida: la primera oleada es de mañana y la última al atardecer
         visuals.setDayProgress(director.waveCount > 1 ? e.index / (director.waveCount - 1) : 0);
         // no se cura solo entre oleadas, salvo con el botiquín: cura al **empezar** cada oleada, así el
@@ -2449,17 +2527,18 @@ function updateWaves(dt: number): void {
           horde.spawn(e.kind, undefined, mods);
         }
         // el élite cierra su escenario: que se note cuando entra
-        if ((e.mods?.size ?? 1) > 1) hud.showBanner('¡Llega el élite!', ENEMIES[e.kind].name, 2.5);
+        if ((e.mods?.size ?? 1) > 1) hud.showBanner(L('¡Llega el élite!', 'Here comes the elite!'), ENEMIES[e.kind].name, 2.5);
         break;
       case 'cleared':
         // al terminar un escenario: la puerta se arregla un poco y el golfista recupera toda su vida
         if (director.list[e.index + 1] && director.list[e.index + 1].scenario !== director.list[e.index].scenario) scenarioHeal();
-        if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner('¡Oleada despejada!', '', 2.5);
+        if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner(L('¡Oleada despejada!', 'Wave cleared!'), '', 2.5);
         // Abe también gana un hechizo por oleada (aunque todavía no haya entrado: los elige al llegar)
         if (e.index + 1 < director.waveCount) abe.grantPick();
         break;
       case 'victory':
-        endGame('victory', '¡Valdehoyo resiste!', 'La profecía se cumplió… con un hierro 7');
+        endGame('victory', VICTORY_TITLE, L('La profecía se cumplió… con un hierro 7', 'The prophecy came true… with a 7 iron'),
+          'La profecía se cumplió… con un hierro 7'); // i18n-ok: el registro, en español
         break;
     }
   }
@@ -2560,7 +2639,7 @@ function frame(): void {
     const waiting = started && !ended && !tutorial && abeChoosing();
     if (waiting !== !netNote.hidden) {
       netNote.hidden = !waiting;
-      netNote.textContent = '🧙 Esperando a que Abe elija su hechizo…';
+      netNote.textContent = L('🧙 Esperando a que Abe elija su hechizo…', '🧙 Waiting for Abe to pick a spell…');
     }
   }
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos

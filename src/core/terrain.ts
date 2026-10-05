@@ -9,6 +9,8 @@
 // Cerca de los puestos y de la muralla el piso es plano (altura 0): ahí viven el golfista, los guardias,
 // las pelotas y la puerta, y nada de eso tiene que enterarse del relieve.
 
+import { L } from '../i18n';
+
 export interface Hill {
   x: number;
   z: number;
@@ -41,7 +43,7 @@ export interface Course {
 export const COURSES: readonly Course[] = [
   {
     // el de siempre: dos lomas cruzadas y un carril limpio por el medio
-    name: 'Valle del medio',
+    name: L('Valle del medio', 'Middle Valley'),
     hills: [
       { x: -11.5, z: 34, height: 2.0, rx: 4.5, rz: 5.5 },
       { x: 11.5, z: 47, height: 2.2, rx: 5, rz: 6.5 },
@@ -51,7 +53,7 @@ export const COURSES: readonly Course[] = [
   {
     // una meseta ancha en el medio parte el campo en dos: el driver no pasa, los globos sí. Más baja que
     // al principio (2.4 m): tapaba demasiado
-    name: 'La meseta',
+    name: L('La meseta', 'The Mesa'),
     hills: [
       { x: 0, z: 38, height: 1.5, rx: 8, rz: 5 },
       { x: -15, z: 26, height: 1.4, rx: 4, rz: 4 },
@@ -64,7 +66,7 @@ export const COURSES: readonly Course[] = [
   },
   {
     // apenas ondulado: el campo más limpio, para tirar rasante de punta a punta
-    name: 'La loma sola',
+    name: L('La loma sola', 'Lone Hill'),
     hills: [
       { x: -6, z: 42, height: 2.4, rx: 6.5, rz: 7 },
       { x: 13, z: 30, height: 1.2, rx: 4.5, rz: 4.5 },

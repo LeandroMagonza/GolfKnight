@@ -8,6 +8,7 @@
 // poco al terminar cada oleada. Si la partida viene mal, el que sale sí o sí es el Botiquín.
 //
 // Todo acá es lógica pura, sin Three.js, para poder probar el sorteo.
+import { L } from '../i18n';
 import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, hintAt, maxLevelOf, SLOTS, upgradeNote, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
@@ -82,20 +83,20 @@ export const PERK_NUMBERS = {
 };
 
 export const PERKS: Record<PerkId, Perk> = {
-  quickWrist: { id: 'quickWrist', name: 'Muñeca rápida', title: 'carga más rápido', max: 2, color: 0xffd66b, hint: 'El tramo débil dura un 20 % menos: el medio y el fuerte llegan antes' },
-  sweetSpot: { id: 'sweetSpot', name: 'Punto dulce', title: 'perfecto más largo', max: 2, color: 0xff6b6b, hint: 'El golpe perfecto dura un 35 % más' },
-  rhythm: { id: 'rhythm', name: 'Ritmo', title: 'racha que acelera', max: 1, color: 0xffb347, hint: 'Cada acierto seguido te hace cargar un 10 % más rápido, hasta 3 veces' },
-  hotStreak: { id: 'hotStreak', name: 'En racha', title: 'sube el piso', max: 1, color: 0xff8a3d, hint: 'Con 4 aciertos seguidos, los golpes que pegan 1 pasan a pegar 2' },
-  masonStreak: { id: 'masonStreak', name: 'El albañil', title: 'dobletes que arreglan', max: 1, color: 0xc9b38a, hint: 'Cada 3 disparos que maten a más de un enemigo, la puerta +1 y vos +1' },
-  smithStreak: { id: 'smithStreak', name: 'El herrero', title: 'dobletes que forjan', max: 1, color: 0x9fb4c8, hint: 'Cada 2 disparos que maten a más de un enemigo, tu próxima pelota pega 1 más' },
-  medkit: { id: 'medkit', name: 'Botiquín', title: 'curarse entre oleadas', max: 3, color: 0x8fe3b0, hint: 'Al empezar cada oleada, la puerta +1 y vos +1' },
-  giftPerfect: { id: 'giftPerfect', name: 'Perfecto de regalo', title: 'dobletes que clavan', max: 1, color: 0xff2d3c, hint: 'Cada 5 disparos que maten a más de un enemigo, el próximo tiro arranca en el golpe perfecto' },
-  quiver: { id: 'quiver', name: 'Carcaj', title: 'pelota a mano', max: 1, color: 0xfff1b8, hint: 'Si vas a pegar sin pelota, te aparece una' },
-  extraBall: { id: 'extraBall', name: 'Pelota extra', title: 'una más en juego', max: 2, color: 0xfff1b8, hint: 'Una pelota más esperando en los puestos' },
-  secondWind: { id: 'secondWind', name: 'Segundo aire', title: 'otra vez', max: 1, color: 0x8fe3b0, hint: 'Usás una habilidad aunque esté recargando' },
-  masteryIce: { id: 'masteryIce', name: 'Maestría del hielo', title: 'congela', max: 1, color: ELEMENT_INFO.ice.color, needs: 'ice', hint: 'El hielo congela a los que ya estaban fríos. Romper el hielo pega 1 más, también al fantasma' },
-  masteryFire: { id: 'masteryFire', name: 'Maestría del fuego', title: 'contagia', max: 1, color: ELEMENT_INFO.fire.color, needs: 'fire', hint: 'El que muere prendido fuego contagia a los de al lado' },
-  masteryLightning: { id: 'masteryLightning', name: 'Maestría del rayo', title: 'salta más', max: 1, color: ELEMENT_INFO.lightning.color, needs: 'lightning', hint: 'El rayo salta una vez más y pega el doble' },
+  quickWrist: { id: 'quickWrist', name: L('Muñeca rápida', 'Quick Wrists'), title: L('carga más rápido', 'faster charge'), max: 2, color: 0xffd66b, hint: L('El tramo débil dura un 20 % menos: el medio y el fuerte llegan antes', 'The weak part of the bar is 20 % shorter: mid and strong come sooner') },
+  sweetSpot: { id: 'sweetSpot', name: L('Punto dulce', 'Sweet Spot'), title: L('perfecto más largo', 'longer perfect'), max: 2, color: 0xff6b6b, hint: L('El golpe perfecto dura un 35 % más', 'The perfect hit lasts 35 % longer') },
+  rhythm: { id: 'rhythm', name: L('Ritmo', 'Rhythm'), title: L('racha que acelera', 'streaks speed up'), max: 1, color: 0xffb347, hint: L('Cada acierto seguido te hace cargar un 10 % más rápido, hasta 3 veces', 'Each hit in a row makes you charge 10 % faster, up to 3 times') },
+  hotStreak: { id: 'hotStreak', name: L('En racha', 'Hot Streak'), title: L('sube el piso', 'raises the floor'), max: 1, color: 0xff8a3d, hint: L('Con 4 aciertos seguidos, los golpes que pegan 1 pasan a pegar 2', 'After 4 hits in a row, shots that deal 1 deal 2') },
+  masonStreak: { id: 'masonStreak', name: L('El albañil', 'The Mason'), title: L('dobletes que arreglan', 'doubles that repair'), max: 1, color: 0xc9b38a, hint: L('Cada 3 disparos que maten a más de un enemigo, la puerta +1 y vos +1', 'Every 3 shots that kill more than one enemy: gate +1, you +1') },
+  smithStreak: { id: 'smithStreak', name: L('El herrero', 'The Smith'), title: L('dobletes que forjan', 'doubles that forge'), max: 1, color: 0x9fb4c8, hint: L('Cada 2 disparos que maten a más de un enemigo, tu próxima pelota pega 1 más', 'Every 2 shots that kill more than one enemy, your next ball hits for 1 more') },
+  medkit: { id: 'medkit', name: L('Botiquín', 'First-Aid Kit'), title: L('curarse entre oleadas', 'heal between waves'), max: 3, color: 0x8fe3b0, hint: L('Al empezar cada oleada, la puerta +1 y vos +1', 'At the start of each wave: gate +1, you +1') },
+  giftPerfect: { id: 'giftPerfect', name: L('Perfecto de regalo', 'Free Perfect'), title: L('dobletes que clavan', 'doubles that lock'), max: 1, color: 0xff2d3c, hint: L('Cada 5 disparos que maten a más de un enemigo, el próximo tiro arranca en el golpe perfecto', 'Every 5 shots that kill more than one enemy, your next shot starts on a perfect hit') },
+  quiver: { id: 'quiver', name: L('Carcaj', 'Quiver'), title: L('pelota a mano', 'ball at hand'), max: 1, color: 0xfff1b8, hint: L('Si vas a pegar sin pelota, te aparece una', 'Swing without a ball and one shows up') },
+  extraBall: { id: 'extraBall', name: L('Pelota extra', 'Extra Ball'), title: L('una más en juego', 'one more in play'), max: 2, color: 0xfff1b8, hint: L('Una pelota más esperando en los puestos', 'One more ball waiting at the tees') },
+  secondWind: { id: 'secondWind', name: L('Segundo aire', 'Second Wind'), title: L('otra vez', 'again'), max: 1, color: 0x8fe3b0, hint: L('Usás una habilidad aunque esté recargando', 'Use an ability even while on cooldown') },
+  masteryIce: { id: 'masteryIce', name: L('Maestría del hielo', 'Ice Mastery'), title: L('congela', 'freezes'), max: 1, color: ELEMENT_INFO.ice.color, needs: 'ice', hint: L('El hielo congela a los que ya estaban fríos. Romper el hielo pega 1 más, también al fantasma', 'Ice freezes the already chilled. Breaking the ice hits for 1 more, ghosts too') },
+  masteryFire: { id: 'masteryFire', name: L('Maestría del fuego', 'Fire Mastery'), title: L('contagia', 'spreads'), max: 1, color: ELEMENT_INFO.fire.color, needs: 'fire', hint: L('El que muere prendido fuego contagia a los de al lado', 'Enemies that die burning set their neighbors on fire') },
+  masteryLightning: { id: 'masteryLightning', name: L('Maestría del rayo', 'Lightning Mastery'), title: L('salta más', 'jumps more'), max: 1, color: ELEMENT_INFO.lightning.color, needs: 'lightning', hint: L('El rayo salta una vez más y pega el doble', 'Lightning jumps once more and hits twice as hard') },
 };
 export const PERK_LIST = Object.keys(PERKS) as PerkId[];
 
@@ -183,11 +184,12 @@ export function cooldownNote(id: AbilityId, level: number): { text: string; slow
   const a = ABILITIES[id];
   const s = (n: number) => `${+n.toFixed(1)} s`;
   const to = cooldownAt(a, level);
-  if (level <= 1) return { text: `Recarga: ${s(to)}`, slower: false };
+  if (level <= 1) return { text: L(`Recarga: ${s(to)}`, `Cooldown: ${s(to)}`), slower: false };
   const from = cooldownAt(a, level - 1);
   // si subir no la cambia (todas menos el palazo), la carta no dice nada: ya dice qué mejora
   if (to === from) return null;
-  return { text: `Recarga: ${s(from)} → ${s(to)} · ${to > from ? 'más lenta' : 'más rápida'}`, slower: to > from };
+  const change = to > from ? L('más lenta', 'slower') : L('más rápida', 'faster');
+  return { text: L(`Recarga: ${s(from)} → ${s(to)} · ${change}`, `Cooldown: ${s(from)} → ${s(to)} · ${change}`), slower: to > from };
 }
 
 /** La recarga de las mejoras que tienen: la dicen abajo en la carta, como las habilidades. */
@@ -205,7 +207,8 @@ export function describe(card: Card): { name: string; title: string; hint: strin
   if (card.kind === 'ability') {
     const a = ABILITIES[card.id];
     return {
-      name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color, tag: card.level > 1 ? `HABILIDAD · NIVEL ${card.level}` : 'HABILIDAD NUEVA',
+      name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color,
+      tag: card.level > 1 ? L(`HABILIDAD · NIVEL ${card.level}`, `ABILITY · LEVEL ${card.level}`) : L('HABILIDAD NUEVA', 'NEW ABILITY'),
       up: upgradeNote(card.id, card.level) ?? undefined, cool: cooldownNote(card.id, card.level) ?? undefined,
     };
   }
@@ -213,11 +216,12 @@ export function describe(card: Card): { name: string; title: string; hint: strin
     const p = PERKS[card.id];
     const cooldown = perkCooldown(card.id);
     return {
-      name: p.name, title: p.title, hint: p.hint, color: p.color, tag: p.needs ? 'MAESTRÍA' : p.max > 1 && card.level > 1 ? `MEJORA · ${card.level}` : 'MEJORA',
-      cool: cooldown ? { text: `Recarga: ${+cooldown.toFixed(1)} s`, slower: false } : undefined,
+      name: p.name, title: p.title, hint: p.hint, color: p.color,
+      tag: p.needs ? L('MAESTRÍA', 'MASTERY') : p.max > 1 && card.level > 1 ? L(`MEJORA · ${card.level}`, `PERK · ${card.level}`) : L('MEJORA', 'PERK'),
+      cool: cooldown ? { text: L(`Recarga: ${+cooldown.toFixed(1)} s`, `Cooldown: ${+cooldown.toFixed(1)} s`), slower: false } : undefined,
     };
   }
   return card.id === 'gate'
-    ? { name: 'Albañiles', title: 'la puerta', hint: `Remiendan la puerta: +${HEALS.gate}`, color: 0xc9b38a, tag: 'CURARSE' }
-    : { name: 'Respiro', title: 'vos', hint: `Recuperás ${HEALS.player} de vida`, color: 0x5be07a, tag: 'CURARSE' };
+    ? { name: L('Albañiles', 'Masons'), title: L('la puerta', 'the gate'), hint: L(`Remiendan la puerta: +${HEALS.gate}`, `They patch the gate: +${HEALS.gate}`), color: 0xc9b38a, tag: L('CURARSE', 'HEAL') }
+    : { name: L('Respiro', 'Breather'), title: L('vos', 'you'), hint: L(`Recuperás ${HEALS.player} de vida`, `You recover ${HEALS.player} HP`), color: 0x5be07a, tag: L('CURARSE', 'HEAL') };
 }

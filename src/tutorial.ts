@@ -27,6 +27,7 @@ import type { Enemy, Horde, HordeEvent } from './game/enemies';
 import type { Player } from './game/player';
 import type { Tees } from './game/tees';
 import type { Hud } from './hud';
+import { L } from './i18n';
 
 /** Lo que el tutorial necesita del juego. */
 export interface TutorialHost {
@@ -67,101 +68,140 @@ interface Step {
 const KEY = (k: string) => `<kbd>${k}</kbd>`;
 
 /** Lo mínimo para que el golpe no sea el flojo. */
-const needCharge = (_: Tutorial, shot: NonNullable<Shot>) => (shot.quality >= 2 ? null : 'Cargá hasta el amarillo');
+const needCharge = (_: Tutorial, shot: NonNullable<Shot>) => (shot.quality >= 2 ? null : L('Cargá hasta el amarillo', 'Charge to yellow'));
 
 /** Tienen que caer todos del mismo tiro: si no, vuelven a su lugar. En el paso 5, antes hay que clavar. */
 const allInOne = (t: Tutorial) => {
   if (t.allDown) return;
-  const note = t.step?.update && !t.lockLearned ? 'Clavá la carga con Espacio' : 'Los dos del mismo tiro';
+  const note = t.step?.update && !t.lockLearned
+    ? L('Clavá la carga con Espacio', 'Lock the hit with Space')
+    : L('Los dos del mismo tiro', 'Both with one shot');
   t.resetStep();
   t.note(note);
 };
 
 const STEPS: Step[] = [
   {
-    title: 'Apuntar y pegar',
+    title: L('Apuntar y pegar', 'Aim and hit'),
     club: 'driver',
-    text: `Apuntá al goblin con el ${KEY('mouse')}. Mantené apretado el ${KEY('click')} y soltalo para pegar.`,
+    text: L(
+      `Apuntá al goblin con el ${KEY('mouse')}. Mantené apretado el ${KEY('click')} y soltalo para pegar.`,
+      `Aim at the goblin with the ${KEY('mouse')}. Hold ${KEY('click')} and let go to hit.`,
+    ),
     setup: (t) => t.put('goblin', 3, 25),
-    praise: '¡Adentro!',
+    praise: L('¡Adentro!', 'Bullseye!'),
   },
   {
-    title: 'Buscar la pelota',
+    title: L('Buscar la pelota', 'Fetch a ball'),
     club: 'driver',
-    text: `Los caddies de la muralla tiran pelotas a los puestos, nunca al tuyo. Movete con ${KEY('A')} ${KEY('D')} hasta uno con pelota.`,
+    text: L(
+      `Los caddies de la muralla tiran pelotas a los puestos, nunca al tuyo. Movete con ${KEY('A')} ${KEY('D')} hasta uno con pelota.`,
+      `The caddies on the wall toss balls onto the tees, but never yours. Move with ${KEY('A')} ${KEY('D')} to one that has a ball.`,
+    ),
     setup: (t) => {
       t.clearBalls();
       t.put('goblin', 0, 25);
     },
     move: true,
     noSupply: true,
-    praise: 'Cuando te quedes sin pelota, andá a buscarla.',
+    praise: L('Cuando te quedes sin pelota, andá a buscarla.', 'Out of balls? Go fetch one.'),
   },
   {
-    title: 'En fila',
+    title: L('En fila', 'In a row'),
     club: 'driver',
-    text: 'El driver atraviesa a todos los que están en su línea. Voltealos a los dos de un tiro.',
+    text: L(
+      'El driver atraviesa a todos los que están en su línea. Voltealos a los dos de un tiro.',
+      'The driver goes straight through everyone in its path. Drop both with one shot.',
+    ),
     setup: (t) => {
       t.putInLine('goblin', 0);
       t.putInLine('goblin', 1);
     },
     shotDone: allInOne,
-    praise: '¡Los dos!',
+    praise: L('¡Los dos!', 'Two for one!'),
   },
   {
-    title: 'Cargar el golpe',
+    title: L('Cargar el golpe', 'Charge the hit'),
     club: 'driver',
-    text: `Este tiene <b>blindaje</b>: el golpe flojo no le hace nada. Mantené el ${KEY('click')}: la aguja sube del `
-      + `<b class="green">verde</b> al <b class="yellow">amarillo</b>. Soltá en el amarillo.`,
+    text: L(
+      `Este tiene <b>blindaje</b>: el golpe flojo no le hace nada. Mantené el ${KEY('click')}: la aguja sube del `
+        + `<b class="green">verde</b> al <b class="yellow">amarillo</b>. Soltá en el amarillo.`,
+      `This one has <b>armor</b>: a weak hit does nothing. Hold ${KEY('click')}: the needle climbs from `
+        + `<b class="green">green</b> to <b class="yellow">yellow</b>. Let go on yellow.`,
+    ),
     setup: (t) => t.put('goblin', -4, 26, { armor: 1 }),
     allow: needCharge,
-    praise: 'Y si soltás justo en el <b class="red">rojo del centro</b>, es el golpe perfecto: pega todavía más.',
+    praise: L(
+      'Y si soltás justo en el <b class="red">rojo del centro</b>, es el golpe perfecto: pega todavía más.',
+      `And if you let go right on the <b class="red">red in the middle</b>, that's a perfect hit: it hits even harder.`,
+    ),
   },
   {
-    title: 'Clavar la carga',
+    title: L('Clavar la carga', 'Lock the hit'),
     club: 'driver',
-    text: `Tienen que caer <b>los dos del mismo tiro</b>. Cargá hasta el <b class="yellow">amarillo</b> y apretá `
-      + `${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. No sueltes el ${KEY('click')}.`,
+    text: L(
+      `Tienen que caer <b>los dos del mismo tiro</b>. Cargá hasta el <b class="yellow">amarillo</b> y apretá `
+        + `${KEY('Espacio')}: la aguja se queda quieta y el golpe queda guardado. No sueltes el ${KEY('click')}.`,
+      `Both have to drop <b>with the same shot</b>. Charge to <b class="yellow">yellow</b> and press `
+        + `${KEY('Space')}: the needle freezes and the hit is locked in. Don't let go of ${KEY('click')}.`,
+    ),
     setup: (t) => {
       t.put('goblin', -7, 22, { armor: 1 });
       t.put('goblin', 8, 29, { armor: 1 });
       t.lineUp = true;
     },
-    allow: (t, shot) => (!t.lockLearned ? `Clavá la carga con Espacio` : needCharge(t, shot)),
+    allow: (t, shot) => (!t.lockLearned ? L(`Clavá la carga con Espacio`, `Lock the hit with Space`) : needCharge(t, shot)),
     update: (t) => t.watchLock(),
     shotDone: allInOne,
-    praise: '¡Los dos de un tiro! Clavar la carga te deja esperar a que se pongan en fila.',
+    praise: L(
+      '¡Los dos de un tiro! Clavar la carga te deja esperar a que se pongan en fila.',
+      'Two in one shot! Locking the hit lets you wait for them to line up.',
+    ),
   },
   {
-    title: 'El hierro',
+    title: L('El hierro', 'The iron'),
     club: 'iron',
-    text: `${KEY('2')} Hierro 7: va en arco, por arriba de las lomas, y revienta en el primero que toca, `
-      + `salpicando a los de al lado. Pegale a uno del grupo.`,
+    text: L(
+      `${KEY('2')} Hierro 7: va en arco, por arriba de las lomas, y revienta en el primero que toca, `
+        + `salpicando a los de al lado. Pegale a uno del grupo.`,
+      `${KEY('2')} 7 iron: flies in an arc over the mounds and bursts on the first one it hits, `
+        + `splashing everyone next to it. Hit one of the group.`,
+    ),
     setup: (t) => {
       t.mound(0, 17.5);
       t.put('goblin', -1.2, 23.5);
       t.put('goblin', 1.2, 23.5);
       t.put('goblin', 0, 25.1);
     },
-    praise: '¡Todos! Detrás de una loma, o con varios juntos, el hierro es el palo.',
+    praise: L('¡Todos! Detrás de una loma, o con varios juntos, el hierro es el palo.', 'All of them! Behind a mound, or bunched up, the iron is your club.'),
   },
   {
-    title: 'El wedge',
+    title: L('El wedge', 'The wedge'),
     club: 'wedge',
-    text: `${KEY('3')} Wedge: un globo alto que cae donde apuntás y abre un área grande. Con el golpe flojo `
-      + `se <b>pifia</b> (el gris ⚠ del arco): cargá al <b class="green">verde</b>.`,
+    text: L(
+      `${KEY('3')} Wedge: un globo alto que cae donde apuntás y abre un área grande. Con el golpe flojo `
+        + `se <b>pifia</b> (el gris ⚠ del arco): cargá al <b class="green">verde</b>.`,
+      `${KEY('3')} Wedge: a high lob that lands where you aim and blasts a big area. A weak hit `
+        + `is a <b>whiff</b> (the gray ⚠ on the arc): charge to <b class="green">green</b>.`,
+    ),
     setup: (t) => {
       for (const [x, z] of [[-1, 24], [1, 24.5], [0, 26.2], [-1.8, 26], [1.6, 26.4]]) t.put('goblin', x, z);
     },
     sameSpot: true,
-    praise: '¡Limpio! El wedge no necesita pegarle a nadie: el área sale igual donde cae.',
+    praise: L(
+      '¡Limpio! El wedge no necesita pegarle a nadie: el área sale igual donde cae.',
+      `Clean! The wedge doesn't need to hit anyone: the blast goes off wherever it lands.`,
+    ),
   },
   {
-    title: 'El putter',
+    title: L('El putter', 'The putter'),
     club: 'putter',
-    text: `${KEY('4')} Putter: la pelota rueda hasta 20 m y le pega al primero que toca. De cerca pega como ninguno.`,
+    text: L(
+      `${KEY('4')} Putter: la pelota rueda hasta 20 m y le pega al primero que toca. De cerca pega como ninguno.`,
+      `${KEY('4')} Putter: the ball rolls up to 20 m and hits the first one it touches. Up close, nothing hits harder.`,
+    ),
     setup: (t) => t.put('orc', 1, 16),
-    praise: '¡Al hoyo! Para el que ya está encima, el putter.',
+    praise: L('¡Al hoyo! Para el que ya está encima, el putter.', `In the hole! When they're in your face, the putter.`),
   },
 ];
 
@@ -261,7 +301,8 @@ export class Tutorial {
 
   private render(): void {
     const s = this.step;
-    this.host.hud.setTutorial(s ? `Tutorial · ${this.index + 1} de ${STEPS.length}` : 'Tutorial', s?.title ?? '¡Listo!', this.text, this.noteText);
+    const header = s ? L(`Tutorial · ${this.index + 1} de ${STEPS.length}`, `Tutorial · ${this.index + 1} of ${STEPS.length}`) : 'Tutorial';
+    this.host.hud.setTutorial(header, s?.title ?? L('¡Listo!', 'Done!'), this.text, this.noteText);
   }
 
   /** La fila: dónde se para el `i`-ésimo, sobre la recta que sale de la pelota hacia `baseX`. */
@@ -327,7 +368,10 @@ export class Tutorial {
     }
     if (!s) {
       this.finished = true;
-      this.say('Ya sabés usar los cuatro palos. Ahora vienen de verdad: que no lleguen a la puerta.');
+      this.say(L(
+        'Ya sabés usar los cuatro palos. Ahora vienen de verdad: que no lleguen a la puerta.',
+        `You know all four clubs. Now they're coming for real: don't let them reach the gate.`,
+      ));
       this.wait = 3.5;
       return;
     }
@@ -335,7 +379,7 @@ export class Tutorial {
     s.setup(this);
     this.place(!!s.sameSpot);
     this.say(s.text);
-    this.host.hud.showBanner(s.title, `Paso ${this.index + 1} de ${STEPS.length}`, 2);
+    this.host.hud.showBanner(s.title, L(`Paso ${this.index + 1} de ${STEPS.length}`, `Step ${this.index + 1} of ${STEPS.length}`), 2);
   }
 
   /** Vuelve a poner el paso como empezó: los vivos, sanos y en su lugar; los caídos, de nuevo. */
@@ -359,7 +403,7 @@ export class Tutorial {
     if (locked && !this.wasLocked && !this.lockLearned && qualityOf(meter.power) >= 2) {
       this.lockLearned = true;
       this.enemies.forEach((e, i) => { e.hold = this.linePoint(i, this.baseX); });
-      this.say(`Esperá a que se pongan en fila, y soltá el ${KEY('click')}.`);
+      this.say(L(`Esperá a que se pongan en fila, y soltá el ${KEY('click')}.`, `Wait for them to line up, then let go of ${KEY('click')}.`));
     }
     this.wasLocked = locked;
   }
@@ -379,7 +423,7 @@ export class Tutorial {
   private mayKill(enemy: Enemy, shot: Shot): boolean {
     const s = this.step;
     if (!s || !this.enemies.includes(enemy)) return true;
-    const why = !shot || shot.ability ? 'Con el palo' : s.allow?.(this, shot) ?? null;
+    const why = !shot || shot.ability ? L('Con el palo', 'Use your club') : s.allow?.(this, shot) ?? null;
     if (why) this.note(why);
     return why === null;
   }
@@ -415,7 +459,7 @@ export class Tutorial {
     s.update?.(this, dt);
     if (this.allDown) {
       this.say(s.praise);
-      this.host.hud.feedback('¡Bien!', 'good');
+      this.host.hud.feedback(L('¡Bien!', 'Nice!'), 'good');
       this.wait = BETWEEN;
     }
   }

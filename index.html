@@ -105,6 +105,11 @@
       #overlay button#notesbtn:hover, #overlay button#notesbtn:focus-visible { transform: translateY(-2px) rotate(-5deg); }
       #notesbtn svg { width: 30px; height: 34px; display: block; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
       #notesbtn.fresh::after { content: ''; position: absolute; top: 0; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: #ff5b5b; box-shadow: 0 0 0 2px #0b1118; }
+      /* el idioma (src/langPicker.ts): ES · EN, el de ahora encendido; cambiarlo recarga */
+      #langpick { display: flex; border: 1px solid rgba(228, 233, 240, 0.25); border-radius: 6px; overflow: hidden; }
+      #overlay #langpick button { font-size: 11px; font-weight: 600; letter-spacing: 1px; padding: 4px 8px; border-radius: 0; background: transparent; color: rgba(228, 233, 240, 0.55); }
+      #overlay #langpick button:hover { color: #ffd66b; }
+      #overlay #langpick button.on { background: rgba(228, 233, 240, 0.16); color: #e4e9f0; cursor: default; }
       /* la libreta abierta: hoja rayada con margen rojo y espiral arriba; todo va en renglones de 30 px */
       /* la dificultad (src/difficultyMenu.ts): los puntos ganados y dónde ponerlos, entre partidas */
       #difficulty { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.7); pointer-events: auto; }
@@ -412,24 +417,25 @@
   </head>
   <body>
     <div id="overlay">
-      <h1>GOLF KNIGHT<small>EL ELEGIDO DE LA PROFECÍA (MÁS O MENOS)</small></h1>
+      <h1 translate="no">GOLF KNIGHT<small data-en="THE CHOSEN ONE OF THE PROPHECY (MORE OR LESS)">EL ELEGIDO DE LA PROFECÍA (MÁS O MENOS)</small></h1>
       <div id="slide"></div>
       <div id="dots"></div>
       <div class="buttons">
-        <button id="start" type="button" disabled>Cargando…</button>
+        <button id="start" type="button" disabled data-en="Loading…">Cargando…</button>
       </div>
       <button id="alt" type="button" class="link" hidden></button>
       <button id="mode" type="button" class="link" hidden></button>
       <button id="diffbtn" type="button" class="link" hidden></button>
-      <button id="invite" type="button" class="link" hidden>Invitar a un amigo: juega de Abe, el mago</button>
+      <button id="invite" type="button" class="link" hidden data-en="Invite a friend: they play as Abe the wizard">Invitar a un amigo: juega de Abe, el mago</button>
       <div id="invitebox" hidden>
-        <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy">Copiar</button></div>
-        <div class="who">Pasale este enlace. Puede entrar ahora o con la partida empezada.</div>
-        <div class="netctl" hidden><button type="button" class="kick" hidden>Echar a Abe</button><button type="button" class="private"></button></div>
+        <div class="row"><input type="text" readonly aria-label="Enlace para mirar" data-en-aria-label="Link to join" /><button type="button" class="copy" data-en="Copy">Copiar</button></div>
+        <div class="who" data-en="Send them this link. They can join now or once the game has started.">Pasale este enlace. Puede entrar ahora o con la partida empezada.</div>
+        <div class="netctl" hidden><button type="button" class="kick" hidden data-en="Kick Abe">Echar a Abe</button><button type="button" class="private"></button></div>
       </div>
-      <button id="replaycine" type="button">Ver la intro de nuevo</button>
+      <button id="replaycine" type="button" data-en="Watch the intro again">Ver la intro de nuevo</button>
       <div id="corner">
-        <button id="notesbtn" type="button" title="Patch notes" aria-label="Patch notes">
+        <div id="langpick" translate="no" role="group" aria-label="Idioma" data-en-aria-label="Language"><button type="button" data-lang="es" lang="es" title="Español">ES</button><button type="button" data-lang="en" lang="en" title="English">EN</button></div>
+        <button id="notesbtn" type="button" title="Patch notes" aria-label="Patch notes" data-en-title="Patch notes" data-en-aria-label="Patch notes">
           <svg viewBox="0 0 30 34" aria-hidden="true">
             <rect x="4" y="6" width="24" height="27" rx="2.5" fill="#efe4c6" />
             <rect x="3" y="5" width="23.5" height="26.5" rx="2.5" fill="#d9a24a" stroke="#7a4b12" stroke-width="1.2" />
@@ -445,46 +451,46 @@
       <div id="notes" hidden>
         <div class="book">
           <div class="rings"></div>
-          <div class="head">Patch notes<small>lo que fue cambiando en Valdehoyo, lo más nuevo arriba</small></div>
-          <button type="button" class="close" aria-label="Cerrar">×</button>
+          <div class="head" data-en-html="Patch notes&lt;small&gt;what changed in Valdehoyo, newest first (written in Spanish)&lt;/small&gt;">Patch notes<small>lo que fue cambiando en Valdehoyo, lo más nuevo arriba</small></div>
+          <button type="button" class="close" aria-label="Cerrar" data-en-aria-label="Close">×</button>
           <div class="page" tabindex="-1"></div>
         </div>
       </div>
     </div>
     <div id="difficulty" hidden>
       <div class="box">
-        <h2>Dificultad</h2>
+        <h2 data-en="Difficulty">Dificultad</h2>
         <p class="summary"></p>
         <div class="list"></div>
-        <p class="foot">Cada punto hace la partida más difícil. Ganá con todos tus puntos puestos y sumás uno más. Lo que cambies vale desde la próxima partida.</p>
-        <button type="button" class="done">Listo</button>
+        <p class="foot" data-en="Each point makes the game harder. Win with all your points in and you earn one more. Changes apply from the next game.">Cada punto hace la partida más difícil. Ganá con todos tus puntos puestos y sumás uno más. Lo que cambies vale desde la próxima partida.</p>
+        <button type="button" class="done" data-en="Done">Listo</button>
       </div>
     </div>
     <div id="hud">
       <div class="bars">
-        <div class="bar" id="gatebar"><span>Puerta de Valdehoyo</span><div class="track" style="--seg:10"><div id="gate" class="fill gate"></div></div></div>
-        <div class="bar"><span>Vos</span><div class="track" style="--seg:3"><div id="hp" class="fill hp"></div></div></div>
+        <div class="bar" id="gatebar"><span data-en="Valdehoyo gate">Puerta de Valdehoyo</span><div class="track" style="--seg:10"><div id="gate" class="fill gate"></div></div></div>
+        <div class="bar"><span data-en="You">Vos</span><div class="track" style="--seg:3"><div id="hp" class="fill hp"></div></div></div>
       </div>
       <div id="wave"><div class="n"></div><div class="sub"></div><div id="run"></div></div>
       <div id="score"></div>
       <div id="pocket" hidden></div>
       <div id="watchers" hidden></div>
       <div id="netnote" hidden></div>
-      <div id="netsound" hidden>🔈 Click para activar el sonido</div>
+      <div id="netsound" hidden data-en="🔈 Click to turn on the sound">🔈 Click para activar el sonido</div>
       <div id="abe" hidden>
         <div class="who"></div>
         <div class="offer" hidden>
           <div class="title"></div>
           <div class="cards"></div>
-          <div class="actions"><button type="button" class="keep">Quedarme con los míos</button><button type="button" class="later">Después</button></div>
+          <div class="actions"><button type="button" class="keep" data-en="Keep mine">Quedarme con los míos</button><button type="button" class="later" data-en="Later">Después</button></div>
         </div>
         <button type="button" class="newspell" hidden></button>
         <div class="spells"></div>
         <div class="help"></div>
-        <div class="cam">Arrastrá para ir adelante y atrás · rueda o pellizcar: acercar · botón derecho o dos dedos arriba y abajo: el ángulo</div>
+        <div class="cam" data-en="Drag to move forward and back · wheel or pinch: zoom · right button or two fingers up and down: angle">Arrastrá para ir adelante y atrás · rueda o pellizcar: acercar · botón derecho o dos dedos arriba y abajo: el ángulo</div>
       </div>
       <button id="skin" type="button" tabindex="-1"></button>
-      <button id="balancebtn" type="button" tabindex="-1">Balance (B)</button>
+      <button id="balancebtn" type="button" tabindex="-1" data-en="Balance (B)">Balance (B)</button>
       <button id="muteall" type="button" tabindex="-1"></button>
       <div id="balance" hidden></div>
       <div id="tutorial" hidden><div class="title"></div><div class="text"></div><div class="note" hidden></div></div>
@@ -498,15 +504,15 @@
         <div id="rows"><div id="clubs"></div><div id="enchants"></div></div>
       </div>
       <div id="perks"></div>
-      <div id="card" hidden><div class="box"><div class="tag">HABILIDAD NUEVA</div><div class="name"></div><div class="title"></div><div class="keyrow">Tecla <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go">click para seguir</div></div></div>
-      <div id="choice" hidden><h2>Elegí una</h2><div class="cards"></div><div class="next"></div><div class="go">click, o 1 · 2 · 3</div></div>
-      <div id="pause" hidden><h2>Pausa</h2><p>Esc para seguir · R para reiniciar · M silencia la música · N todo el sonido</p>
+      <div id="card" hidden><div class="box"><div class="tag" data-en="NEW ABILITY">HABILIDAD NUEVA</div><div class="name"></div><div class="title"></div><div class="keyrow"><span data-en="Key">Tecla</span> <kbd class="key"></kbd></div><div class="hint"></div><div class="cool"></div><div class="next"></div><div class="go" data-en="click to continue">click para seguir</div></div></div>
+      <div id="choice" hidden><h2 data-en="Pick one">Elegí una</h2><div class="cards"></div><div class="next"></div><div class="go" data-en="click, or 1 · 2 · 3">click, o 1 · 2 · 3</div></div>
+      <div id="pause" hidden><h2 data-en="Paused">Pausa</h2><p data-en="Esc to resume · R to restart · M mutes the music · N all sound">Esc para seguir · R para reiniciar · M silencia la música · N todo el sonido</p>
         <div class="invite">
-          <button type="button" class="open" tabindex="-1">Invitar a un amigo: juega de Abe, el mago</button>
+          <button type="button" class="open" tabindex="-1" data-en="Invite a friend: they play as Abe the wizard">Invitar a un amigo: juega de Abe, el mago</button>
           <div class="box" hidden>
-            <div class="row"><input type="text" readonly aria-label="Enlace para mirar" /><button type="button" class="copy" tabindex="-1">Copiar</button></div>
+            <div class="row"><input type="text" readonly aria-label="Enlace para mirar" data-en-aria-label="Link to join" /><button type="button" class="copy" tabindex="-1" data-en="Copy">Copiar</button></div>
             <div class="who"></div>
-            <div class="netctl" hidden><button type="button" class="kick" tabindex="-1" hidden>Echar a Abe</button><button type="button" class="private" tabindex="-1"></button></div>
+            <div class="netctl" hidden><button type="button" class="kick" tabindex="-1" hidden data-en="Kick Abe">Echar a Abe</button><button type="button" class="private" tabindex="-1"></button></div>
           </div>
         </div>
       </div>
@@ -514,15 +520,17 @@
         <canvas class="confetti"></canvas><div class="rays"></div>
         <div class="endcard">
           <h2></h2><p class="detail"></p>
-          <div class="score"><span class="num">0</span><span class="unit">puntos</span></div>
+          <div class="score"><span class="num">0</span><span class="unit" data-en="points">puntos</span></div>
           <div class="best"></div>
           <div class="stats"></div>
           <p class="earned" hidden></p>
           <p class="level"></p>
-          <div class="foot"><button id="enddiff" type="button" tabindex="-1" hidden>Dificultad</button><p class="again">R para jugar de nuevo</p></div>
+          <div class="foot"><button id="enddiff" type="button" tabindex="-1" hidden data-en="Difficulty">Dificultad</button><p class="again" data-en="R to play again">R para jugar de nuevo</p></div>
         </div>
       </div>
     </div>
+    <!-- el idioma, antes que los módulos: traduce lo de arriba (ver docs/localizacion.md) -->
+    <script src="./lang.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

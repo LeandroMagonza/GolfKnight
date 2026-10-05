@@ -5,6 +5,8 @@
 // Lo que se muestra lo arma el juego (`EndInfo`): este módulo solo lo anima. Viaja tal cual al que mira
 // (ver net/host.ts), así que es todo dato plano.
 
+import { L } from './i18n';
+
 /** Un número de la partida. `of`: «7 de 10». `kind`: cómo se escribe. */
 export interface EndStat {
   label: string;
@@ -99,7 +101,7 @@ export class EndScreen {
     q('.detail').textContent = info.detail;
     q('.level').textContent = info.level;
     const best = q('.best');
-    best.textContent = info.record ? '¡Nuevo récord!' : info.best > 0 ? `Récord: ${info.best}` : '';
+    best.textContent = info.record ? L('¡Nuevo récord!', 'New record!') : info.best > 0 ? L(`Récord: ${info.best}`, `Best: ${info.best}`) : '';
     best.classList.toggle('record', info.record);
     const earned = q('.earned');
     earned.textContent = info.earned;

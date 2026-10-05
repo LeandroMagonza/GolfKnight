@@ -3,11 +3,14 @@
 // mantiene), los hashes de los commits y la sección «Detrás de escena» son para quien programa.
 //
 // Un puntito sobre la libreta avisa que hay notas que todavía no se abrieron en este navegador.
+//
+// Las notas están solo en español (se escriben con cada commit): en inglés, el encabezado de la libreta
+// lo avisa (data-en-html en index.html).
 
 import notes from '../PATCHNOTES.md?raw';
 
 const SEEN_KEY = 'gk.notesSeen';
-const BACKSTAGE = 'Detrás de escena';
+const BACKSTAGE = 'Detrás de escena'; // i18n-ok: el título de la sección en PATCHNOTES.md
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

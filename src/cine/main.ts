@@ -13,6 +13,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { GameAudio } from '../audio/audio';
 import { stripRootMotion } from '../game/models';
+import { L, lang } from '../i18n';
 import { INTRO } from './intro';
 import { CineMusic } from './music';
 import { CinePlayer } from './player';
@@ -82,7 +83,7 @@ resize();
 function setPlaying(v: boolean): void {
   playing = v && t < player.duration;
   if (!playing) stopVoices();
-  toggle.textContent = playing ? 'Pausa' : 'Seguir';
+  toggle.textContent = playing ? L('Pausa', 'Pause') : L('Seguir', 'Play');
   document.body.classList.toggle('paused', !playing);
 }
 
@@ -112,8 +113,10 @@ const voices: { at: number; el: HTMLAudioElement }[] = [];
 INTRO.shots.forEach((shot, i) => {
   for (const cue of shot.text ?? []) {
     if (!cue.voice) continue;
-    // ?voces=kokoro: las de Kokoro (neutras), para comparar con las de OpenAI (actuadas)
-    const el = new Audio(`${import.meta.env.BASE_URL}voices/${params.get('voces') === 'kokoro' ? 'kokoro/' : ''}${cue.voice}.wav`);
+    // una carpeta por idioma: las españolas en voices/, las inglesas en voices/en/ (tools/voces_openai.py).
+    // ?voces=kokoro: las de Kokoro (neutras, solo en español), para comparar con las de OpenAI (actuadas)
+    const folder = lang === 'en' ? 'en/' : params.get('voces') === 'kokoro' ? 'kokoro/' : '';
+    const el = new Audio(`${import.meta.env.BASE_URL}voices/${folder}${cue.voice}.wav`);
     el.preload = 'auto';
     voices.push({ at: player.shotStarts[i] + cue.at, el });
   }
@@ -172,7 +175,7 @@ renderer.setAnimationLoop(() => {
   music.duck(talking());
   const { index, shot } = player.locate(t);
   scrub.value = String(t);
-  timeEl.textContent = `${t.toFixed(2)} s · plano ${index + 1}: ${shot.name}`;
+  timeEl.textContent = L(`${t.toFixed(2)} s · plano ${index + 1}: ${shot.name}`, `${t.toFixed(2)} s · shot ${index + 1}: ${shot.name}`);
   composer.render();
 });
 
@@ -191,11 +194,12 @@ function leave(): void {
   try {
     sessionStorage.setItem('gk.introSeen', '1');
   } catch { /* igual va */ }
-  location.href = './index.html';
+  // si el idioma vino en la dirección, que siga en el juego
+  location.href = params.has('lang') ? `./index.html?lang=${params.get('lang')}` : './index.html';
 }
 const start = $('start');
 const play = $<HTMLButtonElement>('play');
-$('status').textContent = `${INTRO.shots.length} planos · ${player.duration.toFixed(0)} s`;
+$('status').textContent = L(`${INTRO.shots.length} planos · ${player.duration.toFixed(0)} s`, `${INTRO.shots.length} shots · ${player.duration.toFixed(0)} s`);
 play.disabled = false;
 if (params.has('t')) {
   start.hidden = true;

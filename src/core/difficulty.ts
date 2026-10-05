@@ -7,6 +7,7 @@
 // con menos vida y el jefe con enemigos comunes. Con todos los puntos puestos es más difícil que la de
 // antes del 3/10.
 
+import { L } from '../i18n';
 import { FOURTH } from './clubs';
 import { ELITE, INTERMISSION, type RunRules } from './waves';
 
@@ -44,25 +45,55 @@ export const DIFFICULTY = {
 };
 
 /** Una fracción como se dice: un cuarto, un tercio. */
-const part = (x: number) => ({ 2: 'la mitad', 3: 'un tercio', 4: 'un cuarto', 5: 'un quinto' })[Math.round(1 / x)] ?? `un ${Math.round(x * 100)} %`;
+const part = L(
+  (x: number) => ({ 2: 'la mitad', 3: 'un tercio', 4: 'un cuarto', 5: 'un quinto' })[Math.round(1 / x)] ?? `un ${Math.round(x * 100)} %`,
+  (x: number) => ({ 2: 'half', 3: 'a third', 4: 'a quarter', 5: 'a fifth' })[Math.round(1 / x)] ?? `${Math.round(x * 100)} %`,
+);
+/** La primera letra en mayúscula: la fracción puede abrir la frase. */
+const upper = (text: string) => text.replace(/^./, (c) => c.toUpperCase());
 
 export const TALENTS: Talent[] = [
-  { id: 'stack', name: 'Poderes acumulados', levels: [() => 'Los poderes de los escenarios anteriores siguen viniendo'] },
-  { id: 'special', name: 'Olas especiales', levels: [() => 'La segunda oleada es especial y deja su marca en el resto de la partida', () => 'Otra ola especial, más adelante'] },
-  { id: 'support', name: 'Apoyos', levels: [() => 'En el último escenario vienen curanderos, inmunes, abanderados o hechiceros', () => 'Desde el segundo escenario'] },
-  { id: 'powers', name: 'Poderes más duros', levels: [() => `Escudos y blindajes de hasta ${DIFFICULTY.cap[1]}, y los escurridizos y los benditos recargan más rápido`] },
-  { id: 'speed', name: 'Más rápidos', levels: [() => 'Los enemigos caminan más rápido', () => 'Más rápido', () => 'Todavía más rápido'] },
-  { id: 'terrain', name: 'Terreno irregular', levels: [() => 'Se juega en campos con lomas'] },
-  { id: 'powered', name: 'Más con poder', levels: [
-    () => `${part(DIFFICULTY.share[1])} de los enemigos trae poder, en vez de ${part(DIFFICULTY.share[0])}`.replace(/^./, (c) => c.toUpperCase()),
-    () => `${part(DIFFICULTY.share[2])} trae poder`.replace(/^./, (c) => c.toUpperCase()),
+  { id: 'stack', name: L('Poderes acumulados', 'Stacked Powers'), levels: [() => L('Los poderes de los escenarios anteriores siguen viniendo', 'Powers from earlier stages keep coming')] },
+  { id: 'special', name: L('Olas especiales', 'Special Waves'), levels: [
+    () => L('La segunda oleada es especial y deja su marca en el resto de la partida', 'The second wave is special and leaves its mark on the rest of the run'),
+    () => L('Otra ola especial, más adelante', 'Another special wave, later on'),
   ] },
-  { id: 'elite', name: 'Élites más duros', levels: [() => `Los élites tienen ${DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]} de vida más`] },
-  { id: 'escort', name: 'Escolta del jefe', levels: [() => 'El jefe viene con enemigos con poderes'] },
-  { id: 'rest', name: 'Sin respiro', levels: [() => 'Menos descanso entre oleadas'] },
-  { id: 'fourth', name: 'Golpe 4', levels: [
-    () => `En el medio del rojo aparece el golpe 4: pega ${FOURTH.bonus} más que el 3, y entre los dos duran lo que el 3 de siempre. `
-      + `A cambio, los enemigos traen ${DIFFICULTY.fourthHp} de vida más, los élites ${DIFFICULTY.fourthEliteHp} y el jefe ${DIFFICULTY.fourthBossHp}`,
+  { id: 'support', name: L('Apoyos', 'Supports'), levels: [
+    () => L('En el último escenario vienen curanderos, inmunes, abanderados o hechiceros', 'Healers, warders, standard-bearers or sorcerers join the last stage'),
+    () => L('Desde el segundo escenario', 'From the second stage on'),
+  ] },
+  { id: 'powers', name: L('Poderes más duros', 'Tougher Powers'), levels: [
+    () => L(
+      `Escudos y blindajes de hasta ${DIFFICULTY.cap[1]}, y los escurridizos y los benditos recargan más rápido`,
+      `Shields and armor up to ${DIFFICULTY.cap[1]}, and slippery and blessed enemies recharge faster`,
+    ),
+  ] },
+  { id: 'speed', name: L('Más rápidos', 'Faster Enemies'), levels: [
+    () => L('Los enemigos caminan más rápido', 'Enemies walk faster'), () => L('Más rápido', 'Faster'), () => L('Todavía más rápido', 'Even faster'),
+  ] },
+  { id: 'terrain', name: L('Terreno irregular', 'Rough Terrain'), levels: [() => L('Se juega en campos con lomas', 'Played on hilly courses')] },
+  { id: 'powered', name: L('Más con poder', 'More Powered'), levels: [
+    () => upper(L(
+      `${part(DIFFICULTY.share[1])} de los enemigos trae poder, en vez de ${part(DIFFICULTY.share[0])}`,
+      `${part(DIFFICULTY.share[1])} of the enemies have a power, instead of ${part(DIFFICULTY.share[0])}`,
+    )),
+    () => upper(L(`${part(DIFFICULTY.share[2])} trae poder`, `${part(DIFFICULTY.share[2])} of them have a power`)),
+  ] },
+  { id: 'elite', name: L('Élites más duros', 'Tougher Elites'), levels: [
+    () => L(
+      `Los élites tienen ${DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]} de vida más`,
+      `Elites have ${DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]} more HP`,
+    ),
+  ] },
+  { id: 'escort', name: L('Escolta del jefe', 'Boss Escort'), levels: [() => L('El jefe viene con enemigos con poderes', 'The boss brings powered-up enemies')] },
+  { id: 'rest', name: L('Sin respiro', 'No Breather'), levels: [() => L('Menos descanso entre oleadas', 'Less rest between waves')] },
+  { id: 'fourth', name: L('Golpe 4', 'Hit 4'), levels: [
+    () => L(
+      `En el medio del rojo aparece el golpe 4: pega ${FOURTH.bonus} más que el 3, y entre los dos duran lo que el 3 de siempre. `
+        + `A cambio, los enemigos traen ${DIFFICULTY.fourthHp} de vida más, los élites ${DIFFICULTY.fourthEliteHp} y el jefe ${DIFFICULTY.fourthBossHp}`,
+      `Hit 4 appears in the middle of the red: it deals ${FOURTH.bonus} more than hit 3, and together they last as long as hit 3 used to. `
+        + `In exchange, enemies get ${DIFFICULTY.fourthHp} more HP, elites ${DIFFICULTY.fourthEliteHp} and the boss ${DIFFICULTY.fourthBossHp}`,
+    ),
   ] },
 ];
 const BY_ID = Object.fromEntries(TALENTS.map((t) => [t.id, t])) as Record<TalentId, Talent>;

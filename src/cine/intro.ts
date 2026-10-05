@@ -3,6 +3,7 @@
 // hechizo tomó los palos de golf del baúl por su arma.
 //
 // Coordenadas: y para arriba; `face` 0 mira hacia +z y 90 hacia +x. Tiempos en segundos del plano.
+import { L } from '../i18n';
 import type { Script } from './types';
 
 export const INTRO: Script = {
@@ -29,7 +30,7 @@ export const INTRO: Script = {
   },
   shots: [
     {
-      name: 'La feria',
+      name: L('La feria', 'The fair'),
       set: 'feria',
       // 9.5 s: las dos líneas de la narradora (OpenAI, actuadas) suman casi 9
       dur: 9.5,
@@ -49,15 +50,15 @@ export const INTRO: Script = {
         kf3: { path: [{ at: 0, x: -17.0, z: -3.6, face: -110 }], anim: [{ at: 0, clip: 'Rallying', loop: true, from: 0.6 }] },
       },
       text: [
-        { at: 0.5, until: 3.2, kind: 'caption', text: 'Sábado. Feria medieval.', voice: 'narra-sabado' },
+        { at: 0.5, until: 3.2, kind: 'caption', text: L('Sábado. Feria medieval.', 'Saturday. Medieval fair.'), voice: 'narra-sabado' },
         // la narradora tarda 6 s: termina justo antes del fundido
-        { at: 3.3, until: 9.4, kind: 'caption', text: 'Tu disfraz: impecable. Los de los demás, sospechosamente buenos.', voice: 'narra-disfraz' },
+        { at: 3.3, until: 9.4, kind: 'caption', text: L('Tu disfraz: impecable. Los de los demás, sospechosamente buenos.', 'Your costume: flawless. Everyone else’s: suspiciously good.'), voice: 'narra-disfraz' },
       ],
       ramps: [{ at: 0, dur: 1.2, param: 'fade', from: 1, to: 0 }, { at: 9.05, dur: 0.45, param: 'fade', from: 0, to: 1 }],
       music: [{ at: 0, track: 'feria', level: 1, fade: 1 }],
     },
     {
-      name: 'El estacionamiento',
+      name: L('El estacionamiento', 'The parking lot'),
       set: 'estacionamiento',
       // llega al baúl cerrado, lo abre, saca la bolsa, levanta el driver para mirarlo, y ahí lo atropellan
       dur: 8.4,
@@ -104,8 +105,9 @@ export const INTRO: Script = {
         },
       },
       text: [
-        { at: 0.4, until: 1.4, kind: 'caption', text: 'A la salida.', voice: 'narra-salida' },
-        { at: 1.5, until: 6.2, kind: 'caption', text: 'Los palos de golf seguían en el baúl desde el domingo.', voice: 'narra-palos' },
+        // en inglés algunas voces son un poco más largas (public/voices/en): los tiempos con L, como los textos
+        { at: 0.4, until: L(1.4, 1.55), kind: 'caption', text: L('A la salida.', 'On the way out.'), voice: 'narra-salida' },
+        { at: L(1.5, 1.6), until: 6.2, kind: 'caption', text: L('Los palos de golf seguían en el baúl desde el domingo.', 'The golf clubs were still in the trunk from Sunday.'), voice: 'narra-palos' },
       ],
       ramps: [
         { at: 0, dur: 0.9, param: 'fade', from: 1, to: 0 },
@@ -124,14 +126,14 @@ export const INTRO: Script = {
       ],
     },
     {
-      name: 'Nada',
+      name: L('Nada', 'Nothing'),
       set: 'negro',
       dur: 2.8,
       camera: [{ at: 0, pos: [0, 1, 0], look: [0, 1, 1] }],
-      text: [{ at: 0.4, until: 2.5, kind: 'card', text: 'Y después, nada.', voice: 'narra-nada' }],
+      text: [{ at: 0.4, until: L(2.5, 2.7), kind: 'card', text: L('Y después, nada.', 'And then, nothing.'), voice: 'narra-nada' }],
     },
     {
-      name: 'El círculo',
+      name: L('El círculo', 'The circle'),
       set: 'circulo',
       dur: 8,
       camera: [
@@ -159,8 +161,8 @@ export const INTRO: Script = {
         bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
-        { at: 2.4, until: 5.5, kind: 'say', who: 'mage', text: '¡Funcionó! ¡Vino el Gran Guerrero!', voice: 'mago-funciono' },
-        { at: 5.6, until: 7.8, kind: 'say', who: 'knight', text: '¿...Perdón?', voice: 'caballero-perdon' },
+        { at: 2.4, until: L(5.5, 5.8), kind: 'say', who: 'mage', text: L('¡Funcionó! ¡Vino el Gran Guerrero!', 'It worked! The Great Warrior has come!'), voice: 'mago-funciono' },
+        { at: L(5.6, 5.9), until: 7.8, kind: 'say', who: 'knight', text: L('¿...Perdón?', '...Excuse me?'), voice: 'caballero-perdon' },
       ],
       ramps: [
         { at: 0, dur: 1.4, param: 'flash', from: 1, to: 0 },
@@ -170,7 +172,7 @@ export const INTRO: Script = {
       music: [{ at: 0, track: 'magia', level: 1, fade: 1.5 }],
     },
     {
-      name: 'El arma',
+      name: L('El arma', 'The weapon'),
       set: 'circulo',
       dur: 8.5,
       camera: [
@@ -190,8 +192,8 @@ export const INTRO: Script = {
         bag: { path: [{ at: 0, x: -1.4, y: 0.17, z: 1.0, face: 30, roll: 90 }] },
       },
       text: [
-        { at: 0.3, until: 5.85, kind: 'say', who: 'mage', text: 'La profecía pedía armadura reluciente… y un arma de precisión letal.', voice: 'mago-profecia' },
-        { at: 6.0, until: 8.3, kind: 'say', who: 'knight', text: '¿Los palos de golf?', voice: 'caballero-palos' },
+        { at: 0.3, until: 5.85, kind: 'say', who: 'mage', text: L('La profecía pedía armadura reluciente… y un arma de precisión letal.', 'The prophecy called for shining armor… and a weapon of deadly precision.'), voice: 'mago-profecia' },
+        { at: 6.0, until: 8.3, kind: 'say', who: 'knight', text: L('¿Los palos de golf?', 'The golf clubs?'), voice: 'caballero-palos' },
       ],
       ramps: [
         { at: 0, dur: 0, param: 'runes', from: 0.35, to: 0.35 },
@@ -200,7 +202,7 @@ export const INTRO: Script = {
       sfx: [{ at: 3.9, name: 'frost' }],
     },
     {
-      name: 'La horda',
+      name: L('La horda', 'The horde'),
       set: 'circulo',
       dur: 8.5,
       camera: [
@@ -222,8 +224,8 @@ export const INTRO: Script = {
         g5: { path: [{ at: 0, x: -22, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: -6, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.5 }] },
       },
       text: [
-        { at: 1.0, until: 4.0, kind: 'say', who: 'mage', text: '¡Las hordas marchan sobre Valdehoyo!', voice: 'mago-hordas' },
-        { at: 4.3, until: 6.4, kind: 'say', who: 'knight', text: 'Yo vine a una feria.', voice: 'caballero-feria' },
+        { at: 1.0, until: 4.0, kind: 'say', who: 'mage', text: L('¡Las hordas marchan sobre Valdehoyo!', 'The hordes march on Valdehoyo!'), voice: 'mago-hordas' },
+        { at: 4.3, until: 6.4, kind: 'say', who: 'knight', text: L('Yo vine a una feria.', 'I just came for the fair.'), voice: 'caballero-feria' },
         { at: 6.5, until: 8.5, kind: 'title', text: 'GOLF KNIGHT' },
       ],
       ramps: [

@@ -22,11 +22,11 @@ const TONE_MAPPING: Record<Tone, THREE.ToneMapping> = {
  * «según la oleada» (el de arranque) va cambiando la hora con la partida: la primera oleada es de mañana
  * y la última al atardecer, pasando por el mediodía y la tarde. Las otras dejan una hora fija.
  */
-export const LIGHTS = ['según la oleada', 'mañana', 'mediodía', 'tarde', 'atardecer'] as const;
+export const LIGHTS = ['según la oleada', 'mañana', 'mediodía', 'tarde', 'atardecer'] as const; // i18n-ok: id que solo se lee en el panel B
 export type LightName = (typeof LIGHTS)[number];
-type FixedLight = Exclude<LightName, 'según la oleada'>;
+type FixedLight = Exclude<LightName, 'según la oleada'>; // i18n-ok: id que solo se lee en el panel B
 /** El recorrido de la partida, de la primera oleada a la última. */
-const DAY_PATH: readonly FixedLight[] = ['mañana', 'mediodía', 'tarde', 'atardecer'];
+const DAY_PATH: readonly FixedLight[] = ['mañana', 'mediodía', 'tarde', 'atardecer']; // i18n-ok: id que solo se lee en el panel B
 
 /** Una hora del día: el sol, la luz del cielo y del piso, y el degradé del cielo (arriba y horizonte). */
 interface Daylight {
@@ -75,7 +75,7 @@ export const VISUAL = {
   shadowSize: '2048' as (typeof SHADOW_SIZES)[number],
   tone: 'ACES' as Tone,
   exposure: 1.0,
-  light: 'según la oleada' as LightName,
+  light: 'según la oleada' as LightName, // i18n-ok: id que solo se lee en el panel B
   /**
    * Se copian de la hora del día al elegirla, y después se pueden tocar sueltos. Con «según la oleada»
    * no se usan: el sol sale del recorrido del día.
@@ -97,7 +97,7 @@ export type VisualConfig = typeof VISUAL;
 
 /** Como era antes de esta capa: sin sombras, sin corrección de color, sol de mediodía, sin contorno ni brillo. */
 export const VISUAL_OFF: Partial<VisualConfig> = {
-  shadows: false, tone: 'ninguno', exposure: 1, light: 'mediodía', rim: false, bloom: false,
+  shadows: false, tone: 'ninguno', exposure: 1, light: 'mediodía', rim: false, bloom: false, // i18n-ok: id que solo se lee en el panel B
   elevation: DAYLIGHT.mediodía.elevation, azimuth: DAYLIGHT.mediodía.azimuth, sunIntensity: DAYLIGHT.mediodía.sunIntensity,
 };
 const DEFAULTS: VisualConfig = { ...VISUAL };
@@ -128,7 +128,7 @@ export function daylightAt(progress: number): Daylight {
 /** Elige una hora del día y le copia el sol a los números sueltos. */
 export function setLight(name: LightName): void {
   VISUAL.light = name;
-  if (name === 'según la oleada') return;
+  if (name === 'según la oleada') return; // i18n-ok: id que solo se lee en el panel B
   const d = DAYLIGHT[name];
   VISUAL.elevation = d.elevation;
   VISUAL.azimuth = d.azimuth;
@@ -273,13 +273,13 @@ export class Visuals {
     this.dayTick -= dt;
     if (this.dayTick > 0 && this.day !== this.dayTarget) return;
     this.dayTick = 0.2;
-    if (VISUAL.light === 'según la oleada') this.apply();
+    if (VISUAL.light === 'según la oleada') this.apply(); // i18n-ok: id que solo se lee en el panel B
   }
 
   /** Pasa VISUAL a la escena. Se llama después de cada cambio del panel. */
   apply(): void {
     const v = VISUAL;
-    const auto = v.light === 'según la oleada';
+    const auto = v.light === 'según la oleada'; // i18n-ok: id que solo se lee en el panel B
     const d = auto ? daylightAt(this.day) : DAYLIGHT[v.light as FixedLight];
     const r = this.renderer;
 

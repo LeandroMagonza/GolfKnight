@@ -3,6 +3,7 @@
 // partida, y queda guardado en el navegador.
 
 import { levelOf, MAX_POINTS, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
+import { L } from './i18n';
 
 export class DifficultyMenu {
   private readonly el = document.getElementById('difficulty')!;
@@ -58,8 +59,11 @@ export class DifficultyMenu {
     const n = used(p.picks);
     const free = p.points - n;
     this.summary.textContent = p.points === 0
-      ? 'Ganá una partida para tu primer punto.'
-      : `Nivel ${n} · ${free ? `te ${free === 1 ? 'queda 1 punto' : `quedan ${free} puntos`} para poner` : 'todos tus puntos puestos'} · ${p.points} de ${MAX_POINTS} ganados`;
+      ? L('Ganá una partida para tu primer punto.', 'Win a run to earn your first point.')
+      : L(
+        `Nivel ${n} · ${free ? `te ${free === 1 ? 'queda 1 punto' : `quedan ${free} puntos`} para poner` : 'todos tus puntos puestos'} · ${p.points} de ${MAX_POINTS} ganados`,
+        `Level ${n} · ${free ? `${free} point${free === 1 ? '' : 's'} to spend` : 'all points spent'} · ${p.points} of ${MAX_POINTS} earned`,
+      );
     this.list.innerHTML = TALENTS.map((t) => {
       const lv = levelOf(p.picks, t.id);
       const pips = t.levels.map((_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
@@ -67,8 +71,8 @@ export class DifficultyMenu {
       const canAdd = lv < t.levels.length && free > 0;
       return `<div class="talent${lv ? ' taken' : ''}">
         <div class="head"><span class="pips">${pips}</span><b>${t.name}</b>
-          <button type="button" data-id="${t.id}" data-step="-1" ${lv ? '' : 'disabled'} aria-label="Sacar un punto">−</button>
-          <button type="button" data-id="${t.id}" data-step="1" ${canAdd ? '' : 'disabled'} aria-label="Poner un punto">+</button>
+          <button type="button" data-id="${t.id}" data-step="-1" ${lv ? '' : 'disabled'} aria-label="${L('Sacar un punto', 'Remove a point')}">−</button>
+          <button type="button" data-id="${t.id}" data-step="1" ${canAdd ? '' : 'disabled'} aria-label="${L('Poner un punto', 'Add a point')}">+</button>
         </div>
         <div class="lines">${lines}</div>
       </div>`;

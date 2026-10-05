@@ -4,6 +4,7 @@ import { ABILITIES, ABILITY_KEYS, SLOTS, type AbilityId } from './core/abilities
 import { CLUB_KEYS, CLUB_ORDER, CLUBS, type Club, type ClubId } from './core/clubs';
 import { arcAngle, type ArcLayout } from './core/swing';
 import { EndScreen, type EndInfo } from './endscreen';
+import { L } from './i18n';
 
 /** Hasta dónde se abre el arco de carga, de arriba a cada borde: con las mejoras puede pasar de 90°. */
 const ARC_MAX = 105;
@@ -71,7 +72,7 @@ export class Hud {
     this.clubsEl.innerHTML = CLUB_ORDER.map((id, i) => {
       const c = CLUBS[id];
       const color = '#' + c.color.toString(16).padStart(6, '0');
-      return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">hasta ${c.maxRange} m</div></div>`;
+      return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">${L(`hasta ${c.maxRange} m`, `up to ${c.maxRange} m`)}</div></div>`;
     }).join('');
     // los cuatro lugares de habilidad, que se llenan eligiendo cartas
     this.enchantsEl.innerHTML = Array.from({ length: SLOTS }, (_, i) =>
@@ -98,7 +99,7 @@ export class Hud {
       const up = c.up ? `<div class="cool up" style="color:#8fe3b0">▲ ${esc(c.up)}</div>` : '';
       return `<div class="choice" data-i="${i}" style="--c:${color}"><kbd>${i + 1}</kbd><div class="tag">${esc(c.tag)}</div><div class="name">${esc(c.name)}</div><div class="title">${esc(c.title)}</div><div class="hint">${esc(c.hint)}</div>${up}${cool}</div>`;
     }).join('');
-    (this.choiceEl.querySelector('.next') as HTMLElement).textContent = next ? `Próxima oleada: ${next}` : '';
+    (this.choiceEl.querySelector('.next') as HTMLElement).textContent = next ? L(`Próxima oleada: ${next}`, `Next wave: ${next}`) : '';
     this.choiceEl.hidden = false;
   }
 
@@ -280,7 +281,7 @@ export class Hud {
       el.classList.remove('locked');
       el.style.setProperty('--c', '#' + a.color.toString(16).padStart(6, '0'));
       (el.querySelector('.name') as HTMLElement).textContent = a.name;
-      (el.querySelector('.title') as HTMLElement).textContent = s.level > 1 ? `${a.title} · nv ${s.level}` : a.title;
+      (el.querySelector('.title') as HTMLElement).textContent = s.level > 1 ? L(`${a.title} · nv ${s.level}`, `${a.title} · lv ${s.level}`) : a.title;
       (el.querySelector('.cdlabel') as HTMLElement).textContent = `⟳ ${Math.round(totals[i])} s`;
     }
   }
@@ -293,8 +294,8 @@ export class Hud {
     (el.querySelector('.title') as HTMLElement).textContent = c.title;
     (el.querySelector('.key') as HTMLElement).textContent = c.key;
     (el.querySelector('.hint') as HTMLElement).textContent = c.hint;
-    (el.querySelector('.cool') as HTMLElement).textContent = c.cooldown ? `Recarga: ${c.cooldown} s` : 'Sin recarga';
-    (el.querySelector('.next') as HTMLElement).textContent = c.next ? `Próxima oleada: ${c.next}` : '';
+    (el.querySelector('.cool') as HTMLElement).textContent = c.cooldown ? L(`Recarga: ${c.cooldown} s`, `Cooldown: ${c.cooldown} s`) : L('Sin recarga', 'No cooldown');
+    (el.querySelector('.next') as HTMLElement).textContent = c.next ? L(`Próxima oleada: ${c.next}`, `Next wave: ${c.next}`) : '';
     el.hidden = false;
   }
 
@@ -352,8 +353,10 @@ export class Hud {
   }
 
   setWave(index: number, total: number, alive: number, pending: number, restLeft: number): void {
-    this.waveN.textContent = index < 0 ? 'Preparate…' : `Oleada ${index + 1} / ${total}`;
-    this.waveSub.textContent = restLeft > 0 && index >= 0 ? `próxima oleada en ${Math.ceil(restLeft)}` : index < 0 ? '' : `quedan ${alive + pending}`;
+    this.waveN.textContent = index < 0 ? L('Preparate…', 'Get ready…') : L(`Oleada ${index + 1} / ${total}`, `Wave ${index + 1} / ${total}`);
+    this.waveSub.textContent = restLeft > 0 && index >= 0
+      ? L(`próxima oleada en ${Math.ceil(restLeft)}`, `next wave in ${Math.ceil(restLeft)}`)
+      : index < 0 ? '' : L(`quedan ${alive + pending}`, `${alive + pending} left`);
   }
 
   private pocketEl = $('pocket');
@@ -365,11 +368,11 @@ export class Hud {
     if (key === this.pocketKey) return;
     this.pocketKey = key;
     this.pocketEl.hidden = false;
-    this.pocketEl.innerHTML = `<small>bolsillo</small>${'<span>●</span>'.repeat(Math.min(count, max))}${'<span class="off">●</span>'.repeat(Math.max(0, max - count))}`;
+    this.pocketEl.innerHTML = `<small>${L('bolsillo', 'pocket')}</small>${'<span>●</span>'.repeat(Math.min(count, max))}${'<span class="off">●</span>'.repeat(Math.max(0, max - count))}`;
   }
 
   setScore(score: number, kills: number): void {
-    this.score.textContent = `${score} pts · ${kills} bajas`;
+    this.score.textContent = L(`${score} pts · ${kills} bajas`, `${score} pts · ${kills} kills`);
   }
 
   private shownClubs = '';
@@ -385,7 +388,7 @@ export class Hud {
       el.classList.toggle('active', id === club.id);
       el.classList.toggle('queued', id === queued?.id);
     }
-    this.hint.textContent = queued ? `Próximo: ${queued.name} · ${queued.hint}` : hint || club.hint;
+    this.hint.textContent = queued ? L(`Próximo: ${queued.name} · ${queued.hint}`, `Next: ${queued.name} · ${queued.hint}`) : hint || club.hint;
   }
 
   /** Pone el arco en un punto de la pantalla (el centro del arco). */

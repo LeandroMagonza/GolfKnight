@@ -7,6 +7,8 @@
 // se reinicia desde la pausa) se guarda como abandonada. No se manda nada desde las pruebas automáticas
 // (navigator.webdriver), el bot ni el espectador: eso lo decide quien crea el registro.
 
+import { lang } from './i18n';
+
 const ENDPOINT = 'https://kdwiuiciobekuedpmfpj.supabase.co/rest/v1/golf_runs';
 /** La clave pública del proyecto: con la regla de la tabla, solo deja agregar partidas, no leerlas. */
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtkd2l1aWNpb2Jla3VlZHBtZnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MzQ1MDYsImV4cCI6MjA4OTIxMDUwNn0.Cm1fWVHTGQpfUDABRlLX4yFXayGyy_xD6ettzV2zJNQ';
@@ -258,6 +260,8 @@ export class RunRecorder {
         waves: this.waves,
         cards: this.cards,
         host: location.hostname,
+        // en qué idioma jugó (ver src/i18n.ts); el título de cada oleada sale en ese idioma
+        lang,
         screen: [innerWidth, innerHeight],
         touch: matchMedia('(pointer: coarse)').matches,
       },

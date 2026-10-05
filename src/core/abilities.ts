@@ -14,6 +14,7 @@
 //   pelotas, caddie dorado, lupa, clon, palazo, eco y potencia. (El 1/10 se fueron el boomerang, que
 //   tiraba el palo de la mano, y la granada: el silencio en área es el wedge silenciador.) Desde el 4/10,
 //   también las que duran unos segundos y cambian todos tus tiros: la fuerza y los guantes.
+import { L } from '../i18n';
 import { CLUBS, QUALITY_LEVELS, spreadFor, type ClubId } from './clubs';
 
 export type AbilityId = string;
@@ -187,92 +188,120 @@ export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1,
 /** Todas las tablas de números de las habilidades, por nombre: el panel de balance las recorre. */
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
   elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
-  bandera: FLAG, 'pólvora': POWDER, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO,
+  bandera: FLAG, 'pólvora': POWDER, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO, // i18n-ok: claves del panel B
   eco: ECHO, potencia: BOOST, fuerza: MIGHT, guante: GLOVE,
 };
 
 const BASE: Ability[] = [
   {
-    id: 'cart', kind: 'cart', name: 'Carrito', title: 'atropella', cooldown: 14, range: 60, color: 0xe9e2cf,
-    hint: 'Un carrito de golf cruza el campo a la altura que apuntás y atropella a todos',
+    id: 'cart', kind: 'cart', name: L('Carrito', 'Golf Cart'), title: L('atropella', 'runs them over'), cooldown: 14, range: 60, color: 0xe9e2cf,
+    hint: L('Un carrito de golf cruza el campo a la altura que apuntás y atropella a todos', 'A golf cart crosses the field where you aim and runs everyone over'),
   },
   {
-    id: 'hole', kind: 'hole', name: 'Hoyo', title: 'se lo traga', cooldown: 20, range: 55, color: 0x9aa4b2,
-    hint: 'Abre un hoyo: el primero que lo pisa cae y no vuelve. Menos el jefe y los élites',
+    id: 'hole', kind: 'hole', name: L('Hoyo', 'Hole'), title: L('se lo traga', 'swallows them'), cooldown: 20, range: 55, color: 0x9aa4b2,
+    hint: L('Abre un hoyo: el primero que lo pisa cae y no vuelve. Menos el jefe y los élites', 'Opens a hole: the first one to step in is gone for good. Not the boss or elites'),
   },
   {
-    id: 'flag', kind: 'flag', name: 'Bandera', title: 'los desvía', cooldown: 15, range: 55, color: 0xd8413a,
-    hint: 'Planta una bandera: los que están cerca van hacia ella un rato',
+    id: 'flag', kind: 'flag', name: L('Bandera', 'Flag'), title: L('los desvía', 'lures them'), cooldown: 15, range: 55, color: 0xd8413a,
+    hint: L('Planta una bandera: los que están cerca van hacia ella un rato', 'Plants a flag: nearby enemies walk to it for a while'),
   },
   {
-    id: 'powder', kind: 'powder', name: 'Pólvora', title: 'en cadena', cooldown: 10, range: 50, color: 0xb0413e,
-    hint: 'Marca a los enemigos donde cae: el marcado que muere explota y le pega a los de al lado',
+    id: 'powder', kind: 'powder', name: L('Pólvora', 'Gunpowder'), title: L('en cadena', 'chain blast'), cooldown: 10, range: 50, color: 0xb0413e,
+    hint: L('Marca a los enemigos donde cae: el marcado que muere explota y le pega a los de al lado', 'Marks enemies where it lands: a marked one that dies blows up and hits its neighbors'),
   },
   {
-    id: 'rain', kind: 'rain', name: 'Lluvia de pelotas', title: 'todos los puestos', cooldown: 40, range: 0, color: 0xfff1b8,
-    hint: 'Los guardias llenan de pelotas todos los puestos',
+    id: 'rain', kind: 'rain', name: L('Lluvia de pelotas', 'Ball Shower'), title: L('todos los puestos', 'every tee'), cooldown: 40, range: 0, color: 0xfff1b8,
+    hint: L('Los guardias llenan de pelotas todos los puestos', 'The guards fill every tee with balls'),
   },
   {
-    id: 'caddie', kind: 'caddie', name: 'Caddie dorado', title: 'pelota infinita', cooldown: 35, range: 0, color: 0xffd66b,
-    hint: 'Unos segundos de pelota infinita en tu puesto',
+    id: 'caddie', kind: 'caddie', name: L('Caddie dorado', 'Golden Caddie'), title: L('pelota infinita', 'endless balls'), cooldown: 35, range: 0, color: 0xffd66b,
+    hint: L('Unos segundos de pelota infinita en tu puesto', 'A few seconds of endless balls at your tee'),
   },
   {
-    id: 'lens', kind: 'lens', name: 'Lupa', title: 'los agranda', cooldown: 12, range: 50, color: 0xa8e063,
-    hint: 'Agranda a los enemigos un rato: son más fáciles de pegar y reciben 1 de daño extra',
+    id: 'lens', kind: 'lens', name: L('Lupa', 'Magnifier'), title: L('los agranda', 'makes them big'), cooldown: 12, range: 50, color: 0xa8e063,
+    hint: L('Agranda a los enemigos un rato: son más fáciles de pegar y reciben 1 de daño extra', 'Enlarges enemies for a while: easier to hit, and they take 1 extra damage'),
   },
   {
-    id: 'clone', kind: 'clone', name: 'Clon', title: 'dos tiros', cooldown: 15, range: 0, color: 0xc9b8ff,
-    hint: 'Deja una copia tuya donde estás: tu próximo tiro sale también desde ahí',
+    id: 'clone', kind: 'clone', name: L('Clon', 'Clone'), title: L('dos tiros', 'two shots'), cooldown: 15, range: 0, color: 0xc9b8ff,
+    hint: L('Deja una copia tuya donde estás: tu próximo tiro sale también desde ahí', 'Leaves a copy of you where you stand: your next shot also fires from there'),
   },
   {
-    id: 'shove', kind: 'melee', name: 'Palazo', title: 'empujón', cooldown: 12, range: 0, color: 0xfff1b8,
-    hint: 'Manda lejos a los enemigos que tenés encima',
+    id: 'shove', kind: 'melee', name: L('Palazo', 'Whack'), title: L('empujón', 'shove'), cooldown: 12, range: 0, color: 0xfff1b8,
+    hint: L('Manda lejos a los enemigos que tenés encima', 'Knocks away the enemies right on top of you'),
   },
   {
-    id: 'echo', kind: 'echo', name: 'Eco', title: 'el tiro, otra vez', cooldown: 12, range: 0, color: 0x7ff0e0,
-    hint: 'Tu próximo tiro se repite',
+    id: 'echo', kind: 'echo', name: L('Eco', 'Echo'), title: L('el tiro, otra vez', 'that shot, again'), cooldown: 12, range: 0, color: 0x7ff0e0,
+    hint: L('Tu próximo tiro se repite', 'Your next shot repeats'),
   },
   {
-    id: 'boost', kind: 'boost', name: 'Potencia', title: 'el próximo pega más', cooldown: 8, range: 0, color: 0xff9a3c,
-    hint: 'Tu próximo tiro pega 1 más',
+    id: 'boost', kind: 'boost', name: L('Potencia', 'Boost'), title: L('el próximo pega más', 'next one hits harder'), cooldown: 8, range: 0, color: 0xff9a3c,
+    hint: L('Tu próximo tiro pega 1 más', 'Your next shot hits for 1 more'),
   },
   {
-    id: 'might', kind: 'might', name: 'Fuerza', title: 'todos pegan 2', cooldown: 20, range: 0, color: 0xf5b041,
-    hint: 'Unos segundos en que todos tus tiros pegan por lo menos 2 (el putter, 3), también los de habilidad',
+    id: 'might', kind: 'might', name: L('Fuerza', 'Might'), title: L('todos pegan 2', 'everything hits 2'), cooldown: 20, range: 0, color: 0xf5b041,
+    hint: L('Unos segundos en que todos tus tiros pegan por lo menos 2 (el putter, 3), también los de habilidad', 'For a few seconds, all your shots hit for at least 2 (putter: 3), ability shots too'),
   },
 ];
 
-const CLUB_LABEL: Record<ClubId, string> = { driver: 'Driver', iron: 'Hierro', wedge: 'Wedge', putter: 'Putter' };
+const CLUB_LABEL: Record<ClubId, string> = L(
+  { driver: 'Driver', iron: 'Hierro', wedge: 'Wedge', putter: 'Putter' },
+  { driver: 'Driver', iron: 'Iron', wedge: 'Wedge', putter: 'Putter' },
+);
 const CLUB_COOLDOWN: Record<ClubId, number> = { driver: 7, iron: 7, wedge: 8, putter: 6 };
 const CLUB_RANGE: Record<ClubId, number> = { driver: 55, iron: 55, wedge: 55, putter: 20 };
+/**
+ * Cada elemento: su nombre, cómo se le pega a un nombre (`adj`: «Driver de hielo», «Guante de fuego»; en
+ * inglés va adelante y es el mismo sustantivo: «Ice Driver», ver `shotName`) y qué hace, para las cartas.
+ */
 export const ELEMENT_INFO: Record<Element, { name: string; adj: string; color: number; hint: string }> = {
-  ice: { name: 'Hielo', adj: 'de hielo', color: 0x9fe0ff, hint: 'enfría a los enemigos' },
-  fire: { name: 'Fuego', adj: 'de fuego', color: 0xff5a36, hint: 'prende fuego a los enemigos' },
-  lightning: { name: 'Rayo', adj: 'de rayo', color: 0xb8c4ff, hint: 'electrocuta a los enemigos, y el rayo salta a los de al lado' },
-  wind: { name: 'Viento', adj: 'de viento', color: 0x8fe3b0, hint: 'mueve a los enemigos' },
+  ice: { name: L('Hielo', 'Ice'), adj: L('de hielo', 'Ice'), color: 0x9fe0ff, hint: L('enfría a los enemigos', 'chills enemies') },
+  fire: { name: L('Fuego', 'Fire'), adj: L('de fuego', 'Fire'), color: 0xff5a36, hint: L('prende fuego a los enemigos', 'sets enemies on fire') },
+  lightning: {
+    name: L('Rayo', 'Lightning'), adj: L('de rayo', 'Lightning'), color: 0xb8c4ff,
+    hint: L('electrocuta a los enemigos, y el rayo salta a los de al lado', 'shocks enemies, and the lightning jumps to nearby ones'),
+  },
+  wind: { name: L('Viento', 'Wind'), adj: L('de viento', 'Wind'), color: 0x8fe3b0, hint: L('mueve a los enemigos', 'moves enemies') },
   ghost: {
-    name: 'Fantasma', adj: 'fantasma', color: 0xd8e6ff,
-    hint: 'atraviesa escudos, blindaje, fantasmas e inmunes',
+    name: L('Fantasma', 'Ghost'), adj: L('fantasma', 'Ghost'), color: 0xd8e6ff,
+    hint: L('atraviesa escudos, blindaje, fantasmas e inmunes', 'ignores shields, armor, ghosts and immunity'),
   },
   silence: {
-    name: 'Silencio', adj: 'silenciador', color: 0xff6b4a,
-    hint: 'apaga los poderes de los enemigos un rato',
+    name: L('Silencio', 'Silence'), adj: L('silenciador', 'Silencing'), color: 0xff6b4a,
+    hint: L('apaga los poderes de los enemigos un rato', 'shuts off enemy powers for a while'),
   },
 };
 export const ELEMENT_ORDER: Element[] = ['ice', 'fire', 'lightning', 'wind', 'ghost', 'silence'];
 
 /** El viento hace algo distinto con cada palo. Con el putter no tiene sentido: no hay. */
 const WIND_HINT: Partial<Record<ClubId, string>> = {
-  driver: 'junta a los enemigos sobre la línea del tiro',
-  iron: 'empuja a los enemigos para atrás',
-  wedge: 'atrae a los enemigos',
+  driver: L('junta a los enemigos sobre la línea del tiro', 'pulls enemies onto the shot line'),
+  iron: L('empuja a los enemigos para atrás', 'pushes enemies back'),
+  wedge: L('atrae a los enemigos', 'draws enemies in'),
 };
 
 /** Lo que cambia de un elemento según el palo. El fantasma del driver, además, atraviesa lomas. */
 const CLUB_HINT: Partial<Record<Element, Partial<Record<ClubId, string>>>> = {
   wind: WIND_HINT,
-  ghost: { driver: 'atraviesa escudos, blindaje, fantasmas, inmunes y lomas' },
+  ghost: { driver: L('atraviesa escudos, blindaje, fantasmas, inmunes y lomas', 'ignores shields, armor, ghosts, immunity and hills') },
 };
+
+/**
+ * El nombre de un tiro de palo y elemento: «Driver de hielo»; en inglés el elemento va adelante, «Ice
+ * Driver». `club` es cómo se llama el palo (el tenis le cambia el nombre, ver tennis/mode).
+ */
+export const shotName: (club: string, element: Element) => string = L(
+  (club: string, element: Element) => `${club} ${ELEMENT_INFO[element].adj}`,
+  (club: string, element: Element) => `${ELEMENT_INFO[element].adj} ${club}`,
+);
+
+/**
+ * Lo que dice la carta de un tiro de palo y elemento. `shot` es cómo se llama el tiro: «disparo de driver»
+ * / «driver shot» (en el tenis, «plano» / «drive»).
+ */
+export const shotHint: (shot: string, club: ClubId, element: Element) => string = L(
+  (shot: string, club: ClubId, element: Element) => `Un ${shot} instantáneo que ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
+  (shot: string, club: ClubId, element: Element) => `An instant ${shot} that ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
+);
 
 /**
  * Las de palo y elemento: los cuatro palos con hielo, fuego, rayo, fantasma y silencio, y tres con
@@ -286,40 +315,47 @@ const SHOTS: Ability[] = (['driver', 'iron', 'wedge', 'putter'] as ClubId[]).fla
   .filter((element) => element !== 'wind' || WIND_HINT[club])
   .map((element): Ability => ({
     id: `${club}-${element}`, kind: 'shot', club, element,
-    name: `${CLUB_LABEL[club]} ${ELEMENT_INFO[element].adj}`, title: ELEMENT_INFO[element].name.toLowerCase(),
-    hint: `Un disparo de ${CLUB_LABEL[club].toLowerCase()} instantáneo que ${CLUB_HINT[element]?.[club] ?? ELEMENT_INFO[element].hint}`,
+    name: shotName(CLUB_LABEL[club], element), title: ELEMENT_INFO[element].name.toLowerCase(),
+    hint: shotHint(L(`disparo de ${CLUB_LABEL[club].toLowerCase()}`, `${CLUB_LABEL[club].toLowerCase()} shot`), club, element),
     cooldown: CLUB_COOLDOWN[club], range: CLUB_RANGE[club], color: ELEMENT_INFO[element].color,
   })));
 
-/** Lo que hacen de más los tiros con guante. */
+/** Lo que hacen de más los tiros con guante (en inglés, la frase sigue a «all your club shots»). */
 const GLOVE_HINT: Partial<Record<Element, string>> = {
-  ghost: 'pasan escudos, blindaje, fantasmas e inmunes',
-  ice: 'además enfrían',
-  fire: 'además prenden fuego',
-  lightning: 'además les cae un rayo que salta a los de al lado',
+  ghost: L('pasan escudos, blindaje, fantasmas e inmunes', 'ignore shields, armor, ghosts and immunity'),
+  ice: L('además enfrían', 'also chill'),
+  fire: L('además prenden fuego', 'also set enemies on fire'),
+  lightning: L('además les cae un rayo que salta a los de al lado', 'also call down lightning that jumps to nearby enemies'),
 };
 
 /** Los guantes (ver GLOVE): unos segundos en que todos tus tiros de palo son de un elemento. */
 const GLOVES: Ability[] = GLOVE_ELEMENTS.map((element): Ability => ({
   id: `glove-${element}`, kind: 'glove', element,
-  name: `Guante ${ELEMENT_INFO[element].adj}`, title: `tus tiros, ${ELEMENT_INFO[element].adj}`,
-  hint: `Unos segundos en que todos tus tiros de palo son ${ELEMENT_INFO[element].adj}: ${GLOVE_HINT[element]}`,
+  name: L(`Guante ${ELEMENT_INFO[element].adj}`, `${ELEMENT_INFO[element].adj} Glove`),
+  title: L(`tus tiros, ${ELEMENT_INFO[element].adj}`, `${ELEMENT_INFO[element].adj.toLowerCase()} shots`),
+  hint: L(
+    `Unos segundos en que todos tus tiros de palo son ${ELEMENT_INFO[element].adj}: ${GLOVE_HINT[element]}`,
+    `For a few seconds, all your club shots ${GLOVE_HINT[element]}`,
+  ),
   cooldown: 20, range: 0, color: ELEMENT_INFO[element].color,
 }));
 
 /**
  * Lo que dice la carta de una habilidad en un nivel. `hint` es el del nivel 1; las que cambian al subir
  * dicen lo de ese nivel, sin anunciar los de después: la potencia de nivel 2 pega 2 más, el hielo de
- * nivel 3 ya congela.
+ * nivel 3 ya congela. (El hielo agrega el «congela» al texto de la carta, que puede ser el del tenis.)
  */
 export function hintAt(a: Ability, level: number): string {
-  if (a.kind === 'boost') return `Tu próximo tiro pega ${lv(BOOST.bonus, level)} más`;
+  if (a.kind === 'boost') {
+    const n = lv(BOOST.bonus, level);
+    return L(`Tu próximo tiro pega ${n} más`, `Your next shot hits for ${n} more`);
+  }
   if (a.kind === 'echo') {
     const n = lv(ECHO.shots, level);
-    return n > 1 ? `Tu próximo tiro se repite ${n} veces` : a.hint;
+    return n > 1 ? L(`Tu próximo tiro se repite ${n} veces`, `Your next shot repeats ${n} times`) : a.hint;
   }
-  if (a.element === 'ice' && a.club && level >= freezeFrom(a.club)) return a.hint.replace('enfría', 'enfría y congela');
-  if (a.kind === 'glove' && a.element === 'ice' && level >= ELEMENTS.iceFreezeFrom) return a.hint.replace('enfrían', 'enfrían y congelan');
+  if (a.element === 'ice' && a.club && level >= freezeFrom(a.club)) return a.hint.replace(L('enfría', 'chills'), L('enfría y congela', 'chills and freezes'));
+  if (a.kind === 'glove' && a.element === 'ice' && level >= ELEMENTS.iceFreezeFrom) return a.hint.replace(L('enfrían', 'chill'), L('enfrían y congelan', 'chill and freeze'));
   return a.hint;
 }
 
@@ -373,42 +409,48 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
   const table = (label: string, values: number[], unit = '') => stat(label, (l) => lv(values, l), unit);
   // lo que pasa de no tenerlo a tenerlo, sin números
   const gains = (label: string, from: number) => { if (level >= from && level - 1 < from) parts.push(label); };
+  const lasts = L('Dura', 'Lasts');
+  const radius = L('Radio', 'Radius');
+  const chills = L('Enfría', 'Chills');
+  const freezes = L('Congela', 'Freezes');
+  const burn = L('Daño del fuego', 'Burn damage');
+  const jumps = L('Saltos por lado', 'Jumps per side');
   switch (a.kind) {
-    case 'cart': table('Daño', CART.damage); break;
-    case 'hole': table('Se traga a', HOLE.swallows); break;
-    case 'flag': table('Radio', FLAG.radius, ' m'); table('Dura', FLAG.seconds, ' s'); break;
-    case 'powder': table('Radio', POWDER.radius, ' m'); table('Daño de la explosión', POWDER.damage); break;
-    case 'caddie': table('Dura', CADDIE.seconds, ' s'); break;
-    case 'lens': table('Radio', LENS.radius, ' m'); table('Dura', LENS.seconds, ' s'); break;
-    case 'clone': table('Tiros', CLONE.shots); break;
-    case 'melee': table('Alcance', PALAZO.radius, ' m'); table('Les corta el ataque', PALAZO.stagger, ' s'); break;
-    case 'echo': table('Repeticiones', ECHO.shots); break;
-    case 'boost': table('Daño extra', BOOST.bonus); break;
-    case 'might': table('Dura', MIGHT.seconds, ' s'); break;
+    case 'cart': table(L('Daño', 'Damage'), CART.damage); break;
+    case 'hole': table(L('Se traga a', 'Swallows'), HOLE.swallows); break;
+    case 'flag': table(radius, FLAG.radius, ' m'); table(lasts, FLAG.seconds, ' s'); break;
+    case 'powder': table(radius, POWDER.radius, ' m'); table(L('Daño de la explosión', 'Blast damage'), POWDER.damage); break;
+    case 'caddie': table(lasts, CADDIE.seconds, ' s'); break;
+    case 'lens': table(radius, LENS.radius, ' m'); table(lasts, LENS.seconds, ' s'); break;
+    case 'clone': table(L('Tiros', 'Shots'), CLONE.shots); break;
+    case 'melee': table(L('Alcance', 'Reach'), PALAZO.radius, ' m'); table(L('Les corta el ataque', 'Stagger'), PALAZO.stagger, ' s'); break;
+    case 'echo': table(L('Repeticiones', 'Repeats'), ECHO.shots); break;
+    case 'boost': table(L('Daño extra', 'Extra damage'), BOOST.bonus); break;
+    case 'might': table(lasts, MIGHT.seconds, ' s'); break;
     case 'glove':
-      table('Dura', GLOVE.seconds, ' s');
+      table(lasts, GLOVE.seconds, ' s');
       // el efecto va al nivel del guante
-      if (a.element === 'ice') { table('Enfría', ELEMENTS.iceSeconds, ' s'); gains('Congela', ELEMENTS.iceFreezeFrom); }
-      else if (a.element === 'fire') stat('Daño del fuego', (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage);
-      else if (a.element === 'lightning') table('Saltos por lado', ELEMENTS.chainJumps);
+      if (a.element === 'ice') { table(chills, ELEMENTS.iceSeconds, ' s'); gains(freezes, ELEMENTS.iceFreezeFrom); }
+      else if (a.element === 'fire') stat(burn, (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage);
+      else if (a.element === 'lightning') table(jumps, ELEMENTS.chainJumps);
       break;
     case 'shot': {
       const club = CLUBS[a.club!];
       switch (a.element) {
-        case 'ice': table('Enfría', ELEMENTS.iceSeconds, ' s'); gains('Congela', freezeFrom(a.club!)); break;
-        case 'fire': stat('Daño del fuego', (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage); break;
-        case 'lightning': table('Saltos por lado', ELEMENTS.chainJumps); break;
+        case 'ice': table(chills, ELEMENTS.iceSeconds, ' s'); gains(freezes, freezeFrom(a.club!)); break;
+        case 'fire': stat(burn, (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage); break;
+        case 'lightning': table(jumps, ELEMENTS.chainJumps); break;
         case 'wind':
-          if (a.club === 'driver') table('Junta desde', ELEMENTS.windLine, ' m');
-          else if (a.club === 'iron') table('Empuja', ELEMENTS.windPush, ' m');
-          else table('Atrae desde', ELEMENTS.windPull, ' m');
+          if (a.club === 'driver') table(L('Junta desde', 'Gathers from'), ELEMENTS.windLine, ' m');
+          else if (a.club === 'iron') table(L('Empuja', 'Pushes'), ELEMENTS.windPush, ' m');
+          else table(L('Atrae desde', 'Pulls from'), ELEMENTS.windPull, ' m');
           break;
-        case 'ghost': stat('Golpe', (l) => l); break;
-        case 'silence': table('Silencia', ELEMENTS.silenceSeconds, ' s'); break;
+        case 'ghost': stat(L('Golpe', 'Hit'), (l) => l); break;
+        case 'silence': table(L('Silencia', 'Silences'), ELEMENTS.silenceSeconds, ' s'); break;
       }
       // el tiro sale con el golpe del nivel (el wedge, uno más): el área del hierro y del wedge crece con
       // él (el viento no: el remolino y la ráfaga tienen su propio radio, que ya dice arriba)
-      if (a.element !== 'wind') stat('Área', (l) => spreadFor(club, shotQuality(a.club!, l)), ' m');
+      if (a.element !== 'wind') stat(L('Área', 'Area'), (l) => spreadFor(club, shotQuality(a.club!, l)), ' m');
       break;
     }
   }
@@ -430,7 +472,7 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
 };
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
   cart: 'carrito', hole: 'hoyo', flag: 'bandera',
-  powder: 'pólvora', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo',
+  powder: 'pólvora', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo', // i18n-ok: claves del panel B
   echo: 'eco', boost: 'potencia', might: 'fuerza', glove: 'guante',
 };
 

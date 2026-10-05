@@ -12,6 +12,8 @@
 // de nivel 2, salen de nivel 3. Puede tener el mismo hechizo dos veces, de distinto nivel: cada lugar
 // recarga por su lado.
 
+import { L } from '../i18n';
+
 export type SpellId = 'hail' | 'whirl' | 'current' | 'push' | 'curse' | 'hush' | 'trap';
 export const SPELL_ORDER: SpellId[] = ['hail', 'whirl', 'current', 'push', 'curse', 'hush', 'trap'];
 /** Cuántos hechizos tiene Abe a la vez (los botones). */
@@ -20,7 +22,8 @@ export const SPELL_MAX_LEVEL = 3;
 /** Cuántos le ofrecen cada vez. */
 export const OFFER_SIZE = 3;
 
-export type SpellShape = 'zona' | 'línea' | 'trampa';
+/** La forma de un hechizo. Es una etiqueta interna: lo que se lee lo arma `spellSize`. */
+export type SpellShape = 'zona' | 'línea' | 'trampa'; // i18n-ok: etiqueta interna
 
 /**
  * Los números de cada hechizo. Los que van en lista son por nivel (1, 2, 3). `cooldown` es la recarga y
@@ -54,11 +57,11 @@ export const ABE_SPELLS = {
  * no caminan, pero sí atacan, y el escudo sigue arriba. Al jefe no. No pega.
  */
 export const ABE_BOLT = { cooldown: 1.2, delay: 0.25, radius: 1.1, seconds: 0.5 };
-export const BOLT_INFO = { name: 'Chispa', icon: '✨', color: 0xe6b3ff };
+export const BOLT_INFO = { name: L('Chispa', 'Spark'), icon: '✨', color: 0xe6b3ff };
 
 /** Qué hace la chispa, para el panel. */
 export function boltHint(): string {
-  return `Los que agarra quedan clavados ${n(ABE_BOLT.seconds)} s`;
+  return L(`Los que agarra quedan clavados ${n(ABE_BOLT.seconds)} s`, `Pins down whoever it catches for ${n(ABE_BOLT.seconds)} s`);
 }
 
 /** El número de un nivel en una tabla por nivel (o el número, si es igual en todos). */
@@ -73,13 +76,13 @@ export function sizeOf(id: SpellId, level: number): number {
 }
 
 export const SPELL_INFO: Record<SpellId, { name: string; icon: string; color: number; shape: SpellShape }> = {
-  hail: { name: 'Granizo', icon: '❄', color: 0x9fe3ff, shape: 'zona' },
-  whirl: { name: 'Remolino', icon: '🌀', color: 0x8fe3b0, shape: 'zona' },
-  current: { name: 'Corriente', icon: '💨', color: 0x7fd8ff, shape: 'línea' },
-  push: { name: 'Empujón', icon: '✋', color: 0xffe08a, shape: 'zona' },
-  curse: { name: 'Maldición', icon: '🎯', color: 0xc6f06a, shape: 'zona' },
-  hush: { name: 'Silencio', icon: '🔇', color: 0xff8a6b, shape: 'zona' },
-  trap: { name: 'Trampa', icon: '🪤', color: 0xd9a35a, shape: 'trampa' },
+  hail: { name: L('Granizo', 'Hail'), icon: '❄', color: 0x9fe3ff, shape: 'zona' },
+  whirl: { name: L('Remolino', 'Whirlwind'), icon: '🌀', color: 0x8fe3b0, shape: 'zona' },
+  current: { name: L('Corriente', 'Current'), icon: '💨', color: 0x7fd8ff, shape: 'línea' }, // i18n-ok: la forma es una etiqueta interna
+  push: { name: L('Empujón', 'Shove'), icon: '✋', color: 0xffe08a, shape: 'zona' },
+  curse: { name: L('Maldición', 'Curse'), icon: '🎯', color: 0xc6f06a, shape: 'zona' },
+  hush: { name: L('Silencio', 'Silence'), icon: '🔇', color: 0xff8a6b, shape: 'zona' },
+  trap: { name: L('Trampa', 'Trap'), icon: '🪤', color: 0xd9a35a, shape: 'trampa' },
 };
 
 const n = (v: number) => `${+v.toFixed(1)}`;
@@ -88,20 +91,34 @@ const n = (v: number) => `${+v.toFixed(1)}`;
 export function spellHint(id: SpellId, level: number): string {
   const s = ABE_SPELLS;
   switch (id) {
-    case 'hail': return `Al rato cae hielo: los frena ${n(at(s.hail.seconds, level))} s${level >= s.hail.freezeFrom ? ' y los congela' : ''}`;
-    case 'whirl': return 'Los junta en el centro';
-    case 'current': return 'Del caballero hasta donde tocás: los pone en fila, uno detrás del otro';
-    case 'push': return `Los manda ${n(at(s.push.distance, level))} m para atrás`;
-    case 'curse': return `Crecen y reciben 1 más por golpe, ${n(at(s.curse.seconds, level))} s`;
-    case 'hush': return `Se les apagan los poderes ${n(at(s.hush.seconds, level))} s`;
-    case 'trap': return `Queda en el piso: el primero que la pisa los deja atrapados ${n(at(s.trap.seconds, level))} s`;
+    case 'hail': {
+      const t = n(at(s.hail.seconds, level));
+      const freezes = level >= s.hail.freezeFrom;
+      return L(`Al rato cae hielo: los frena ${t} s${freezes ? ' y los congela' : ''}`, `Ice falls after a beat: slows them for ${t} s${freezes ? ' and freezes them' : ''}`);
+    }
+    case 'whirl': return L('Los junta en el centro', 'Pulls them to the center');
+    case 'current': return L('Del caballero hasta donde tocás: los pone en fila, uno detrás del otro', 'From the knight to where you tap: lines them up, one behind the other');
+    case 'push': return L(`Los manda ${n(at(s.push.distance, level))} m para atrás`, `Sends them ${n(at(s.push.distance, level))} m back`);
+    case 'curse': return L(`Crecen y reciben 1 más por golpe, ${n(at(s.curse.seconds, level))} s`, `They grow and take 1 more per hit, ${n(at(s.curse.seconds, level))} s`);
+    case 'hush': return L(`Se les apagan los poderes ${n(at(s.hush.seconds, level))} s`, `Their powers shut off for ${n(at(s.hush.seconds, level))} s`);
+    case 'trap': return L(`Queda en el piso: el primero que la pisa los deja atrapados ${n(at(s.trap.seconds, level))} s`, `Stays on the ground: the first to step on it traps them for ${n(at(s.trap.seconds, level))} s`);
   }
 }
+
+/** Cómo se lee cada forma. */
+const SHAPE_LABEL: Record<SpellShape, string> = {
+  zona: L('zona', 'zone'),
+  'línea': L('línea', 'line'), // i18n-ok: la clave es la etiqueta interna
+  trampa: L('trampa', 'trap'),
+};
 
 /** El tamaño, para la carta: «zona de 3 m», «línea de 2 m de ancho», «trampa de 2.5 m». */
 export function spellSize(id: SpellId, level: number): string {
   const shape = SPELL_INFO[id].shape;
-  return shape === 'línea' ? `línea de ${n(sizeOf(id, level) * 2)} m de ancho` : `${shape} de ${n(sizeOf(id, level))} m`;
+  const line = shape === 'línea'; // i18n-ok: compara la etiqueta interna
+  const size = n(sizeOf(id, level) * (line ? 2 : 1));
+  if (line) return L(`línea de ${size} m de ancho`, `${size} m wide line`);
+  return L(`${SHAPE_LABEL[shape]} de ${size} m`, `${size} m ${SHAPE_LABEL[shape]}`);
 }
 
 // ---------- cómo los gana ----------

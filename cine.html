@@ -38,18 +38,20 @@
   </head>
   <body>
     <div id="layer"><div class="bar top"></div><div class="bar bottom"></div></div>
-    <button id="skipcine" type="button">Saltar ⏭ (Esc)</button>
+    <button id="skipcine" type="button" data-en="Skip ⏭ (Esc)">Saltar ⏭ (Esc)</button>
     <div id="start">
-      <h1>Golf Knight</h1>
-      <p id="status">Cargando modelos…</p>
-      <button id="play" disabled>Ver la intro</button>
+      <h1 translate="no">Golf Knight</h1>
+      <p id="status" data-en="Loading models…">Cargando modelos…</p>
+      <button id="play" disabled data-en="Watch the intro">Ver la intro</button>
     </div>
     <div id="controls">
-      <button id="toggle">Pausa</button>
+      <button id="toggle" data-en="Pause">Pausa</button>
       <input id="scrub" type="range" min="0" step="0.01" value="0" />
       <span class="time" id="time"></span>
 
     </div>
+    <!-- el idioma, antes que los módulos (ver docs/localizacion.md) -->
+    <script src="./lang.js"></script>
     <script type="module" src="/src/cine/main.ts"></script>
   </body>
 </html>

@@ -2,10 +2,11 @@
 tiene su voz y una indicación general, y cada línea suma cómo se dice (tools/voces_lineas.py).
 
 La key sale de OPENAI_API_KEY en el entorno o de E:\\asistente\\.env, y nunca se imprime. Escribe en
-public/voices/ (lo que usa la cinemática); las de Kokoro quedan en public/voices/kokoro/.
+public/voices/ (lo que usa la cinemática); las de Kokoro quedan en public/voices/kokoro/. Con --lang en,
+las inglesas (LINES_EN, con indicaciones en inglés) en public/voices/en/ (ver docs/localizacion.md).
 Cuesta menos de un centavo de dólar por pasada (unos 30 s de audio).
 
-uso: E:\\asistente\\.venv\\Scripts\\python.exe tools/voces_openai.py [nombre ...]   (desde web/)
+uso: E:\\asistente\\.venv\\Scripts\\python.exe tools/voces_openai.py [--lang en] [nombre ...]   (desde web/)
      con --recortar solo recorta los silencios de los que ya están, sin llamar a la API
 """
 import io
@@ -18,10 +19,11 @@ import urllib.request
 import numpy as np
 import soundfile as sf
 
-from voces_lineas import LINES
+from voces_lineas import LINES, LINES_EN
 
 ENV = r"E:\asistente\.env"
-OUT = os.path.join("public", "voices")
+ENGLISH = "--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1:][:1] == ["en"]
+OUT = os.path.join("public", "voices", "en") if ENGLISH else os.path.join("public", "voices")
 
 RIOPLATENSE = "Hablá en español rioplatense, con acento de Buenos Aires y voseo."
 CAST = {
@@ -33,6 +35,17 @@ CAST = {
     "knight": ("verse", RIOPLATENSE + " Sos un tipo común de Buenos Aires, disfrazado de caballero, que no entiende nada "
                "de lo que le pasa. Natural, nada teatral."),
 }
+# en inglés, las mismas voces: el mago con un dejo de otro mundo, los otros dos de acá
+CAST_EN = {
+    "narrator": ("coral", "Speak in English with a neutral American accent. You are the narrator of a comic fantasy tale: "
+                 "warm voice, a little wry, with the unhurried rhythm of a storyteller."),
+    "mage": ("onyx", "Speak in English with clear diction and a faint old-world accent. You are an ancient wizard from a "
+             "fantasy kingdom: deep, aged voice, solemn and theatrical."),
+    "knight": ("verse", "Speak in English with a neutral American accent. You are an ordinary guy dressed up as a knight "
+               "who has no idea what is happening to him. Natural, not theatrical at all."),
+}
+if ENGLISH:
+    LINES, CAST = LINES_EN, CAST_EN
 
 
 def key() -> str:
@@ -73,7 +86,7 @@ def trim(audio, sr):
     return audio[start:end]
 
 
-only = {a for a in sys.argv[1:] if not a.startswith("--")}
+only = {a for a in sys.argv[1:] if not a.startswith("--") and a != "en"}
 if "--recortar" in sys.argv:
     # solo recorta los que ya están: no llama a la API
     for name, *_ in LINES:

@@ -19,6 +19,14 @@ npm run typecheck
 npm run deploy       # compila y publica en GitHub Pages (rama gh-pages)
 ```
 
+## Idiomas
+
+Español (el original) e inglés. Lo elige `public/lang.js` (navegador, el botón ES · EN de la entrada, o
+`?lang=en` / `?lang=es` en la dirección). Todo texto que ve el jugador va con su inglés al lado:
+`L('¡Golpe perfecto!', 'Perfect hit!')` (`src/i18n.ts`); en el HTML fijo, con `data-en`. `npm test` frena
+los que quedan solo en español. La estrategia, lo que quedó en español a propósito y el glosario están
+en [`docs/localizacion.md`](docs/localizacion.md).
+
 ## Cómo se juega
 
 Defendés la puerta de Valdehoyo a pelotazos, desde una línea de puestos de tiro. Cada control quiere
@@ -442,6 +450,7 @@ La historia y el plan están en `docs/cinematica.md`.
   Kokoro (`tools/voces.py`, en `public/voices/kokoro/`, se oyen con `?voces=kokoro`). Se corren con el
   Python del asistente (`E:sistente\.venv\Scripts\python.exe`); las líneas están en
   `tools/voces_lineas.py`. Cada globo dice la suya con `voice`, y la música baja mientras alguien habla.
+  Las inglesas están en `public/voices/en/` (`tools/voces_openai.py --lang en`).
 - Modelos propios: `cine-dungeon.glb` (los personajes de PolygonDungeon con los clips de la
   cinemática: Hit By Car, Getting Up, Looking Around, Pointing, Rallying, Reacting, Talking) y
   `mage.glb` (el mago, un personaje de Mixamo, con las texturas bajadas a 1024 con

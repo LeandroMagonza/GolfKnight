@@ -12,6 +12,7 @@ import type { Abilities } from '../game/abilities';
 import type { Enemy, Horde } from '../game/enemies';
 import type { Player } from '../game/player';
 import { FIELD_HALF_WIDTH } from '../game/world';
+import { L } from '../i18n';
 import type { Link } from './link';
 import { MIRRORED } from './host';
 import {
@@ -157,7 +158,7 @@ export class NetSpectator {
 
   constructor(private link: Link, private readonly d: SpectatorDeps) {
     this.attach(link);
-    d.note('Conectando con la partida…');
+    d.note(L('Conectando con la partida…', 'Connecting to the game…'));
 
     // arranca alta, desde atrás del golfista, mirando toda la cancha
     const cam = d.camera;
@@ -273,7 +274,9 @@ export class NetSpectator {
       this.host = null;
       this.preview.visible = this.previewLine.visible = false;
       this.d.showAbe({ ...NO_ABE, gone: true });
-      this.d.note(m.k === 'kicked' ? 'El caballero te sacó de la partida.' : 'La partida es privada: el caballero no deja entrar a nadie más.');
+      this.d.note(m.k === 'kicked'
+        ? L('El caballero te sacó de la partida.', 'The knight kicked you out of the game.')
+        : L('La partida es privada: el caballero no deja entrar a nadie más.', `This game is private: the knight isn't letting anyone else in.`));
       this.link.close();
       return;
     }
@@ -285,7 +288,7 @@ export class NetSpectator {
       this.relinks = 0;
       this.reset();
       this.d.onHello(m);
-      this.d.note('Esperando la primera foto…');
+      this.d.note(L('Esperando la primera foto…', 'Waiting for the first frame…'));
       return;
     }
     if (from !== this.host) return;
@@ -311,7 +314,7 @@ export class NetSpectator {
     this.knightLine.visible = this.knightRing.visible = false;
     this.abeState = NO_ABE;
     this.d.showAbe(NO_ABE);
-    this.d.note('El que juega se fue (o reinició). Esperando a que vuelva…');
+    this.d.note(L('El que juega se fue (o reinició). Esperando a que vuelva…', 'The player left (or restarted). Waiting for them to come back…'));
   }
 
   /** Empieza de cero: saca todo lo que había de la partida anterior. */
@@ -335,7 +338,10 @@ export class NetSpectator {
     const now = performance.now();
     if (!this.everHost && now - this.born > LOST_MS) {
       this.everHost = true;
-      this.d.note('No encuentro la partida (sigo buscando). ¿El que juega sigue con la página abierta? ¿Es el enlace de ahora?');
+      this.d.note(L(
+        'No encuentro la partida (sigo buscando). ¿El que juega sigue con la página abierta? ¿Es el enlace de ahora?',
+        `Can't find the game (still looking). Does the player still have the page open? Is this the latest link?`,
+      ));
     }
     // sin noticias del que juega hace rato: se vuelve a entrar a la sala, de cero
     const stale = this.host && now - this.heard > STALE_MS;
@@ -343,7 +349,9 @@ export class NetSpectator {
     if ((!this.host || stale) && this.lostSince && now - this.lostSince > RELINK_MS) void this.relink();
     if (!this.host || !this.clock.ready) return;
     if (stale) {
-      this.d.note(this.relinks ? `Se cortó la conexión. Reconectando… (intento ${this.relinks})` : 'Se cortó la conexión con el que juega. Esperando…');
+      this.d.note(this.relinks
+        ? L(`Se cortó la conexión. Reconectando… (intento ${this.relinks})`, `Connection lost. Reconnecting… (try ${this.relinks})`)
+        : L('Se cortó la conexión con el que juega. Esperando…', 'Lost the connection to the player. Waiting…'));
       return;
     }
     const at = this.clock.renderTime(now);
@@ -377,7 +385,7 @@ export class NetSpectator {
     this.relinking = true;
     this.relinks++;
     this.lostSince = performance.now();
-    this.d.note(`Reconectando con la partida… (intento ${this.relinks})`);
+    this.d.note(L(`Reconectando con la partida… (intento ${this.relinks})`, `Reconnecting to the game… (try ${this.relinks})`));
     try {
       this.link.close();
       const link = await this.d.reconnect();
@@ -413,9 +421,12 @@ export class NetSpectator {
     this.d.abe.applyRemote(b.ab);
     const g = b.g;
     this.showKnightAim(g.am);
-    const why = !g.st ? 'Todavía no empezó la partida'
-      : g.tu ? 'El caballero está en el tutorial: elegí tus hechizos, vas a poder tirar cuando empiece la partida'
-        : g.pa ? 'En pausa' : g.cd ? 'Está eligiendo una carta' : g.en ? 'Terminó la partida' : null;
+    const why = !g.st ? L('Todavía no empezó la partida', `The game hasn't started yet`)
+      : g.tu ? L(
+        'El caballero está en el tutorial: elegí tus hechizos, vas a poder tirar cuando empiece la partida',
+        'The knight is in the tutorial: pick your spells, you can cast once the game starts',
+      )
+        : g.pa ? L('En pausa', 'Paused') : g.cd ? L('Está eligiendo una carta', `He's picking a card`) : g.en ? L('Terminó la partida', 'Game over') : null;
     const a = g.abe;
     this.sizes = a.s.map(([, , , , size]) => size);
     if (this.selected >= a.s.length) this.selected = BOLT_SLOT;
@@ -468,10 +479,10 @@ export class NetSpectator {
       else au?.resume?.();
     }
     this.d.note(
-      !g.st ? 'El que juega está en la pantalla de inicio…'
-        : g.tu && !g.pa ? 'El caballero está haciendo el tutorial…'
-        : g.pa ? 'Pausa'
-          : g.cd ? 'Eligiendo una carta…'
+      !g.st ? L('El que juega está en la pantalla de inicio…', 'The player is on the title screen…')
+        : g.tu && !g.pa ? L('El caballero está haciendo el tutorial…', 'The knight is doing the tutorial…')
+        : g.pa ? L('Pausa', 'Paused')
+          : g.cd ? L('Eligiendo una carta…', 'Picking a card…')
             : null,
     );
   }

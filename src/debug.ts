@@ -17,7 +17,7 @@ import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
-import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER } from './coop/spells';
+import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
@@ -33,6 +33,8 @@ export interface DebugFlags {
  * Todas las tablas de números que el panel muestra y guarda, fuera de los palos y los enemigos: las de
  * cada habilidad, y las de las mejoras, los niveles y la curación.
  */
+/** Los nombres con que se guardan los números de cada hechizo de Abe (los de siempre, en español). */
+const SPELL_KEYS: Record<SpellId, string> = { hail: 'granizo', whirl: 'remolino', current: 'corriente', push: 'empujón', curse: 'maldición', hush: 'silencio', trap: 'trampa' };
 const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
   carga: CHARGE as unknown as Record<string, number>,
@@ -40,7 +42,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   tenis: TENNIS as unknown as Record<string, number | number[]>,
   // los hechizos de Abe, uno por tabla (ver coop/spells)
   'abe chispa': ABE_BOLT,
-  ...Object.fromEntries(SPELL_ORDER.map((id) => [`abe ${SPELL_INFO[id].name.toLowerCase()}`, ABE_SPELLS[id] as Record<string, number | number[]>])),
+  // con el nombre en español fijo, no el de SPELL_INFO: en inglés la tabla se guardaría con otra clave
+  ...Object.fromEntries(SPELL_ORDER.map((id) => [`abe ${SPELL_KEYS[id]}`, ABE_SPELLS[id] as Record<string, number | number[]>])),
 };
 
 export interface DebugHooks {
