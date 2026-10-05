@@ -62,6 +62,17 @@ const FOLLOW_SPEED = 1.35;
 const MIN_BACKSWING = 0.3;
 /** Segundos después del impacto a partir de los cuales ya se puede cargar otro tiro. */
 const RECOVER = 0.22;
+/**
+ * Corriéndose con la pelota (ver SHIFT; 5/10, pedido de Leandro): mientras se mueve deja de levantar el
+ * palo y lo apoya contra la pelota, del lado de atrás según hacia dónde va. Del lado del golfista la
+ * empuja, del otro lado la trae. La barra sigue cargando igual. Y da pasitos para adelante o para atrás.
+ * - `side`: a cuánto del centro de la pelota va la cabeza del palo;
+ * - `hold`: cuánto sigue la pose después de soltar la tecla, para que no titile;
+ * - `steps`: la velocidad de los pasitos (el clip de caminar, al derecho o al revés).
+ */
+export const PUSH = { side: 0.13, hold: 0.12, steps: 1.8 };
+/** A qué altura va apoyada la cabeza del palo: la de la pelota en el puesto. */
+const REST_Y = 0.04;
 /** Cuánto vale un toque de movimiento apretado durante un tiro. Es un buffer, no una cola. */
 const STEP_BUFFER = 0.4;
 /**
@@ -281,6 +292,8 @@ export class Player {
       if (!this.freeMove) this.anchor.x = this.spotXs[this.spotIndex];
       this.startSwing();
       this.shiftStance(kept);
+      // volver a donde estaba no es correrse: no empuja
+      this.shiftMoved = 0;
       this.bendShot(keptCurve);
       return;
     }
@@ -358,7 +371,8 @@ export class Player {
     this.sinceImpact = 0;
     this.swingFromPhi = this.rig.phi;
     const clip = this.swingClip;
-    if (clip) this.animator.resumeOneShot(downswingTimeFor(clip, this.backswingTime(clip)), DOWNSWING_SPEED);
+    // si se estaba corriendo, el palo baja desde donde estaba (más cerca de la pelota)
+    if (clip) this.animator.resumeOneShot(downswingTimeFor(clip, this.poseTime(clip)), DOWNSWING_SPEED);
   }
 
   /** Clava el daño donde está la barra: el tiro sale con ese nivel cuando se suelte. */
@@ -446,8 +460,51 @@ export class Player {
    */
   shiftStance(dx: number): void {
     if (this.mode !== 'charging' || SHIFT.mode === 'apagado' || SHIFT.mode === 'efecto' || this.freeMove) return;
+    const before = this.shift;
     this.shift = THREE.MathUtils.clamp(this.shift + dx, -SHIFT.reach, SHIFT.reach);
     this.anchor.x = this.spotXs[this.spotIndex] + this.shift;
+    // contra el tope no se mueve: no empuja
+    this.shiftMoved += this.shift - before;
+  }
+
+  /** Lo que se corrió con la pelota desde el último cuadro (lo consume `updatePush`). */
+  private shiftMoved = 0;
+  /** La pose de empujar la pelota (ver PUSH): cuánto se ve, 0..1, y hacia dónde va (+1 hacia +x). */
+  private push = 0;
+  private pushDir = 0;
+  /** Cuánto le queda a la pose después del último movimiento. */
+  private pushHold = 0;
+
+  /** Corriéndose con la pelota: la pose de empujarla entra rápido y sale suave. */
+  private updatePush(dt: number): void {
+    if (Math.abs(this.shiftMoved) > 1e-4) {
+      this.pushDir = Math.sign(this.shiftMoved);
+      this.pushHold = PUSH.hold;
+    } else {
+      this.pushHold = Math.max(0, this.pushHold - dt);
+    }
+    this.shiftMoved = 0;
+    const on = this.pushHold > 0;
+    this.push += ((on ? 1 : 0) - this.push) * (1 - Math.exp(-(on ? 16 : 10) * dt));
+    // la cabeza del palo, contra la pelota del lado de atrás según hacia dónde va
+    this.rig.rest.set(this.anchor.x - this.pushDir * PUSH.side, REST_Y, this.anchor.z);
+    this.rig.restWeight = this.push;
+  }
+
+  /**
+   * Los pasitos mientras se corre: el clip de caminar, para adelante o para atrás. El cuerpo mira a la
+   * pelota (la cadera de la postura, ver `LayeredAnimator.keepHips`): yendo para el lado de la pelota es
+   * para adelante.
+   */
+  private pushLegs(): { name: string; timeScale: number } | null {
+    if (this.pushHold <= 0 || !this.animator.has('Walking')) return null;
+    const ahead = Math.sign(this.pushDir * (this.anchor.x - this.position.x)) || 1;
+    return { name: 'Walking', timeScale: ahead * PUSH.steps };
+  }
+
+  /** Para las pruebas: cuánto se ve la pose de empujar la pelota, y hacia dónde. */
+  get pushing(): { weight: number; dir: number } {
+    return { weight: this.push, dir: this.pushDir };
   }
 
   /**
@@ -660,12 +717,15 @@ export class Player {
       stance = true;
       // el tenista se acomoda a la pelota mientras se prepara, más despacio, con las piernas corriendo
       if (this.freeMove && this.moveDir) this.walk(this.moveDir * this.freeMove.speed * this.freeMove.charging * dt);
-      this.animator.legs = this.freeMove && this.moveDir ? { name: 'Running', timeScale: THREE.MathUtils.clamp((this.freeMove.speed * this.freeMove.charging) / 7, 0.8, 2.2) } : null;
+      this.updatePush(dt);
+      // la cadera sigue en la postura de golf aunque las piernas caminen (el tenista corre como siempre)
+      this.animator.keepHips = !this.freeMove;
+      this.animator.legs = this.freeMove && this.moveDir ? { name: 'Running', timeScale: THREE.MathUtils.clamp((this.freeMove.speed * this.freeMove.charging) / 7, 0.8, 2.2) } : this.pushLegs();
       this.yaw = lerpAngle(this.yaw, this.stanceYaw(), 1 - Math.exp(-16 * dt));
       this.backswing += (this.meter.power - this.backswing) * (1 - Math.exp(-18 * dt));
       const clip = this.swingClip;
-      if (clip) this.animator.poseOneShot(clip.name, this.backswingTime(clip));
-      else this.rig.phi = -(0.6 + 3.0 * this.backswing);
+      if (clip) this.animator.poseOneShot(clip.name, this.poseTime(clip));
+      else this.rig.phi = -(0.6 + 3.0 * this.backswing) * (1 - this.push);
       this.animator.setLocomotion('Idle', 1);
     } else if (this.mode === 'swinging' && !this.swingShot && this.sinceImpact >= RECOVER && (this.freeMove ? this.moveDir !== 0 : !this.atSpot)) {
       // ya pegó y quiere irse: corta el final del gesto y sale corriendo
@@ -728,6 +788,14 @@ export class Player {
       }
     }
 
+    // fuera de la carga no hay pose de empujar (al soltar, el palo baja desde donde estaba)
+    if (this.mode !== 'charging') {
+      this.push = 0;
+      this.pushHold = 0;
+      this.shiftMoved = 0;
+      this.rig.restWeight = 0;
+    }
+
     // la postura entra rápido y sale suave
     const k = 1 - Math.exp(-(stance ? 20 : 9) * dt);
     this.rig.weight += ((stance ? 1 : 0) - this.rig.weight) * k;
@@ -780,6 +848,7 @@ export class Player {
       rw: r3(this.rig.weight),
       rp: r3(this.rig.phi),
       a: this.animator.state,
+      ...(this.rig.restWeight > 0.001 ? { pu: [r3(this.rig.restWeight), r2(this.rig.rest.x), r2(this.rig.rest.z)] as [number, number, number] } : {}),
     };
   }
 
@@ -795,6 +864,8 @@ export class Player {
     this.animator.applyState(s.a);
     this.rig.weight = s.rw;
     this.rig.phi = s.rp;
+    this.rig.restWeight = s.pu?.[0] ?? 0;
+    if (s.pu) this.rig.rest.set(s.pu[1], REST_Y, s.pu[2]);
     this.animator.update(dt);
     this.rig.apply();
   }
@@ -813,6 +884,12 @@ export class Player {
     if (this.debugPoseTime !== null) return this.debugPoseTime;
     const u = MIN_BACKSWING + (1 - MIN_BACKSWING) * this.backswing;
     return clip.address + (clip.top - clip.address) * u;
+  }
+
+  /** El instante del clip en que se ve: el del backswing, o el del address si se está corriendo con la pelota. */
+  private poseTime(clip: SwingClip): number {
+    const t = this.backswingTime(clip);
+    return t + (clip.address - t) * this.push;
   }
 
   private fireShot(): void {

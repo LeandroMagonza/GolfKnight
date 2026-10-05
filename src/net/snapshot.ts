@@ -15,6 +15,8 @@ export const DELAY_MS = 130;
 
 /** Lo que está mostrando un animador: locomoción, piernas aparte y el clip de cuerpo entero si hay. */
 export interface AnimState {
+  /** La cadera mantiene el giro del clip de arriba (ver LayeredAnimator.keepHips). */
+  kh?: boolean;
   /** Locomoción y su velocidad. */
   l: string;
   ls: number;
@@ -39,6 +41,8 @@ export interface PlayerSnap {
   rw: number;
   rp: number;
   a: AnimState;
+  /** Corriéndose con la pelota: el palo apoyado en (x, z), con este peso (ver SwingRig.rest). */
+  pu?: [number, number, number];
 }
 
 /** Banderas de un enemigo, de a un bit. */

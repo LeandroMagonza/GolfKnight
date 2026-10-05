@@ -1647,8 +1647,9 @@ const input = new Input({
     else lockSwing();
   },
   step(right) {
-    // en el tutorial el golfista se queda en su puesto, salvo en el paso de ir a buscar la pelota
-    if (tutorial && !tutorial.canMove) return;
+    // en el tutorial el golfista se queda en su puesto, salvo en el paso de ir a buscar la pelota (y
+    // cargando, en el de correrse con la pelota)
+    if (tutorial && !(player?.mode === 'charging' ? tutorial.canShift : tutorial.canMove)) return;
     if (started && !paused && !ended && !cardOpen && player) player.step(-right);
   },
   restart() {
@@ -2589,7 +2590,7 @@ function frame(): void {
     // y si no tocás nada y viene una pelota cerca, el imán te lleva
     // (sacando, no: el saque se hace parado)
     if (pocket) player.moveDir = started && !ended && !cardOpen && !tennis?.servingNow ? -heldRight() : 0;
-    if (!pocket && started && !ended && player.mode === 'charging' && (!tutorial || tutorial.canMove)) {
+    if (!pocket && started && !ended && player.mode === 'charging' && (!tutorial || tutorial.canShift)) {
       const right = (input.keys.has('KeyD') || input.keys.has('ArrowRight') ? 1 : 0) - (input.keys.has('KeyA') || input.keys.has('ArrowLeft') ? 1 : 0);
       if (SHIFT.mode === 'continuo' && right) player.shiftStance(-right * SHIFT.speed * dt);
       if (player.curving) {

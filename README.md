@@ -207,9 +207,12 @@ corta ninguna racha.
 no le hace nada) y el *esqueleto bendito* (el primer golpe no le entra, y el escudo se le recarga a los
 5 s).
 
-**Correrse cargando** (experimental): mientras cargás el tiro, `A` y `D` te corren **con la pelota**
+**Correrse cargando**: mientras cargás el tiro, `A` y `D` te corren **con la pelota**
 hasta 1.2 m para cada lado (un 30 % de lo que hay entre puestos), sin cambiar de puesto, para alinearte
-con una fila. En el panel de balance se elige cómo: *continuo* (mantener apretado, 4 m/s; el de
+con una fila. Mientras se mueve, el golfista deja de levantar el palo y lo apoya contra la pelota: del
+lado de él para empujarla, del otro lado para traerla, y da pasitos para adelante o para atrás (la barra
+sigue cargando igual). El tutorial lo enseña en su cuarto paso: dos goblins casi en fila que solo caen
+juntos si te corrés. En el panel de balance se elige cómo: *continuo* (mantener apretado, 4 m/s; el de
 arranque), *pasos* (0.4 m por toque), *apagado* (como antes) o *efecto*: ahí no te corrés, sino que
 `A` y `D` **curvan el tiro** del driver o del putter, hasta 6 m de desvío al final, y la línea de tiro
 muestra la curva. La curva crece manteniendo (*continuo*) o de a escalones (*discreto*), y vuelve a

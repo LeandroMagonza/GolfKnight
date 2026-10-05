@@ -11,13 +11,16 @@
 // 1. apuntar y pegar (driver);
 // 2. ir a buscar la pelota: el puesto queda vacío y los caddies tiran a los otros, nunca al tuyo;
 // 3. dos en fila: el driver atraviesa a los dos (tienen que caer del mismo tiro);
-// 4. cargar hasta el amarillo (uno blindado, al que el golpe flojo no le hace nada);
-// 5. clavar la carga con Espacio: con el golpe clavado en el amarillo, los dos enemigos (blindados) se
+// 4. correrse con la pelota (5/10, pedido de Leandro): dos casi en fila, pero desde el puesto no hay
+//    recta que agarre a los dos. Mientras se carga, A y D corren al golfista con la pelota hasta que
+//    quedan alineados. Tienen que caer del mismo tiro: si no, vuelven a aparecer;
+// 5. cargar hasta el amarillo (uno blindado, al que el golpe flojo no le hace nada);
+// 6. clavar la carga con Espacio: con el golpe clavado en el amarillo, los dos enemigos (blindados) se
 //    ponen en fila frente al golfista, y ahí se suelta. Tienen que caer los dos del mismo tiro: si no,
 //    vuelven a su lugar y hay que clavar de nuevo;
-// 6. el hierro: un grupo detrás de una loma, pegándole a uno salpica a los demás;
-// 7. el wedge: otro grupo detrás de la misma loma; con el golpe 1 pifia;
-// 8. el putter: uno cerca.
+// 7. el hierro: un grupo detrás de una loma, pegándole a uno salpica a los demás;
+// 8. el wedge: otro grupo detrás de la misma loma; con el golpe 1 pifia;
+// 9. el putter: uno cerca.
 // Al terminar arranca la partida de verdad, con los cuatro palos.
 import * as THREE from 'three';
 import { qualityOf, type ClubId } from './core/clubs';
@@ -57,6 +60,8 @@ interface Step {
   shotDone?(t: Tutorial): void;
   /** Se puede mover de puesto (el paso de ir a buscar la pelota). */
   move?: boolean;
+  /** Se puede correr con la pelota mientras carga (el paso de correrse). */
+  shift?: boolean;
   /** Sin pelota de regalo a los pies: la tiene que ir a buscar. */
   noSupply?: boolean;
   /** Se queda con la loma y el lugar del paso anterior (el wedge, detrás de la loma del hierro). */
@@ -70,7 +75,7 @@ const KEY = (k: string) => `<kbd>${k}</kbd>`;
 /** Lo mínimo para que el golpe no sea el flojo. */
 const needCharge = (_: Tutorial, shot: NonNullable<Shot>) => (shot.quality >= 2 ? null : L('Cargá hasta el amarillo', 'Charge to yellow'));
 
-/** Tienen que caer todos del mismo tiro: si no, vuelven a su lugar. En el paso 5, antes hay que clavar. */
+/** Tienen que caer todos del mismo tiro: si no, vuelven a su lugar. En el paso 6, antes hay que clavar. */
 const allInOne = (t: Tutorial) => {
   if (t.allDown) return;
   const note = t.step?.update && !t.lockLearned
@@ -119,6 +124,35 @@ const STEPS: Step[] = [
     },
     shotDone: allInOne,
     praise: L('¡Los dos!', 'Two for one!'),
+  },
+  {
+    title: L('Correrse con la pelota', 'Shuffle with the ball'),
+    club: 'driver',
+    text: L(
+      `Desde acá no quedan en fila. Mantené el ${KEY('click')} y, mientras cargás, ${KEY('A')} ${KEY('D')} te corren `
+        + 'un poco para el costado con la pelota. Correte hasta que queden uno detrás del otro y voltealos a los dos de un tiro.',
+      `They don't line up from here. Hold ${KEY('click')} and, while charging, ${KEY('A')} ${KEY('D')} shuffle you `
+        + 'a little to the side with the ball. Shuffle until one is right behind the other and drop both with one shot.',
+    ),
+    setup: (t) => {
+      // sobre una recta que sale de un punto corrido de la pelota: desde el puesto no hay tiro que
+      // agarre a los dos (ver SHUFFLE)
+      t.putOffLine('goblin', SHUFFLE.near, SHUFFLE.offset);
+      t.putOffLine('goblin', SHUFFLE.far, SHUFFLE.offset);
+    },
+    shift: true,
+    shotDone: (t) => {
+      if (t.allDown) return;
+      t.resetStep();
+      t.note(L(
+        `Mientras cargás, correte con ${KEY('A')} ${KEY('D')} hasta que queden en fila`,
+        `While charging, shuffle with ${KEY('A')} ${KEY('D')} until they line up`,
+      ));
+    },
+    praise: L(
+      '¡Eso! Correrte con la pelota te alinea con una fila sin cambiar de puesto.',
+      `That's it! Shuffling with the ball lines you up with a row without changing tees.`,
+    ),
   },
   {
     title: L('Cargar el golpe', 'Charge the hit'),
@@ -209,6 +243,16 @@ const STEPS: Step[] = [
 const LINE_Z = [21, 27];
 const LINE_FAR = 30;
 
+/**
+ * El paso de correrse con la pelota: los dos goblins están sobre una recta que pasa `offset` metros al
+ * costado de la pelota (hacia la derecha de la pantalla, que es -x), a `near` y `far` de la línea de los
+ * puestos. La pelota los agarra si pasa a menos de 0.57 m de su centro (el goblin más la pelota): para
+ * que valga a los dos, el corrimiento no puede errarle a la recta por más de 0.57·(far+near)/(far−near),
+ * 0.86 m con estos números. Arrancando a 1.15 m (el tope es 1.2), desde el puesto no hay tiro que
+ * agarre a los dos, y hay que correrse por lo menos 0.3 m para el lado justo.
+ */
+export const SHUFFLE = { near: 4, far: 20, offset: -1.15 };
+
 /** Segundos entre un paso y el siguiente, con el elogio en pantalla. */
 const BETWEEN = 2.6;
 /** Segundos sin pelota en el puesto antes de que aparezca otra. */
@@ -238,7 +282,7 @@ export class Tutorial {
   lineUp = false;
 
   /** Lo que pone el paso, antes de ubicarlo en el campo (ver `place`). */
-  private pending: { kind: EnemyKind; x: number; z: number; mods?: EnemyMods; line?: number }[] = [];
+  private pending: { kind: EnemyKind; x: number; z: number; mods?: EnemyMods; line?: number; from?: number }[] = [];
   private pendingMounds: { x: number; z: number }[] = [];
   /** Dónde quedó cada enemigo del paso, para volver a ponerlos (ver `resetStep`). */
   private spots: Placed[] = [];
@@ -256,6 +300,11 @@ export class Tutorial {
     return !!this.step?.move && this.wait <= 0;
   }
 
+  /** ¿Se puede correr con la pelota mientras carga? */
+  get canShift(): boolean {
+    return (!!this.step?.shift || !!this.step?.move) && this.wait <= 0;
+  }
+
   start(): void {
     this.host.horde.mayKill = (e, shot) => this.mayKill(e, shot);
     this.next();
@@ -269,6 +318,14 @@ export class Tutorial {
   /** Un enemigo en la fila frente al golfista: el `i`-ésimo, de más cerca a más lejos. */
   putInLine(kind: EnemyKind, i: number, mods?: EnemyMods): void {
     this.pending.push({ kind, x: 0, z: LINE_Z[i], mods, line: i });
+  }
+
+  /**
+   * Un enemigo a `ahead` metros de la línea de los puestos, sobre la recta que sale de un punto corrido
+   * `from` metros de la pelota (el paso de correrse con la pelota).
+   */
+  putOffLine(kind: EnemyKind, ahead: number, from: number, mods?: EnemyMods): void {
+    this.pending.push({ kind, x: 0, z: this.host.player().anchor.z + ahead, mods, from });
   }
 
   /** Una loma, que crece desde el piso. */
@@ -307,9 +364,14 @@ export class Tutorial {
 
   /** La fila: dónde se para el `i`-ésimo, sobre la recta que sale de la pelota hacia `baseX`. */
   private linePoint(i: number, baseX: number): THREE.Vector3 {
+    return this.rayPoint(LINE_Z[i], baseX, 0);
+  }
+
+  /** Sobre la recta que sale de `from` metros al costado de la pelota hacia `baseX`, a la altura `z`. */
+  private rayPoint(z: number, baseX: number, from: number): THREE.Vector3 {
     const tee = this.host.player().anchor;
-    const z = LINE_Z[i];
-    return new THREE.Vector3(tee.x + ((baseX - tee.x) * (z - tee.z)) / (LINE_FAR - tee.z), 0, z);
+    const x0 = tee.x + from;
+    return new THREE.Vector3(x0 + ((baseX - x0) * (z - tee.z)) / (LINE_FAR - tee.z), 0, z);
   }
 
   private spawnAt(s: Placed): Enemy {
@@ -326,7 +388,9 @@ export class Tutorial {
   private place(sameSpot: boolean): void {
     const ax = this.host.player().anchor.x;
     const at = (p: (typeof this.pending)[number], base: number) =>
-      p.line !== undefined ? this.linePoint(p.line, base) : new THREE.Vector3(base + p.x, 0, p.z);
+      p.line !== undefined ? this.linePoint(p.line, base)
+        : p.from !== undefined ? this.rayPoint(p.z, base, p.from)
+          : new THREE.Vector3(base + p.x, 0, p.z);
     if (!sameSpot) {
       let best = 0;
       let bestScore = Infinity;

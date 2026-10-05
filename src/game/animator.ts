@@ -42,11 +42,28 @@ export class LayeredAnimator {
    * solo de la cintura para arriba y las piernas siguen corriendo (el tenista que se prepara corriendo).
    */
   legs: { name: string; timeScale: number } | null = null;
+  /**
+   * Con las piernas aparte (`legs`), la cadera mantiene el giro del clip de arriba en vez del de las
+   * piernas. La postura de golf gira la cadera 90° para mirar la pelota y el clip de caminar la pone
+   * derecha: sin esto, el golfista que da pasitos con la pelota se daba vuelta entero, torso incluido.
+   */
+  keepHips = false;
+  /** La cadera: el padre de la columna. */
+  private readonly hips: THREE.Object3D | null;
+  /** El giro de la cadera de cada clip, para `keepHips`. */
+  private readonly hipsTracks = new Map<string, THREE.Interpolant | null>();
+  /** La acción de las piernas que se usó por última vez, para seguir corrigiendo la cadera mientras se apaga. */
+  private legsAction: THREE.AnimationAction | null = null;
   private time = 0;
 
   constructor(root: THREE.Object3D, clips: THREE.AnimationClip[]) {
     this.mixer = new THREE.AnimationMixer(root);
     this.upper = collectUpperBones(root);
+    let spine: THREE.Object3D | undefined;
+    root.traverse((o) => {
+      if (!spine && /Spine$/.test(o.name)) spine = o;
+    });
+    this.hips = spine?.parent ?? null;
     for (const c of clips) this.clips.set(c.name, c);
   }
 
@@ -153,6 +170,7 @@ export class LayeredAnimator {
     return {
       l: this.locomotion,
       ls: Math.round(this.locoScale * 100) / 100,
+      ...(this.keepHips ? { kh: true } : {}),
       legs: this.legs ? [this.legs.name, Math.round(this.legs.timeScale * 100) / 100] : null,
       s: o ? [o.name, Math.round(o.action.time * 1000) / 1000, o.action.paused ? 0 : o.action.timeScale, !!o.upper] : null,
     };
@@ -164,6 +182,7 @@ export class LayeredAnimator {
    */
   applyState(s: AnimState): void {
     if (s.l && this.clips.has(s.l)) this.setLocomotion(s.l, s.ls);
+    this.keepHips = !!s.kh;
     this.legs = s.legs && this.clips.has(s.legs[0]) ? { name: s.legs[0], timeScale: s.legs[1] } : null;
     if (!s.s || !this.clips.has(s.s[0])) {
       this.oneShot = null;
@@ -218,6 +237,7 @@ export class LayeredAnimator {
         const legs = this.action(this.legs?.name ?? 'Idle', 'lower');
         legs.timeScale = this.legs?.timeScale ?? 1;
         this.targets.set(legs, 1);
+        this.legsAction = legs;
       }
     } else if (this.locomotion) {
       if (!this.upper.size) {
@@ -244,5 +264,24 @@ export class LayeredAnimator {
       a.setEffectiveWeight(Math.abs(next - target) < 0.01 ? target : next);
     }
     this.mixer.update(dt);
+    // la cadera, con el giro del clip de arriba en la medida en que pesan las piernas aparte
+    if (this.keepHips && this.hips && this.oneShot && this.legsAction) {
+      const w = this.legsAction.getEffectiveWeight();
+      const q = w > 0.001 ? this.hipsAt(this.oneShot.name, this.oneShot.action.time) : null;
+      if (q) this.hips.quaternion.slerp(q, Math.min(1, w));
+    }
+  }
+
+  private readonly hipsQ = new THREE.Quaternion();
+
+  /** El giro de la cadera en el clip `name` en el instante `time`, o null si el clip no la mueve. */
+  private hipsAt(name: string, time: number): THREE.Quaternion | null {
+    let it = this.hipsTracks.get(name);
+    if (it === undefined) {
+      const track = this.hips && this.clips.get(name)?.tracks.find((t) => t.name === `${this.hips!.name}.quaternion`);
+      it = track ? new THREE.QuaternionLinearInterpolant(track.times, track.values, 4, new Float32Array(4)) : null;
+      this.hipsTracks.set(name, it);
+    }
+    return it ? this.hipsQ.fromArray(it.evaluate(time) as unknown as number[]) : null;
   }
 }

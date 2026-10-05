@@ -18,6 +18,8 @@ const HANDS_RADIUS = 0.38;
 /** Las manos recorren menos ángulo que la cabeza del palo. */
 const HANDS_RATIO = 0.6;
 export const CLUB_LENGTH = 1.18;
+/** De la mano al centro de la cabeza del palo: el mango sobresale 0.08 por detrás y la cabeza está 0.05 antes de la punta. */
+const HEAD_REACH = CLUB_LENGTH - 0.13;
 /** Dónde queda la pelota respecto del personaje en el address. */
 export const TEE_OFFSET = PIVOT.clone().addScaledVector(D0, HANDS_RADIUS + CLUB_LENGTH).setY(0);
 const CARRY_DIR = new THREE.Vector3(-0.1, -0.55, 0.8).normalize();
@@ -110,6 +112,12 @@ export class SwingRig {
   phi = 0;
   /** Si está puesto, el palo sigue a la mano en vez de a la matemática del swing procedural. */
   grip: HandGrip | null = null;
+  /**
+   * El palo apoyado: la cabeza va hacia este punto del mundo, con el peso `restWeight` (0 = donde lo
+   * lleva la mano). Es el golfista que se corre con la pelota y la empuja o la trae con el palo.
+   */
+  readonly rest = new THREE.Vector3();
+  restWeight = 0;
   private readonly spine: THREE.Object3D[] = [];
   private readonly right: Arm | null;
   private readonly left: Arm | null;
@@ -185,6 +193,24 @@ export class SwingRig {
     this.club.add(grip, throat, hoop, strings, this.head);
   }
 
+  /**
+   * El palo apoyado (ver `rest`): las manos van, sobre la recta hacia el punto, hasta donde el palo llega
+   * justo con la cabeza. Del otro lado de la pelota no alcanzaba con girar el palo: quedaba en el aire.
+   * IK de los dos brazos, con el codo doblado para el mismo lado que en el clip.
+   */
+  private reachRest(): void {
+    if (!this.right) return;
+    const hand = this.right.hand.getWorldPosition(new THREE.Vector3());
+    const toRest = new THREE.Vector3().subVectors(this.rest, hand);
+    const dist = toRest.length();
+    if (dist < 1e-3) return;
+    const move = toRest.multiplyScalar(((dist - HEAD_REACH) / dist) * this.restWeight);
+    const pole = (arm: Arm) => arm.fore.getWorldPosition(new THREE.Vector3()).sub(arm.upper.getWorldPosition(new THREE.Vector3()));
+    const left = this.left?.hand.getWorldPosition(new THREE.Vector3()).add(move);
+    solveArm(this.right, hand.add(move), pole(this.right));
+    if (this.left && left) solveArm(this.left, left, pole(this.left));
+  }
+
   /** Posición en mundo de la cabeza del palo. */
   headWorld(out: THREE.Vector3): THREE.Vector3 {
     return this.head.getWorldPosition(out);
@@ -200,9 +226,14 @@ export class SwingRig {
     const swingToe = new THREE.Vector3();
 
     if (w > 0.001 && this.grip) {
+      if (this.restWeight > 0.001) this.reachRest();
       const handQ = hand.getWorldQuaternion(new THREE.Quaternion());
       swingDirWorld.copy(this.grip.clubDirInHand).applyQuaternion(handQ);
       swingToe.copy(this.grip.toeDirInHand).applyQuaternion(handQ);
+      if (this.restWeight > 0.001) {
+        const want = vb.copy(this.rest).sub(hand.getWorldPosition(va)).normalize();
+        swingDirWorld.lerp(want, this.restWeight).normalize();
+      }
     } else if (w > 0.001 && this.right) {
       // columna: inclinación hacia adelante y giro acompañando el swing
       const bend = new THREE.Quaternion().setFromAxisAngle(va.set(1, 0, 0).applyQuaternion(rootQ).clone(), SPINE_BEND * w);
@@ -251,5 +282,11 @@ export class SwingRig {
     }
     // el mango sobresale un poco por detrás de la mano
     this.club.position.addScaledVector(Z_AXIS.clone().applyQuaternion(this.club.quaternion), -0.08);
+    // apoyado: lo que los brazos no llegan (están casi estirados), el palo se corre un poco en las manos
+    if (w > 0.001 && this.restWeight > 0.001) {
+      this.club.updateMatrixWorld(true);
+      const miss = this.rest.clone().sub(this.headWorld(new THREE.Vector3()));
+      this.club.position.addScaledVector(miss, this.restWeight);
+    }
   }
 }
