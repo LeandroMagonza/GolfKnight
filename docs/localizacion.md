@@ -86,6 +86,21 @@ cambiaron: las líneas en inglés son más cortas y entran en los mismos huecos.
   cuánta gente juega en cada idioma. El título de la oleada que guarda sale en el idioma del jugador.
 - **Nombres propios**: Valdehoyo, Abe y Golf Knight no se traducen.
 - **Las voces de Kokoro** (`?voces=kokoro`, para comparar) son solo en español.
+- **Las claves internas** que quedaron en español y no se tocan: las luces y lugares del arco de
+  `game/visuals.ts` (se guardan en `gk.visual` y el panel B las compara por texto), las formas de los
+  hechizos de Abe (`'zona' | 'línea' | 'trampa'`, se muestran traducidas con `spellSize`), las tablas del
+  panel B (`'abe granizo'`, `'pólvora'`...: así lo guardado sigue valiendo en los dos idiomas) y la causa
+  de la derrota que guarda la telemetría (la de siempre, en español, para comparar partidas).
+
+## Lo que falta o queda raro
+
+- **El que mira (Abe) ve los avisos en el idioma del que juega.** El juego le manda a Abe los carteles,
+  los avisos y el cartel final ya escritos (`net/host.ts`, `MIRRORED.hud`). Si juegan uno en cada idioma,
+  esos textos le llegan en el del otro; lo demás (sus hechizos, su panel) sale en el suyo. Arreglarlo es
+  mandar ids en vez de textos.
+- **Las patch notes** (ver arriba).
+- Nadie jugó todavía el juego entero en inglés: los textos largos (cartas, tutorial) están medidos para
+  no pasar al español, pero conviene mirar que nada se corte.
 
 ## La red: `src/i18n.test.ts`
 
@@ -164,3 +179,21 @@ dificultad, hechizos) y frena si a alguno le queda un texto en español.
 | dificultad / punto (de dificultad) | difficulty / point | |
 | modo tenis / bolsillo / alcanzapelotas | tennis mode / pocket / ball kids | |
 | la cinemática / la intro | the intro | |
+| vida (los números) | HP | «+1 HP», «Elites have 2 more HP» |
+| a pleno | at full HP | |
+| partida | run (dificultad) / game (Abe, invitar) | |
+| el que juega (visto por Abe) | the knight | |
+| sala / foto (de la red) / intento | room / frame / try | |
+| loma | hill (cartas) / mound (tutorial) | |
+| acierto | hit | «Each hit in a row...» |
+| doblete, triplete, cuádruple | double, triple, quadruple | |
+| tramo débil / medio / fuerte (del arco) | weak / mid / strong | |
+| geomante | geomancer | |
+| curanderos, inmunes, abanderados, hechiceros (apoyos) | healers, warders, standard-bearers, sorcerers | |
+| Escudos al frente, Acorazados, Fantasmas, Los benditos, Los escurridizos, Los que se curan, Los intocables | Shields Up, Armored Up, Ghosts, The Blessed, The Slippery Ones, The Regenerators, The Untouchables | títulos de oleada |
+| Albañiles / Respiro / CURARSE | Masons / Breather / HEAL | cartas de curarse |
+| Valle del medio, La meseta, La loma sola | Middle Valley, The Mesa, Lone Hill | campos |
+| guardia del castillo, guardia veterano, caballero, caballera | castle guard, veteran guard, knight, lady knight | skins |
+| plano / globo (tenis) | drive / lob | «Ice Drive», «Fire Lob» |
+| ¡Golpe perfecto! / ¡Pifia! / ¡Sin pelota! | Perfect hit! / Whiff! / No ball! | |
+| ¡Oleada despejada! / ¡Llega el élite! / ¡Valdehoyo resiste! | Wave cleared! / Here comes the elite! / Valdehoyo stands! | |
