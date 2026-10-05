@@ -77,6 +77,8 @@ export interface EnemySnap {
   hop: number;
   /** El que se cura: cuánto lleva de su ciclo, de 0 a 1. */
   rg?: number;
+  /** El intocable: invulnerable, lo que le queda de 1 a 0; en su ventana, de -1 a 0. */
+  ph?: number;
   /** El gesto de brazos por código: cuánto, y en qué punto del ataque va. */
   g: number;
   u: number;

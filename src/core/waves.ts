@@ -60,6 +60,8 @@ export interface EnemyMods {
   dodgeEvery?: number;
   /** Se cura entero cada tanto (ver REGEN): los segundos de margen que da su ciclo. */
   regen?: number;
+  /** Intocable (ver PHASE): invulnerable casi siempre; los segundos que dura su ventana vulnerable. */
+  phase?: number;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
   /**
@@ -262,7 +264,7 @@ export interface WaveGroup {
 }
 
 /** Los poderes que se reparten al azar. */
-export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner' | 'regen';
+export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner' | 'regen' | 'phase';
 
 /**
  * Qué tan duros salen los poderes, según la dificultad: hasta qué nivel llegan el escudo y el blindaje
@@ -289,9 +291,21 @@ export const DIVINE = { every: 5, elite: 3 };
  * El ciclo sale de su vida: alcanza para matarlo **con golpes medios** (`hit` de daño cada `gap` s, el
  * ritmo medido del caballero: ver docs/tiempos-poderes.md) y sobran `margin` s (el élite, `eliteMargin`).
  * Con 6 de vida: 3 medios, 3 s, más el margen. Con flojos no llega. Silenciado no se cura, y el ciclo
- * vuelve a empezar cuando se le pasa.
+ * vuelve a empezar cuando se le pasa. Trae `hp` de vida de más (no el élite, que ya trae la suya): al de
+ * 2 de vida se lo mataba de un golpe y era como no tener poder.
  */
-export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5 };
+export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5, hp: 2 };
+
+/**
+ * **El intocable** (5/10, idea de Leandro): casi todo el tiempo es **invulnerable**, como los que protege
+ * el chamán (se lo ve violeta y las pelotas rebotan). Una barra violeta debajo de su vida se va
+ * descargando en `shut` s; cuando se vacía queda **vulnerable** `open` s (la barra se pone dorada y se
+ * vacía), y vuelve a ser invulnerable. Hay que tirar para que la pelota llegue en esa ventana. El élite:
+ * `eliteShut` y `eliteOpen`. Con poca dificultad la ventana dura más (×la recarga). Cada uno arranca en
+ * un punto distinto del ciclo. El golpe fantasma le entra siempre; silenciado es vulnerable, y el ciclo
+ * vuelve a empezar (invulnerable) cuando se le pasa.
+ */
+export const PHASE = { shut: 3.5, open: 1.5, eliteShut: 3, eliteOpen: 2 };
 
 /** Cada cuántos segundos se cura uno de `maxHp` de vida con `margin` de margen. */
 export function regenPeriod(maxHp: number, margin: number): number {
@@ -321,15 +335,17 @@ export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: 
   dodge: (_tier, _rand, hard = HARDEST_POWERS) => dodgeMods(hard),
   divine: (_tier, _rand, hard = HARDEST_POWERS) => ({ divine: DIVINE.every * hard.recharge }),
   banner: () => ({ banner: true }),
-  // con poca dificultad, más margen (como la recarga de la esquiva y del divino)
-  regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.recharge }),
+  // con poca dificultad, más margen (como la recarga de la esquiva y del divino), y vida de más
+  regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.recharge, hp: REGEN.hp }),
+  // la ventana en que es vulnerable: con poca dificultad, más larga
+  phase: (_tier, _rand, hard = HARDEST_POWERS) => ({ phase: PHASE.open * hard.recharge }),
 };
 
 /**
  * **Los poderes de escenario**: cada partida sortea tres de estos, uno por escenario. Son los que se
  * defienden de los golpes; los que cambian cómo se mueve el que los lleva van aparte (SUPPORT_POWERS).
  */
-export const SCENARIO_POWERS = ['shield', 'armor', 'ethereal', 'divine', 'dodge', 'regen'] as const;
+export const SCENARIO_POWERS = ['shield', 'armor', 'ethereal', 'divine', 'dodge', 'regen', 'phase'] as const;
 export type ScenarioPower = (typeof SCENARIO_POWERS)[number];
 
 /**
@@ -351,6 +367,8 @@ export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardn
   dodge: (_tier, hard = HARDEST_POWERS) => dodgeMods(hard),
   // menos margen: se lo mata con golpes medios, pero sin errar
   regen: (_tier, hard = HARDEST_POWERS) => ({ regen: REGEN.eliteMargin * hard.recharge }),
+  // ventana más larga que la del común (tiene más vida), y menos rato invulnerable
+  phase: (_tier, hard = HARDEST_POWERS) => ({ phase: PHASE.eliteOpen * hard.recharge }),
 };
 
 /** Qué parte de los enemigos de una oleada sale con poder, y de esos, cuántos con el del escenario. */
@@ -486,11 +504,11 @@ export const HARDEST: RunRules = {
 
 const TITLES: Record<ScenarioPower, string> = {
   shield: 'Escudos al frente', armor: 'Acorazados', ethereal: 'Fantasmas', divine: 'Los benditos', dodge: 'Los escurridizos',
-  regen: 'Los que se curan',
+  regen: 'Los que se curan', phase: 'Los intocables',
 };
 const BOSS_TITLES: Record<ScenarioPower, string> = {
   shield: 'con la calavera', armor: 'blindado', ethereal: 'fantasma', divine: 'bendito', dodge: 'escurridizo',
-  regen: 'que se cura',
+  regen: 'que se cura', phase: 'intocable',
 };
 
 /** La escalera de vida, de menor a mayor. */

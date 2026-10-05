@@ -135,7 +135,7 @@ el efecto**: salvo el fantasma, **no pegan ni empujan**, solo dejan el efecto, y
 la pelota **toca** (si el escudo la para, la burbuja divina se la come o el aura de invencible lo
 protege, no hace nada). Lo que hace cada una, por nivel:
 - *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela (al élite y al jefe no: solo los frena), y el golpe que rompe el hielo pega 1 más, también al fantasma. El frío lleva a cada uno al 40 % de su velocidad pero no por debajo de 1 m/s, y a todos los frena por lo menos un 20 %: mucho a los rápidos, poco a los lentos.
-- *Fuego*: lo prende; pierde 1 de vida en el acto y después cada 2 s: 2 en total (3 y 4), y el blindaje no le resta. Volver a prenderlo no suma: le alarga el fuego.
+- *Fuego*: lo prende; pierde 1 de vida cada 2 s, el primero también a los 2 s (desde el 5/10): 2 en total (3 y 4), y el blindaje no le resta. Volver a prenderlo no suma: le alarga el fuego.
 - *Rayo*: **a cada uno que toca le cae un rayo**, y de ahí sale para los dos lados: en cada rama salta
   al más cercano 2 veces (3 y 4), a 6 m como mucho, sacándole 1 a cada uno. Un rayo **nunca toca dos
   veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje no le resta.
@@ -258,7 +258,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Cura** | se planta cerca de la puerta y cada 3 s le devuelve 1 de vida a los que tiene a 6 m. Aura y cuerpo verdes |
 | **Invencible** | se planta cerca de la puerta y vuelve inmunes a los que tiene a 8 m. Aura violeta |
 | **Esquiva** | si le apuntás más o menos (a unos 2 m de la línea), salta 3 m al costado **ni bien soltás el tiro o tirás una habilidad**, siempre; recarga 5 s. Hacela saltar con algo (un tiro flojo, una habilidad) y pegale con lo que importa antes de que recargue, o agarrala con un área. **Recibir daño se la recarga en el acto**: después de cada golpe hay que volver a hacerla saltar. Al golpe fantasma no lo ve venir: no salta, y no se la recarga |
-| **Se cura** (5/10) | se cura **entero** cada tanto: la barra verde debajo de la vida se llena y al llenarse el cuerpo brilla verde. El ciclo sale de su vida: alcanza para matarlo con golpes medios seguidos (uno cada 1.5 s) y sobran 1.2 s (al élite, 0.8). Con 6 de vida, cada 4.2 s. Conviene arrancar ya cargando justo después de la cura. Silenciado no se cura, y el ciclo vuelve a empezar cuando se le pasa |
+| **Se cura** (5/10) | se cura **entero** cada tanto: la barra verde debajo de la vida se llena y al llenarse el cuerpo brilla verde. El ciclo sale de su vida: alcanza para matarlo con golpes medios seguidos (uno cada 1.5 s) y sobran 1.2 s (al élite, 0.8). Con 6 de vida, cada 4.2 s. Conviene arrancar ya cargando justo después de la cura. Silenciado no se cura, y el ciclo vuelve a empezar cuando se le pasa. Trae 2 de vida de más (el élite no) |
+| **Intocable** (5/10) | casi todo el tiempo es **invulnerable**, como los que protege el chamán (violeta, y las pelotas rebotan): su barra violeta se descarga en 3.5 s y cuando se vacía queda vulnerable 1.5 s (la barra se pone dorada), y vuelve a empezar. Hay que tirar para que la pelota llegue en esa ventana. El élite: 3 s y 2 s. Con poca dificultad la ventana dura más. El golpe fantasma le entra siempre; silenciado es vulnerable, y cuando se le pasa arranca invulnerable |
 
 - Los poderes que cambian cómo se mueve (explota, cava, bandera, hechicero, aura) solo los recibe un
   cuerpo que camina y pega; los de defensa, cualquiera menos el jefe.

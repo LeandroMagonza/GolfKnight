@@ -91,8 +91,9 @@ export function chilledSpeed(speed: number): number {
  *   golpe que rompe el hielo pega `breakBonus` más, como la lupa: también al fantasma (hasta el 4/10
  *   pegaba el doble). Al jefe y al élite nunca los congela: solo los frena.
  * - **Fuego**: lo prende y le saca `burnDamage` cada `burnTick` segundos, `burnTicks` veces según el nivel
- *   (2, 3 y 4 de daño en total, en 2, 4 y 6 s; hasta el 3/10 eran 4, 5 y 6 cada 1.5 s, y un tiro de
- *   fuego solo mataba a los élites antes de que llegaran). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
+ *   (2, 3 y 4 de daño en total, en 4, 6 y 8 s: **el primero a los 2 s**, desde el 5/10, para que no sea
+ *   un golpe en el acto; hasta el 3/10 eran 4, 5 y 6 cada 1.5 s, y un tiro de fuego solo mataba a los
+ *   élites antes de que llegaran). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
  *   respuesta al blindado y al fantasma. Con la maestría, el que muere prendido contagia a los que tiene
  *   a `spreadRadius`.
  * - **Rayo**: a **cada uno que toca la pelota le cae un rayo** (`chainDamage`), y de ahí sale para los
@@ -128,11 +129,12 @@ export function effectOnly(element: Element | null | undefined): boolean {
 }
 
 /**
- * Cuánto dura prendido para morder `ticks` veces: el primer mordisco es en el acto y los demás, cada
- * `burnTick`; el último medio tick es de margen para que no se pierda por redondeo.
+ * Cuánto dura prendido para morder `ticks` veces: un mordisco cada `burnTick`, **el primero también**
+ * (desde el 5/10; antes el primero era en el acto). El medio tick de más es de margen para que el último
+ * no se pierda por redondeo.
  */
 export function burnSeconds(ticks: number): number {
-  return (Math.max(1, ticks) - 0.5) * ELEMENTS.burnTick;
+  return (Math.max(1, ticks) + 0.5) * ELEMENTS.burnTick;
 }
 
 /** Carrito de golf: cruza el campo de costado a costado, a la altura que apuntás, y atropella. */

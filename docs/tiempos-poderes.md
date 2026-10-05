@@ -127,7 +127,28 @@ cura. Así que el ciclo no es fijo: sale de su vida (`REGEN` y `regenPeriod` en 
 ### El fuego contra el que se cura
 
 Los tiros de fuego **no pegan con el palo**: solo prenden (el palo pega, la habilidad pone el efecto,
-desde el 1/10). El primer mordisco es en el acto, y después uno cada 2 s: 2, 3 y 4 de daño en total, en
-2, 4 y 6 s. Contra el que se cura sirve poco, porque los mordiscos se reparten en varios ciclos y cada cura
-borra lo hecho: con el ciclo de 4.2 s entran dos o tres. Con la Fuerza el tiro de fuego además pega 2 al
-tocar.
+desde el 1/10). Muerde 1 cada 2 s, y **desde el 5/10 el primero también llega a los 2 s** (antes era en el
+acto): 2, 3 y 4 de daño en total, en 4, 6 y 8 s. Contra el que se cura sirve poco, porque los mordiscos se
+reparten en varios ciclos y cada cura borra lo hecho: con el ciclo de 4.2 s entran uno o dos. Con la
+Fuerza el tiro de fuego además pega 2 al tocar.
+
+## El intocable (5/10)
+
+Idea de Leandro: casi todo el tiempo invulnerable, como los que protege el chamán, con una barra que se
+descarga; al vaciarse queda vulnerable un momento, y vuelve a ser invulnerable un rato más largo.
+
+- **Común**: invulnerable 3.5 s y vulnerable 1.5 s (ciclo de 5 s). **Élite**: 3 s y 2 s. Con poca dificultad
+  la ventana se multiplica por la recarga (×1.6: 2.4 s y 3.2 s).
+- **En una ventana de 1.5 s entran uno o dos golpes**: con la pelota ya en el aire al abrirse, un fuerte
+  (3) y, si el siguiente es flojo, otro más. Con 6 de vida, dos ventanas con fuertes: unos 6 s. El élite
+  de 14, con 2 golpes medios por ventana: unas 4 ventanas, 18 a 20 s. Es el más lento sin cartas, a
+  propósito: pide tiempo, no fuerza.
+- **El vuelo importa**: el driver llega en 0.25 s; el hierro en 0.8 a 1.2 s y el wedge en 1.3 a 2.1 s, así
+  que con esos hay que soltar antes de que se abra.
+- **Lo resuelven**: el golpe fantasma (le entra siempre), el silencio (vulnerable mientras dure: 5 s, o
+  2.5 al élite, y cuando se le pasa arranca invulnerable), y todo lo que mete más daño en la ventana:
+  fuerza, potencia, lupa, eco y clon.
+
+**El que se cura trae 2 de vida de más** (5/10, pedido de Leandro): al de 2 de vida se lo mataba de un
+golpe y era como no tener poder. La goblina que se cura tiene 4 (dos medios), el orco 5, el esqueleto 6.
+El élite no: ya trae la suya.

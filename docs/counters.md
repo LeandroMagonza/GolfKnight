@@ -199,11 +199,16 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
 | 9 | **Élite 3**. Apoyo 2 en 2 enemigos |
 | 10 | **El Gólem de roca**, con los tres poderes, los dos apoyos (uno de cada uno) y **alma en pena ×1** |
 
-- **Poderes de escenario** (6; cada partida sortea 3): escudo, blindaje, fantasma, divino, esquiva, y
-  desde el 5/10 **el que se cura** (entero, cada tanto: hay que meterle todo el daño entre una cura y la
-  siguiente; con golpes medios seguidos alcanza, con flojos no). Lo resuelven el silencio (no se cura
-  mientras dure), y todo lo que mete más daño en poco tiempo: fuerza, potencia, lupa, maldición de Abe,
-  eco, clon. Los tiempos, en `tiempos-poderes.md`.
+- **Poderes de escenario** (7; cada partida sortea 3): escudo, blindaje, fantasma, divino, esquiva, y
+  desde el 5/10 **el que se cura** y **el intocable**.
+  - **El que se cura** (2 de vida de más): se cura entero cada tanto; hay que meterle todo el daño entre
+    una cura y la siguiente (con golpes medios seguidos alcanza, con flojos no). Lo resuelven el silencio
+    (no se cura mientras dure), y todo lo que mete más daño en poco tiempo: fuerza, potencia, lupa,
+    maldición de Abe, eco, clon.
+  - **El intocable**: invulnerable salvo en una ventana de 1.5 s cada 5 s (el élite, 2 s cada 5 s). Lo
+    resuelven el golpe fantasma (le entra siempre), el silencio (vulnerable mientras dure) y lo que mete
+    mucho daño en la ventana: fuerza, potencia, lupa, eco, clon, y el driver, que llega rápido.
+  - Los tiempos, en `tiempos-poderes.md`.
   Un tercio de cada oleada trae poder: la mitad el del escenario, la otra mitad los anteriores. En
   «todos con poder», todos.
 - **Poderes de apoyo** (4; cada partida sortea 2): hechicero, cura, invencible, bandera. No se

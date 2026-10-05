@@ -10,7 +10,7 @@ import { chainJumps } from '../core/chain';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { EF, r2, r3, type EnemySnap, type ProjSnap } from '../net/snapshot';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
@@ -143,10 +143,10 @@ const BOSS_BAR_HP = 10;
 /** Lo ancho de la vida del jefe, en cuadraditos: el número y la barra. */
 const BOSS_BAR_SLOTS = 13;
 
-export type BadgeIcon = 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge' | 'skull' | 'regen';
+export type BadgeIcon = 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge' | 'skull' | 'regen' | 'phase';
 
 /** El ícono de cada poder de escenario, para la fila del recorrido de la partida. */
-export const SCENARIO_ICONS: Record<ScenarioPower, BadgeIcon> = { shield: 'shield', armor: 'armor', ethereal: 'ethereal', divine: 'divine', dodge: 'dodge', regen: 'regen' };
+export const SCENARIO_ICONS: Record<ScenarioPower, BadgeIcon> = { shield: 'shield', armor: 'armor', ethereal: 'ethereal', divine: 'divine', dodge: 'dodge', regen: 'regen', phase: 'phase' };
 /** El verde de la cura: la barra del que se cura y el brillo del cuerpo al curarse. */
 const REGEN_COLOR = '#3ee07a';
 const REGEN_GLOW = new THREE.Color(0x1f9a4a);
@@ -154,6 +154,9 @@ const REGEN_GLOW = new THREE.Color(0x1f9a4a);
 const REGEN_BAR_PX = 12;
 /** Cuánto le dura el brillo verde al curarse. */
 const REGEN_GLOW_SECONDS = 0.7;
+/** El intocable: su barra violeta mientras es invulnerable, y dorada en la ventana en que se le puede pegar. */
+const PHASE_COLOR = '#b26bff';
+const PHASE_OPEN_COLOR = '#ffd34d';
 
 /** Un ícono suelto, como imagen (el HUD los usa para el recorrido de la partida). */
 export function badgeImage(icon: BadgeIcon): string {
@@ -360,6 +363,21 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.closePath();
       ctx.fillStyle = REGEN_COLOR;
       break;
+    case 'phase':
+      // intocable: un reloj de arena violeta (es invulnerable salvo en su ventana)
+      ctx.moveTo(cx - 11, 3);
+      ctx.lineTo(cx + 11, 3);
+      ctx.lineTo(cx + 11, 6);
+      ctx.lineTo(cx + 2.5, 16);
+      ctx.lineTo(cx + 11, 26);
+      ctx.lineTo(cx + 11, 29);
+      ctx.lineTo(cx - 11, 29);
+      ctx.lineTo(cx - 11, 26);
+      ctx.lineTo(cx - 2.5, 16);
+      ctx.lineTo(cx - 11, 6);
+      ctx.closePath();
+      ctx.fillStyle = PHASE_COLOR;
+      break;
     case 'banner':
       ctx.rect(cx - 10, 3, 3, 26);
       ctx.moveTo(cx - 7, 4);
@@ -447,6 +465,12 @@ export class Enemy {
   regenGlow = 0;
   /** El que mira: el ciclo que dice la foto (-1 en el que juega). */
   private remoteRegen = -1;
+  /**
+   * El intocable (ver PHASE): cuánto lleva de su ciclo (primero invulnerable, después la ventana). Arranca
+   * en un punto al azar, así no se abren todos juntos. En el que mira, lo que dice la foto (ver `phaseBar`).
+   */
+  phaseTime = 0;
+  private remotePhase: number | null = null;
   /** Prendido fuego: segundos que le quedan, y cuánto falta para el próximo mordisco. */
   burnTimer = 0;
   burnTick = 0;
@@ -549,6 +573,8 @@ export class Enemy {
     this.behavior = behaviorOf(stats, mods);
     this.position = this.group.position;
     this.maxHp = this.hp = Math.max(1, stats.hp + (mods.hp ?? 0));
+    // el intocable arranca en un punto cualquiera de su ciclo: así no se abren todos juntos
+    if (mods.phase) this.phaseTime = Math.random() * this.phaseCycle;
     this.divineReady = !!this.divineEvery;
     if (this.divineEvery) {
       this.bubble = new THREE.Mesh(bubbleGeo, new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.22, depthWrite: false }));
@@ -866,6 +892,7 @@ export class Enemy {
     if (this.divineEvery) out.push({ icon: 'divine', off: !this.divineReady, mutes: true });
     if (this.mods.dodge) out.push({ icon: 'dodge', off: this.dodgeLeft > 0, mutes: true });
     if (this.mods.regen) out.push({ icon: 'regen', mutes: true });
+    if (this.mods.phase) out.push({ icon: 'phase', off: !this.phaseShut, mutes: true });
     return out;
   }
 
@@ -888,9 +915,10 @@ export class Enemy {
     const slots = bar ? BOSS_BAR_SLOTS : Math.min(this.maxHp, PIP_LAYER);
     // los íconos van más grandes que los cuadraditos: tienen un número o una forma que leer de lejos
     const width = BADGE_PX * badges.length + 32 * slots;
-    // el que se cura lleva debajo de la vida la barra de su ciclo
+    // el que se cura y el intocable llevan debajo de la vida la barra de su ciclo
     const regen = !!this.mods.regen && !bar;
-    const height = BADGE_PX + (regen ? REGEN_BAR_PX : 0);
+    const phase = !!this.mods.phase && !bar;
+    const height = BADGE_PX + (regen || phase ? REGEN_BAR_PX : 0);
     if (p.canvas.width !== width || p.canvas.height !== height) {
       p.canvas.width = width;
       p.canvas.height = height;
@@ -974,8 +1002,9 @@ export class Enemy {
         ctx.stroke();
       }
     }
-    if (regen) {
-      // la barra del ciclo: se llena de verde y al llenarse se cura (silenciado, gris y quieta)
+    if (regen || phase) {
+      // la barra del ciclo. El que se cura: se llena de verde y al llenarse se cura. El intocable: violeta
+      // que se descarga, y al vaciarse la ventana, dorada, que también se vacía. Silenciado, gris
       const x0 = left + 4;
       const w = 32 * slots - 8;
       const y = BADGE_PX;
@@ -984,8 +1013,10 @@ export class Enemy {
       ctx.beginPath();
       ctx.roundRect(x0, y, w, h, 4);
       ctx.fill();
-      ctx.fillStyle = this.silenced ? '#6b7480' : REGEN_COLOR;
-      ctx.fillRect(x0, y, w * Math.min(1, this.regenProgress), h);
+      const ph = this.phaseBar;
+      const fill = phase ? Math.abs(ph) : Math.min(1, this.regenProgress);
+      ctx.fillStyle = this.silenced ? '#6b7480' : phase ? (ph > 0 ? PHASE_COLOR : PHASE_OPEN_COLOR) : REGEN_COLOR;
+      ctx.fillRect(x0, y, w * (this.silenced && phase ? 1 : fill), h);
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.roundRect(x0, y, w, h, 4);
@@ -998,7 +1029,7 @@ export class Enemy {
   /** Redibuja la vida si cambió algo de lo que muestra (la vida, la bandera, el silencio sobre la armadura). */
   refreshPipsIfChanged(): void {
     // (la barra del que se cura, en 24 pasos: redibujar el lienzo en cada cuadro sería caro)
-    const regen = this.mods.regen ? Math.floor(this.regenProgress * 24) : 0;
+    const regen = this.mods.regen ? Math.floor(this.regenProgress * 24) : this.mods.phase ? Math.round(this.phaseBar * 24) : 0;
     const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.silenced}/${this.bannered}/${this.divineReady}/${this.dodgeLeft > 0}/${this.alive && !this.passed}/${regen}`;
     if (key === this.pipKey) return;
     this.pipKey = key;
@@ -1080,8 +1111,38 @@ export class Enemy {
       this.divineTimer = Math.max(this.divineTimer, this.divineEvery);
     }
     if (this.mods.dodge) this.dodgeLeft = Math.max(this.dodgeLeft, this.mods.dodgeEvery ?? DODGE.cooldown);
-    // el que se cura: el ciclo vuelve a empezar, y corre recién cuando se le pasa
+    // el que se cura: el ciclo vuelve a empezar, y corre recién cuando se le pasa. El intocable, igual:
+    // silenciado es vulnerable, y cuando se le pasa arranca invulnerable
     this.regenTime = 0;
+    this.phaseTime = 0;
+  }
+
+  /** El intocable: cuánto rato del ciclo es invulnerable (el élite, menos). */
+  private get phaseShutSeconds(): number {
+    return this.size > 1 ? PHASE.eliteShut : PHASE.shut;
+  }
+
+  /** El intocable: el ciclo entero, invulnerable más la ventana. */
+  get phaseCycle(): number {
+    return this.phaseShutSeconds + (this.mods.phase ?? 0);
+  }
+
+  /** El intocable está en la parte invulnerable de su ciclo. Silenciado, nunca. */
+  get phaseShut(): boolean {
+    if (!this.mods.phase || this.silenced) return false;
+    if (this.remotePhase !== null) return this.remotePhase > 0;
+    return this.phaseTime < this.phaseShutSeconds;
+  }
+
+  /**
+   * La barra del intocable: invulnerable, lo que le queda de 1 a 0; en la ventana, lo que le queda de la
+   * ventana, en negativo (de -1 a 0).
+   */
+  get phaseBar(): number {
+    if (this.remotePhase !== null) return this.remotePhase;
+    const shut = this.phaseShutSeconds;
+    if (this.phaseTime < shut) return 1 - this.phaseTime / shut;
+    return -(1 - (this.phaseTime - shut) / Math.max(0.1, this.mods.phase ?? 1));
   }
 
   /** Cada cuántos segundos se cura (el que se cura, ver REGEN). */
@@ -1110,10 +1171,13 @@ export class Enemy {
     this.frozenTimer = Math.max(this.frozenTimer, seconds);
   }
 
-  /** Prendido fuego `seconds`. Si ya estaba prendido, le alarga el fuego sin mordisco extra. */
+  /**
+   * Prendido fuego `seconds`. El primer mordisco llega a los `burnTick` segundos, no en el acto (5/10,
+   * pedido de Leandro). Si ya estaba prendido, le alarga el fuego sin mordisco extra.
+   */
   burn(seconds: number): void {
     if (!this.alive) return;
-    if (!this.burning) this.burnTick = 0;
+    if (!this.burning) this.burnTick = ELEMENTS.burnTick;
     this.burnTimer = Math.max(this.burnTimer, seconds);
   }
 
@@ -1258,6 +1322,8 @@ export class Enemy {
       }
     }
     if (this.regenGlow > 0) this.regenGlow = Math.max(0, this.regenGlow - dt);
+    // el intocable: el ciclo corre (silenciado no: queda en el arranque, invulnerable para cuando se le pase)
+    if (this.mods.phase && !this.passed) this.phaseTime = this.silenced ? 0 : (this.phaseTime + dt) % this.phaseCycle;
     if (this.hopLeft > 0) {
       this.hopLeft = Math.max(0, this.hopLeft - dt);
       this.model.position.y = Math.sin(Math.PI * (1 - this.hopLeft / DODGE.hopTime)) * DODGE.hop;
@@ -1461,6 +1527,7 @@ export class Enemy {
       | (this.regenGlow > 0 ? EF.regenGlow : 0);
     return {
       ...(this.mods.regen ? { rg: r2(this.regenProgress) } : {}),
+      ...(this.mods.phase ? { ph: r2(this.phaseBar) } : {}),
       id: this.id,
       x: r2(this.position.x),
       y: r2(this.position.y),
@@ -1497,6 +1564,7 @@ export class Enemy {
     if (s.f & EF.flash) this.flashTimer = Math.max(this.flashTimer, 0.05);
     // el que se cura: la barra y el brillo, como en el del que juega
     if (s.rg !== undefined) this.remoteRegen = s.rg;
+    if (s.ph !== undefined) this.remotePhase = s.ph;
     if (s.f & EF.regenGlow) this.regenGlow = Math.max(this.regenGlow, REGEN_GLOW_SECONDS * 0.5);
     if (s.f & EF.passed && !this.passed) {
       this.passed = true;
@@ -2269,6 +2337,11 @@ export class Horde {
     const casters = this.enemies.filter((e) => e.casting && e.auraKind === 'ward');
     for (const e of this.enemies) {
       e.warded = false;
+      // el intocable se protege solo, mientras su barra no se vació (ver PHASE)
+      if (e.alive && e.phaseShut) {
+        e.warded = true;
+        continue;
+      }
       // ninguno que tenga aura queda protegido, sea cual sea la suya
       if (!e.alive || e.silenced || e.auraKind) continue;
       for (const c of casters) {

@@ -116,7 +116,7 @@ const difficultyMenu = new DifficultyMenu(progress);
 let rules = rulesFor(progress.picks);
 let run = buildRun(Math.random, rules);
 const director = new WaveDirector(run.waves, rules.rest);
-const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura' };
+const POWER_NAMES: Record<ScenarioPower, string> = { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura', phase: 'Intocable' };
 function showRun(): void {
   hud.setRun([
     ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: `Escenario ${i + 1}: ${POWER_NAMES[p]}` })),

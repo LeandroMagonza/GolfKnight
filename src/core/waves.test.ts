@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, POWERS, REGEN, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, POWERS, REGEN, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -206,7 +206,8 @@ describe('waves', () => {
       for (const o of spawnOrder(w, seeded(4))) {
         // (en la segunda oleada no hay élite: a todos les toca lo mismo; la marca de los gigantes, si
         // vino antes, les suma vida a unos cuantos)
-        if (!o.mods?.giant) expect(o.mods?.hp, o.kind).toBe(POWERED.hp);
+        // (el que se cura trae su vida de más encima)
+        if (!o.mods?.giant) expect(o.mods?.hp, o.kind).toBe(POWERED.hp + (o.mods?.regen ? REGEN.hp : 0));
         for (const p of SCENARIO_POWERS) if (has(o.mods, p) && !run.powers.includes(p)) outside.add(p);
       }
     }
@@ -475,5 +476,20 @@ describe('waves', () => {
     expect(canTake('goblin', { regen: 1 })).toBe(false);
     expect(canTake('goblina', { regen: 1 })).toBe(true);
     expect(SCENARIO_POWERS).toContain('regen');
+    // trae vida de más: al de 2 de vida se lo mataba de un golpe (el élite no: ya trae la suya)
+    expect(POWERS.regen(0, () => 0).hp).toBe(REGEN.hp);
+    expect(REGEN.hp).toBeGreaterThan(0);
+  });
+
+  it('el intocable: invulnerable casi siempre, con una ventana corta (más larga con poca dificultad)', () => {
+    expect(SCENARIO_POWERS).toContain('phase');
+    expect(PHASE.open).toBeLessThan(PHASE.shut);
+    expect(POWERS.phase(0, () => 0).phase).toBe(PHASE.open);
+    expect(POWERS.phase(0, () => 0, { cap: 2, recharge: 1.6 }).phase).toBeCloseTo(PHASE.open * 1.6);
+    // el élite: ventana más larga, menos rato invulnerable
+    const boss = elite(1, 'phase').mods!;
+    expect(boss.phase).toBe(PHASE.eliteOpen);
+    expect(PHASE.eliteOpen).toBeGreaterThan(PHASE.open);
+    expect(PHASE.eliteShut).toBeLessThanOrEqual(PHASE.shut);
   });
 });
