@@ -30,7 +30,10 @@ Los poderes de escenario son los que piden decidir cartas; los de apoyo se resue
 El wedge cae a plomo y el escudo común no lo para nunca: **el wedge, con cualquier efecto, pasa
 escudos**.
 
-**El divino (escudo sagrado)**: con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto.
+**El divino (escudo sagrado)**: con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto, y
+desde el 5/10 **la pelota que la rompe desaparece** (el driver no sigue de largo). El silencio se la
+apaga y la recarga empieza recién cuando se le pasa. Los tiempos de todos los poderes, en
+`tiempos-poderes.md`.
 Dos cosas la pasan:
 - **el golpe fantasma**, sin gastarla;
 - **el hoyo**, que se traga la unidad entera.
@@ -66,7 +69,7 @@ Lo que no hace daño (hielo, viento) no resuelve nada solo: prepara.
 | Palo **fantasma** | 4 | ✅ | ✅ | ✅ | ✅ | ✅ (desde el 4/10 no lo ve venir) |
 | **Guante fantasma** (4/10) | 1 | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Fuerza** (4/10) | 1 | ½ | ✅ | | ❌ | |
-| Palo **silenciador** | 4 | ✅ (desde el 5/10 el escudo común no lo para; el muro, solo con wedge) | ✅ | ✅ | ❌ | wedge ✅, los otros ❌ |
+| Palo **silenciador** | 4 | ✅ (desde el 5/10 no lo para ningún escudo, ni el muro) | ✅ | ✅ | ✅ (desde el 5/10: apaga la burbuja y la recarga espera) | ✅ (la gasta, y espera) |
 | Hoyo (no a élites) | 1 | ✅ | ✅ | ✅ | ✅ | ½ |
 | Carrito | 1 | ✅ | ½ | ❌ | ❌ | ✅ |
 | Pólvora | 1 | ½ | ❌ | ✅ | ✅ | ✅ |
@@ -210,7 +213,7 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
 | Escudo | Calavera (∞): de frente no entra nada. Lo pasan el wedge, el golpe fantasma, el silencio con wedge, el rayo y el carrito |
 | Blindaje | Blindaje 1 en el primer escenario, 2 después |
 | Fantasma | 7 a 12 de vida: 7 a 12 golpes, o menos con lupa, fantasma nivel 2 o silencio |
-| Divino | La burbuja vuelve a los 3 s. El golpe fantasma la pasa |
+| Divino | La burbuja vuelve a los 3 s, y desde el 5/10 **cada golpe que le entra se la devuelve** (como el que esquiva). El golpe fantasma la pasa; el silencio se la apaga |
 | Esquiva | Igual; desde el escenario 2 es un cuerpo pesado y el palazo no lo aturde |
 
 A todos los élites el silencio les dura la mitad, y el hoyo no los traga.

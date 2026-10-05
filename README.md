@@ -150,10 +150,11 @@ protege, no hace nada). Lo que hace cada una, por nivel:
   invencible y la burbuja divina (sin gastarla). El del driver atraviesa además las lomas. La esquiva no
   lo ve venir: no salta, y el golpe no se la recarga.
 - *Silenciador*: silencia 5 s (6.5 y 8) a cada uno que toca (al élite, la mitad): se le apagan
-  **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba),
+  **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba); la
+  burbuja divina y la esquiva quedan gastadas y recién recargan cuando se le pasa el silencio,
   para que lo que venga después le entre. El wedge silenciador es el silencio en área (la granada se
-  fue el 1/10). El escudo común no lo para: lo silencia al tocarlo y la pelota sigue (el muro de la
-  calavera sí lo para, salvo con el wedge).
+  fue el 1/10). Ningún escudo lo para, ni el muro de la calavera, ni la burbuja: lo silencia al tocarlo y
+  la pelota sigue.
 
 **Las demás** (16):
 
@@ -249,7 +250,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | **Escudo calavera (10)** | de frente no entra nada: por detrás, de costado, silenciado o con el golpe fantasma |
 | **Blindaje 1 a 3** | le resta eso a cada golpe, venga de donde venga. Tiñe de acero |
 | **Explota** | corre a la puerta y revienta al llegar o al tocarte, y se lleva a los de al lado. Late en rojo |
-| **Divino** | con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto: el primero se lo come y se le recarga a los 5 s. La pasan el golpe fantasma (sin gastarla) y el hoyo (que se lo traga entero) |
+| **Divino** | con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto: el primero se lo come y se le recarga a los 5 s. **La pelota que la rompe desaparece** (el driver no sigue de largo). La pasan el golpe fantasma (sin gastarla) y el hoyo (que se lo traga entero), y el silencio se la apaga: recién empieza a recargar cuando se le pasa. Al élite, cada golpe que le entra le devuelve la burbuja |
 | **Etéreo** | ningún golpe le saca más de 1 (agrandado por la lupa, hasta 2; el golpe fantasma de nivel 2, entero): hay que pegarle muchas veces. Casi transparente, con un brillo celeste |
 | **Cava** | se planta y canaliza 8 s una loma adelante suyo, que tapa al driver. Si lo matás antes, baja; si termina, queda hasta el final de la partida |
 | **Bandera** | se queda al fondo (unos 42 m); mientras vive, todos tienen 1 de vida más |

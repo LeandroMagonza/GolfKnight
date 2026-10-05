@@ -300,9 +300,16 @@ export class Balls {
     this.effects.spark(pos, ball.club.color);
     const dir = push ?? new THREE.Vector3(s.vel.x, 0, s.vel.z).normalize();
     // el tiro de efecto no pega ni empuja: si toca (escudo, aura y burbuja lo paran), deja el efecto
+    // la burbuja divina se come la pelota que la rompe (5/10, idea de Leandro): el driver no sigue de largo
+    // detrás del bendito. La fantasma no la rompe y la silenciadora la apaga: esas siguen
+    const bubble = enemy.divineReady && !enemy.silenced && ball.element !== 'ghost' && ball.element !== 'silence';
+    const eaten = () => {
+      if (bubble && !enemy.divineReady && ball.phase === null) ball.done = true;
+    };
     if (this.touchOnly(ball)) {
       const shot = this.markShot(ball);
-      const touched = this.horde.touch(enemy, guard);
+      const touched = this.horde.touch(enemy, guard, ball.element === 'silence');
+      eaten();
       if (touched) {
         ball.hits++;
         this.checkConnected(ball);
@@ -318,6 +325,7 @@ export class Balls {
     const shot = this.markShot(ball);
     // el de efecto con la fuerza pega, pero no empuja
     const killed = this.horde.damage(enemy, damage, dir, ball.effect ? 0 : ball.club.knockback, false, guard);
+    eaten();
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
     const landed = guard === 0 || this.horde.lastDealt > 0;
     // la regla del toque: si se lo comió el divino o lo paró el aura, el elemento no sale
@@ -458,9 +466,10 @@ export class Balls {
       // de vuelta le llega por la espalda: el escudo de frente no la para. Al golpe fantasma no lo para
       // ningún escudo, ni el aura del chamán
       const ghost = ball.element === 'ghost';
-      // el silenciador tampoco (5/10, pedido de Leandro): el escudo común es justo lo que viene a apagar.
-      // Lo silencia al tocarlo y sigue. El muro de la calavera y el aura del chamán sí lo paran
-      const hush = ball.element === 'silence' && !e.warded && !e.shieldWall;
+      // el silenciador tampoco (5/10, pedido de Leandro): el escudo es justo lo que viene a apagar, también
+      // el muro de la calavera (al élite le dura la mitad). Lo silencia al tocarlo y sigue. El aura del
+      // chamán sí lo para
+      const hush = ball.element === 'silence' && !e.warded;
       if (ball.phase !== 'back' && !ghost && !hush && (e.warded || (e.blocks(s.vel.x, s.vel.y, s.vel.z) && !overShield))) {
         // el escudo frena la pelota igual (rebota), pero es blindaje de frente: lo que pasa de su
         // número entra. El muro y el aura del chamán no dejan pasar nada

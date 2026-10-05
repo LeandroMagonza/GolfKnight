@@ -1016,13 +1016,22 @@ export class Enemy {
     }
   }
 
-  /** Silencio durante `seconds`: todos los poderes apagados. */
+  /**
+   * Silencio durante `seconds`: todos los poderes apagados. Desde el 5/10 además **gasta lo que recarga**:
+   * la burbuja divina se cae y la esquiva queda usada, y las dos recién empiezan a recargar cuando se le
+   * pasa el silencio (si no, silenciar al bendito era lo mismo que pegarle un driver flojo).
+   */
   silence(seconds: number): void {
     if (!this.alive || seconds <= 0) return;
     if (seconds >= this.silenceTimer) {
       this.silenceTimer = seconds;
       this.silenceMax = seconds;
     }
+    if (this.divineEvery) {
+      this.divineReady = false;
+      this.divineTimer = Math.max(this.divineTimer, this.divineEvery);
+    }
+    if (this.mods.dodge) this.dodgeLeft = Math.max(this.dodgeLeft, this.mods.dodgeEvery ?? DODGE.cooldown);
   }
 
   /**
@@ -1166,11 +1175,12 @@ export class Enemy {
     if (this.lureTimer > 0) this.lureTimer = Math.max(0, this.lureTimer - dt);
     if (this.growTimer > 0) this.growTimer = Math.max(0, this.growTimer - dt);
     if (this.powderTimer > 0) this.powderTimer = Math.max(0, this.powderTimer - dt);
-    if (!this.divineReady && this.divineEvery) {
+    // silenciado, lo que recarga no recarga: arranca cuando se le pasa
+    if (!this.divineReady && this.divineEvery && !this.silenced) {
       this.divineTimer -= dt;
       if (this.divineTimer <= 0) this.divineReady = true;
     }
-    if (this.dodgeLeft > 0) this.dodgeLeft = Math.max(0, this.dodgeLeft - dt);
+    if (this.dodgeLeft > 0 && !this.silenced) this.dodgeLeft = Math.max(0, this.dodgeLeft - dt);
     if (this.hopLeft > 0) {
       this.hopLeft = Math.max(0, this.hopLeft - dt);
       this.model.position.y = Math.sin(Math.PI * (1 - this.hopLeft / DODGE.hopTime)) * DODGE.hop;
@@ -1880,8 +1890,11 @@ export class Horde {
     const q = this.shot ? Math.min(KNOCK.quality.length, Math.max(1, this.shot.quality)) - 1 : -1;
     const killed = enemy.damage(dealt, knockDir, q >= 0 ? knockback * KNOCK.quality[q] : knockback, q >= 0 ? KNOCK.stun[q] : undefined, !!ghost);
     // el escurridizo que recibe daño vuelve a tener la esquiva lista (4/10): después de cada golpe hay
-    // que volver a hacerlo saltar. El golpe fantasma no se la recarga: no lo ve venir
-    if (dealt > 0 && !killed && enemy.mods.dodge && !ghost) enemy.dodgeLeft = 0;
+    // que volver a hacerlo saltar. El golpe fantasma no se la recarga: no lo ve venir. Silenciado, tampoco
+    if (dealt > 0 && !killed && enemy.mods.dodge && !ghost && !enemy.silenced) enemy.dodgeLeft = 0;
+    // y al élite bendito, igual con la burbuja (5/10): cada golpe que le entra se la devuelve, así que
+    // hay que romperla antes de cada golpe
+    if (dealt > 0 && !killed && enemy.size > 1 && enemy.divineEvery && !ghost && !enemy.silenced) enemy.divineReady = true;
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });
@@ -1948,8 +1961,10 @@ export class Horde {
    * si tocó de verdad: el aura de invencible lo protege, el escudo que le llega de frente (`guard` > 0)
    * para la pelota antes de que lo toque, y la burbuja divina se come el toque.
    */
-  touch(enemy: Enemy, guard = 0): boolean {
+  touch(enemy: Enemy, guard = 0, hush = false): boolean {
     if (!enemy.alive || enemy.passed) return false;
+    // el silencio (`hush`) no lo para la burbuja: la apaga (ver Enemy.silence)
+    if (hush && !enemy.warded) return true;
     if (enemy.warded) {
       this.emit({ type: 'immune', enemy });
       return false;
@@ -1976,9 +1991,8 @@ export class Horde {
       if (!e.alive || e.passed || skip?.has(e.id)) continue;
       if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) - e.radius > radius) continue;
       skip?.add(e.id);
-      // `overShields` (el silencio): el escudo común no lo tapa; el muro de la calavera, sí
-      const guard = this.shadeOf(pos, e);
-      if (!this.touch(e, overShields && guard < SHIELD_WALL ? 0 : guard)) continue;
+      // `overShields` (el silencio): no lo tapa ningún escudo, ni el muro de la calavera, ni la burbuja
+      if (!this.touch(e, overShields ? 0 : this.shadeOf(pos, e), overShields)) continue;
       onTouch(e);
       count++;
     }
