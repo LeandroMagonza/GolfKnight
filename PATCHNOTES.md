@@ -31,7 +31,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - La burbuja divina se come la pelota que la rompe: el driver ya no sigue de largo detrás del bendito.
   La fantasma y la silenciadora siguen. `a7ce2c3`
 - Al élite bendito cada golpe que le entra le devuelve la burbuja, como al que esquiva: hay que
-  rompérsela antes de cada golpe. `a7ce2c3`
+  rompérsela antes de cada golpe. `a7ce2c3` Y ahora a todos los benditos, no solo al élite (la burbuja
+  también sigue volviendo sola). `a45fa8a`
+- Poder nuevo, **el que se cura** (un corazón verde): cada tanto se cura entero. La barra verde debajo
+  de su vida se llena, y al llenarse brilla verde y vuelve a tener toda la vida. Hay que meterle todo el
+  daño entre una cura y la siguiente: con golpes medios seguidos alcanza (y sobra un poco), con flojos
+  no. Conviene arrancar ya cargando, justo después de la cura. Silenciado no se cura. `a45fa8a`
 
 ## 4 de octubre
 
