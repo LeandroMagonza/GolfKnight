@@ -55,6 +55,14 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   mejor. Quedan dos, una para cada cosa: la **muñeca rápida** acorta solo el tramo débil (un 20 %), así
   el golpe 2 y el 3 llegan antes; el **punto dulce** alarga el golpe 3. Con las dos la barra queda más
   pareja, pero el 3 sigue siendo el más difícil de clavar. `3e09c0e`
+- **Correrse con la pelota** se ve: mientras te movés con A o D cargando, el golfista deja de levantar
+  el palo y lo apoya contra la pelota. Del lado de él para empujarla, del otro lado para traerla, y da
+  pasitos. Al soltar la tecla vuelve a levantar el palo; la barra sigue cargando igual. `a6ea1be`
+- El tutorial tiene un paso nuevo, el cuarto: dos goblins casi en fila que desde tu puesto no se pueden
+  agarrar juntos. Hay que correrse con la pelota hasta alinearlos, y si no caen los dos del mismo tiro,
+  vuelven a aparecer. `a6ea1be`
+- El jefe goblin élite (y cualquier enemigo agrandado) ya no camina a los saltitos: mueve las piernas
+  al ritmo de su tamaño. `a169768`
 
 **Dificultad**
 - Talento nuevo, **Golpe 4**, para los que ya clavan el 3 siempre. En el medio del rojo aparece el golpe
