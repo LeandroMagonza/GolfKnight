@@ -49,6 +49,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   el golpe 2 y el 3 llegan antes; el **punto dulce** alarga el golpe 3. Con las dos la barra queda más
   pareja, pero el 3 sigue siendo el más difícil de clavar. `3e09c0e`
 
+**Dificultad**
+- Talento nuevo, **Golpe 4**, para los que ya clavan el 3 siempre. En el medio del rojo aparece el golpe
+  4, que pega 1 más que el 3. El 3 queda a los costados, en naranja: entre los dos duran lo que duraba
+  el 3, así que no es más fácil, es más fino. A cambio los enemigos traen 1 de vida más, los élites 2 y
+  el jefe 8. Las habilidades no tienen golpe 4. `6573aa2`
+
 ## 4 de octubre
 
 **Golf**
