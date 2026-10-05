@@ -44,6 +44,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   golpe fantasma le entra siempre, y silenciado es vulnerable. `edb6e9b`
 - El fuego ya no muerde en el acto: el primer mordisco llega a los 2 s, y después uno cada 2 s.
   `edb6e9b`
+- Se fue la mejora **Swing parejo**: hacía lo del punto dulce y lo de la muñeca rápida a la vez, y
+  mejor. Quedan dos, una para cada cosa: la **muñeca rápida** acorta solo el tramo débil (un 20 %), así
+  el golpe 2 y el 3 llegan antes; el **punto dulce** alarga el golpe 3. Con las dos la barra queda más
+  pareja, pero el 3 sigue siendo el más difícil de clavar. `3e09c0e`
 
 ## 4 de octubre
 
