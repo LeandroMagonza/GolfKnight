@@ -272,3 +272,32 @@ Lo que Leandro vio jugando de a dos, con Abe desde el celular:
 Probado con `logs/check-abe-chispa.mjs` (la chispa clava a los de adentro y no al de al lado; elegir, tirar
 y volver a la chispa; Q; ver la puntería; la cámara; recargar la pestaña y seguir siendo Abe) y
 `logs/check-abe-tutorial.mjs`.
+
+## Hecho: cuando no se pueden conectar (6/10/2026)
+
+Leandro probó con un amigo, los dos en PC y en casas distintas, él de Abe: a Abe le decía
+«Reconectando…» y al que jugaba nunca le apareció que había entrado. Lo que encontré:
+
+- **Un error mío**: la reconexión sola del 5/10 corría desde que se abría la página. Si la primera
+  conexión tardaba más de 12 s, la cortaba y volvía a entrar, una y otra vez. Y Trystero, del lado del que
+  juega, espera 23 s la respuesta de un intento: volver a entrar antes chocaba con el anterior. Ahora solo
+  se reconecta si ya había estado conectado, y recién a los 30 s sin noticias. El lugar de Abe lo espera
+  60 s (antes 30).
+- **Relays**: Trystero usa 5 relays de Nostr, elegidos de su lista según el appId (los dos lados, los
+  mismos). A nuestra sala le tocaban 2 caídos, los de los errores de la consola (relay.mostr.pub y
+  koru.bitcointxoko.org). Ahora usa 8, que deja 6 andando (`RELAYS` en net/link.ts).
+- **La conexión directa**: después de encontrarse por los relays, los datos van directo entre los dos
+  navegadores (WebRTC). Algunas redes no lo dejan: ciertos routers, y el celular con datos (CGNAT). Para
+  eso hace falta un **servidor TURN**, que pasa los datos de uno al otro. Trystero avisa cuando pasa
+  («could not connect to peer … after exchanging SDP»): ahora lo escuchamos, y lo ven los dos. El que
+  mira lee «Encontré la partida, pero sus redes no dejan conectarse directo…», y al que juega le sale
+  «Alguien quiso entrar, pero sus redes no dejan conectarse directo».
+- **No hay TURN gratis sin cuenta**: probado el 6/10, openrelay.metered.ca rechaza las credenciales
+  públicas de siempre («400 allocate error») y staticauth.openrelay.metered.ca ya no existe. Queda todo
+  listo para enchufar uno: `TURN.credentialsUrl` en net/link.ts, la dirección que da las credenciales.
+  Con una cuenta gratis de Metered (20 GB por mes) es
+  `https://<app>.metered.live/api/v1/turn/credentials?apiKey=<clave>`. La clave queda a la vista en la
+  página: para un juego chico está bien, en el peor caso alguien gasta la cuota del mes.
+- `?soloturn` en la URL obliga a pasar por el TURN: sirve para probarlo (sin TURN, no conecta nunca).
+- La prueba es `logs/check-conexion.mjs`: dos navegadores, relays de verdad. Se encuentran en unos 2 s,
+  y con `?soloturn` sin TURN salen los dos avisos y no entra en el bucle de reconexión.

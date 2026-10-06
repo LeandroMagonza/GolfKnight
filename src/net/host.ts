@@ -47,9 +47,10 @@ export interface HostSource {
 
 /**
  * Si Abe se corta, su lugar lo espera este tiempo (ms) antes de pasar al que sigue: con mal wifi se va y
- * vuelve, y antes volvía como uno que solo mira.
+ * vuelve, y antes volvía como uno que solo mira. Más que lo que tarda en volver a entrar solo (ver
+ * RELINK_MS en spectator.ts).
  */
-const ABE_SEAT_MS = 30000;
+const ABE_SEAT_MS = 60000;
 
 export class NetHost {
   /** Los que están mirando: la conexión, y de qué pestaña es (ver `Watch.me`). */
@@ -75,6 +76,8 @@ export class NetHost {
   onCast: ((slot: number, x: number, z: number) => void) | null = null;
   /** Abe eligió de lo que le ofrecen: la carta (o -1) y el lugar. */
   onPick: ((card: number, slot: number) => void) | null = null;
+  /** Alguien quiso entrar a mirar y la red no dejó conectar (ver `Link.onTrouble`). */
+  onTrouble: (() => void) | null = null;
   /**
    * Partida privada: no entra nadie más (los que ya miran siguen). Y los que el caballero echó, que no
    * vuelven en esta sesión. Al que vuelve a entrar desde otra pestaña lo frena la privada.
@@ -90,6 +93,7 @@ export class NetHost {
       else if (m.k === 'cast' && Number.isInteger(m.i) && Number.isFinite(m.x) && Number.isFinite(m.z)) this.onCast?.(m.i as number, m.x as number, m.z as number);
       else if (m.k === 'pick' && Number.isInteger(m.c) && Number.isInteger(m.s)) this.onPick?.(m.c as number, m.s as number);
     };
+    link.onTrouble = () => this.onTrouble?.();
     link.onPeer = (id, joined) => {
       if (joined || !this.watchers.delete(id)) return;
       this.updateRoles();

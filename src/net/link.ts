@@ -16,7 +16,41 @@ export interface Link {
   onMessage: ((msg: NetMsg, from: string) => void) | null;
   /** Alguien entró a la sala o se fue. */
   onPeer: ((id: string, joined: boolean) => void) | null;
+  /**
+   * Se encontraron por los relays, pero la conexión directa no salió: la red de alguno de los dos no la
+   * deja (algunos routers, el celular con datos). Hace falta un servidor TURN (ver `TURN`). Trystero lo
+   * sigue intentando.
+   */
+  onTrouble: ((peer: string) => void) | null;
   close(): void;
+}
+
+/**
+ * Cuántos relays de Nostr se usan para encontrarse (Trystero trae 5). Los elige de su lista según el
+ * appId, así que los dos lados usan los mismos. Con 5, a nuestra sala le tocaban 2 caídos (probado el
+ * 6/10): con 8 quedan 6 que andan.
+ */
+const RELAYS = 8;
+
+/**
+ * El servidor TURN, para cuando las redes no dejan conectar directo: los datos pasan por él. Es la
+ * dirección que da las credenciales; con Metered (metered.ca, la cuenta gratis da 20 GB por mes) es
+ * `https://<app>.metered.live/api/v1/turn/credentials?apiKey=<clave>`. Vacía = sin TURN, solo conexión
+ * directa. Los gratis sin cuenta ya no andan (probado el 6/10: openrelay.metered.ca rechaza las
+ * credenciales públicas de siempre). `?soloturn` en la URL obliga a pasar por el TURN, para probarlo.
+ */
+export const TURN = { credentialsUrl: '' };
+
+async function turnServers(): Promise<{ urls: string | string[]; username?: string; credential?: string }[] | undefined> {
+  if (!TURN.credentialsUrl) return undefined;
+  try {
+    const r = await fetch(TURN.credentialsUrl, { signal: AbortSignal.timeout(5000) });
+    const list: unknown = await r.json();
+    return Array.isArray(list) ? list : undefined;
+  } catch (e) {
+    console.warn('TURN: no pude pedir las credenciales', e);
+    return undefined;
+  }
 }
 
 /** El nombre de la app en los relays: separa nuestras salas de las de otros juegos. */
@@ -35,9 +69,26 @@ export function roomCode(): string {
 }
 
 async function trysteroLink(code: string): Promise<Link> {
-  const { joinRoom } = await import('trystero');
-  // de la lista de relays, algunos siempre están caídos: que no llenen la consola de avisos
-  const room = joinRoom({ appId: APP_ID, relayConfig: { warnOnRelayFailure: false } }, code);
+  const [{ joinRoom }, turn] = await Promise.all([import('trystero'), turnServers()]);
+  const relayOnly = new URLSearchParams(location.search).has('soloturn');
+  let trouble: ((peer: string) => void) | null = null;
+  const room = joinRoom(
+    {
+      appId: APP_ID,
+      // de la lista de relays, algunos siempre están caídos: que no llenen la consola de avisos
+      relayConfig: { warnOnRelayFailure: false, redundancy: RELAYS },
+      ...(turn ? { turnConfig: turn } : {}),
+      ...(relayOnly ? { rtcConfig: { iceTransportPolicy: 'relay' as const } } : {}),
+    },
+    code,
+    {
+      // se encontraron pero no se pudieron conectar: es la red (ver `Link.onTrouble`)
+      onJoinError: (e) => {
+        console.warn('Trystero:', e.error);
+        trouble?.(e.peerId);
+      },
+    },
+  );
   const action = room.makeAction('m');
   const link: Link = {
     send(msg, to) {
@@ -45,10 +96,12 @@ async function trysteroLink(code: string): Promise<Link> {
     },
     onMessage: null,
     onPeer: null,
+    onTrouble: null,
     close() {
       void room.leave();
     },
   };
+  trouble = (peer) => link.onTrouble?.(peer);
   action.onMessage = (data, ctx) => link.onMessage?.(data as unknown as NetMsg, ctx.peerId);
   room.onPeerJoin = (id) => link.onPeer?.(id, true);
   room.onPeerLeave = (id) => link.onPeer?.(id, false);
@@ -62,6 +115,7 @@ class LocalLink implements Link {
   private readonly known = new Set<string>();
   onMessage: Link['onMessage'] = null;
   onPeer: Link['onPeer'] = null;
+  onTrouble: Link['onTrouble'] = null;
 
   constructor(code: string) {
     this.ch = new BroadcastChannel(`gk-mirar-${code}`);

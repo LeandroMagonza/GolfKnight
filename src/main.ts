@@ -2204,6 +2204,13 @@ async function startHosting(code: string): Promise<string> {
       setPauseWatchers(n);
       showNetControls();
     };
+    // alguien quiso entrar y la red no dejó: que se sepa de este lado también (cada tanto, no en cada intento)
+    let troubleAt = -Infinity;
+    host.onTrouble = () => {
+      if (performance.now() - troubleAt < 15000) return;
+      troubleAt = performance.now();
+      hud.feedback(L('Alguien quiso entrar, pero sus redes no dejan conectarse directo', `Someone tried to join, but your networks won't connect directly`), 'bad');
+    };
     showNetControls();
   }
   const url = new URL(location.href);

@@ -30,9 +30,12 @@ const STALE_MS = 4000;
 const LOST_MS = 15000;
 /**
  * Sin el que juega por este tiempo (ms), se vuelve a entrar a la sala de cero (5/10): con mal wifi la
- * conexión se moría y no volvía sola. Abe sigue siendo Abe: lo reconoce su pestaña (ver `me`).
+ * conexión se moría y no volvía sola. Abe sigue siendo Abe: lo reconoce su pestaña (ver `me`). **Solo
+ * si ya había estado conectado** (6/10): antes corría desde que se abría la página, y si la primera
+ * conexión tardaba más de 12 s la cortaba y volvía a empezar, una y otra vez. Y más que los 23 s que el
+ * que juega espera una respuesta: volver antes chocaba con el intento anterior.
  */
-const RELINK_MS = 12000;
+const RELINK_MS = 30000;
 
 /** El de esta pestaña: el mismo aunque se recargue, para que Abe vuelva a ser Abe (ver host.ts). */
 function tabId(): string {
@@ -139,8 +142,11 @@ export class NetSpectator {
   selected = BOLT_SLOT;
   /** El de esta pestaña (ver `tabId`). */
   private readonly me = tabId();
-  /** Desde cuándo no hay que juega (para volver a entrar a la sala), y si se está reconectando. */
-  private lostSince = performance.now();
+  /**
+   * Desde cuándo se perdió al que juega (para volver a entrar a la sala), y si se está reconectando. En
+   * 0 mientras no se lo perdió: antes de conectarse la primera vez no se vuelve a entrar.
+   */
+  private lostSince = 0;
   private relinking = false;
   private relinks = 0;
   /** Adónde apunta el caballero: la línea desde su pelota y la marca donde cae. */
@@ -210,6 +216,15 @@ export class NetSpectator {
   /** Escucha esta conexión (la primera, o la nueva al reconectar). */
   private attach(link: Link): void {
     this.link = link;
+    link.onTrouble = () => {
+      if (link !== this.link || this.host) return;
+      // ya se dijo por qué: el «no encuentro la partida» de LOST_MS no lo tiene que tapar
+      this.everHost = true;
+      this.d.note(L(
+        'Encontré la partida, pero sus redes no dejan conectarse directo (pasa con algunos routers, o con el celular con datos). Sigo intentando. Si no sale, probá desde otra red.',
+        `Found the game, but your networks won't connect directly (some routers do this, or phones on mobile data). Still trying. If it doesn't work, try another network.`,
+      ));
+    };
     link.onPeer = (id, joined) => {
       if (link !== this.link) return;
       // a cada uno que aparece se le pregunta: si es el que juega, contesta con el saludo
