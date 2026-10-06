@@ -16,6 +16,20 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Para encontrarse usa más servidores (8 en vez de 5): dos de los que tocaban estaban caídos. `8645c58`
 - Si se encuentran pero las redes no dejan conectarse directo (pasa con algunos routers y con el celular
   con datos), los dos lo ven escrito, en vez de quedarse esperando sin saber. `8645c58`
+- El ataque básico de Abe ahora es la **marca**: los que agarra quedan marcados un segundo, con un anillo
+  lila a los pies, y el próximo golpe del caballero que les entra la detona y pega 1 más. Ya no los deja
+  clavados. Es para marcar justo antes de que llegue la pelota. `260b226`
+- La partida ya no espera a que Abe elija su hechizo, ni al arrancar ni entre oleadas: lo que no elige le
+  queda guardado para cuando quiera. `260b226`
+- Si Abe entra con la partida ya avanzada, no repasa los hechizos desde el nivel 1: arma sus cuatro de
+  una, con los niveles que tendría si hubiera estado desde el principio (al final, dos de nivel 3 y dos
+  de nivel 2). `260b226`
+- Al reiniciar con R estando Abe, la partida nueva arranca sola y Abe sigue siendo Abe; a él se le avisa
+  que empieza otra. `260b226`
+
+**Golf**
+- En el cartel del final ya no asoma una barra de scroll horizontal cada vez que entra un número.
+  `658a192`
 
 ## 5 de octubre
 
