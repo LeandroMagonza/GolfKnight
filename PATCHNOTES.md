@@ -7,6 +7,16 @@ de entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 6 de octubre
+
+**De a dos**
+- El que mira ya no se pone a reconectar si la primera conexión tarda: antes, a los 12 s cortaba y
+  volvía a empezar, una y otra vez, y así no llegaba a conectarse nunca. Ahora solo se reconecta si ya
+  había estado conectado, a los 30 s sin noticias. `8645c58`
+- Para encontrarse usa más servidores (8 en vez de 5): dos de los que tocaban estaban caídos. `8645c58`
+- Si se encuentran pero las redes no dejan conectarse directo (pasa con algunos routers y con el celular
+  con datos), los dos lo ven escrito, en vez de quedarse esperando sin saber. `8645c58`
+
 ## 5 de octubre
 
 **Idiomas**
