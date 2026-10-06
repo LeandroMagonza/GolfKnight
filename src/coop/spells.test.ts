@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABE_SLOTS, applyPick, nextOffer, OFFER_SIZE, spellHint, SPELL_INFO, SPELL_ORDER, type AbeSlot } from './spells';
+import { ABE_SLOTS, applyPick, catchUpLevels, draftOffer, nextOffer, OFFER_SIZE, spellHint, SPELL_INFO, SPELL_ORDER, type AbeSlot } from './spells';
 
 /** Un azar fijo, para que las pruebas den siempre lo mismo. */
 function seeded(seed = 1): () => number {
@@ -76,5 +76,41 @@ describe('cómo se explican', () => {
   it('el granizo de nivel 3 además congela', () => {
     expect(spellHint('hail', 1)).not.toContain('congela');
     expect(spellHint('hail', 3)).toContain('congela');
+  });
+});
+
+describe('el que llega tarde arma sus hechizos de una', () => {
+  it('con los niveles que tendría si hubiera estado desde el principio', () => {
+    expect(catchUpLevels(1)).toEqual([1]);
+    expect(catchUpLevels(3)).toEqual([1, 1, 1]);
+    expect(catchUpLevels(4)).toEqual([1, 1, 1, 1]);
+    expect(catchUpLevels(7)).toEqual([2, 2, 2, 1]);
+    // una partida entera: la primera y una por oleada menos la del jefe
+    expect(catchUpLevels(10)).toEqual([3, 3, 2, 2]);
+    expect(catchUpLevels(99)).toEqual([3, 3, 3, 3]);
+  });
+
+  it('igual que eligiendo uno por uno: cada elección suma un nivel', () => {
+    for (let picks = 1; picks <= 12; picks++) {
+      let slots: AbeSlot[] = [];
+      const rand = seeded(picks);
+      for (let i = 0; i < picks; i++) {
+        const o = nextOffer(slots, rand);
+        if (!o) break;
+        // con todo lleno, reemplaza el más bajo
+        const low = slots.reduce((k, s, j) => (s.level < slots[k].level ? j : k), 0);
+        slots = applyPick(slots, o, 0, low)!;
+      }
+      expect(slots.map((s) => s.level).sort((a, b) => b - a), `${picks}`).toEqual(catchUpLevels(picks));
+    }
+  });
+
+  it('le ofrecen de ese nivel, sin repetir los que ya eligió', () => {
+    const slots: AbeSlot[] = [{ id: 'hail', level: 3 }, { id: 'push', level: 3 }];
+    const o = draftOffer(slots, 2, seeded(4))!;
+    expect(o.level).toBe(2);
+    expect(o.spells).toHaveLength(OFFER_SIZE);
+    expect(o.spells).not.toContain('hail');
+    expect(o.spells).not.toContain('push');
   });
 });

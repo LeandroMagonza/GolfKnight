@@ -8,6 +8,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { burnSeconds, chilledSpeed, ELEMENTS, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { chainJumps } from '../core/chain';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
+import { ABE_BOLT, BOLT_INFO } from '../coop/spells';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
 import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
@@ -37,6 +38,8 @@ export type HordeEvent =
   | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean }
   /** El escudo divino se comió el golpe. */
   | { type: 'divine'; enemy: Enemy }
+  /** Un golpe del caballero detonó la marca de Abe (ver ABE_BOLT). */
+  | { type: 'detonate'; enemy: Enemy }
   /** La armadura se comió todo el golpe. */
   | { type: 'armored'; enemy: Enemy }
   /** La maestría del hielo lo congeló. */
@@ -105,6 +108,8 @@ const shieldGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.06, 14);
 const shieldMat = new THREE.MeshStandardMaterial({ color: 0x7a5a32, roughness: 0.8, metalness: 0.1 });
 const shieldRimMat = new THREE.MeshStandardMaterial({ color: 0x3c3c3c, roughness: 0.5, metalness: 0.6 });
 const auraGeo = new THREE.RingGeometry(0.96, 1, 64);
+/** La marca de Abe: un anillo grueso a los pies, que se achica mientras se le acaba. */
+const markGeo = new THREE.RingGeometry(0.7, 1, 40);
 const rockGeo = new THREE.DodecahedronGeometry(0.7, 0);
 const rockMat = new THREE.MeshStandardMaterial({ color: 0x77736b, roughness: 1, flatShading: true });
 
@@ -455,8 +460,13 @@ export class Enemy {
   silenceMax = 1;
   /** Congelado (maestría del hielo): no se mueve ni ataca, y el golpe que lo rompe pega uno más. */
   frozenTimer = 0;
-  /** Clavado (la chispa de Abe): no camina, pero ataca. Segundos que le quedan. */
-  rootTimer = 0;
+  /**
+   * La marca de Abe (ver ABE_BOLT): segundos que le quedan, y de cuántos era. El próximo golpe del
+   * caballero que le entra la detona.
+   */
+  markTimer = 0;
+  private markMax = 1;
+  private markRing: THREE.Mesh | null = null;
   /**
    * El que se cura (ver REGEN): cuánto lleva de su ciclo (al llenarse se cura entero), y el brillo verde
    * que le queda de la última cura. En el que mira, el ciclo llega en la foto (0 a 1).
@@ -781,7 +791,7 @@ export class Enemy {
   /** Con frío encima: camina lento. Nada más: el escudo y el aura ya no se los saca el hielo. */
   /** A qué velocidad camina ahora, con el frío encima. */
   get walkSpeed(): number {
-    if (this.frozen || this.rootTimer > 0) return 0;
+    if (this.frozen) return 0;
     const speed = this.stats.speed * this.speedMul * (this.mods.speed ?? 1);
     // el frío frena mucho a los rápidos y poco a los lentos (ver chilledSpeed)
     return this.chilled ? chilledSpeed(speed) : speed;
@@ -1156,13 +1166,31 @@ export class Enemy {
     return this.remoteRegen >= 0 ? this.remoteRegen : Math.min(1, this.regenTime / this.regenPeriod);
   }
 
-  /**
-   * Clavado `seconds` (la chispa de Abe): no camina, pero ataca y se cubre como siempre. Al jefe no. Se
-   * queda en el paso que estaba dando: la animación de caminar se frena con él.
-   */
-  root(seconds: number): void {
-    if (!this.alive || this.stats.boss) return;
-    this.rootTimer = Math.max(this.rootTimer, seconds);
+  /** Marcado `seconds` por Abe: el próximo golpe del caballero detona la marca y pega más (ver ABE_BOLT). */
+  mark(seconds: number): void {
+    if (!this.alive || this.passed) return;
+    this.markTimer = Math.max(this.markTimer, seconds);
+    this.markMax = this.markTimer;
+  }
+
+  /** El anillo de la marca: se ve mientras dura, se achica a medida que se acaba y late. */
+  private updateMark(dt: number): void {
+    if (this.markTimer > 0) this.markTimer = Math.max(0, this.markTimer - dt);
+    const on = this.markTimer > 0 && this.alive;
+    if (!on && !this.markRing) return;
+    if (!this.markRing) {
+      const mat = new THREE.MeshBasicMaterial({ color: BOLT_INFO.color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
+      this.markRing = new THREE.Mesh(markGeo, mat);
+      this.markRing.rotation.x = -Math.PI / 2;
+      this.markRing.position.y = 0.09;
+      this.markRing.renderOrder = 3;
+      this.group.add(this.markRing);
+    }
+    this.markRing.visible = on;
+    if (!on) return;
+    const left = this.markTimer / Math.max(0.01, this.markMax);
+    this.markRing.scale.setScalar(this.stats.radius * (1.2 + 0.9 * left));
+    (this.markRing.material as THREE.MeshBasicMaterial).opacity = 0.6 + 0.35 * Math.abs(Math.sin(this.age * 14));
   }
 
   /** Congelado `seconds`: quieto del todo, sin atacar. El próximo golpe lo rompe y pega uno más. */
@@ -1296,7 +1324,7 @@ export class Enemy {
     if (this.chillTimer > 0) this.chillTimer = Math.max(0, this.chillTimer - dt);
     if (this.silenceTimer > 0) this.silenceTimer = Math.max(0, this.silenceTimer - dt);
     if (this.frozenTimer > 0) this.frozenTimer = Math.max(0, this.frozenTimer - dt);
-    if (this.rootTimer > 0) this.rootTimer = Math.max(0, this.rootTimer - dt);
+    this.updateMark(dt);
     if (this.lureTimer > 0) this.lureTimer = Math.max(0, this.lureTimer - dt);
     if (this.growTimer > 0) this.growTimer = Math.max(0, this.growTimer - dt);
     if (this.powderTimer > 0) this.powderTimer = Math.max(0, this.powderTimer - dt);
@@ -1529,6 +1557,7 @@ export class Enemy {
       | (this.regenGlow > 0 ? EF.regenGlow : 0);
     return {
       ...(this.mods.regen ? { rg: r2(this.regenProgress) } : {}),
+      ...(this.markTimer > 0 ? { mk: r2(this.markTimer) } : {}),
       ...(this.mods.phase ? { ph: r2(this.phaseBar) } : {}),
       id: this.id,
       x: r2(this.position.x),
@@ -1567,6 +1596,9 @@ export class Enemy {
     // el que se cura: la barra y el brillo, como en el del que juega
     if (s.rg !== undefined) this.remoteRegen = s.rg;
     if (s.ph !== undefined) this.remotePhase = s.ph;
+    // la marca: lo que le queda; si recién aparece, de cuánto era
+    if (s.mk && s.mk > this.markTimer + 0.05) this.markMax = s.mk;
+    this.markTimer = s.mk ?? 0;
     if (s.f & EF.regenGlow) this.regenGlow = Math.max(this.regenGlow, REGEN_GLOW_SECONDS * 0.5);
     if (s.f & EF.passed && !this.passed) {
       this.passed = true;
@@ -1586,6 +1618,7 @@ export class Enemy {
   updateRemote(dt: number): void {
     this.age += dt;
     if (this.regenGlow > 0) this.regenGlow = Math.max(0, this.regenGlow - dt);
+    this.updateMark(dt);
     this.updateLook(dt);
     this.refreshChill();
     this.refreshPipsIfChanged();
@@ -2012,8 +2045,14 @@ export class Horde {
     // congelado se rompe: ese golpe pega `breakBonus` más, como la lupa, también al fantasma (hasta el
     // 4/10 pegaba el doble, y al fantasma no le servía: igual le entraba 1)
     const crit = enemy.frozen && !dot;
-    const raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0) + (crit ? ELEMENTS.breakBonus : 0);
+    // la marca de Abe: el golpe del caballero (una pelota, no el fuego ni el rayo) la detona y pega más
+    const detonate = enemy.markTimer > 0 && !dot && !!this.shot;
+    const raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0) + (crit ? ELEMENTS.breakBonus : 0) + (detonate ? ABE_BOLT.bonus : 0);
     if (crit) enemy.frozenTimer = 0;
+    if (detonate) {
+      enemy.markTimer = 0;
+      this.emit({ type: 'detonate', enemy });
+    }
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;

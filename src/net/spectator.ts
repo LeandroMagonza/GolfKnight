@@ -97,15 +97,13 @@ export interface AbeStatus {
   /** Lo que le ofrecen ahora, y cuántos le deben (contando ese). */
   offer: Offer | null;
   picks: number;
-  /** La oleada que viene lo está esperando a él. */
-  waiting: boolean;
   /** Ya no está en la partida (lo echaron, o era privada): el panel no se muestra. */
   gone?: boolean;
   /** Por qué no se puede ninguno, si no es la recarga (pausa, carta, no empezó). */
   why: string | null;
 }
 
-const NO_ABE: AbeStatus = { abe: false, selected: BOLT_SLOT, bolt: { ready: false, left: 0, total: 1 }, slots: [], offer: null, picks: 0, waiting: false, why: null };
+const NO_ABE: AbeStatus = { abe: false, selected: BOLT_SLOT, bolt: { ready: false, left: 0, total: 1 }, slots: [], offer: null, picks: 0, why: null };
 
 interface RemoteBall {
   mesh: THREE.Mesh;
@@ -296,6 +294,7 @@ export class NetSpectator {
       return;
     }
     if (m.k === 'hello') {
+      this.again = false;
       this.host = from;
       this.everHost = true;
       this.heard = performance.now();
@@ -308,7 +307,8 @@ export class NetSpectator {
     }
     if (from !== this.host) return;
     this.heard = performance.now();
-    if (m.k === 'bye') this.lost();
+    if (m.k === 'again') this.again = true;
+    else if (m.k === 'bye') this.lost();
     else if (m.k === 'role') this.isAbe = !!m.abe;
     else if (m.k === 'snap') {
       this.clock.sync(m.t, performance.now());
@@ -329,8 +329,13 @@ export class NetSpectator {
     this.knightLine.visible = this.knightRing.visible = false;
     this.abeState = NO_ABE;
     this.d.showAbe(NO_ABE);
-    this.d.note(L('El que juega se fue (o reinició). Esperando a que vuelva…', 'The player left (or restarted). Waiting for them to come back…'));
+    this.d.note(this.again
+      ? L('El caballero empieza otra partida…', 'The knight is starting another game…')
+      : L('El que juega se fue (o reinició). Esperando a que vuelva…', 'The player left (or restarted). Waiting for them to come back…'));
   }
+
+  /** El que juega avisó que empieza otra partida: se va y vuelve enseguida. */
+  private again = false;
 
   /** Empieza de cero: saca todo lo que había de la partida anterior. */
   private reset(): void {
@@ -453,7 +458,6 @@ export class NetSpectator {
       slots: a.s.map(([id, level, left, total]) => ({ id, level, ready: !why && left <= 0, left, total })),
       offer: a.o,
       picks: a.p,
-      waiting: !!g.wa,
       why,
     };
     this.d.showAbe(this.abeState);

@@ -51,6 +51,8 @@ export interface HostSource {
  * RELINK_MS en spectator.ts).
  */
 const ABE_SEAT_MS = 60000;
+/** Dónde queda guardado quién era Abe mientras se recarga para empezar otra partida. */
+const ABE_KEY = 'gk.abeMe';
 
 export class NetHost {
   /** Los que están mirando: la conexión, y de qué pestaña es (ver `Watch.me`). */
@@ -86,6 +88,15 @@ export class NetHost {
   private readonly banned = new Set<string>();
 
   constructor(private readonly link: Link, private readonly src: HostSource) {
+    // venimos de reiniciar con Abe: su lugar lo espera a él, aunque otro vuelva a entrar primero
+    try {
+      const abe = sessionStorage.getItem(ABE_KEY);
+      sessionStorage.removeItem(ABE_KEY);
+      if (abe) {
+        this.abeMe = abe;
+        this.abeGoneAt = performance.now();
+      }
+    } catch { /* sin sessionStorage: el primero que entre es Abe */ }
     link.onMessage = (m, from) => {
       if (this.banned.has(from)) return;
       if (m.k === 'watch') this.join(from, typeof m.me === 'string' && m.me ? m.me.slice(0, 40) : from);
@@ -127,6 +138,19 @@ export class NetHost {
     this.link.send({ k: 'role', abe: id === this.abeId }, id);
     this.last = -Infinity;
     this.onWatchers?.(this.watchers.size);
+  }
+
+  /**
+   * Va a empezar otra partida (recarga la página): a los que miran se les avisa que vuelve enseguida, y el
+   * lugar de Abe queda guardado para la partida nueva. Devuelve si había alguien mirando.
+   */
+  restarting(): boolean {
+    if (!this.watchers.size) return false;
+    this.link.send({ k: 'again' });
+    try {
+      if (this.abeMe) sessionStorage.setItem(ABE_KEY, this.abeMe);
+    } catch { /* sin sessionStorage: el primero que entre es Abe */ }
+    return true;
   }
 
   /** ¿Hay un Abe mirando? */

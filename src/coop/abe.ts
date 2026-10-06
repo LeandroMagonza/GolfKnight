@@ -1,6 +1,7 @@
 // Abe, el mago que te invocó: el segundo jugador (ver docs/multijugador.md). Es el primero que entra a mirar
 // tu partida. Mira la cancha desde arriba y juega táctico: tocar el piso tira la **chispa**, su ataque
-// básico (recarga rápido y deja clavados medio segundo a los que agarra). Además tiene hasta cuatro hechizos
+// básico (recarga rápido y marca a los que agarra: el próximo golpe del caballero les pega 1 más; en
+// pantalla se llama «marca»). Además tiene hasta cuatro hechizos
 // (ver coop/spells): elige uno y el próximo toque lo tira ahí; después vuelve a la chispa. Aparece la marca
 // (un círculo, o la línea desde el caballero), se llena, y al llenarse el hechizo hace lo suyo. La trampa,
 // en cambio, queda armada hasta que alguien la pisa. Ninguno pega: Abe prepara, el que mata es el caballero.
@@ -16,7 +17,7 @@ import type { Effects } from '../game/effects';
 import type { Enemy, Horde } from '../game/enemies';
 import { FIELD_HALF_WIDTH, GATE_Z, SPAWN_Z } from '../game/world';
 import { r2, r3 } from '../net/snapshot';
-import { ABE_BOLT, ABE_SPELLS, applyPick, at, BOLT_INFO, nextOffer, sizeOf, SPELL_INFO, SPELL_ORDER, type AbeSlot, type Offer, type SpellId } from './spells';
+import { ABE_BOLT, ABE_SPELLS, applyPick, at, BOLT_INFO, catchUpLevels, draftOffer, nextOffer, sizeOf, SPELL_INFO, SPELL_ORDER, type AbeSlot, type Offer, type SpellId } from './spells';
 
 export { SPELL_INFO, SPELL_ORDER, type SpellId } from './spells';
 
@@ -92,6 +93,13 @@ export class Abe {
   /** Cuántos hechizos le deben (el primero, y uno por oleada), y lo que le ofrecen ahora. */
   picks = 1;
   offer: Offer | null = null;
+  /**
+   * El que llegó tarde: los niveles que le faltan elegir para armar sus hechizos de una (ver
+   * `catchUpLevels`). Mientras dura, `picks` son solo las que se ganan de nuevo.
+   */
+  private draft: number[] = [];
+  /** Todas las elecciones que ganó en la partida, haya estado o no. */
+  private earned = 1;
   /** Lo que le falta a la chispa para volver a salir. */
   boltCooldown = 0;
   /** Salió un hechizo, la chispa, o saltó una trampa: cuál, dónde y a cuántos agarró. */
@@ -107,17 +115,30 @@ export class Abe {
 
   // ---- cómo gana hechizos ----
 
-  /** Terminó una oleada: le toca elegir otro. */
+  /**
+   * Terminó una oleada: le toca elegir otro. Si todavía no eligió ninguno (no estaba, o no le dio
+   * tiempo), no le deben uno por oleada: arma sus hechizos de una, con los niveles de ahora.
+   */
   grantPick(): void {
-    this.picks++;
+    this.earned++;
+    if (!this.slots.length) {
+      this.draft = catchUpLevels(this.earned);
+      this.picks = this.draft.length;
+      this.offer = null;
+    } else {
+      this.picks++;
+    }
     this.refreshOffer();
   }
 
   /** Si le deben uno y no tiene oferta, se la arma; si ya no hay nada que darle, no le deben más. */
   private refreshOffer(): void {
     if (this.offer || this.picks <= 0) return;
-    this.offer = nextOffer(this.slots);
-    if (!this.offer) this.picks = 0;
+    this.offer = this.draft.length ? draftOffer(this.slots, this.draft[0]) : nextOffer(this.slots);
+    if (!this.offer) {
+      this.picks = 0;
+      this.draft = [];
+    }
   }
 
   /** Abe elige de la oferta (`card`, o -1 para quedarse como está) y en qué lugar va. Devuelve si valió. */
@@ -132,6 +153,7 @@ export class Abe {
     this.slots = next;
     this.offer = null;
     this.picks--;
+    this.draft.shift();
     this.refreshOffer();
     return true;
   }
@@ -220,8 +242,7 @@ export class Abe {
       case 'bolt':
         this.effects.explosion(pos, s.size, color);
         for (const e of this.inside(pos, s.size)) {
-          if (e.stats.boss) continue;
-          e.root(ABE_BOLT.seconds);
+          e.mark(ABE_BOLT.seconds);
           hits++;
         }
         break;

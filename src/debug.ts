@@ -41,7 +41,7 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, intocable: PHASE, divino: DIVINE,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
   // los hechizos de Abe, uno por tabla (ver coop/spells)
-  'abe chispa': ABE_BOLT,
+  'abe marca': ABE_BOLT,
   // con el nombre en español fijo, no el de SPELL_INFO: en inglés la tabla se guardaría con otra clave
   ...Object.fromEntries(SPELL_ORDER.map((id) => [`abe ${SPELL_KEYS[id]}`, ABE_SPELLS[id] as Record<string, number | number[]>])),
 };
@@ -718,7 +718,7 @@ export class DebugPanel {
    */
   private buildAbe(el: HTMLElement): void {
     el.append(heading('Abe (el que mira)'));
-    el.append(note('Los tira el primero que entra a mirar tu partida (Invitar, en la intro o en la pausa). Tocando el piso tira la chispa, su ataque básico; si elige un hechizo, el próximo toque lo tira. Ninguno hace daño. '
+    el.append(note('Los tira el primero que entra a mirar tu partida (Invitar, en la intro o en la pausa). Tocando el piso tira la marca, su ataque básico: el próximo golpe del caballero a un marcado pega más. Si elige un hechizo, el próximo toque lo tira. Ninguno hace daño solo. '
       + 'Arranca eligiendo uno y gana otro por oleada, hasta 4; después le salen de nivel más alto. Cuenta lo de este panel, el del que juega.'));
     if (this.hooks.abeGrant) el.append(this.row(this.button('Darle un hechizo a Abe', () => this.hooks.abeGrant?.())));
     const LABEL: Record<string, string> = {

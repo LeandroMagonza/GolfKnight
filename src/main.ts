@@ -702,6 +702,12 @@ horde.onEvent = (e) => {
       audio.bounce();
       break;
     }
+    case 'detonate': {
+      // la marca de Abe: estalla en su color (el daño de más ya va en el número que flota)
+      effects.explosion(e.enemy.position.clone().setY(e.enemy.position.y + e.enemy.height * 0.5), 0.9, BOLT_INFO.color);
+      audio.zap();
+      break;
+    }
     case 'armored': {
       const s = toScreen(e.enemy.position, e.enemy.height);
       hud.float(s.x, s.y, L('blindado', 'armored'), 'hurt');
@@ -1463,13 +1469,27 @@ function dismissCard(): void {
   hud.hideCard();
 }
 
-async function startGame(withTutorial = false): Promise<void> {
+/**
+ * Empieza la partida. `quiet`: arranca sola, sin un click (reiniciando con alguien mirando). El navegador no
+ * deja prender el sonido sin un click o una tecla: se prende con el primero.
+ */
+async function startGame(withTutorial = false, quiet = false): Promise<void> {
   if (started) return;
   started = true;
   difficultyMenu.hide();
   if (difficultyMenu.dirty) rebuildRun();
-  await audio.start();
-  audio.startMusic();
+  if (quiet) {
+    const unlock = () => {
+      removeEventListener('pointerdown', unlock, true);
+      removeEventListener('keydown', unlock, true);
+      void audio.start().then(() => audio.startMusic());
+    };
+    addEventListener('pointerdown', unlock, true);
+    addEventListener('keydown', unlock, true);
+  } else {
+    await audio.start();
+    audio.startMusic();
+  }
   overlay.hidden = true;
   if (withTutorial && !TENNIS_ON) {
     tutorial = new Tutorial({
@@ -1656,7 +1676,12 @@ const input = new Input({
     // R solo desde la pausa o desde el cartel del final, que son los dos lugares que la ofrecen. En
     // pleno juego un toque de más te borraba la partida sin preguntar nada
     if (difficultyMenu.open) return;
-    if (started && (paused || ended)) location.reload();
+    if (started && (paused || ended)) {
+      // con Abe (o alguien mirando): se les avisa, y la partida nueva arranca sola, sin pasar por la
+      // pantalla de inicio, así nadie se queda esperando
+      if (netHost?.restarting()) sessionStorage.setItem(AUTOSTART_KEY, '1');
+      location.reload();
+    }
     // en pleno juego la R es el cuarto lugar de habilidad
     else castAbility(3);
   },
@@ -1927,6 +1952,8 @@ async function loadModels(): Promise<void> {
 
 // ---------- inicio ----------
 const overlay = document.getElementById('overlay')!;
+/** Reiniciando con alguien mirando, la partida nueva arranca sola (ver `restart`). */
+const AUTOSTART_KEY = 'gk.autostart';
 const intro = new Intro((withTutorial) => {
   if (!WATCH) void startGame(withTutorial);
 }, tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON), !!WATCH);
@@ -1939,6 +1966,11 @@ intro.onInvite = async () => {
 };
 loadModels().then(() => {
   intro.setReady();
+  // reiniciaste con alguien mirando: arranca directo (ver `restart`)
+  if (!WATCH && sessionStorage.getItem(AUTOSTART_KEY)) {
+    sessionStorage.removeItem(AUTOSTART_KEY);
+    void startGame(false, true);
+  }
   paintDifficulty();
   // las partidas que no salieron la vez pasada (sin red, o dejadas por la mitad)
   if (RECORD) void flushRuns();
@@ -2046,9 +2078,7 @@ function showAbe(s: AbeStatus): void {
     abeOfferOpen = true;
     abeSwap = null;
   }
-  // con la oleada esperándolo, las cartas no se pueden dejar para después
-  if (s.waiting) abeOfferOpen = true;
-  const key = JSON.stringify([s.abe, s.selected, s.why, offerKey, s.picks, abeSwap, abeOfferOpen, s.waiting,
+  const key = JSON.stringify([s.abe, s.selected, s.why, offerKey, s.picks, abeSwap, abeOfferOpen,
     s.bolt.ready, Math.round((s.bolt.left / s.bolt.total) * 20),
     s.slots.map((x) => [x.id, x.level, x.ready, Math.ceil(x.left), Math.round((x.left / x.total) * 40)])]);
   if (key === abeKey) return;
@@ -2087,13 +2117,11 @@ function showAbe(s: AbeStatus): void {
       const name = SPELL_INFO[offer.spells[abeSwap]].name;
       title = L(`¿En qué lugar va ${name} nv ${offer.level}? Tocá el hechizo que reemplaza`, `Where does ${name} lv ${offer.level} go? Tap the spell it replaces`);
     } else {
-      title = (s.waiting ? L('⏳ La oleada espera a que elijas · ', '⏳ The wave is waiting for you · ') : '')
-        + (full
+      title = (full
           ? L(`Hechizos de nivel ${offer.level}: elegí uno y reemplazá otro, o quedate como estás`, `Level ${offer.level} spells: pick one to replace another, or keep yours`)
           : s.slots.length ? L('Elegí un hechizo nuevo', 'Pick a new spell') : L('Elegí tu primer hechizo', 'Pick your first spell'));
     }
     (abeOfferEl.querySelector('.title') as HTMLElement).textContent = title;
-    (abeOfferEl.querySelector('.later') as HTMLElement).hidden = s.waiting;
     (abeOfferEl.querySelector('.cards') as HTMLElement).innerHTML = offer.spells.map((id, c) => {
       const info = SPELL_INFO[id];
       return `<button type="button" class="card${abeSwap === c ? ' on' : ''}" data-c="${c}" style="--c:${hex(info.color)}"><span class="icon">${info.icon}</span><span class="name">${info.name} <small>${spellLevel(offer.level)}</small></span><span class="shape">${spellSize(id, offer.level)}</span><span class="hint">${spellHint(id, offer.level)}</span></button>`;
@@ -2104,7 +2132,7 @@ function showAbe(s: AbeStatus): void {
   (abeEl.querySelector('.help') as HTMLElement).textContent = abeSwap !== null ? L('Tocá abajo el lugar donde va', 'Tap the slot below where it goes')
     : s.why ?? (sel
       ? `${SPELL_INFO[sel.id].name}: ${spellHint(sel.id, sel.level)} · ${sel.ready
-        ? L('el próximo toque lo tira (tocá el botón otra vez para volver a la chispa)', 'your next tap casts it (tap the button again to go back to the spark)')
+        ? L(`el próximo toque lo tira (tocá el botón otra vez para volver a la ${BOLT_INFO.name.toLowerCase()})`, `your next tap casts it (tap the button again to go back to ${BOLT_INFO.name.toLowerCase()})`)
         : L(`listo en ${Math.ceil(sel.left)} s`, `ready in ${Math.ceil(sel.left)} s`)}`
       : `${L('Tocá el piso', 'Tap the ground')}: ${BOLT_INFO.name.toLowerCase()}, ${boltHint().toLowerCase()}. ${s.slots.length
         ? L('Elegí un hechizo y el próximo toque lo tira', 'Pick a spell and your next tap casts it')
@@ -2167,7 +2195,6 @@ async function startHosting(code: string): Promise<string> {
         kills,
         pk: pocket ? [pocket.count, pocket.max] : undefined,
         abe: abe.status,
-        wa: abeChoosing(),
         tu: !!tutorial,
         // adónde apunta: lo mismo que se le dibuja a él (la línea de tiro y la marca de caída)
         am: landing.visible && player ? [r2(tee.x), r2(tee.z), r2(landing.position.x), r2(landing.position.z), r2(landing.scale.x), player.mode === 'charging' ? 1 : 0] : null,
@@ -2186,7 +2213,7 @@ async function startHosting(code: string): Promise<string> {
       const s = slot === BOLT_SLOT ? 'bolt' : abe.slots[slot]?.id;
       if (s && abe.cast(slot, x, z) && s !== 'bolt') effects.blink(new THREE.Vector3(x, heightAt(x, z), z), castColor(s));
     };
-    // y elige sus hechizos: la oleada que viene lo espera (ver abeChoosing)
+    // y elige sus hechizos, cuando quiera: la partida no lo espera
     host.onPick = (card, slot) => {
       abe.pick(card, slot);
     };
@@ -2489,19 +2516,9 @@ function updateCamera(dt: number): void {
   }
 }
 
-/**
- * De a dos: la oleada que viene espera a que Abe elija su hechizo, como espera a la carta del caballero.
- * Solo en el descanso entre oleadas, y solo si hay un Abe mirando.
- */
-function abeChoosing(): boolean {
-  return !!netHost?.hasAbe && !!abe.offer && director.restLeft > 0;
-}
-
+// De a dos, la partida no espera a que Abe elija su hechizo (6/10, pedido de Leandro): lo que no elige le
+// queda guardado para cuando quiera (ver Abe.grantPick)
 function updateWaves(dt: number): void {
-  if (abeChoosing()) {
-    director.wait(dt);
-    return;
-  }
   for (const e of director.update(dt, horde.aliveCount)) {
     switch (e.type) {
       case 'wave': {
@@ -2643,12 +2660,6 @@ function frame(): void {
     if (!tutorial) hud.setWave(director.index, director.waveCount, horde.aliveCount, director.pending, director.restLeft);
     hud.setScenario(director.list[director.index]?.scenario ?? -1);
     hud.setScore(score, kills);
-    // de a dos: la oleada espera a Abe, y se dice (este cartel, en el que juega, está libre)
-    const waiting = started && !ended && !tutorial && abeChoosing();
-    if (waiting !== !netNote.hidden) {
-      netNote.hidden = !waiting;
-      netNote.textContent = L('🧙 Esperando a que Abe elija su hechizo…', '🧙 Waiting for Abe to pick a spell…');
-    }
   }
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos
   debugPanel?.tick();
@@ -2684,6 +2695,8 @@ addEventListener('resize', () => {
   get director() { return director; },
   get gateHp() { return gateHp; },
   set gateHp(v: number) { gateHp = v; },
+  /** Termina la partida en el acto, para las pruebas. */
+  finish(result: 'victory' | 'defeat') { endGame(result, result, '', 'prueba'); }, // i18n-ok: solo para las pruebas
   get score() { return score; },
   get kills() { return kills; },
   get shots() { return shots; },

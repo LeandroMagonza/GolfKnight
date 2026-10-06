@@ -10,7 +10,11 @@
 // `ABE_SLOTS`. Con los lugares llenos le salen hechizos de un nivel más que el más bajo que tiene
 // (cualquiera, no solo los que ya tiene), y elige si reemplaza uno o se queda como está. Cuando todos son
 // de nivel 2, salen de nivel 3. Puede tener el mismo hechizo dos veces, de distinto nivel: cada lugar
-// recarga por su lado.
+// recarga por su lado. La partida no lo espera (6/10): lo que no elige le queda guardado.
+//
+// **El que llega tarde** (6/10, pedido de Leandro) no repasa todo desde el nivel 1: arma sus cuatro de
+// una, con los niveles que tendría si hubiera estado desde el principio (ver `catchUpLevels`). Al final
+// de la partida, por ejemplo, dos de nivel 3 y dos de nivel 2.
 
 import { L } from '../i18n';
 
@@ -51,17 +55,26 @@ export const ABE_SPELLS = {
 };
 
 /**
- * El ataque básico de Abe (5/10, pedido de Leandro): la **chispa**. Es lo que sale al tocar el piso sin
- * hechizo elegido, así Abe siempre tiene algo para hacer. Recarga `cooldown` s, cae a los `delay` s en un
- * círculo de `radius` m (unos dos enemigos de ancho), y los que agarra quedan **clavados** `seconds` s:
- * no caminan, pero sí atacan, y el escudo sigue arriba. Al jefe no. No pega.
+ * El ataque básico de Abe (5/10, pedido de Leandro): la chispa, que en pantalla se llama **marca**. Es lo
+ * que sale al tocar el piso sin hechizo elegido, así Abe siempre tiene algo para hacer. Recarga `cooldown`
+ * s, cae a los `delay` s en un círculo de `radius` m (unos dos enemigos de ancho), y **marca** a los que
+ * agarra durante `seconds` s (6/10; antes los dejaba clavados medio segundo). El próximo golpe del
+ * caballero que le entra a un marcado detona la marca: pega `bonus` más, y la marca se gasta. Al jefe
+ * también. Abe no pega: el que cobra es el caballero.
+ *
+ * Con un segundo es frenético a propósito: Abe mira la línea del caballero y marca justo antes de que
+ * llegue la pelota (en el driver, mientras carga; en los globos, donde va a caer mientras vuela). Para algo
+ * más tranquilo, de ir marcando, alcanza con alargar `seconds` en el panel de balance.
  */
-export const ABE_BOLT = { cooldown: 1.2, delay: 0.25, radius: 1.1, seconds: 0.5 };
-export const BOLT_INFO = { name: L('Chispa', 'Spark'), icon: '✨', color: 0xe6b3ff };
+export const ABE_BOLT = { cooldown: 1.2, delay: 0.15, radius: 1.1, seconds: 1, bonus: 1 };
+export const BOLT_INFO = { name: L('Marca', 'Mark'), icon: '✨', color: 0xe6b3ff };
 
-/** Qué hace la chispa, para el panel. */
+/** Qué hace la marca, para el panel. */
 export function boltHint(): string {
-  return L(`Los que agarra quedan clavados ${n(ABE_BOLT.seconds)} s`, `Pins down whoever it catches for ${n(ABE_BOLT.seconds)} s`);
+  return L(
+    `Marca a los que agarra ${n(ABE_BOLT.seconds)} s: el próximo golpe del caballero la detona y pega ${ABE_BOLT.bonus} más`,
+    `Marks whoever it catches for ${n(ABE_BOLT.seconds)} s: the knight's next hit sets it off for ${ABE_BOLT.bonus} extra`,
+  );
 }
 
 /** El número de un nivel en una tabla por nivel (o el número, si es igual en todos). */
@@ -154,6 +167,26 @@ export function nextOffer(slots: AbeSlot[], rand: () => number = Math.random): O
   const left = [...pool];
   while (spells.length < OFFER_SIZE && left.length) spells.push(left.splice(Math.floor(rand() * left.length), 1)[0]);
   return { level, spells };
+}
+
+/**
+ * Los niveles de los hechizos que tendría con `picks` elecciones hechas desde el principio, de mayor a
+ * menor: las primeras llenan los lugares en nivel 1, y cada una que sigue sube el más bajo. Con 10 (las de
+ * una partida entera): [3, 3, 2, 2].
+ */
+export function catchUpLevels(picks: number): number[] {
+  const levels: number[] = Array(Math.max(0, Math.min(ABE_SLOTS, picks))).fill(1);
+  const ups = Math.max(0, Math.min(picks - ABE_SLOTS, ABE_SLOTS * (SPELL_MAX_LEVEL - 1)));
+  for (let i = 0; i < ups; i++) levels[i % ABE_SLOTS]++;
+  return levels.sort((a, b) => b - a);
+}
+
+/** Lo que le ofrecen al que arma sus hechizos de una: de ese nivel, que todavía no tenga. */
+export function draftOffer(slots: AbeSlot[], level: number, rand: () => number = Math.random): Offer | null {
+  const left = SPELL_ORDER.filter((id) => !slots.some((s) => s.id === id));
+  const spells: SpellId[] = [];
+  while (spells.length < OFFER_SIZE && left.length) spells.push(left.splice(Math.floor(rand() * left.length), 1)[0]);
+  return spells.length ? { level, spells } : null;
 }
 
 /**

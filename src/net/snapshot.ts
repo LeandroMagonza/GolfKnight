@@ -81,6 +81,8 @@ export interface EnemySnap {
   hop: number;
   /** El que se cura: cuánto lleva de su ciclo, de 0 a 1. */
   rg?: number;
+  /** La marca de Abe: segundos que le quedan (ver Enemy.mark). */
+  mk?: number;
   /** El intocable: invulnerable, lo que le queda de 1 a 0; en su ventana, de -1 a 0. */
   ph?: number;
   /** El gesto de brazos por código: cuánto, y en qué punto del ataque va. */
@@ -162,8 +164,6 @@ export interface GameSnap {
   pk?: [number, number];
   /** Abe: sus hechizos con la recarga de cada lugar, lo que le ofrecen y cuántos le deben. */
   abe: AbeSnap;
-  /** La oleada que viene espera a que Abe elija su hechizo. */
-  wa: boolean;
   /** El caballero está haciendo el tutorial: Abe elige, pero todavía no tira. */
   tu?: boolean;
   /**
@@ -218,6 +218,11 @@ export interface Bye {
   k: 'bye';
 }
 
+/** El que juega empieza otra partida (recarga la página y vuelve enseguida, a la misma sala). */
+export interface Again {
+  k: 'again';
+}
+
 /** Qué es el que mira: Abe (el primero que entró, que tira los hechizos) o solo espectador. */
 export interface Role {
   k: 'role';
@@ -229,7 +234,7 @@ export interface Out {
   k: 'kicked' | 'closed';
 }
 
-export type HostMsg = Snap | Hello | NetEvent | Bye | Role | Out;
+export type HostMsg = Snap | Hello | NetEvent | Bye | Again | Role | Out;
 
 /**
  * El que mira se presenta: el que juega le contesta con el saludo. `me` es el de esa pestaña, el mismo

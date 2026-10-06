@@ -301,3 +301,36 @@ Leandro probó con un amigo, los dos en PC y en casas distintas, él de Abe: a A
 - `?soloturn` en la URL obliga a pasar por el TURN: sirve para probarlo (sin TURN, no conecta nunca).
 - La prueba es `logs/check-conexion.mjs`: dos navegadores, relays de verdad. Se encuentran en unos 2 s,
   y con `?soloturn` sin TURN salen los dos avisos y no entra en el bucle de reconexión.
+
+## Hecho: la marca, nadie espera a Abe, el que llega tarde y otra partida juntos (6/10/2026)
+
+Pedidos de Leandro después de jugar con un amigo, él de Abe:
+
+- **La chispa ahora marca** (en pantalla se llama «Marca»). Ya no clava medio segundo: marca a los que
+  agarra durante 1 s, con un anillo lila que late a sus pies y se achica a medida que se acaba. El próximo
+  golpe del caballero que le entra a un marcado (cualquier pelota, también las de habilidad; el fuego y el
+  rayo no) **detona la marca**: pega 1 más, estalla en lila y la marca se gasta. Al jefe también. Cae a los
+  0.15 s (antes 0.25). Los números están en `ABE_BOLT` (coop/spells), panel B, tabla «abe marca».
+  - **Frenético o táctico**: Leandro dudaba. Quedó frenético, con 1 s: Abe mira la línea del caballero y
+    marca justo antes de que llegue la pelota. Con el driver, mientras el caballero carga (Abe ve la
+    puntería); con los globos, donde va a caer mientras la pelota vuela. Las cuentas: Abe ve todo unos
+    0.2 s tarde y su toque tarda otro tanto en llegar, más la caída. Si marca apenas ve al caballero cargar,
+    la marca está viva de los 0.35 s a los 1.35 s, y un driver soltado en el rojo (0.8 s) llega a los 1.05
+    s. Para algo más tranquilo, de ir marcando y que el caballero elija, alcanza con alargar `seconds`.
+- **Nadie espera a Abe.** Ni el arranque de la partida ni las oleadas esperan a que elija su hechizo:
+  lo que no elige le queda guardado (el botón «✨ N hechizos nuevos») para cuando quiera.
+- **El que llega tarde arma sus hechizos de una.** Antes repasaba todos desde el nivel 1, uno por oleada.
+  Ahora, si todavía no eligió ninguno, le ofrecen directamente los niveles que tendría si hubiera estado
+  desde el principio (`catchUpLevels`): al final de la partida, dos de nivel 3 y dos de nivel 2. Son
+  cuatro elecciones como mucho, de mayor a menor nivel, sin repetir hechizo. Lo que gane después sigue
+  como siempre.
+- **Otra partida, juntos.** Al reiniciar con R con alguien mirando, a Abe se le avisa («El caballero
+  empieza otra partida…»), la partida nueva arranca sola (sin la pantalla de inicio: nadie se queda
+  esperando un click) y Abe sigue siendo Abe aunque otro vuelva a entrar primero (queda guardado quién era
+  mientras se recarga). El sonido del caballero se prende con su primer click o tecla: el navegador no deja
+  antes. Abe arranca de cero en la partida nueva, eligiendo su primer hechizo.
+
+Probado con `logs/check-marca.mjs` (marca a los de adentro y no al de al lado; el golpe la detona y pega 2
+en vez de 1; el fuego no; se va sola al segundo; el que llega al final arma 3, 3, 2, 2) y
+`logs/check-abe-otra.mjs` (dos pestañas: la oleada arranca sin que Abe elija; R, el aviso, la partida que
+arranca sola y Abe que vuelve como Abe).
