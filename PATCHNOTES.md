@@ -7,6 +7,18 @@ de entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 7 de octubre
+
+**Versiones**
+- Hay una **demo**, en https://leandromagonza.github.io/GolfKnight/demo/: el juego sin los talentos de
+  dificultad (se ven, con candado) y sin el panel de balance. Es la que va a ir a itch.io. `2cf7dd7`
+- Y una versión **solo para ser Abe**, en https://leandromagonza.github.io/GolfKnight/abe/: para el amigo
+  que no tiene el juego. Con el enlace del caballero entra directo; sin él, pide el código de la sala.
+  `2cf7dd7`
+
+**De a dos**
+- La ayuda de Abe ya no dice «marca, marca». `2cf7dd7`
+
 ## 6 de octubre
 
 **De a dos**
