@@ -10,6 +10,12 @@ import { flameHtml } from './threat';
 /** Hasta dónde se abre el arco de carga, de arriba a cada borde: con las mejoras puede pasar de 90°. */
 const ARC_MAX = 105;
 
+/** Un corazón de las vidas del caballero (24 × 24), con su brillo. */
+const HEART_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<path class="body" d="M12 21C12 21 2.5 15.2 2.5 8.9 2.5 6 4.7 3.8 7.4 3.8 9.4 3.8 11 5 12 6.6 13 5 14.6 3.8 16.6 3.8 19.3 3.8 21.5 6 21.5 8.9 21.5 15.2 12 21 12 21Z" />'
+  + '<ellipse class="shine" cx="7.6" cy="8.4" rx="2.1" ry="1.3" transform="rotate(-35 7.6 8.4)" />'
+  + '</svg>';
+
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
   if (!el) throw new Error(`falta #${id}`);
@@ -33,9 +39,14 @@ export interface PerkChip {
 }
 
 export class Hud {
-  private gate = $('gate');
-  private gateBar = $('gatebar');
-  private hp = $('hp');
+  /** Las vidas, arriba a la izquierda: un corazón por punto del caballero, y la puerta con su número. */
+  private hearts = $('hearts');
+  private gateBox = $('gatebox');
+  private gateNum = this.gateBox.querySelector('.num') as HTMLElement;
+  /** Lo último que se dibujó: solo se toca el DOM cuando cambia. */
+  private shownHp = -1;
+  private shownHpMax = -1;
+  private shownGate = -1;
   private waveN = $('wave').querySelector('.n') as HTMLElement;
   private waveSub = $('wave').querySelector('.sub') as HTMLElement;
   private score = $('score');
@@ -304,14 +315,49 @@ export class Hud {
     this.cardEl.hidden = true;
   }
 
+  /**
+   * Las vidas (se llama en cada cuadro). Los corazones que se pierden saltan y se vacían, los que se
+   * recuperan aparecen de golpe, y con el último late. La puerta dice cuánto le queda y se agrieta: a
+   * partir de la mitad, y más con menos de un tercio.
+   */
   setBars(gate: number, gateMax: number, hp: number, hpMax: number): void {
-    this.gate.style.width = `${(100 * gate) / gateMax}%`;
-    this.hp.style.width = `${(100 * hp) / hpMax}%`;
-    this.gateBar.classList.toggle('alert', performance.now() < this.gateAlertUntil);
+    hp = Math.max(0, Math.round(hp));
+    if (hpMax !== this.shownHpMax) {
+      this.shownHpMax = hpMax;
+      this.hearts.innerHTML = `<i>${HEART_SVG}</i>`.repeat(hpMax);
+      this.shownHp = -1;
+    }
+    if (hp !== this.shownHp) {
+      const before = this.shownHp;
+      Array.from(this.hearts.children).forEach((el, i) => {
+        el.classList.toggle('empty', i >= hp);
+        // el que cambia, con su animación (al dibujarlos por primera vez, ninguno)
+        const changed = before >= 0 && (i < before) !== (i < hp);
+        el.classList.remove('lost', 'gain');
+        if (changed) {
+          void (el as HTMLElement).offsetWidth;
+          el.classList.add(i >= hp ? 'lost' : 'gain');
+        }
+      });
+      this.hearts.classList.toggle('last', hp === 1 && hpMax > 1);
+      this.shownHp = hp;
+    }
+    gate = Math.max(0, Math.round(gate));
+    if (gate !== this.shownGate) {
+      this.shownGate = gate;
+      this.gateNum.innerHTML = `${gate}<small>/${gateMax}</small>`;
+      this.gateBox.classList.toggle('hurt', gate <= gateMax * 0.6);
+      this.gateBox.classList.toggle('broken', gate <= gateMax * 0.3);
+    }
+    if (this.gateBox.classList.contains('alert') && performance.now() > this.gateAlertUntil) this.gateBox.classList.remove('alert');
   }
 
+  /** Le pegaron a la puerta: tiembla y se pone roja un momento. */
   gateAlert(): void {
-    this.gateAlertUntil = performance.now() + 1500;
+    this.gateAlertUntil = performance.now() + 900;
+    this.gateBox.classList.remove('alert');
+    void this.gateBox.offsetWidth;
+    this.gateBox.classList.add('alert');
   }
 
   private runEl = $('run');
@@ -458,8 +504,10 @@ export class Hud {
     setTimeout(() => el.remove(), 800);
   }
 
+  /** El botón del skin, en la barra de arriba: corto; el nombre va en el globito. */
   setSkin(name: string): void {
-    this.skinBtn.textContent = `Skin: ${name} (C)`;
+    this.skinBtn.textContent = 'Skin (C)';
+    this.skinBtn.title = `Skin: ${name}`;
   }
 
   setPause(on: boolean): void {

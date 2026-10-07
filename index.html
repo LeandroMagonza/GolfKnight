@@ -42,9 +42,9 @@
       #abejoin input { flex: 1; min-width: 0; font: 18px ui-monospace, monospace; letter-spacing: 2px; padding: 8px 10px; border-radius: 6px; border: 1px solid #3a4452; background: #0e141c; color: #e4e9f0; text-transform: uppercase; }
       body.abejoin #slide, body.abejoin #dots, body.abejoin #overlay .buttons, body.abejoin #alt, body.abejoin #mode, body.abejoin #diffbtn, body.abejoin #invite, body.abejoin #invitebox, body.abejoin #replaycine { display: none; }
       /* el que mira: estado de la conexión, el aviso del sonido y quiénes miran (en el que juega) */
-      #netnote { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #e4e9f0; font-size: 15px; white-space: nowrap; }
+      #netnote { position: absolute; top: calc(var(--head) + 50px); left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #e4e9f0; font-size: 15px; white-space: nowrap; }
       #netnote[hidden], #netsound[hidden], #watchers[hidden] { display: none; }
-      #netsound { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 6px 12px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #cfd6e0; font-size: 14px; }
+      #netsound { position: absolute; top: calc(var(--head) + 92px); left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 6px 12px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #cfd6e0; font-size: 14px; }
       /* Abe, el que mira y tira los hechizos: sus cuatro botones abajo al centro, grandes para el dedo */
       #abe { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: rgba(10, 14, 20, 0.75); border: 1px solid rgba(159, 227, 255, 0.35); width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box; text-align: center; pointer-events: auto; }
       #abe[hidden] { display: none; }
@@ -87,7 +87,7 @@
       #abe.other { pointer-events: none; }
       #abe.other .spells, #abe.other .help, #abe.other .cam, #abe.other .offer, #abe.other .newspell { display: none; }
       #abe.other .who { font-weight: 400; font-size: 13px; color: #9aa4b2; }
-      #watchers { position: absolute; top: 62px; left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
+      #watchers { position: absolute; top: calc(var(--head) + 10px); left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
       body.watching #meter, body.watching #bottom, body.watching #perks, body.watching #skin, body.watching #balancebtn,
       body.watching #balance, body.watching #card, body.watching #choice, body.watching #tutorial, body.watching #pause,
       body.watching #end .again { display: none !important; }
@@ -95,15 +95,44 @@
       #cine { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 100; background: #000; }
 
       #hud { position: fixed; inset: 0; pointer-events: none; }
-      .bars { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; justify-content: space-between; gap: 24px; }
-      .bar { width: 30%; }
-      .bar span { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #fff; text-shadow: 0 1px 3px #000; }
-      .track { height: 16px; background: rgba(0,0,0,0.55); border-radius: 8px; overflow: hidden; margin-top: 4px; }
-      .fill { height: 100%; width: 100%; transition: width 0.15s; }
-      .fill.gate { background: linear-gradient(90deg, #c98a3c, #ffd66b); }
-      .fill.hp { background: linear-gradient(90deg, #5be07a, #2fb95a); }
-      .bar.alert .track { box-shadow: 0 0 0 2px #ff5b5b; animation: alert 0.5s infinite alternate; }
-      @keyframes alert { from { box-shadow: 0 0 0 2px rgba(255,91,91,0.2); } to { box-shadow: 0 0 0 3px rgba(255,91,91,1); } }
+      /* la barra de arriba (8/10, pedido de Leandro): vidas a la izquierda, la oleada en el medio, puntaje y
+         botones a la derecha. El campo se dibuja debajo (ver applyView en main): no tapa nada. Su alto real lo
+         mide el juego y lo deja en --head, para lo que va debajo */
+      :root { --head: 52px; }
+      #topbar { position: absolute; top: 0; left: 0; right: 0; min-height: 52px; display: flex; align-items: center; gap: 14px; padding: 4px 14px; box-sizing: border-box;
+        background: linear-gradient(180deg, #121a24, #0c1219); border-bottom: 1px solid rgba(255, 214, 107, 0.22); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
+      #topbar .side { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 16px; }
+      #topbar .right { justify-content: flex-end; gap: 8px; }
+      /* las vidas del caballero: un corazón por punto */
+      #hearts { display: flex; gap: 3px; }
+      #hearts i { position: relative; display: block; width: 26px; height: 26px; }
+      #hearts svg { width: 100%; height: 100%; overflow: visible; }
+      #hearts .body { fill: #ff3b4e; stroke: #5a0a14; stroke-width: 1.6; stroke-linejoin: round; }
+      #hearts .shine { fill: #fff; opacity: 0.55; }
+      #hearts i.empty .body { fill: #2a1418; stroke: rgba(255, 90, 110, 0.45); }
+      #hearts i.empty .shine { display: none; }
+      #hearts i.lost { animation: heartlost 0.7s ease-out; }
+      #hearts i.gain { animation: heartgain 0.6s ease-out; }
+      /* con el último corazón, late */
+      #hearts.last i:not(.empty) { animation: heartbeat 0.9s ease-in-out infinite; }
+      @keyframes heartlost { 0% { transform: scale(1.5); filter: drop-shadow(0 0 8px #ff3b4e); } 30% { transform: scale(1.2) rotate(-12deg); } 60% { transform: rotate(8deg); } 100% { transform: none; } }
+      @keyframes heartgain { 0% { transform: scale(0.4); filter: drop-shadow(0 0 10px #7df29a); } 70% { transform: scale(1.25); } 100% { transform: none; } }
+      @keyframes heartbeat { 0%, 60%, 100% { transform: none; } 15% { transform: scale(1.2); } 30% { transform: scale(1.05); } 45% { transform: scale(1.15); } }
+      /* la puerta: el ícono y cuánta vida le queda. Se agrieta a medida que baja, y al recibir un golpe tiembla */
+      #gatebox { display: flex; align-items: center; gap: 6px; padding: 2px 10px 2px 6px; border-radius: 8px; transition: background 0.2s; }
+      #gatebox svg { width: 30px; height: 30px; flex: none; }
+      #gatebox .num { font-size: 22px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; line-height: 1; }
+      #gatebox .num small { font-size: 13px; font-weight: 600; color: #8d97a5; margin-left: 1px; }
+      #gatebox .crack1, #gatebox .crack2 { display: none; }
+      #gatebox.hurt .crack1, #gatebox.broken .crack1, #gatebox.broken .crack2 { display: inline; }
+      #gatebox.broken .num { color: #ff6b6b; }
+      #gatebox.broken { animation: gatelow 1s ease-in-out infinite alternate; }
+      #gatebox.alert { background: rgba(255, 60, 60, 0.28); animation: gatehit 0.45s ease-out; }
+      @keyframes gatehit { 0%, 100% { transform: none; } 20% { transform: translateX(-4px) rotate(-3deg); } 40% { transform: translateX(4px) rotate(3deg); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+      @keyframes gatelow { from { box-shadow: 0 0 0 1px rgba(255, 80, 80, 0.2); } to { box-shadow: 0 0 0 2px rgba(255, 80, 80, 0.85), 0 0 12px rgba(255, 60, 60, 0.4); } }
+      /* los botones de la derecha van por encima de la pausa y del final, como antes */
+      #topbar .tb { position: relative; z-index: 7; pointer-events: auto; font-size: 12px; padding: 4px 9px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.06); color: #dfe5ec; cursor: pointer; white-space: nowrap; }
+      #topbar .tb:hover { background: rgba(255, 255, 255, 0.16); }
       /* la versión (día y hora de la publicación), chiquita en la esquina de la pantalla de entrada, y al
          lado la libreta que abre las patch notes (src/patchnotes.ts) */
       #corner { position: absolute; right: 10px; bottom: 8px; display: flex; align-items: center; gap: 8px; }
@@ -219,8 +248,7 @@
       #end button.threat { margin: 12px auto 8px; }
       #end.done button.threat.due { scale: 1.06; }
       /* en la partida, al lado del título de la oleada */
-      #wave .nrow { position: relative; display: inline-block; }
-      #heat { position: absolute; left: 100%; top: 50%; margin-left: 8px; transform: translateY(-60%); }
+      #heat { display: flex; align-items: center; margin-top: -8px; }
       #heat[hidden] { display: none; }
       #heat .flame { --fs: 36px; }
       #heat .flame.max { --fs: 42px; }
@@ -345,27 +373,46 @@
       #notes .page code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: rgba(43, 42, 51, 0.07); padding: 1px 4px; border-radius: 3px; }
       #notes .close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; padding: 0; border-radius: 50%; background: transparent; color: #8a7d5c; font-size: 26px; font-weight: 400; line-height: 1; }
       #notes .close:hover { color: #b0413e; background: rgba(43, 42, 51, 0.07); }
-      #wave { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 1px 4px #000; }
-      #wave .n { font-size: 20px; font-weight: 700; }
-      #wave .sub { font-size: 13px; color: #e4e9f0; }
+      /* en el medio de la barra: la oleada y cuántos quedan, la llama de la dificultad y el recorrido */
+      #wave { flex: none; display: flex; align-items: center; gap: 12px; }
+      #wave .wtext { min-width: 128px; text-align: center; }
+      #wave .n { font-size: 19px; font-weight: 800; line-height: 1.15; white-space: nowrap; }
+      #wave .sub { font-size: 12px; color: #9aa4b2; white-space: nowrap; }
       /* el recorrido de la partida: los tres poderes de los escenarios y el jefe. El de ahora, encendido */
-      #run { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
+      #run { display: flex; gap: 6px; justify-content: center; align-items: center; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.12); }
       #run[hidden] { display: none; }
       #run img { width: 26px; height: 26px; opacity: 0.35; filter: grayscale(0.6); transition: opacity 0.2s, transform 0.2s; }
       #run img.done { opacity: 0.7; filter: none; }
       #run img.now { opacity: 1; filter: drop-shadow(0 0 5px #ffd66b); transform: scale(1.2); }
-      #score { position: absolute; top: 62px; right: 14px; font-size: 15px; text-shadow: 0 1px 3px #000; text-align: right; }
-      #pocket { position: absolute; top: 78px; left: 50%; transform: translateX(-50%); font-size: 17px; text-shadow: 0 1px 3px #000; letter-spacing: 2px; color: #e8ff6a; }
+      #score { font-size: 14px; color: #cfd6e0; white-space: nowrap; margin-right: 6px; font-variant-numeric: tabular-nums; }
+      /* angosto: lo que menos importa se va primero */
+      @media (max-width: 1000px) { #score { display: none; } #wave .wtext { min-width: 0; } }
+      /* en un celular, los botones bajan a un segundo renglón de la barra */
+      @media (max-width: 700px) {
+        #topbar { flex-wrap: wrap; gap: 4px 8px; padding: 4px 8px; }
+        #topbar .side { gap: 8px; }
+        #topbar .left { flex: 0 0 auto; }
+        #wave { flex: 1 1 auto; justify-content: flex-end; }
+        #topbar .right { flex: 1 0 100%; }
+        #topbar .tb { font-size: 11px; padding: 3px 7px; }
+        #hearts i { width: 20px; height: 20px; }
+        #gatebox svg { width: 24px; height: 24px; }
+        #gatebox .num { font-size: 18px; }
+        #wave { gap: 6px; }
+        #wave .n { font-size: 15px; }
+        #run { padding-left: 6px; gap: 3px; }
+        #run img { width: 18px; height: 18px; }
+        #heat .flame { --fs: 28px; }
+      }
+      #pocket { position: absolute; top: calc(var(--head) + 26px); left: 50%; transform: translateX(-50%); font-size: 17px; text-shadow: 0 1px 3px #000; letter-spacing: 2px; color: #e8ff6a; }
       #pocket[hidden] { display: none; }
       #pocket .off { opacity: 0.25; }
       #pocket small { letter-spacing: 0; font-size: 13px; color: #cfd6e0; margin-right: 6px; }
-      #skin { position: absolute; top: 88px; right: 14px; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
-      #skin:hover { background: rgba(0,0,0,0.75); }
       #clubrow { position: relative; }
 
       .club.extra { opacity: 0.9; border-color: rgba(255,255,255,0.18); }
       /* el tutorial: qué hacer en este paso, fijo arriba */
-      #tutorial { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); box-sizing: border-box; padding: 7px 14px 9px; background: rgba(8, 12, 18, 0.78); border-left: 4px solid #ffd66b; border-radius: 10px; text-align: left; pointer-events: none; }
+      #tutorial { position: absolute; top: calc(var(--head) + 8px); left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); box-sizing: border-box; padding: 7px 14px 9px; background: rgba(8, 12, 18, 0.78); border-left: 4px solid #ffd66b; border-radius: 10px; text-align: left; pointer-events: none; }
       #tutorial[hidden] { display: none; }
       #tutorial .title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #ffd66b; font-weight: 700; margin-bottom: 2px; }
       #tutorial .text { font-size: 15px; line-height: 1.4; color: #f1f4f8; }
@@ -429,8 +476,6 @@
       .club.ready { animation: slotReady 0.45s ease-out; }
       @keyframes slotReady { 0% { transform: scale(1.18); box-shadow: 0 0 22px var(--c); border-color: var(--c); } 100% { transform: scale(1); } }
       /* vida en puntos: la barra se corta en tantos tramos como puntos tiene */
-      .track { position: relative; }
-      .track::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(100% / var(--seg, 1) - 2px), rgba(0,0,0,0.85) calc(100% / var(--seg, 1) - 2px), rgba(0,0,0,0.85) calc(100% / var(--seg, 1))); }
       #card { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 12, 18, 0.62); pointer-events: auto; cursor: pointer; }
       #card[hidden] { display: none; }
       #card .box { min-width: 420px; max-width: 560px; background: rgba(10, 16, 24, 0.94); border: 3px solid var(--c); border-radius: 14px; box-shadow: 0 0 40px var(--c); padding: 22px 34px; text-align: center; animation: cardIn 0.35s ease-out; }
@@ -480,12 +525,7 @@
 
       /* panel de balance y pruebas: columna a la derecha, con el juego corriendo detrás */
       /* por encima de la pausa y del final: el panel tiene que poder usarse con el juego frenado */
-      #balancebtn { position: absolute; top: 118px; right: 14px; z-index: 7; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
-      #balancebtn:hover { background: rgba(0,0,0,0.75); }
       /* todo el sonido (N): en el que mira va donde estaría el skin, que ahí no está */
-      #muteall { position: absolute; top: 148px; right: 14px; z-index: 7; pointer-events: auto; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
-      #muteall:hover { background: rgba(0,0,0,0.75); }
-      body.watching #muteall { top: 88px; }
       #balance { position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); box-sizing: border-box; z-index: 7; overflow-y: auto; background: rgba(8, 12, 18, 0.93); border-left: 2px solid #4a5666; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
       #balance[hidden] { display: none; }
       #balance h3 { margin: 0 0 4px; font-size: 20px; color: #ffd66b; }
@@ -609,12 +649,19 @@
       </div>
     </div>
     <div id="hud">
-      <div class="bars">
-        <div class="bar" id="gatebar"><span data-en="Valdehoyo gate">Puerta de Valdehoyo</span><div class="track" style="--seg:10"><div id="gate" class="fill gate"></div></div></div>
-        <div class="bar"><span data-en="You">Vos</span><div class="track" style="--seg:3"><div id="hp" class="fill hp"></div></div></div>
+      <div id="topbar">
+        <div class="side left">
+          <div id="hearts" title="Vos" data-en-title="You"></div>
+          <div id="gatebox" title="Puerta de Valdehoyo" data-en-title="Valdehoyo gate"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 31V12h3V8h4v4h4V8h6v4h4V8h4v4h3v19z" fill="#9a9284" stroke="#3b362e" stroke-width="1.4" stroke-linejoin="round" /><path d="M8 31V20a8 8 0 0 1 16 0v11z" fill="#7a4a24" stroke="#2e1a0b" stroke-width="1.2" /><path d="M12 31V13.5M16 31V12M20 31V13.5" stroke="#4f2e14" stroke-width="1" /><path d="M8.3 21.5h15.4M8 27h16" stroke="#26221e" stroke-width="1.8" /><path class="crack1" d="M17.5 13l-2 4.5 2.5 2-3 5" fill="none" stroke="#120a04" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" /><path class="crack2" d="M10 17l3.5 3-1 3.5 3 3M22.5 19l-3 2.5 1.5 3-2 4" fill="none" stroke="#120a04" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" /></svg><span class="num"></span></div>
+        </div>
+        <div id="wave"><div class="wtext"><div class="n"></div><div class="sub"></div></div><span id="heat" hidden></span><div id="run"></div></div>
+        <div class="side right">
+          <div id="score"></div>
+          <button id="skin" class="tb" type="button" tabindex="-1"></button>
+          <button id="balancebtn" class="tb" type="button" tabindex="-1" data-en="Balance (B)">Balance (B)</button>
+          <button id="muteall" class="tb" type="button" tabindex="-1"></button>
+        </div>
       </div>
-      <div id="wave"><div class="nrow"><div class="n"></div><span id="heat" hidden></span></div><div class="sub"></div><div id="run"></div></div>
-      <div id="score"></div>
       <div id="pocket" hidden></div>
       <div id="watchers" hidden></div>
       <div id="netnote" hidden></div>
@@ -631,9 +678,6 @@
         <div class="help"></div>
         <div class="cam" data-en="Drag to move forward and back · wheel or pinch: zoom · right button or two fingers up and down: angle">Arrastrá para ir adelante y atrás · rueda o pellizcar: acercar · botón derecho o dos dedos arriba y abajo: el ángulo</div>
       </div>
-      <button id="skin" type="button" tabindex="-1"></button>
-      <button id="balancebtn" type="button" tabindex="-1" data-en="Balance (B)">Balance (B)</button>
-      <button id="muteall" type="button" tabindex="-1"></button>
       <div id="balance" hidden></div>
       <div id="tutorial" hidden><div class="title"></div><div class="text"></div><div class="note" hidden></div></div>
       <div id="banner"><div class="big"></div><div class="small"></div></div>

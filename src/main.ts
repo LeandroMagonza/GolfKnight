@@ -1989,6 +1989,8 @@ async function cycleSkin(delta = 1, save = true): Promise<void> {
     skinIndex = next;
     if (save) localStorage.setItem(SKIN_KEY, SKINS[next].id);
     hud.setSkin(SKINS[next].name);
+    // el botón ya no dice el nombre (no entra en la barra de arriba): se avisa al cambiarlo
+    if (save) hud.feedback(`Skin: ${SKINS[next].name}`, 'neutral');
     player.update(0);
   } catch (e) {
     console.error('no se pudo cargar el skin', e);
@@ -2561,6 +2563,28 @@ const cam = {
 let hudTop = innerHeight * 0.8;
 let hudMeasured = -Infinity;
 const hudBottom = document.getElementById('rows')!;
+
+/**
+ * La barra de arriba (8/10, pedido de Leandro): el campo se dibuja **debajo** de ella, no detrás. La
+ * cámara sigue ocupando toda la ventana, pero con la imagen corrida hacia abajo (`setViewOffset`): lo que
+ * queda tapado es cielo, y el campo se ve entero, un poco más chico. El mouse y `toScreen` siguen midiendo
+ * sobre la ventana entera, y la proyección ya lo tiene en cuenta. Su alto se mide (en un celular puede
+ * crecer) y queda en --head, para lo que va debajo.
+ */
+const topbar = document.getElementById('topbar');
+let headPx = -1;
+function applyView(): void {
+  const h = topbar ? Math.round(topbar.getBoundingClientRect().height) : 0;
+  if (h === headPx && camera.view?.fullWidth === innerWidth && camera.view?.height === innerHeight) return;
+  headPx = h;
+  document.documentElement.style.setProperty('--head', `${h}px`);
+  const below = Math.max(1, innerHeight - h);
+  camera.aspect = innerWidth / below;
+  if (h > 0) camera.setViewOffset(innerWidth, below, 0, -h, innerWidth, innerHeight);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
+applyView();
 const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
 
 function tiltCamera(delta: number): void {
@@ -2610,12 +2634,15 @@ function updateCamera(dt: number): void {
     if (now - hudMeasured > 500) {
       hudMeasured = now;
       hudTop = hudBottom.getBoundingClientRect().top;
+      applyView();
     }
     // A qué altura de la pantalla tiene que quedar la línea de los puestos, y cuántos grados por debajo
     // del centro de la mirada es eso. La cámara mira con `pitch` hacia abajo, así que el rayo al puesto
-    // baja `pitch + debajo` grados: de ahí sale a cuántos metros por detrás del puesto va la cámara.
+    // baja `pitch + debajo` grados: de ahí sale a cuántos metros por detrás del puesto va la cámara. El
+    // centro de la mirada es el de lo que queda debajo de la barra de arriba (ver applyView)
     const targetPx = THREE.MathUtils.clamp(hudTop - cam.margin, innerHeight * 0.3, innerHeight);
-    const ndc = 1 - (2 * targetPx) / innerHeight;
+    const view = innerHeight - headPx;
+    const ndc = 1 - (2 * (targetPx - headPx)) / view;
     const below = Math.atan(-ndc * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     const ray = Math.min(pitch + below, THREE.MathUtils.degToRad(88));
     const back = (camY - heightAt(player.anchor.x, player.anchor.z)) / Math.tan(ray);
@@ -2799,8 +2826,8 @@ function playFrame(dt: number, nowMs: number): void {
 renderer.setAnimationLoop(frame);
 
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
+  headPx = -1;
+  applyView();
   renderer.setSize(innerWidth, innerHeight);
   visuals.resize(innerWidth, innerHeight);
 });

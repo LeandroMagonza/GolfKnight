@@ -343,7 +343,8 @@ export class Visuals {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       if (castsShadow(mesh.material)) {
-        mesh.castShadow = true;
+        // las matas de pasto (game/world) reciben sombra pero no proyectan: el viento no movería la sombra
+        mesh.castShadow = !mesh.userData.noCast;
         mesh.receiveShadow = true;
       }
       if ((mesh as THREE.SkinnedMesh).isSkinnedMesh) for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) patchRim(m);

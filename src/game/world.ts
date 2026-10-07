@@ -17,14 +17,128 @@ export const GATE_Z = 0;
 export const GATE_HALF_WIDTH = 2.6;
 export const SPAWN_Z = 68;
 
-/** La malla del campo con relieve: un vértice por metro. */
+/** La malla del campo: un vértice por metro (con relieve y sin él: en el liso es plana). */
 const TERRAIN = { width: 240, depth: 180, centerZ: 60 };
-const FAIRWAY_LIGHT = new THREE.Color(0x4a9d4f);
-const FAIRWAY_DARK = new THREE.Color(0x3f8f45);
-const ROUGH = new THREE.Color(0x2f6b38);
+/**
+ * El pasto (8/10, pedido de Leandro: «hoy el pasto es verde sólido»). El color de cada vértice da lo
+ * grande: el fairway con sus franjas de corte, un primer corte más oscuro en el borde, el rough, y
+ * manchones más secos o más verdes. La textura (`grassDetail`) da lo chico: hojitas que se ven de
+ * cerca. Fuera del fairway, matas de pasto alto que se mueven con el viento (`buildTufts`).
+ */
+const FAIRWAY_LIGHT = new THREE.Color(0x56ae59);
+const FAIRWAY_DARK = new THREE.Color(0x3e8b46);
+const FIRST_CUT = new THREE.Color(0x367c3d);
+const ROUGH = new THREE.Color(0x2e6a35);
+/** Los manchones: pasto más seco (amarillento) y más tupido (más azul). */
+const DRY = new THREE.Color(0x7d9a3c);
+const LUSH = new THREE.Color(0x24683a);
 const HIGH = new THREE.Color(0xa9d66b);
 const LOW = new THREE.Color(0x1f4f3a);
+/** La textura oscurece en promedio esto: los colores se levantan lo mismo para que el campo no se apague. */
+const DETAIL_MEAN = 0.86;
+/** Cada cuántos metros se repite la textura de las hojitas. */
+const DETAIL_TILE = 3;
 const shade = new THREE.Color();
+const tint = new THREE.Color();
+
+/** Ruido de valor, suave, de 0 a 1: los manchones del pasto. Siempre el mismo para cada lugar. */
+function noise(x: number, z: number): number {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fz = z - iz;
+  const h = (a: number, b: number) => {
+    const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const sx = fx * fx * (3 - 2 * fx);
+  const sz = fz * fz * (3 - 2 * fz);
+  const top = h(ix, iz) + (h(ix + 1, iz) - h(ix, iz)) * sx;
+  const bottom = h(ix, iz + 1) + (h(ix + 1, iz + 1) - h(ix, iz + 1)) * sx;
+  return top + (bottom - top) * sz;
+}
+
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * El color del pasto en (x, z), sin el relieve: fairway con franjas de corte cada 5 m (con el borde
+ * suave, no de golpe), un primer corte de un par de metros, el rough, y los manchones encima.
+ */
+function grassColor(x: number, z: number, out: THREE.Color): THREE.Color {
+  const ax = Math.abs(x);
+  const stripe = smooth(-0.18, 0.18, Math.sin((z / 5) * Math.PI));
+  out.copy(FAIRWAY_DARK).lerp(FAIRWAY_LIGHT, stripe);
+  // el fairway termina a los costados y en las puntas: primero el corte, después el rough
+  const off = Math.max(ax - FIELD_HALF_WIDTH, -4 - z, z - 116);
+  out.lerp(FIRST_CUT, smooth(1, 2, off));
+  out.lerp(ROUGH, smooth(3.5, 5, off));
+  const rough = smooth(1, 5, off);
+  // manchones grandes (más secos) y medianos (más tupidos); en el rough se notan más
+  const big = noise(x / 11 + 3.1, z / 11 - 7.7);
+  const mid = noise(x / 4.3 + 17, z / 4.3 + 5);
+  out.lerp(DRY, Math.max(0, big - 0.5) * (0.4 + 0.6 * rough));
+  out.lerp(LUSH, Math.max(0, mid - 0.55) * (0.35 + 0.45 * rough));
+  return out.multiplyScalar((0.93 + 0.14 * noise(x / 2.1 - 9, z / 2.1 + 2)) / DETAIL_MEAN);
+}
+
+/**
+ * Las hojitas del pasto, de cerca: una textura gris clara que multiplica al color (por eso es lineal y no
+ * sRGB). Se repite sin costura: cada trazo que se sale de un borde vuelve a entrar por el otro.
+ */
+function grassDetail(): THREE.CanvasTexture {
+  const N = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d')!;
+  const grey = (v: number, a = 1) => `rgba(${v}, ${v}, ${v}, ${a})`;
+  g.fillStyle = grey(Math.round(255 * 0.9));
+  g.fillRect(0, 0, N, N);
+  let seed = 11;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  // manchitas suaves, más claras y más oscuras
+  for (let i = 0; i < 40; i++) {
+    const x = rand() * N;
+    const y = rand() * N;
+    const r = 10 + rand() * 30;
+    const v = Math.round(255 * (0.78 + rand() * 0.22));
+    for (const dx of [-N, 0, N]) for (const dy of [-N, 0, N]) {
+      const grad = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+      grad.addColorStop(0, grey(v, 0.35));
+      grad.addColorStop(1, grey(v, 0));
+      g.fillStyle = grad;
+      g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+    }
+  }
+  // las hojitas: trazos cortos, casi todos parados, unos más claros y otros más oscuros
+  g.lineCap = 'round';
+  for (let i = 0; i < 2600; i++) {
+    const x = rand() * N;
+    const y = rand() * N;
+    const len = 3 + rand() * 6;
+    const a = -Math.PI / 2 + (rand() - 0.5) * 0.9;
+    const v = Math.round(255 * (0.6 + rand() * 0.4));
+    g.strokeStyle = grey(v, 0.55 + rand() * 0.4);
+    g.lineWidth = 0.8 + rand() * 0.9;
+    const ex = Math.cos(a) * len;
+    const ey = Math.sin(a) * len;
+    for (const dx of [-N, 0, N]) for (const dy of [-N, 0, N]) {
+      if (x + dx < -10 || x + dx > N + 10 || y + dy < -10 || y + dy > N + 10) continue;
+      g.beginPath();
+      g.moveTo(x + dx, y + dy);
+      g.lineTo(x + dx + ex, y + dy + ey);
+      g.stroke();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.NoColorSpace;
+  // mirada rasante: sin esto, a lo lejos el pasto titila
+  tex.anisotropy = 8;
+  return tex;
+}
 /** Dónde se paran los guardias: detrás de la línea de puestos, desde donde le tiran pelotas al golfista. */
 export const GUARD_POSTS: readonly (readonly [number, number, number])[] = [[-14, 4.6, 0.12], [-5, 4.4, 0.05], [5, 4.4, -0.05], [14, 4.6, -0.12]];
 export const PLAYER_MIN_Z = 1.5;
@@ -47,21 +161,30 @@ export const WALL_FRONT_Z = TOWER_Z + TOWER_CAP_RADIUS;
  */
 export const WALL_TOP = WALL_HEIGHT + 1.2 + 1.6;
 
-function fairwayTexture(): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = 64;
-  c.height = 256;
-  const g = c.getContext('2d')!;
-  // franjas de césped cortado, como en una cancha
-  for (let i = 0; i < 8; i++) {
-    g.fillStyle = i % 2 ? '#3f8f45' : '#4a9d4f';
-    g.fillRect(0, i * 32, 64, 32);
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 3);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+/**
+ * El viento en las matas de pasto: cada una se mece según dónde está (así no se mueven todas juntas), y
+ * más la punta que la base (`position.y` es la altura en la mata).
+ */
+const TUFT_SWAY = /* i18n-ok: GLSL */ `#include <begin_vertex>
+  #ifdef USE_INSTANCING
+    vec2 at = vec2(instanceMatrix[3][0], instanceMatrix[3][2]);
+    float sway = sin(uWind * 1.6 + at.x * 0.31 + at.y * 0.17) * 0.6 + sin(uWind * 2.7 + at.y * 0.53) * 0.3;
+    transformed.x += sway * position.y * 0.35;
+    transformed.z += sway * position.y * 0.15;
+  #endif`;
+
+/** Altura y color de un vértice del campo, con lo que diga `heightAt` ahora. */
+function shadeVertex(geo: THREE.BufferGeometry, i: number): void {
+  const pos = geo.attributes.position as THREE.BufferAttribute;
+  const col = geo.attributes.color as THREE.BufferAttribute;
+  const x = pos.getX(i);
+  const z = pos.getZ(i);
+  const h = heightAt(x, z);
+  pos.setY(i, h);
+  grassColor(x, z, shade);
+  if (h > 0) shade.lerp(tint.copy(HIGH).multiplyScalar(1 / DETAIL_MEAN), Math.min(1, h / 2.4) * 0.7);
+  else shade.lerp(tint.copy(LOW).multiplyScalar(1 / DETAIL_MEAN), Math.min(1, -h / 1) * 0.7);
+  col.setXYZ(i, shade.r, shade.g, shade.b);
 }
 
 function labelSprite(text: string, color = 'rgba(255,255,255,0.9)'): THREE.Sprite {
@@ -88,11 +211,13 @@ export class World {
   readonly sun = new THREE.DirectionalLight(0xfff2d6, 2.4);
 
   /**
-   * Lo que depende del campo: el piso, las rayas de distancia, los árboles y las piedras (que se apoyan
-   * en el piso) y los bunkers. Va en un grupo aparte para poder rearmarlo cuando cambia el campo
+   * Lo que depende del campo: el piso, las rayas de distancia, los árboles, las piedras y las matas de
+   * pasto (que se apoyan en el piso). Va en un grupo aparte para poder rearmarlo cuando cambia el campo
    * (`rebuildField`); la muralla, la puerta y los guardias están en el llano y no se enteran.
    */
   private readonly field = new THREE.Group();
+  /** El reloj del viento de las matas de pasto. */
+  private readonly wind = { value: 0 };
 
   constructor(scene: THREE.Scene) {
     scene.background = new THREE.Color(0x9fd3f0);
@@ -105,25 +230,35 @@ export class World {
     this.buildWall(scene);
   }
 
-  /** Arma el campo que diga core/terrain: con relieve, una malla; liso, el rough y el fairway. */
+  /**
+   * Arma el campo que diga core/terrain: la misma malla con relieve o sin él (en el liso queda plana y no
+   * se toca: las lomas del geomante llevan malla propia). Más allá, hasta el horizonte, un rough plano.
+   */
   private buildField(): void {
     const g = this.field;
-    if (relief.on) this.buildTerrain(g);
-    else {
-      const rough = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x2f6b38, roughness: 1 }));
-      rough.rotation.x = -Math.PI / 2;
-      rough.position.y = -0.02;
-      g.add(rough);
-      const fairway = new THREE.Mesh(
-        new THREE.PlaneGeometry(FIELD_HALF_WIDTH * 2 + 4, 120),
-        new THREE.MeshStandardMaterial({ map: fairwayTexture(), roughness: 1 }),
-      );
-      fairway.rotation.x = -Math.PI / 2;
-      fairway.position.z = 56;
-      g.add(fairway);
-    }
+    const detail = grassDetail();
+    // el rough de afuera tiene un agujero donde va la malla: si no, asomaba por los valles del relieve.
+    // Se arma en el plano XY y se acuesta (y pasa a ser -z); sus coordenadas de textura son los metros
+    const z0 = TERRAIN.centerZ - TERRAIN.depth / 2;
+    const z1 = TERRAIN.centerZ + TERRAIN.depth / 2;
+    const ring = new THREE.Shape([new THREE.Vector2(-200, 160), new THREE.Vector2(200, 160), new THREE.Vector2(200, -260), new THREE.Vector2(-200, -260)]);
+    ring.holes.push(new THREE.Path([
+      new THREE.Vector2(-TERRAIN.width / 2, -z0), new THREE.Vector2(-TERRAIN.width / 2, -z1),
+      new THREE.Vector2(TERRAIN.width / 2, -z1), new THREE.Vector2(TERRAIN.width / 2, -z0),
+    ]));
+    const far = detail.clone();
+    far.repeat.set(1 / DETAIL_TILE, 1 / DETAIL_TILE);
+    far.needsUpdate = true;
+    const rough = new THREE.Mesh(
+      new THREE.ShapeGeometry(ring),
+      new THREE.MeshStandardMaterial({ color: ROUGH.clone().multiplyScalar(1 / DETAIL_MEAN), map: far, roughness: 1 }),
+    );
+    rough.rotation.x = -Math.PI / 2;
+    g.add(rough);
+    this.buildTerrain(g, detail);
     this.buildDistanceMarks(g);
     this.buildScenery(g);
+    this.buildTufts(g);
   }
 
   /**
@@ -149,21 +284,88 @@ export class World {
   }
 
   /**
-   * Campo con relieve (prototipo): una sola malla, de un metro por cuadro, con la altura de
-   * core/terrain. El color hace de mapa: franjas de fairway, rough a los costados, y más claro en las
-   * lomas y más oscuro en el valle, para que el relieve se lea desde la cámara fija.
+   * El campo: una sola malla, de un metro por cuadro, con la altura de core/terrain. El color hace de
+   * mapa (ver `grassColor`), y con relieve además es más claro en las lomas y más oscuro en el valle, para
+   * que se lea desde la cámara fija. En el liso no queda como `terrainGeo`: es plana y nadie la toca.
    */
-  private buildTerrain(scene: THREE.Object3D): void {
+  private buildTerrain(scene: THREE.Object3D, detail: THREE.Texture): void {
     const geo = new THREE.PlaneGeometry(TERRAIN.width, TERRAIN.depth, TERRAIN.width, TERRAIN.depth);
     geo.rotateX(-Math.PI / 2);
     geo.translate(0, 0, TERRAIN.centerZ);
     const pos = geo.attributes.position as THREE.BufferAttribute;
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3));
-    this.terrainGeo = geo;
-    for (let i = 0; i < pos.count; i++) this.shadeVertex(i);
+    for (let i = 0; i < pos.count; i++) shadeVertex(geo, i);
     geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+    if (relief.on) this.terrainGeo = geo;
+    detail.repeat.set(TERRAIN.width / DETAIL_TILE, TERRAIN.depth / DETAIL_TILE);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: detail, roughness: 1 }));
     mesh.receiveShadow = true;
+    scene.add(mesh);
+  }
+
+  /**
+   * Matas de pasto alto en el primer corte y el rough (en el fairway no: es pasto corto, y ahí se juega).
+   * Una sola malla repetida miles de veces; el viento las mece en el shader, más arriba que abajo. No
+   * proyectan sombra (las sombras no se mecerían), pero reciben la de los demás.
+   */
+  private buildTufts(scene: THREE.Object3D): void {
+    // tres hojas finas en abanico, de 40 cm, más oscuras abajo. Cada hoja va dos veces, una para cada
+    // lado: con DoubleSide la cara de atrás da vuelta la normal, mira al piso y sale negra
+    const blades: number[] = [];
+    const colors: number[] = [];
+    for (let b = 0; b < 3; b++) {
+      const a = (b / 3) * Math.PI + 0.3;
+      const lean = 0.12 * (b - 1);
+      const cx = Math.cos(a) * 0.07;
+      const cz = Math.sin(a) * 0.07;
+      const h = 0.34 + b * 0.05;
+      blades.push(-cx, 0, -cz, cx, 0, cz, lean, h, lean * 0.5);
+      blades.push(cx, 0, cz, -cx, 0, -cz, lean, h, lean * 0.5);
+      for (let k = 0; k < 2; k++) colors.push(0.72, 0.76, 0.72, 0.72, 0.76, 0.72, 1.08, 1.08, 0.95);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(blades, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    // la luz les pega como al piso: si no, cada hoja se ve de un tono según para dónde mira
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(blades.length / 3).fill([0, 1, 0]).flat(), 3));
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+    const wind = this.wind;
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uWind = wind;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float uWind;')
+        .replace('#include <begin_vertex>', TUFT_SWAY);
+    };
+    const COUNT = 7000;
+    const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+    mesh.userData.noCast = true;
+    mesh.frustumCulled = false;
+    let seed = 99;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    const p = new THREE.Vector3();
+    const sc = new THREE.Vector3();
+    let n = 0;
+    for (let tries = 0; n < COUNT && tries < COUNT * 4; tries++) {
+      const side = rand() < 0.5 ? -1 : 1;
+      // más tupido cerca del borde del fairway, más ralo hacia afuera
+      const out = Math.pow(rand(), 1.6) * 42;
+      const x = side * (FIELD_HALF_WIDTH + 1.6 + out);
+      const z = -3 + rand() * 128;
+      // en el primer corte, pocas
+      if (out < 2.5 && rand() < 0.7) continue;
+      const k = 0.7 + rand() * 0.8 + Math.min(0.5, out / 30);
+      p.set(x, heightAt(x, z), z);
+      q.setFromAxisAngle(up, rand() * Math.PI * 2);
+      sc.set(k, k * (0.8 + rand() * 0.5), k);
+      mesh.setMatrixAt(n, m.compose(p, q, sc));
+      grassColor(x, z, shade).multiplyScalar(DETAIL_MEAN * (0.9 + rand() * 0.35));
+      mesh.setColorAt(n, shade);
+      n++;
+    }
+    mesh.count = n;
     scene.add(mesh);
   }
 
@@ -175,21 +377,6 @@ export class World {
     return this.terrainGeo !== null;
   }
 
-  /** Altura y color de un vértice del campo, con lo que diga `heightAt` ahora. */
-  private shadeVertex(i: number): void {
-    const geo = this.terrainGeo!;
-    const pos = geo.attributes.position as THREE.BufferAttribute;
-    const col = geo.attributes.color as THREE.BufferAttribute;
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    const h = heightAt(x, z);
-    pos.setY(i, h);
-    const onFairway = Math.abs(x) <= FIELD_HALF_WIDTH + 2 && z >= -4 && z <= 116;
-    shade.copy(onFairway ? (Math.floor(z / 5) % 2 ? FAIRWAY_DARK : FAIRWAY_LIGHT) : ROUGH);
-    if (h > 0) shade.lerp(HIGH, Math.min(1, h / 2.4) * 0.7);
-    else shade.lerp(LOW, Math.min(1, -h / 1) * 0.7);
-    col.setXYZ(i, shade.r, shade.g, shade.b);
-  }
 
   /**
    * El piso cambió en este rectángulo (una loma del geomante que sube o baja): rehace la altura y el
@@ -204,7 +391,7 @@ export class World {
       const ix1 = Math.min(TERRAIN.width, Math.ceil(x1 + TERRAIN.width / 2));
       const iz0 = Math.max(0, Math.floor(z0 - TERRAIN.centerZ + TERRAIN.depth / 2));
       const iz1 = Math.min(TERRAIN.depth, Math.ceil(z1 - TERRAIN.centerZ + TERRAIN.depth / 2));
-      for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) this.shadeVertex(iz * cols + ix);
+      for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) shadeVertex(geo, iz * cols + ix);
       geo.attributes.position.needsUpdate = true;
       geo.attributes.color.needsUpdate = true;
       geo.computeVertexNormals();
@@ -359,16 +546,7 @@ export class World {
         scene.add(rock);
       }
     }
-    // bunkers de arena a los costados, por puro golf (con relieve no: son discos planos)
-    if (relief.on) return;
-    const sand = new THREE.MeshStandardMaterial({ color: 0xe6d3a0, roughness: 1 });
-    for (const [x, z, r] of [[-13, 22, 3.2], [12, 36, 2.6], [-10, 52, 3.6]] as const) {
-      const bunker = new THREE.Mesh(new THREE.CircleGeometry(r, 24), sand);
-      bunker.rotation.x = -Math.PI / 2;
-      bunker.scale.y = 0.65;
-      bunker.position.set(x, 0.012, z);
-      scene.add(bunker);
-    }
+    // los bunkers de arena se fueron (8/10, Leandro): no hacían nada y confundían
   }
 
   /** Guardias de Valdehoyo apostados a los lados de la puerta. Por ahora solo miran. */
@@ -407,6 +585,7 @@ export class World {
   }
 
   update(dt: number): void {
+    this.wind.value += dt;
     for (const m of this.guardMixers) m.update(dt);
     if (this.doorFlash > 0) {
       this.doorFlash -= dt;
