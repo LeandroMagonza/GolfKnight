@@ -5,10 +5,10 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ECHO, ELEMENT_INFO, ELEMENTS, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
-import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
+import { buildRun, ENEMIES, RANGED, SCENARIO_POWERS, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower } from './core/waves';
 import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, timingWith } from './core/swing';
@@ -47,7 +47,7 @@ import { Abe, BOLT_SLOT, castColor, SPELL_INFO } from './coop/abe';
 import { ABE_SLOTS, BOLT_INFO, boltHint, spellHint, spellSize } from './coop/spells';
 import type { AbeStatus } from './net/spectator';
 import { L } from './i18n';
-import { ABE_ONLY, DEMO, DEV_TOOLS } from './edition';
+import { ABE_ONLY, DEMO, DEMO_LOCKS, DEV_TOOLS } from './edition';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -120,7 +120,7 @@ const difficultyMenu = new DifficultyMenu(progress, DEMO);
  * lo que diga la dificultad. Reiniciar recarga la página, así que cada partida sortea de nuevo; si se
  * cambia la dificultad antes de empezar, se vuelve a armar al arrancar (`rebuildRun`).
  */
-let rules = rulesFor(progress.picks);
+let rules = runRules();
 // el golpe 4 es un talento de la dificultad, y en el tenis no hay
 FOURTH.on = rules.fourth && !TENNIS_ON;
 let run = buildRun(Math.random, rules);
@@ -146,10 +146,16 @@ function showRun(): void {
 }
 showRun();
 
+/** Las reglas de la partida: las de la dificultad, y en la demo, sin los poderes que no trae (DEMO_LOCKS). */
+function runRules(): RunRules {
+  const r = rulesFor(progress.picks);
+  return DEMO ? { ...r, pool: SCENARIO_POWERS.filter((p) => !DEMO_LOCKS.powers.includes(p)) } : r;
+}
+
 /** Se cambió la dificultad en la pantalla de inicio: la partida se arma de nuevo con la elegida. */
 function rebuildRun(): void {
   difficultyMenu.dirty = false;
-  rules = rulesFor(progress.picks);
+  rules = runRules();
   FOURTH.on = rules.fourth && !TENNIS_ON;
   run = buildRun(Math.random, rules);
   director.load(run.waves, rules.rest);
@@ -653,6 +659,17 @@ function endInfo(result: 'victory' | 'defeat', title: string, detail: string, le
   };
 }
 
+/** Lo que trae la completa, en el cartel del final de la demo (ver DEMO_LOCKS en src/edition.ts). */
+function demoTeaser(): string {
+  const n = DEMO_LOCKS.powers.length;
+  const elements = DEMO_LOCKS.elements.map((e) => ELEMENT_INFO[e].name.toLowerCase());
+  const list = (and: string) => elements.length > 1 ? `${elements.slice(0, -1).join(', ')} ${and} ${elements[elements.length - 1]}` : elements.join('');
+  return L(
+    `En la versión completa, cada partida ganada desbloquea un nivel de dificultad, y vienen ${n} poderes de enemigos más y los elementos ${list('y')}`,
+    `In the full game, every win unlocks a difficulty level, and there are ${n} more enemy powers and the ${list('and')} elements`,
+  );
+}
+
 /**
  * Termina la partida. `title` y `detail` van al cartel, en el idioma del jugador; `cause` es lo que guarda
  * el registro: siempre en español (el `detail` de siempre), así se comparan las partidas de los dos idiomas.
@@ -672,8 +689,7 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   const earned = result === 'victory' && !BOT && !DEMO && earnPoint(progress);
   if (earned) saveProgress(progress);
   paintDifficulty();
-  const earnedText = DEMO && result === 'victory'
-    ? L('En la versión completa, cada partida ganada desbloquea un nivel de dificultad', 'In the full game, every win unlocks a difficulty level')
+  const earnedText = DEMO && result === 'victory' ? demoTeaser()
     : !earned ? '' : progress.points === 1
     ? L('¡Desbloqueaste tu primer nivel de dificultad! Elegí en Dificultad qué se pone más difícil', 'You unlocked your first difficulty level! Pick what gets harder in Difficulty')
     : L(`¡Desbloqueaste el nivel ${progress.points} de dificultad!`, `You unlocked difficulty level ${progress.points}!`);
@@ -1113,8 +1129,11 @@ let glove: { element: Element; level: number; left: number } | null = null;
 /** Nivel del palazo que se está dando: lo pone la habilidad al salir, lo usa el golpe al conectar. */
 let meleeLevel = 1;
 
+/** La demo no trae los tiros ni el guante de algunos elementos (ver DEMO_LOCKS en src/edition.ts). */
+const LOCKED_CARDS: ReadonlySet<AbilityId> = new Set(DEMO ? ABILITY_LIST.filter((id) => DEMO_LOCKS.elements.includes(ABILITIES[id].element as Element)) : []);
+
 function build(): Build {
-  return { slots: abilities.slots, perks, hp: player.hp, hpMax: player.maxHp, gate: gateHp, gateMax: GATE_MAX };
+  return { slots: abilities.slots, perks, hp: player.hp, hpMax: player.maxHp, gate: gateHp, gateMax: GATE_MAX, locked: LOCKED_CARDS };
 }
 
 /**
@@ -1602,6 +1621,8 @@ function makeDebugPanel(): DebugPanel {
     applyVisual: () => visuals.apply(),
     fps: () => frameTimes.filter((t) => performance.now() - t < 1000).length,
     timing: currentTiming,
+    tennis: TENNIS_ON,
+    switchMode: () => switchMode(!TENNIS_ON),
   });
 }
 

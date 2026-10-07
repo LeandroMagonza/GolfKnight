@@ -3,9 +3,13 @@
 // compila, así no se puede destrabar desde la consola del navegador.
 //
 // - **full**, la completa: todo. Mientras se desarrolla trae también las herramientas de prueba.
-// - **demo**: gratis, para difundir. Sin los talentos de dificultad (se ven, con candado). Con Abe.
+// - **demo**: gratis, para difundir. Sin los talentos de dificultad (se ven, con candado), y sin algunos
+//   poderes de los enemigos y del caballero (ver DEMO_LOCKS). Con Abe.
 // - **abe**: solo para ser Abe en la partida de otro (el amigo que no tiene el juego). Mira y ayuda, pero no
 //   puede arrancar una partida: la parte del caballero (oleadas, cartas, tutorial) no se compila.
+
+import type { Element } from './core/abilities';
+import type { ScenarioPower } from './core/waves';
 
 export type Edition = 'full' | 'demo' | 'abe';
 
@@ -18,3 +22,19 @@ export const ABE_ONLY = __EDITION__ === 'abe';
  * completa, mientras se desarrolla; en lo que se publica para jugadores, no van.
  */
 export const DEV_TOOLS = __DEV_TOOLS__;
+
+/**
+ * Lo que la demo no trae, además de los talentos (7/10, pedido de Leandro): no salen en el sorteo.
+ * - `powers`: poderes de escenario de los enemigos. Quedan tres, así que la demo trae siempre los mismos
+ *   tres, en otro orden. Tienen que quedar por lo menos tres (uno por escenario).
+ * - `elements`: los tiros y el guante de esos elementos, en las cartas del caballero. El fantasma y el
+ *   silencio son justo los que mejor contestan a los poderes que se van (pasan escudos, burbujas y
+ *   esquivas: ver docs/counters.md).
+ *
+ * La idea (Leandro): la demo se gana en el nivel 0 sin demasiado desafío, en menos de las dos horas que da
+ * Steam para devolver el juego; el que quiere más, sube la dificultad, y eso es la completa.
+ */
+export const DEMO_LOCKS: { powers: ScenarioPower[]; elements: Element[] } = {
+  powers: ['shield', 'dodge', 'divine', 'phase'],
+  elements: ['ghost', 'silence'],
+};

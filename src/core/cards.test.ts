@@ -32,6 +32,15 @@ describe('cartas', () => {
     }
   });
 
+  it('las bloqueadas (la demo) no salen nunca', () => {
+    const locked = new Set(ABILITY_LIST.filter((id) => ABILITIES[id].element === 'ghost' || ABILITIES[id].element === 'silence'));
+    expect(locked.size).toBeGreaterThan(0);
+    for (let seed = 1; seed < 40; seed++) {
+      for (const c of drawCards(fresh({ locked }), 3, seeded(seed))) expect(c.kind === 'ability' && locked.has(c.id)).toBe(false);
+    }
+    expect(candidates(fresh({ locked })).some((c) => c.card.kind === 'ability' && locked.has(c.card.id))).toBe(false);
+  });
+
   it('una habilidad en el nivel máximo ya no sale', () => {
     const pool = candidates(fresh({ slots: [{ id: 'cart', level: MAX_LEVEL }] }));
     expect(pool.some((c) => c.card.kind === 'ability' && c.card.id === 'cart')).toBe(false);

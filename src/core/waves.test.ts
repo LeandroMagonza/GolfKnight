@@ -326,6 +326,22 @@ describe('waves', () => {
     }
   });
 
+  it('la demo sortea los poderes solo entre los que trae: con tres, salen siempre esos tres', () => {
+    const pool = ['armor', 'ethereal', 'regen'] as const;
+    for (let r = 1; r <= 20; r++) {
+      const run = buildRun(seeded(r), { ...rulesFor({}), pool });
+      expect([...run.powers].sort()).toEqual([...pool].sort());
+      // y ningún enemigo trae uno de los que no están, tampoco los élites
+      for (const w of run.waves) {
+        for (const o of spawnOrder(w, seeded(r))) {
+          for (const k of SCENARIO_POWERS) if (!(pool as readonly string[]).includes(k)) expect(has(o.mods, k), `${w.title}: ${k}`).toBe(false);
+        }
+      }
+    }
+    // con menos de tres no alcanzan para los tres escenarios: de todos
+    expect(buildRun(seeded(1), { ...rulesFor({}), pool: ['armor'] }).powers).toHaveLength(3);
+  });
+
   it('el escudo y el blindaje suben con el escenario, sin pasar de 3', () => {
     const levels = (scenario: number, key: 'shield' | 'armor') => {
       const seen = new Set<number>();

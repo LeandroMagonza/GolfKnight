@@ -117,6 +117,8 @@ export interface Build {
   hpMax: number;
   gate: number;
   gateMax: number;
+  /** Las habilidades que no salen en las cartas (la demo: ver src/edition.ts). */
+  locked?: ReadonlySet<AbilityId>;
 }
 
 /** Cuántas habilidades de cada elemento hay en la mano: es lo que abre las maestrías. */
@@ -129,6 +131,7 @@ export function candidates(build: Build): { card: Card; weight: number }[] {
   const out: { card: Card; weight: number }[] = [];
   const owned = new Map(build.slots.map((s) => [s.id, s.level]));
   for (const id of ABILITY_LIST) {
+    if (build.locked?.has(id)) continue;
     const level = owned.get(id);
     // subir una que ya tenés pesa más que una nueva cualquiera: son pocas y son tuyas
     if (level !== undefined) {

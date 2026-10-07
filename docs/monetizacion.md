@@ -27,8 +27,11 @@ la consola del navegador.
   `?bot`, `?palos`). Para vender va a hacer falta una completa **sin** ellas (es cambiar `DEV_TOOLS` en
   `vite.config.ts` para esa compilación).
 - **Demo** (`dist/demo/`): sin los talentos de dificultad. Se ven en el menú con candado, y al ganar dice
-  que en la completa cada partida desbloquea un nivel. Sin herramientas de prueba. Con Abe y con la
-  cinemática.
+  lo que trae la completa. Sin herramientas de prueba. Con Abe y con la cinemática. Además, sin algunos
+  poderes (`DEMO_LOCKS` en `src/edition.ts`, se cambian ahí): los enemigos no traen escudo, esquiva,
+  escudo divino ni intocable (quedan blindaje, fantasma y se cura, siempre los tres), y el caballero no
+  tiene los elementos fantasma ni silencio, que son los que mejor contestan a esos cuatro. Esto no se
+  saca de la compilación: no sale en el sorteo.
 - **Abe** (`dist/abe/`): solo para ser Abe. Sin enlace, pide el código de la sala (o el enlace pegado).
   No puede arrancar una partida: el bucle del que juega, el tiro, las oleadas, las cartas, el tutorial y
   la parte de transmitir no se compilan. Sin cinemática (pesa 30 MB en vez de 48).
@@ -36,12 +39,12 @@ la consola del navegador.
 Las tres se publican con `npm run deploy`: la completa en la raíz, y las otras en
 https://leandromagonza.github.io/GolfKnight/demo/ y https://leandromagonza.github.io/GolfKnight/abe/.
 
-**Falta decidir qué más deja afuera la demo.** Solo con los talentos, la demo es casi el juego entero.
-Candidatos:
-- menos escenarios (poderes) en el sorteo, menos enemigos, menos cartas y habilidades;
-- lo que venga y sea solo de la completa: desbloqueos entre partidas, un modo sin fin, más escenarios, la
-  cinemática del final;
-- el modo tenis (hoy es un prototipo y está en todas).
+**La idea de Leandro (7/10):** la demo se gana en el nivel 0 sin demasiado desafío, y en **menos de dos
+horas**, que es lo que da Steam para devolver un juego. El que quiere jugar más, sube la dificultad: eso
+es la completa. Hay un solo campo (el liso) porque los de lomas son un talento.
+
+**El modo tenis** es un prototipo: desde el 7/10 no tiene botón en la pantalla de inicio en ninguna
+versión. Se entra desde el panel B (pestaña Pruebas) o con `?tenis`.
 
 ## Juego cruzado: el amigo que no tiene el juego
 
@@ -127,7 +130,8 @@ Pages es cambiar el deploy.
 ## Pendiente
 
 - [ ] Leandro: crear la página en itch.io y correr `butler login`. Después: butler en el deploy.
-- [ ] Decidir qué más deja afuera la demo.
+- [x] Qué deja afuera la demo (7/10): talentos, cuatro poderes de enemigos y dos elementos.
+- [ ] Que el nivel 0 se gane en menos de dos horas (probarlo jugando).
 - [ ] El enlace de Abe a la página propia, y una carpeta por versión.
 - [ ] TURN y código largo en el enlace.
 - [ ] Repo privado + repo público con lo compilado.

@@ -507,6 +507,11 @@ export interface RunRules {
   extraHp: number;
   /** Vida de más del jefe. */
   bossHp: number;
+  /**
+   * De qué poderes de escenario se sortean los de la partida (la demo trae menos: ver src/edition.ts). Sin
+   * esto, o con menos de tres (no alcanzan para los tres escenarios), de todos.
+   */
+  pool?: readonly ScenarioPower[];
 }
 
 /** Segundos de descanso entre oleadas. */
@@ -598,7 +603,8 @@ function bodies(goblin: number, goblina: number, orc: number, skeleton: number, 
  * - la escolta del jefe, la velocidad, cuántos salen con poder, qué tan duros y la vida de los élites.
  */
 export function buildRun(rand: () => number = Math.random, rules: RunRules = HARDEST): Run {
-  const powers = draw(SCENARIO_POWERS, 3, rand);
+  const pool = rules.pool && rules.pool.length >= 3 ? rules.pool : SCENARIO_POWERS;
+  const powers = draw(pool, 3, rand);
   const drawnSupports = draw(SUPPORT_POWERS, 2, rand);
   const drawnMods = draw(WAVE_MODS, 3, rand);
   // dónde va cada ola especial: la primera en el primer escenario, la segunda en el segundo o el tercero
@@ -664,7 +670,7 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
     },
   ];
   const specials: WaveMod[] = [];
-  const unused = SCENARIO_POWERS.filter((p) => !powers.includes(p));
+  const unused = pool.filter((p) => !powers.includes(p));
   for (const w of waves) {
     w.share = rules.share;
     w.speed = rules.speed;

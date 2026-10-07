@@ -85,6 +85,9 @@ export interface DebugHooks {
   fps(): number;
   /** Los tiempos de la barra con las mejoras que tiene ahora. */
   timing(): ChargeTimes;
+  /** ¿Se está en el modo tenis? Y pasar al otro modo (recarga la página). */
+  tennis: boolean;
+  switchMode(): void;
 }
 
 /**
@@ -1224,6 +1227,9 @@ export class DebugPanel {
     const list = this.hooks.director.list;
     for (let i = 0; i < list.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), list[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
+    el.append(heading('Modo'));
+    el.append(this.row(this.button(this.hooks.tennis ? 'Volver al golf' : 'Modo tenis (prototipo)', () => this.hooks.switchMode())),
+      note('El modo tenis es un prototipo: no tiene botón en la pantalla de inicio. También se entra con ?tenis en la dirección. Recarga la página.'));
   }
 
   // ---- copiar y restaurar: fuera de las pestañas, siempre a mano ----

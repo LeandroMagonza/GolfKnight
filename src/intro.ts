@@ -206,7 +206,8 @@ export class Intro {
     this.next.textContent = this.last ? (this.ready ? go : L('Cargando…', 'Loading…')) : L('Siguiente (Espacio)', 'Next (Space)');
     // en el tenis no hay tutorial
     this.alt.hidden = !this.last || !this.ready || this.tennis;
-    this.mode.hidden = !this.ready;
+    // el modo tenis es un prototipo (7/10): se entra desde el panel B o con ?tenis. Acá, solo la vuelta al golf
+    this.mode.hidden = !this.ready || !this.tennis;
     this.inviteBtn.hidden = !this.ready || !this.inviteBox.hidden || this.watching;
     this.mode.textContent = this.tennis ? L('Volver al golf', 'Back to golf') : L('Probar el modo tenis (nuevo)', 'Try tennis mode (new)');
     this.alt.textContent = this.tutorialFirst ? L('Saltar el tutorial', 'Skip the tutorial') : L('Hacer el tutorial', 'Play the tutorial');
