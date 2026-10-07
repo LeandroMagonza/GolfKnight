@@ -5,6 +5,7 @@ import { CLUB_KEYS, CLUB_ORDER, CLUBS, type Club, type ClubId } from './core/clu
 import { arcAngle, type ArcLayout } from './core/swing';
 import { EndScreen, type EndInfo } from './endscreen';
 import { L } from './i18n';
+import { flameHtml } from './threat';
 
 /** Hasta dónde se abre el arco de carga, de arriba a cada borde: con las mejoras puede pasar de 90°. */
 const ARC_MAX = 105;
@@ -350,6 +351,19 @@ export class Hud {
       el.classList.toggle('done', i < scenario);
       el.classList.toggle('now', i === scenario);
     });
+  }
+
+  private heatEl = $('heat');
+  private heatKey = '';
+
+  /** La llama de la dificultad al lado del título de la oleada (ver src/threat.ts). Sin puntos puestos, no va. */
+  setHeat(level: number, max: number): void {
+    const key = `${level}/${max}`;
+    if (key === this.heatKey) return;
+    this.heatKey = key;
+    this.heatEl.hidden = level <= 0;
+    this.heatEl.innerHTML = level > 0 ? flameHtml(level, max) : '';
+    this.heatEl.title = L(`Dificultad ${level} de ${max}`, `Difficulty ${level} of ${max}`);
   }
 
   setWave(index: number, total: number, alive: number, pending: number, restLeft: number): void {

@@ -61,7 +61,7 @@ export class GameAudio {
   constructor() {
     // Un error de audio nunca tiene que cortar el cuadro del juego: los efectos se llaman desde el
     // medio del update de pelotas y enemigos.
-    const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'] as const;
+    const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat', 'unlock'] as const;
     for (const name of sfx) {
       const fn = (this[name] as (...args: unknown[]) => void).bind(this);
       (this as Record<string, unknown>)[name] = (...args: unknown[]) => {
@@ -278,6 +278,20 @@ export class GameAudio {
   victory(): void {
     const t = Tone.now();
     [62, 66, 69, 74].forEach((m, i) => this.bell.triggerAttackRelease(midiToFreq(m + 12), 0.6, t + i * 0.16));
+  }
+
+  /**
+   * Se desbloqueó un nivel de dificultad: un golpe grave, un acorde menor de cuernos que queda sonando y
+   * campanas que suben. Amenaza más que festeja. `max`: el último nivel, más grave y más largo.
+   */
+  unlock(max: boolean): void {
+    if (!this.ready) return;
+    const t = Tone.now();
+    this.boom.triggerAttackRelease(max ? 'A0' : 'C1', '2n', this.at(this.boom));
+    this.noise.triggerAttackRelease(0.7, this.at(this.noise));
+    const low = max ? 36 : 38;
+    this.horn.triggerAttackRelease([low, low + 7, low + 12, low + 15].map(midiToFreq), max ? 2.4 : 1.6, t + 0.04);
+    [0, 3, 7, 12].forEach((m, i) => this.bell.triggerAttackRelease(midiToFreq(low + 36 + m), 0.5, t + 0.18 + i * 0.09, 0.7));
   }
 
   defeat(): void {

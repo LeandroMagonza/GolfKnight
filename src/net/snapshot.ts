@@ -162,6 +162,8 @@ export interface GameSnap {
   kills: number;
   /** Bolsillo del tenis: cuántas y de cuántas. */
   pk?: [number, number];
+  /** El nivel de dificultad (puntos puestos): la llama al lado del título de la oleada. */
+  ht?: number;
   /** Abe: sus hechizos con la recarga de cada lugar, lo que le ofrecen y cuántos le deben. */
   abe: AbeSnap;
   /** El caballero está haciendo el tutorial: Abe elige, pero todavía no tira. */

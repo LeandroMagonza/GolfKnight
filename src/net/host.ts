@@ -16,7 +16,7 @@ import { encodeArgs, r2, SNAP_HZ, type BallSnap, type EnemySnap, type GameSnap, 
 /** Lo que se reenvía tal cual: el que mira llama al mismo método. Solo estos (el que mira no acepta otros). */
 export const MIRRORED = {
   fx: ['explosion', 'frost', 'swipe', 'blink', 'spark', 'lightning'],
-  au: ['chargeTick', 'whoosh', 'duff', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat'],
+  au: ['chargeTick', 'whoosh', 'duff', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat', 'unlock'],
   hud: ['showBanner', 'feedback', 'showEnd', 'hideEnd', 'gateAlert'],
   vis: ['setDayProgress'],
 } as const;

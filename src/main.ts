@@ -31,6 +31,7 @@ import { Hud, type PerkChip } from './hud';
 import { Input, type InputEvents } from './input';
 import { Intro } from './intro';
 import { DifficultyMenu } from './difficultyMenu';
+import { paintThreat } from './threat';
 import { flushRuns, RunRecorder } from './telemetry';
 import { Tutorial } from './tutorial';
 import { applyTennis, POCKET_RAIN, switchMode, TENNIS_ON } from './tennis/mode';
@@ -162,20 +163,22 @@ function rebuildRun(): void {
   showRun();
 }
 
-/** El botón de la dificultad, en la pantalla de inicio y en el cartel del final: aparece con el primer punto. */
+/**
+ * El botón de la dificultad, en la pantalla de inicio y en el cartel del final: aparece con el primer
+ * punto. Es la llama con el nivel (ver src/threat.ts), y late si hay puntos sin poner. En la partida, la
+ * misma llama va al lado del título de la oleada.
+ */
 const diffButtons = [document.getElementById('diffbtn'), document.getElementById('enddiff')].filter((x): x is HTMLElement => !!x);
 function paintDifficulty(): void {
   // en la demo se ve siempre, con candado: es lo que trae la completa
   const on = (DEMO || progress.points > 0) && !params.has('mirar');
-  const start = document.getElementById('diffbtn');
-  if (start) {
-    start.hidden = !on;
-    start.textContent = DEMO
-      ? L('🔒 Dificultad: en la versión completa', '🔒 Difficulty: in the full game')
-      : L(`Dificultad: nivel ${used(progress.picks)} (de ${progress.points} ganados)`, `Difficulty: level ${used(progress.picks)} (of ${progress.points} earned)`);
+  const state = { level: used(progress.picks), points: progress.points, max: MAX_POINTS, locked: DEMO };
+  for (const b of diffButtons) {
+    b.hidden = !on;
+    if (on) paintThreat(b, state);
   }
-  const end = document.getElementById('enddiff');
-  if (end) end.hidden = !on;
+  // el que mira ve la del que juega (llega con la foto)
+  if (!params.has('mirar')) hud.setHeat(state.level, MAX_POINTS);
 }
 for (const b of diffButtons) {
   b.addEventListener('click', (e) => {
@@ -615,6 +618,7 @@ const VICTORY_CARD_DELAY_MS = 3500;
 // cada número del cartel del final suena con la nota siguiente del arpegio de las bajas; al perder, un
 // golpe seco. El que mira no: le llegan los sonidos del que juega
 if (!WATCH) hud.end.onBeat = (i, result) => (result === 'victory' ? audio.kill(i) : audio.tock(false));
+if (!WATCH) hud.end.onUnlock = (max) => audio.unlock(max);
 
 /** El mejor puntaje de este navegador. */
 const RECORD_KEY = 'gk.record';
@@ -688,11 +692,9 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   const earned = result === 'victory' && !BOT && !DEMO && earnPoint(progress);
   if (earned) saveProgress(progress);
   paintDifficulty();
-  const earnedText = DEMO && result === 'victory' ? demoTeaser()
-    : !earned ? '' : progress.points === 1
-    ? L('¡Desbloqueaste tu primer nivel de dificultad! Elegí en Dificultad qué se pone más difícil', 'You unlocked your first difficulty level! Pick what gets harder in Difficulty')
-    : L(`¡Desbloqueaste el nivel ${progress.points} de dificultad!`, `You unlocked difficulty level ${progress.points}!`);
-  const info = endInfo(result, title, detail, level, earnedText);
+  const info = endInfo(result, title, detail, level, DEMO && result === 'victory' ? demoTeaser() : '');
+  // el nivel nuevo revienta al final del cartel (ver src/endscreen.ts)
+  if (earned) info.unlock = { level: progress.points, max: MAX_POINTS };
   // al ganar, el cartel espera a que se vea el festejo: tapa la cancha con un velo oscuro
   if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(info); }, VICTORY_CARD_DELAY_MS);
   else hud.showEnd(info);
@@ -2291,6 +2293,7 @@ async function startHosting(code: string): Promise<string> {
         score,
         kills,
         pk: pocket ? [pocket.count, pocket.max] : undefined,
+        ht: used(progress.picks),
         abe: abe.status,
         tu: !!tutorial,
         // adónde apunta: lo mismo que se le dibuja a él (la línea de tiro y la marca de caída)
@@ -2447,6 +2450,7 @@ async function startWatching(code: string): Promise<void> {
       hud.setScenario(g.sc);
       hud.setScore(g.score, g.kills);
       if (g.pk) hud.setPocket(g.pk[0], g.pk[1]);
+      hud.setHeat(g.ht ?? 0, MAX_POINTS);
       // el cartel del final sigue a la foto: sin esto, si el que juega reiniciaba, al que mira le quedaba
       // «La puerta cayó» arriba de la partida nueva. Y el que entró con la partida ya terminada lo ve igual
       // El cartel animado llega como evento (al ganar, después del festejo): el simple sale solo si no

@@ -122,7 +122,8 @@
       #difficulty { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.7); pointer-events: auto; }
       #difficulty[hidden] { display: none; }
       #difficulty .box { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px 22px; border-radius: 10px; border: 1px solid #3a4452; background: #111923; color: #e4e9f0; }
-      #difficulty h2 { margin: 0; font-size: 30px; color: #ffd66b; }
+      #difficulty h2 { margin: 0; font-size: 30px; color: #ffd66b; display: flex; align-items: center; gap: 10px; }
+      #difficulty h2 .flame { --fs: 40px; margin: -8px 0 -4px; }
       #difficulty .summary { margin: 0; font-size: 15px; color: #cfd6e0; }
       #difficulty .list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; scrollbar-width: thin; }
       #difficulty .talent { padding: 8px 10px; border-radius: 8px; background: #19222e; border: 1px solid #263140; }
@@ -142,8 +143,126 @@
       #difficulty .lines .got { color: #ffd66b; }
       #difficulty .foot { margin: 0; font-size: 13px; color: #9aa4b2; }
       #difficulty .done { align-self: center; font-size: 17px; padding: 8px 28px; border-radius: 8px; border: 0; background: #5be07a; color: #102; font-weight: 600; cursor: pointer; }
-      #end #enddiff { margin: 10px 0 6px; pointer-events: auto; font-size: 15px; padding: 6px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
-      #end #enddiff[hidden], #end .earned[hidden] { display: none; }
+      #end .earned[hidden] { display: none; }
+      /* la marca de la dificultad (src/threat.ts): una llama con el nivel adentro. Cuanto más alto, más roja,
+         más brillo y más nerviosa; con todos los puntos, infernal. --fs es el ancho: el resto se mide con él */
+      .flame { --fs: 48px; --a: #ff9a1f; --b: #ffc43a; --c: #fff0a0; --glow: #ff9a1f; --flick: 1.6s;
+        position: relative; display: inline-block; flex: none; width: var(--fs); height: calc(var(--fs) * 1.25); line-height: 1; }
+      .flame.t1 { --a: #ff6a1a; --b: #ffa12e; --c: #ffe07a; --glow: #ff6a1a; --flick: 1.2s; }
+      .flame.t2 { --a: #ef3a1c; --b: #ff7a22; --c: #ffd04a; --glow: #ff3a1c; --flick: 0.9s; }
+      .flame.t3 { --a: #c8102e; --b: #ff3d1f; --c: #ffb03a; --glow: #ff2030; --flick: 0.65s; }
+      .flame.max { --a: #6e0016; --b: #e8162e; --c: #ffcf5a; --glow: #ff1a3a; --flick: 0.4s; }
+      .flame.locked { --a: #3c434e; --b: #59616d; --c: #8a93a0; --glow: transparent; }
+      .flame svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 92%;
+        filter: drop-shadow(0 0 calc(2px + var(--heat) * 9px) var(--glow)); animation: flick var(--flick) ease-in-out infinite alternate; }
+      .flame.max svg { filter: drop-shadow(0 0 4px #ff1a3a) drop-shadow(0 0 14px rgba(255, 20, 50, 0.85)) drop-shadow(0 -6px 16px rgba(40, 0, 10, 0.9)); }
+      .flame.locked svg { animation: none; filter: none; }
+      .flame .f0 { fill: var(--a); }
+      .flame .f1 { fill: var(--b); }
+      .flame .f2 { fill: var(--c); transform-box: fill-box; transform-origin: 50% 100%; animation: flickcore calc(var(--flick) * 0.6) ease-in-out infinite alternate; }
+      /* con todo puesto, un halo rojo que late detrás */
+      .flame.max::before { content: ''; position: absolute; inset: -20% -35%; border-radius: 50%; background: radial-gradient(circle at 50% 62%, rgba(255, 20, 50, 0.6), transparent 65%); animation: heatpulse 0.8s ease-in-out infinite alternate; }
+      .flame b { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-size: calc(var(--fs) * 0.46); font-weight: 900; color: #fff; font-variant-numeric: tabular-nums;
+        text-shadow: 0 0 2px #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 2px 5px rgba(0, 0, 0, 0.7); }
+      .flame.locked b { font-size: calc(var(--fs) * 0.34); top: 56%; }
+      .flame.wide b { font-size: calc(var(--fs) * 0.39); letter-spacing: -0.04em; top: 54%; }
+      .flame .spark { position: absolute; left: 50%; bottom: 30%; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: var(--c); box-shadow: 0 0 4px var(--b); opacity: 0;
+        animation: spark calc(var(--flick) * 1.8) ease-out var(--d) infinite; }
+      .flame.max .spark { width: 4px; height: 4px; background: #ffd27a; box-shadow: 0 0 6px #ff2a3a; }
+      @keyframes flick { 0% { transform: none; } 35% { transform: scale(0.97, 1.05) skewX(-2deg); } 70% { transform: scale(1.03, 0.97) skewX(2deg); } 100% { transform: scale(0.98, 1.04) skewX(-1deg); } }
+      @keyframes flickcore { from { transform: scale(1, 0.9); } to { transform: scale(0.92, 1.1); } }
+      @keyframes spark { 0% { opacity: 0; transform: none; } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--fs) * -0.95)) scale(0.4); } }
+      @keyframes heatpulse { from { opacity: 0.55; transform: scale(0.9); } to { opacity: 1; transform: scale(1.1); } }
+      /* el botón de la dificultad, en la entrada y en el cartel del final: la llama, el nivel, una rayita por
+         punto (puesta, ganada sin poner, o por ganar) y lo que falta. Con puntos sin poner, late en dorado */
+      .threat { --edge: #ff9a1f; --ember: rgba(255, 140, 30, 0.35); }
+      .threat.t1 { --edge: #ff6a1a; --ember: rgba(255, 100, 26, 0.4); }
+      .threat.t2 { --edge: #ef3a1c; --ember: rgba(240, 58, 28, 0.45); }
+      .threat.t3 { --edge: #d01432; --ember: rgba(220, 20, 50, 0.5); }
+      .threat.max { --edge: #ff1a3a; --ember: rgba(255, 20, 50, 0.6); }
+      .threat.locked { --edge: #4a5260; --ember: rgba(120, 130, 145, 0.12); }
+      #overlay button.threat, #end button.threat { position: relative; display: flex; align-items: center; gap: 14px; margin: 0; padding: 10px 22px 10px 14px; border-radius: 12px; border: 2px solid var(--edge);
+        background: radial-gradient(ellipse at 15% 115%, var(--ember), transparent 60%), linear-gradient(180deg, #2b1611, #130a08);
+        color: #fff; font-weight: 400; text-align: left; cursor: pointer; pointer-events: auto;
+        box-shadow: 0 0 18px var(--ember), inset 0 0 14px rgba(0, 0, 0, 0.6); transition: transform 0.15s, box-shadow 0.15s; }
+      #overlay button.threat:hover, #end button.threat:hover { transform: translateY(-2px); box-shadow: 0 0 30px var(--ember), 0 0 0 1px var(--edge), inset 0 0 14px rgba(0, 0, 0, 0.6); }
+      #overlay button.threat[hidden], #end button.threat[hidden], body.abejoin #overlay #diffbtn { display: none; }
+      .threat > * { position: relative; }
+      /* la llama asoma por arriba del botón; con todo puesto, más */
+      .threat .flame { --fs: 58px; margin: -18px -2px -2px 0; }
+      .threat.max .flame { --fs: 66px; margin: -28px -6px -2px -4px; }
+      .threat .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+      .threat .top { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #c9a58a; }
+      .threat .big { font-size: 25px; font-weight: 900; line-height: 1; letter-spacing: 1px; text-transform: uppercase; color: #fff; text-shadow: 0 0 10px var(--edge); }
+      .threat .segs { display: flex; flex-wrap: wrap; gap: 3px; max-width: 224px; margin-top: 3px; }
+      .threat .segs i { width: 10px; height: 6px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
+      .threat .segs i.on { background: var(--edge); box-shadow: 0 0 5px var(--edge); }
+      .threat .segs i.free { background: transparent; box-shadow: inset 0 0 0 1.5px #ffd66b; animation: freeseg 0.9s ease-in-out infinite alternate; }
+      .threat .note { font-size: 13px; color: #b9a596; }
+      .threat.due .note { color: #ffd66b; font-weight: 700; }
+      .threat.locked .big { font-size: 19px; color: #cfd6e0; text-shadow: none; }
+      #overlay button.threat.due, #end button.threat.due { animation: duepulse 1.1s ease-in-out infinite; }
+      /* con todo puesto: borde que late en rojo, fuego que sube por adentro, y cada tanto tiembla */
+      #overlay button.threat.max, #end button.threat.max { background: radial-gradient(ellipse at 15% 115%, rgba(255, 30, 50, 0.55), transparent 65%), linear-gradient(180deg, #3a0810, #110204);
+        animation: maxpulse 1.6s ease-in-out infinite, tremble 4s linear infinite; }
+      .threat.max::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: screen;
+        background: linear-gradient(0deg, rgba(255, 50, 20, 0.5), rgba(255, 50, 20, 0) 70%); background-size: 100% 200%; animation: fireup 1.1s ease-in-out infinite alternate; }
+      .threat.max .top { color: #ff8a8a; }
+      .threat.max .big { color: transparent; background: linear-gradient(180deg, #fff6d8, #ff5a3a 60%, #b0001e); -webkit-background-clip: text; background-clip: text; text-shadow: none; letter-spacing: 4px; filter: drop-shadow(0 0 8px #ff1a3a); }
+      .threat.max .note { color: #ffb0a0; font-style: italic; }
+      .threat.max .segs i.on { background: #ff2a3a; box-shadow: 0 0 6px #ff2a3a; }
+      @keyframes freeseg { from { box-shadow: inset 0 0 0 1.5px rgba(255, 214, 107, 0.4); } to { box-shadow: inset 0 0 0 1.5px #ffd66b, 0 0 6px #ffd66b; } }
+      @keyframes duepulse { 0%, 100% { box-shadow: 0 0 14px var(--ember), 0 0 0 0 rgba(255, 214, 107, 0), inset 0 0 14px rgba(0, 0, 0, 0.6); } 50% { box-shadow: 0 0 26px var(--ember), 0 0 0 4px rgba(255, 214, 107, 0.6), inset 0 0 14px rgba(0, 0, 0, 0.6); } }
+      @keyframes maxpulse { 0%, 100% { box-shadow: 0 0 18px rgba(255, 20, 50, 0.55), inset 0 0 18px rgba(255, 20, 40, 0.35); } 50% { box-shadow: 0 0 40px rgba(255, 20, 50, 0.95), 0 0 80px rgba(255, 0, 30, 0.35), inset 0 0 26px rgba(255, 40, 40, 0.55); } }
+      @keyframes tremble { 0%, 88%, 100% { translate: 0 0; } 90% { translate: -2px 1px; } 92% { translate: 2px -1px; } 94% { translate: -1.5px -0.5px; } 96% { translate: 1.5px 0.5px; } 98% { translate: -0.5px 0; } }
+      @keyframes fireup { from { background-position: 0 100%; opacity: 0.6; } to { background-position: 0 40%; opacity: 1; } }
+      #end button.threat { margin: 12px auto 8px; }
+      #end.done button.threat.due { scale: 1.06; }
+      /* en la partida, al lado del título de la oleada */
+      #wave .nrow { position: relative; display: inline-block; }
+      #heat { position: absolute; left: 100%; top: 50%; margin-left: 8px; transform: translateY(-60%); }
+      #heat[hidden] { display: none; }
+      #heat .flame { --fs: 36px; }
+      #heat .flame.max { --fs: 42px; }
+      @media (prefers-reduced-motion: reduce) {
+        .flame svg, .flame .f2, .flame .spark, .flame::before, #overlay button.threat, #end button.threat, .threat::before { animation: none !important; }
+      }
+      /* el nivel desbloqueado, al final del cartel: la llama cae con el número de antes, revienta con el nuevo
+         (destello, temblor, chispas y el fuego que sube desde abajo) y recién ahí aparece el botón */
+      #end .fire { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.9s;
+        background: radial-gradient(ellipse 90% 55% at 50% 108%, rgba(255, 70, 20, 0.55), rgba(160, 10, 30, 0.35) 45%, transparent 75%); }
+      #end.unlocked .fire { opacity: 1; animation: firebreath 1.4s ease-in-out 0.9s infinite alternate; }
+      /* los rayos dorados del festejo viran a fuego; con el último nivel, a rojo sangre y más oscuro */
+      #end .rays { transition: filter 1s; }
+      #end.unlocked .rays { filter: hue-rotate(-28deg) saturate(1.6); }
+      #end.unlocked.maxed .rays { filter: hue-rotate(-45deg) saturate(2.2) brightness(0.8); }
+      #end.unlocked.maxed .fire { background: radial-gradient(ellipse 110% 75% at 50% 108%, rgba(255, 40, 30, 0.7), rgba(140, 0, 25, 0.55) 45%, rgba(20, 0, 5, 0.35) 80%); }
+      /* el botón ya lo dice: el renglón del nivel sobra */
+      #end.unlocked .level { display: none; }
+      #end .flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 55%, rgba(255, 240, 200, 0.9), rgba(255, 90, 30, 0.5) 40%, transparent 75%); }
+      #end.boom .flash { animation: flash 0.6s ease-out; }
+      #end.boom .endcard { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+      #end .unlock { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 16px 0 2px; opacity: 0; }
+      #end .unlock[hidden] { display: none; }
+      #end .unlock.in { opacity: 1; animation: unlockin 0.5s cubic-bezier(0.25, 1.5, 0.5, 1); }
+      #end .unlock .slot { position: relative; }
+      #end .unlock .flame { --fs: 92px; }
+      #end .unlock .slot::after { content: ''; position: absolute; left: 50%; top: 62%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 4px solid #ffb347; opacity: 0; pointer-events: none; }
+      #end .unlock.pop .slot::after { animation: shock 0.7s ease-out; }
+      #end .unlock.pop .flame { animation: flamepop 0.6s cubic-bezier(0.2, 1.8, 0.4, 1); }
+      #end .unlock .what, #end .unlock .why { opacity: 0; }
+      #end .unlock.pop .what, #end .unlock.pop .why { opacity: 1; }
+      #end .unlock.pop .what { animation: endbadge 0.6s cubic-bezier(0.2, 1.6, 0.4, 1); }
+      #end .unlock.pop .why { animation: endfade 0.6s ease-out 0.25s both; }
+      #end .unlock .what { font-size: clamp(22px, 5vw, 34px); font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #fff3e0; text-shadow: 0 0 16px #ff3a1a, 0 0 32px rgba(255, 40, 20, 0.6), 0 3px 0 #5a0a00; }
+      #end .unlock .why { font-size: 16px; color: #ffcfb0; max-width: 440px; }
+      #end .unlock.max .what { color: transparent; background: linear-gradient(180deg, #fff6d8, #ff5a3a 55%, #b0001e); -webkit-background-clip: text; background-clip: text; text-shadow: none; filter: drop-shadow(0 0 12px #ff1a3a); }
+      @keyframes unlockin { from { opacity: 0; transform: scale(2.8) translateY(-20px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+      @keyframes flamepop { from { transform: scale(1.7); } to { transform: none; } }
+      @keyframes shock { from { opacity: 1; transform: scale(0.5); border-width: 6px; } to { opacity: 0; transform: scale(9); border-width: 1px; } }
+      @keyframes flash { from { opacity: 0.9; } to { opacity: 0; } }
+      @keyframes shake { 10%, 90% { transform: translate(-2px, 1px); } 20%, 80% { transform: translate(4px, -2px); } 30%, 50%, 70% { transform: translate(-7px, 3px); } 40%, 60% { transform: translate(7px, -3px); } }
+      @keyframes firebreath { from { opacity: 0.75; } to { opacity: 1; } }
       /* el cartel del final (ver src/endscreen.ts): el título entra de golpe, el puntaje cuenta, los
          números aparecen de a uno y al final el aviso del nivel desbloqueado. Al ganar, rayos y papelitos */
       #end { overflow: hidden; }
@@ -437,7 +556,7 @@
       </div>
       <button id="alt" type="button" class="link" hidden></button>
       <button id="mode" type="button" class="link" hidden></button>
-      <button id="diffbtn" type="button" class="link" hidden></button>
+      <button id="diffbtn" type="button" class="threat" hidden></button>
       <button id="invite" type="button" class="link" hidden data-en="Invite a friend: they play as Abe the wizard">Invitar a un amigo: juega de Abe, el mago</button>
       <div id="invitebox" hidden>
         <div class="row"><input type="text" readonly aria-label="Enlace para mirar" data-en-aria-label="Link to join" /><button type="button" class="copy" data-en="Copy">Copiar</button></div>
@@ -475,7 +594,7 @@
     </div>
     <div id="difficulty" hidden>
       <div class="box">
-        <h2 data-en="Difficulty">Dificultad</h2>
+        <h2><span class="heatslot"></span><span data-en="Difficulty">Dificultad</span></h2>
         <p class="summary"></p>
         <div class="list"></div>
         <p class="foot" data-en="Each point makes the game harder. Win with all your points in and you earn one more. Changes apply from the next game.">Cada punto hace la partida más difícil. Ganá con todos tus puntos puestos y sumás uno más. Lo que cambies vale desde la próxima partida.</p>
@@ -487,7 +606,7 @@
         <div class="bar" id="gatebar"><span data-en="Valdehoyo gate">Puerta de Valdehoyo</span><div class="track" style="--seg:10"><div id="gate" class="fill gate"></div></div></div>
         <div class="bar"><span data-en="You">Vos</span><div class="track" style="--seg:3"><div id="hp" class="fill hp"></div></div></div>
       </div>
-      <div id="wave"><div class="n"></div><div class="sub"></div><div id="run"></div></div>
+      <div id="wave"><div class="nrow"><div class="n"></div><span id="heat" hidden></span></div><div class="sub"></div><div id="run"></div></div>
       <div id="score"></div>
       <div id="pocket" hidden></div>
       <div id="watchers" hidden></div>
@@ -533,16 +652,18 @@
         </div>
       </div>
       <div id="end" hidden>
-        <canvas class="confetti"></canvas><div class="rays"></div>
+        <div class="rays"></div><div class="fire"></div><canvas class="confetti"></canvas>
         <div class="endcard">
           <h2></h2><p class="detail"></p>
           <div class="score"><span class="num">0</span><span class="unit" data-en="points">puntos</span></div>
           <div class="best"></div>
           <div class="stats"></div>
+          <div class="unlock" hidden><div class="slot"></div><div class="what"></div><div class="why"></div></div>
           <p class="earned" hidden></p>
           <p class="level"></p>
-          <div class="foot"><button id="enddiff" type="button" tabindex="-1" hidden data-en="Difficulty">Dificultad</button><p class="again" data-en="R to play again">R para jugar de nuevo</p></div>
+          <div class="foot"><button id="enddiff" type="button" class="threat" tabindex="-1" hidden></button><p class="again" data-en="R to play again">R para jugar de nuevo</p></div>
         </div>
+        <div class="flash"></div>
       </div>
     </div>
     <!-- el idioma, antes que los módulos: traduce lo de arriba (ver docs/localizacion.md) -->

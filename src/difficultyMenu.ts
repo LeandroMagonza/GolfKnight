@@ -4,11 +4,14 @@
 
 import { levelOf, MAX_POINTS, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
 import { L } from './i18n';
+import { flameHtml } from './threat';
 
 export class DifficultyMenu {
   private readonly el = document.getElementById('difficulty')!;
   private readonly list = this.el.querySelector('.list') as HTMLElement;
   private readonly summary = this.el.querySelector('.summary') as HTMLElement;
+  /** La llama del nivel, en el título: crece con cada punto que se pone. */
+  private readonly heat = this.el.querySelector('.heatslot') as HTMLElement;
   /** Se cambió algo desde que se armó la partida. */
   dirty = false;
   /** Avisa cada cambio (para refrescar los botones que dicen el nivel). */
@@ -60,6 +63,7 @@ export class DifficultyMenu {
     const n = used(p.picks);
     const free = p.points - n;
     this.el.classList.toggle('locked', this.locked);
+    this.heat.innerHTML = flameHtml(n, MAX_POINTS, this.locked);
     this.summary.textContent = this.locked
       ? L('🔒 En la versión completa: cada partida ganada te da un punto, y lo ponés en lo que querés que se ponga más difícil.',
         '🔒 In the full game: every win gives you a point to spend on whatever you want to get harder.')
