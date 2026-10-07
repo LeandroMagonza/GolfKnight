@@ -15,10 +15,14 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Y una versión **solo para ser Abe**, en https://leandromagonza.github.io/GolfKnight/abe/: para el amigo
   que no tiene el juego. Con el enlace del caballero entra directo; sin él, pide el código de la sala.
   `2cf7dd7`
-- En la demo los enemigos no traen escudo, esquiva, escudo divino ni intocable (salen blindaje, fantasma
-  y los que se curan), y el caballero no tiene los tiros fantasma ni silenciador. Todo eso, en la
-  completa. `d704132`
+- En la demo los enemigos traen escudo, esquiva, fantasma o intocable (tres de esos cuatro por partida),
+  y el caballero no tiene el tiro ni el guante fantasma. El blindaje, el escudo divino, los que se curan
+  y el fantasma del caballero, en la completa. `d704132` `7b94dc4`
 - El modo tenis ya no tiene botón en la pantalla de entrada: es un prototipo. `d704132`
+
+**Enemigos**
+- El blindaje que se come el golpe entero ahora para la pelota: el driver y el hierro ya no siguen de
+  largo detrás del acorazado. Si le sacan aunque sea 1, siguen como siempre. `4d6988e`
 
 **De a dos**
 - La ayuda de Abe ya no dice «marca, marca». `2cf7dd7`
