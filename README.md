@@ -481,8 +481,9 @@ directamente no se compila:
   herramientas de prueba (panel B, `__gk`, `?bot`, `?palos`).
 - **la demo** (`dist/demo/`, en `/GolfKnight/demo/`): sin los talentos de dificultad (se ven con
   candado), sin las herramientas de prueba, y sin algunos poderes: los enemigos traen solo escudo,
-  esquiva, fantasma e intocable (tres de esos cuatro por partida), y el caballero no tiene el elemento
-  fantasma (`DEMO_LOCKS` en `src/edition.ts`). Con Abe.
+  esquiva, fantasma e intocable (tres de esos cuatro por partida), y el caballero no tiene los tiros
+  fantasma ni de viento, los guantes, ni las mejoras de racha y de matar a dos juntos (`DEMO_LOCKS` en
+  `src/edition.ts`). Con Abe.
 - **la de Abe** (`dist/abe/`, en `/GolfKnight/abe/`): solo para ser Abe en la partida de otro. Sin
   enlace pide el código de la sala; no puede arrancar una partida.
 

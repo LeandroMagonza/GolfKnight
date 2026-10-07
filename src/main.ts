@@ -662,12 +662,10 @@ function endInfo(result: 'victory' | 'defeat', title: string, detail: string, le
 /** Lo que trae la completa, en el cartel del final de la demo (ver DEMO_LOCKS en src/edition.ts). */
 function demoTeaser(): string {
   const n = DEMO_LOCKS.powers.length;
-  const elements = DEMO_LOCKS.elements.map((e) => ELEMENT_INFO[e].name.toLowerCase());
-  const list = (and: string) => elements.length > 1 ? `${elements.slice(0, -1).join(', ')} ${and} ${elements[elements.length - 1]}` : elements.join('');
-  const one = elements.length === 1;
+  const cards = LOCKED_CARDS.size;
   return L(
-    `En la versión completa, cada partida ganada desbloquea un nivel de dificultad, y vienen ${n} poderes de enemigos más y ${one ? 'el elemento' : 'los elementos'} ${list('y')}`,
-    `In the full game, every win unlocks a difficulty level, and there are ${n} more enemy powers and the ${list('and')} element${one ? '' : 's'}`,
+    `En la versión completa, cada partida ganada desbloquea un nivel de dificultad, y vienen ${n} poderes de enemigos más y ${cards} cartas más para el caballero`,
+    `In the full game, every win unlocks a difficulty level, and there are ${n} more enemy powers and ${cards} more cards for the knight`,
   );
 }
 
@@ -1130,8 +1128,11 @@ let glove: { element: Element; level: number; left: number } | null = null;
 /** Nivel del palazo que se está dando: lo pone la habilidad al salir, lo usa el golpe al conectar. */
 let meleeLevel = 1;
 
-/** La demo no trae los tiros ni el guante de algunos elementos (ver DEMO_LOCKS en src/edition.ts). */
-const LOCKED_CARDS: ReadonlySet<AbilityId> = new Set(DEMO ? ABILITY_LIST.filter((id) => DEMO_LOCKS.elements.includes(ABILITIES[id].element as Element)) : []);
+/** Las cartas que la demo no trae: tiros de algunos elementos, los guantes y algunas mejoras (DEMO_LOCKS). */
+const LOCKED_CARDS: ReadonlySet<string> = new Set(DEMO ? [
+  ...ABILITY_LIST.filter((id) => (DEMO_LOCKS.gloves && ABILITIES[id].kind === 'glove') || DEMO_LOCKS.elements.includes(ABILITIES[id].element as Element)),
+  ...DEMO_LOCKS.perks,
+] : []);
 
 function build(): Build {
   return { slots: abilities.slots, perks, hp: player.hp, hpMax: player.maxHp, gate: gateHp, gateMax: GATE_MAX, locked: LOCKED_CARDS };

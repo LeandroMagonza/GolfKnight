@@ -9,6 +9,7 @@
 //   puede arrancar una partida: la parte del caballero (oleadas, cartas, tutorial) no se compila.
 
 import type { Element } from './core/abilities';
+import type { PerkId } from './core/cards';
 import type { ScenarioPower } from './core/waves';
 
 export type Edition = 'full' | 'demo' | 'abe';
@@ -29,13 +30,19 @@ export const DEV_TOOLS = __DEV_TOOLS__;
  *   cada par de los que se parecen (Leandro: el divino y la esquiva; el blindaje y el fantasma, que
  *   también comparten con el escudo; el que se cura y el intocable, los dos con su reloj). Cada partida
  *   sortea tres de esos cuatro. Tienen que quedar por lo menos tres (uno por escenario).
- * - `elements`: los tiros y el guante de esos elementos, en las cartas del caballero. El fantasma pasa
- *   todo (escudos, esquivas, etéreos). El silencio queda: está bueno que lo conozcan.
+ * - `elements`: los tiros de esos elementos, en las cartas del caballero. El fantasma pasa todo
+ *   (escudos, esquivas, etéreos); el viento hoy casi no sirve, y la primera impresión no tendría que ser
+ *   una carta floja. El silencio queda: está bueno que lo conozcan.
+ * - `gloves`: los guantes, todos. Son una segunda versión de los elementos: en la demo alcanza con los
+ *   tiros. En la completa siguen.
+ * - `perks`: las mejoras de racha y las de matar a dos juntos, que son para jugadores avanzados.
  *
  * La idea (Leandro): la demo se gana en el nivel 0 sin demasiado desafío, en menos de las dos horas que da
  * Steam para devolver el juego; el que quiere más, sube la dificultad, y eso es la completa.
  */
-export const DEMO_LOCKS: { powers: ScenarioPower[]; elements: Element[] } = {
+export const DEMO_LOCKS: { powers: ScenarioPower[]; elements: Element[]; gloves: boolean; perks: PerkId[] } = {
   powers: ['armor', 'divine', 'regen'],
-  elements: ['ghost'],
+  elements: ['ghost', 'wind'],
+  gloves: true,
+  perks: ['rhythm', 'hotStreak', 'masonStreak', 'smithStreak', 'giftPerfect'],
 };

@@ -2597,3 +2597,31 @@ mitad dificultad y mitad poder. Con el punto puesto:
   desde el 3.
 - **Las habilidades no tienen golpe 4**: salen como mucho con el 3, así no se multiplica todo.
 - En el tenis no hay.
+
+## Propuesta: el elemento compartido (7/10/2026, sin hacer)
+
+Idea de Leandro, a partir de que el putter de fuego es flojo (de cerca no les da tiempo a quemarse, y el
+tiro de fuego no pega, así que pierde lo que el putter tiene de bueno). El efecto de un elemento deja de
+salir del nivel de **esa** carta y sale del **total del elemento**: la suma de los niveles de todo lo que
+tenés de ese elemento (tiros y guante). Cada carta que sumás o subís le sube el efecto a todas.
+
+Hoy el fuego no se apila: volver a prender a uno le alarga el fuego al más largo, no le suma otro. Un
+mordisco de 1 cada 2 s, así que contra uno solo (el jefe) el fuego son 0.5 de daño por segundo, se
+tenga lo que se tenga: el total alarga el fuego y lo reparte, no sube lo que le saca a uno por segundo.
+
+Números propuestos, con tope. La columna 3 es lo de hoy con una sola carta en nivel 3: nada queda peor.
+
+| Total del elemento | 1 | 2 | 3 | 4 | 5 o más |
+|---|---|---|---|---|---|
+| Fuego: mordiscos de 1 | 2 | 3 | 4 | 5 | 6 |
+| Hielo: segundos de frío (congela desde 3) | 5 | 6.5 | 8 | 9 | 10 |
+| Rayo: saltos por lado (ya está fuerte: sin subir) | 2 | 3 | 4 | 4 | 4 |
+| Silencio: segundos | 5 | 6.5 | 8 | 9 | 10 |
+| Viento: metros (los de cada palo) | como hoy | | | +10 % | +20 % |
+
+El fantasma queda por carta: es un golpe, no un efecto. Subir de nivel una carta, además de sumar 1 al
+total, sigue agrandando su área y su golpe; sumar otra carta del mismo elemento ocupa un lugar. Con
+cuatro lugares, el máximo de fuego es 12 (todo fuego): con el tope, 6 mordiscos para todos.
+
+**Después: maestrías mixtas** (idea de Leandro). Con una carta de cada uno, por ejemplo hielo y fuego: tus
+tiros de fuego también enfrían y los de hielo también queman, cada uno con el total de su elemento.

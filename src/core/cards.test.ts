@@ -39,6 +39,10 @@ describe('cartas', () => {
       for (const c of drawCards(fresh({ locked }), 3, seeded(seed))) expect(c.kind === 'ability' && locked.has(c.id)).toBe(false);
     }
     expect(candidates(fresh({ locked })).some((c) => c.card.kind === 'ability' && locked.has(c.card.id))).toBe(false);
+    // las mejoras también
+    const perks = new Set<string>(['rhythm', 'hotStreak']);
+    expect(candidates(fresh({ locked: perks })).some((c) => c.card.kind === 'perk' && perks.has(c.card.id))).toBe(false);
+    expect(candidates(fresh()).some((c) => c.card.kind === 'perk' && c.card.id === 'rhythm')).toBe(true);
   });
 
   it('una habilidad en el nivel máximo ya no sale', () => {

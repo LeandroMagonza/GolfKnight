@@ -117,8 +117,8 @@ export interface Build {
   hpMax: number;
   gate: number;
   gateMax: number;
-  /** Las habilidades que no salen en las cartas (la demo: ver src/edition.ts). */
-  locked?: ReadonlySet<AbilityId>;
+  /** Las habilidades y mejoras (por id) que no salen en las cartas (la demo: ver src/edition.ts). */
+  locked?: ReadonlySet<string>;
 }
 
 /** Cuántas habilidades de cada elemento hay en la mano: es lo que abre las maestrías. */
@@ -141,6 +141,7 @@ export function candidates(build: Build): { card: Card; weight: number }[] {
     }
   }
   for (const id of PERK_LIST) {
+    if (build.locked?.has(id)) continue;
     const p = PERKS[id];
     const have = build.perks[id] ?? 0;
     if (have >= p.max) continue;
