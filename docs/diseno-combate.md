@@ -2598,7 +2598,7 @@ mitad dificultad y mitad poder. Con el punto puesto:
 - **Las habilidades no tienen golpe 4**: salen como mucho con el 3, así no se multiplica todo.
 - En el tenis no hay.
 
-## Propuesta: el elemento compartido (7/10/2026, sin hacer)
+## Hecho: el elemento compartido y las maestrías mixtas (7/10/2026)
 
 Idea de Leandro, a partir de que el putter de fuego es flojo (de cerca no les da tiempo a quemarse, y el
 tiro de fuego no pega, así que pierde lo que el putter tiene de bueno). El efecto de un elemento deja de
@@ -2623,5 +2623,17 @@ El fantasma queda por carta: es un golpe, no un efecto. Subir de nivel una carta
 total, sigue agrandando su área y su golpe; sumar otra carta del mismo elemento ocupa un lugar. Con
 cuatro lugares, el máximo de fuego es 12 (todo fuego): con el tope, 6 mordiscos para todos.
 
-**Después: maestrías mixtas** (idea de Leandro). Con una carta de cada uno, por ejemplo hielo y fuego: tus
-tiros de fuego también enfrían y los de hielo también queman, cada uno con el total de su elemento.
+Hecho con esos números (`ELEMENTS` en `core/abilities.ts`, `elementTotal`, `elementNote`). El hielo
+congela con el total en 3 **o** con la carta en su nivel de congelar (si no, el wedge de hielo solo, que
+llega a 2, dejaba de congelar). Las cartas de un elemento dicen cuánto le suben a todo («Todo tu fuego:
+3 → 4 de daño»), también las nuevas. La maestría del fuego sigue contagiando 3 de daño, sin el total.
+
+**Maestrías mixtas** (Leandro pidió las tres): *Escarcha ardiente* (hielo y fuego), *Tormenta helada*
+(hielo y rayo) y *Tormenta de fuego* (fuego y rayo). Salen con una carta de cada elemento; los tiros de
+cada uno ponen también el otro, con el total de ese (`mixPartners` en `core/cards.ts`). **Solo la
+pelota**: el rayo que salta no prende ni enfría a nadie («ahí sí nos vamos al carajo»). En la demo no
+salen: son para avanzados.
+
+Probado con `logs/check-elemento.mjs`: con una carta de fuego quema 4 s y con dos 6; el fuego con
+Tormenta de fuego prende al tocado y le larga un rayo, y el de al lado recibe el rayo sin prenderse; el
+rayo con Tormenta helada enfría solo al tocado.

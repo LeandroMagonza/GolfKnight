@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES, ABILITY_LIST, cooldownAt, MAX_LEVEL, maxLevelOf, SLOTS, upgradeNote } from './abilities';
-import { candidates, cooldownNote, describe as describeCard, drawCards, needsHeal, PERK_NUMBERS, PERKS, type Build } from './cards';
+import { candidates, cooldownNote, describe as describeCard, drawCards, mixPartners, needsHeal, PERK_NUMBERS, PERKS, type Build } from './cards';
 
 const fresh = (over: Partial<Build> = {}): Build => ({ slots: [], perks: {}, hp: 3, hpMax: 3, gate: 10, gateMax: 10, ...over });
 
@@ -30,6 +30,16 @@ describe('cartas', () => {
       expect(slots.map((s) => s.id)).toContain(card.id);
       expect(card.level).toBe(2);
     }
+  });
+
+  it('las maestrías mixtas salen con una habilidad de cada elemento, y ponen el otro', () => {
+    const has = (b: Build, id: string) => candidates(b).some((c) => c.card.kind === 'perk' && c.card.id === id);
+    expect(has(fresh({ slots: [{ id: 'driver-fire', level: 1 }] }), 'mixIceFire')).toBe(false);
+    expect(has(fresh({ slots: [{ id: 'driver-fire', level: 1 }, { id: 'glove-ice', level: 1 }] }), 'mixIceFire')).toBe(true);
+    expect(has(fresh({ slots: [{ id: 'driver-fire', level: 1 }, { id: 'glove-ice', level: 1 }] }), 'mixFireLightning')).toBe(false);
+    expect(mixPartners({ mixIceFire: 1, mixFireLightning: 1 }, 'fire').sort()).toEqual(['ice', 'lightning']);
+    expect(mixPartners({ mixIceFire: 1 }, 'lightning')).toEqual([]);
+    expect(mixPartners({}, 'ice')).toEqual([]);
   });
 
   it('las bloqueadas (la demo) no salen nunca', () => {
@@ -92,10 +102,14 @@ describe('cartas', () => {
   it('la carta de subir de nivel dice qué mejora; la que no mejora nada no sale', () => {
     for (const id of ABILITY_LIST) {
       expect(describeCard({ kind: 'ability', id, level: 1 }).up, id).toBeUndefined();
-      for (let level = 2; level <= maxLevelOf(id); level++) expect(describeCard({ kind: 'ability', id, level }).up, `${id} ${level}`).toBeTruthy();
+      // con la mano de antes, que es la que dice cuánto sube el elemento entero
+      for (let level = 2; level <= maxLevelOf(id); level++) expect(describeCard({ kind: 'ability', id, level }, fresh({ slots: [{ id, level: level - 1 }] })).up, `${id} ${level}`).toBeTruthy();
     }
     // el wedge saltea la pifia: su nivel 1 sale con el golpe 2, así que el área es la del 2 y la del 3
-    expect(upgradeNote('wedge-lightning', 2)).toBe('Saltos por lado: 2 → 3 · Área: 4.2 → 5 m');
+    expect(upgradeNote('wedge-lightning', 2)).toBe('Área: 4.2 → 5 m');
+    expect(describeCard({ kind: 'ability', id: 'wedge-lightning', level: 2 }, fresh({ slots: [{ id: 'wedge-lightning', level: 1 }] })).up).toBe('Área: 4.2 → 5 m · Todo tu rayo, saltos por lado: 2 → 3');
+    // una carta nueva de un elemento que ya tenés también le sube a todo
+    expect(describeCard({ kind: 'ability', id: 'putter-fire', level: 1 }, fresh({ slots: [{ id: 'driver-fire', level: 2 }] })).up).toBe('Todo tu fuego: 3 → 4 de daño');
     expect(upgradeNote('wedge-ice', 2)).toContain('Congela');
     expect(upgradeNote('driver-ghost', 2)).toBe('Golpe: 1 → 2');
     expect(upgradeNote('iron-ice', 3)).toContain('Congela');

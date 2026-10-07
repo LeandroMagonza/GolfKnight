@@ -5,8 +5,8 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
-import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
+import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SCENARIO_POWERS, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower } from './core/waves';
 import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
@@ -1150,7 +1150,8 @@ function offerChoice(): boolean {
   choice = cards;
   cardOpen = true;
   player.cancelSwing();
-  hud.showChoice(cards.map(describe), director.nextTitle);
+  const b = build();
+  hud.showChoice(cards.map((c) => describe(c, b)), director.nextTitle);
   return true;
 }
 
@@ -1461,6 +1462,10 @@ if (!ABE_ONLY) abilities.hooks = {
 
 /** La fuerza: lo mínimo que pega una pelota de este palo que sale ahora (0 = sin fuerza). */
 balls.minDamage = (club) => (mightLeft > 0 ? (club === 'putter' ? MIGHT.putter : MIGHT.floor) : 0);
+/** El elemento compartido: el efecto sale del total de lo que tenés de ese elemento (ver core/abilities). */
+balls.elementTotal = (element) => elementTotal(abilities.slots, element);
+/** Las maestrías mixtas que tenés. */
+balls.partners = (element) => mixPartners(perks, element);
 
 /**
  * Espacio: clava el daño donde esté la barra. La barra se queda quieta en ese nivel (el alcance sigue

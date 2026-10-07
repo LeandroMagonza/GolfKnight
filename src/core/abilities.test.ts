@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementOf, ELEMENTS, freezeFrom, GLOVE_ELEMENTS, hintAt, lv, MAX_LEVEL, MIGHT, shotQuality, SLOTS, upgradeNote } from './abilities';
+import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, chilledSpeed, configOf, cooldownAt, effectOnly, elementNote, elementOf, elementTotal, ELEMENTS, freezeFrom, GLOVE_ELEMENTS, hintAt, lv, MAX_LEVEL, MIGHT, shotQuality, SLOTS, upgradeNote } from './abilities';
 import { CLUBS } from './clubs';
 
 describe('habilidades', () => {
@@ -43,12 +43,32 @@ describe('habilidades', () => {
     for (const [name, table] of Object.entries(ABILITY_CONFIG)) {
       for (const [key, value] of Object.entries(table)) {
         if (!Array.isArray(value)) continue;
-        expect(value, `${name}.${key}`).toHaveLength(MAX_LEVEL);
+        // los de los elementos van por el total del elemento (7/10), que pasa de 3: tienen más
+        if (name === 'elementos') expect(value.length, `${name}.${key}`).toBeGreaterThanOrEqual(MAX_LEVEL);
+        else expect(value, `${name}.${key}`).toHaveLength(MAX_LEVEL);
         for (let i = 1; i < value.length; i++) expect(value[i], `${name}.${key}`).toBeGreaterThanOrEqual(value[i - 1]);
       }
     }
     expect(lv([1, 2, 3], 0)).toBe(1);
     expect(lv([1, 2, 3], 9)).toBe(3);
+  });
+
+  it('el elemento compartido: el efecto va por la suma de los niveles de todo lo de ese elemento', () => {
+    const slots = [{ id: 'driver-fire', level: 2 }, { id: 'putter-fire', level: 1 }, { id: 'glove-fire', level: 1 }, { id: 'iron-ice', level: 3 }, { id: 'cart', level: 2 }];
+    expect(elementTotal(slots, 'fire')).toBe(4);
+    expect(elementTotal(slots, 'ice')).toBe(3);
+    expect(elementTotal(slots, 'lightning')).toBe(0);
+    // la columna 3 es lo que daba una carta sola en nivel 3: nada quedó peor
+    expect(lv(ELEMENTS.burnTicks, 3)).toBe(4);
+    expect(lv(ELEMENTS.burnTicks, 12)).toBe(6);
+    expect(lv(ELEMENTS.chainJumps, 9)).toBe(4);
+    expect(elementNote('fire', 2, 3)).toBe('Todo tu fuego: 3 → 4 de daño');
+    expect(elementNote('ice', 2, 3)).toBe('Todo tu hielo: 6.5 → 8 s, y congela');
+    expect(elementNote('wind', 1, 2, 'iron')).toBe('Todo tu viento: 6 → 8 m');
+    // la primera de un elemento lo dice la carta; el tope no cambia nada; el fantasma va por la carta
+    expect(elementNote('fire', 0, 1)).toBeNull();
+    expect(elementNote('lightning', 3, 4)).toBeNull();
+    expect(elementNote('ghost', 1, 2)).toBeNull();
   });
 
   it('el hielo y los tiros de hielo cuentan como hielo para la maestría', () => {
@@ -79,7 +99,8 @@ describe('habilidades', () => {
     expect(hintAt(ABILITIES['glove-ice'], 1)).not.toContain('congelan');
     expect(hintAt(ABILITIES['glove-ice'], ELEMENTS.iceFreezeFrom)).toContain('enfrían y congelan');
     expect(upgradeNote('glove-fire', 2)).toContain('Dura: 5 → 6 s');
-    expect(upgradeNote('glove-fire', 2)).toContain('Daño del fuego');
+    // el fuego del guante va por el total del fuego (ver elementNote): la carta dice lo que dura
+    expect(upgradeNote('glove-fire', 2)).toBe('Dura: 5 → 6 s');
     expect(upgradeNote('might', 3)).toBe('Dura: 6 → 7 s');
   });
 

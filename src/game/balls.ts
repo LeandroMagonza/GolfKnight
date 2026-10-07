@@ -165,6 +165,10 @@ export class Balls {
   playerAt: () => { x: number; z: number } | null = () => null;
   /** La fuerza: lo mínimo que pega una pelota de este palo que sale ahora. 0 = sin fuerza. */
   minDamage: (club: ClubId) => number = () => 0;
+  /** El total de un elemento: decide su efecto (el elemento compartido, ver core/abilities). */
+  elementTotal: (element: Element) => number = () => 0;
+  /** Las maestrías mixtas: qué otros elementos pone también un tiro de este (ver mixPartners en core/cards). */
+  partners: (element: Element) => Element[] = () => [];
 
   constructor(private readonly scene: THREE.Scene, private readonly horde: Horde, private readonly effects: Effects) {}
 
@@ -354,15 +358,30 @@ export class Balls {
     // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst). El
     // fantasma no deja nada: lo suyo es el golpe mismo (ver Horde.damage)
     if (!ball.element || ball.element === 'wind' || ball.element === 'ghost') return;
-    if (ball.element === 'ice') {
-      this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, ball.level));
-      // el nivel del guante es el suyo, no el del tiro de habilidad de ese palo (el wedge llega a 2)
-      if (ball.level >= (ball.gloved ? ELEMENTS.iceFreezeFrom : freezeFrom(ball.club.id))) this.horde.freeze(enemy);
-    } else if (ball.element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, ball.level)));
+    // el nivel del guante es el suyo, no el del tiro de habilidad de ese palo (el wedge llega a 2)
+    const cardFreezes = ball.level >= (ball.gloved ? ELEMENTS.iceFreezeFrom : freezeFrom(ball.club.id));
+    this.applyEffect(ball.element, this.totalOf(ball.element, ball.level), enemy, cardFreezes);
+    // las maestrías mixtas: la pelota pone también el otro elemento, con todo lo que tenés de ese. Solo la
+    // pelota: el rayo que salta (Horde.chain) no prende ni enfría a nadie
+    for (const other of this.partners(ball.element)) this.applyEffect(other, this.totalOf(other, 1), enemy, false);
+  }
+
+  /** Con qué total sale el efecto: el del elemento, y nunca menos que la carta que tiró esta pelota. */
+  private totalOf(element: Element, least: number): number {
+    return Math.max(least, this.elementTotal(element));
+  }
+
+  /** El efecto de un elemento en uno que tocó, con el total de ese elemento. */
+  private applyEffect(element: Element, total: number, enemy: Enemy, cardFreezes: boolean): void {
+    if (element === 'ice') {
+      this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, total));
+      // congela con todo tu hielo desde `iceFreezeFrom`, o con la carta en su nivel de congelar
+      if (cardFreezes || total >= ELEMENTS.iceFreezeFrom) this.horde.freeze(enemy);
+    } else if (element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, total)));
     // a cada uno que toca le cae un rayo, y de ahí sale el suyo
-    else if (ball.element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, ball.level), true);
+    else if (element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, total), true);
     // lo deja apagado para lo que venga
-    else if (ball.element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, ball.level));
+    else if (element === 'silence') this.horde.silence(enemy, lv(ELEMENTS.silenceSeconds, total));
   }
 
   /**
@@ -370,7 +389,7 @@ export class Balls {
    * ráfaga que los manda para atrás, hacia donde iba el tiro.
    */
   private windBurst(ball: Ball, pos: THREE.Vector3): void {
-    const level = ball.level;
+    const level = this.totalOf('wind', ball.level);
     if (ball.club.id === 'wedge') {
       const radius = lv(ELEMENTS.windPull, level);
       this.horde.whirl(pos, radius);
@@ -389,7 +408,7 @@ export class Balls {
     const s = ball.state;
     const gone = (s.pos.x - ball.from.x) * ball.dir.x + (s.pos.z - ball.from.z) * ball.dir.z;
     if (gone <= ball.windSwept) return;
-    const half = lv(ELEMENTS.windLine, ball.level);
+    const half = lv(ELEMENTS.windLine, this.totalOf('wind', ball.level));
     const mid = ball.from.clone().addScaledVector(ball.dir, (ball.windSwept + gone) / 2);
     mid.y = heightAt(mid.x, mid.z);
     this.horde.sweep(mid, ball.dir, half, (gone - ball.windSwept) / 2, ball.windCaught);

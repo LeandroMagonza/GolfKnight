@@ -142,7 +142,14 @@ hierro y el wedge con viento. Es una pelota de ese palo, instantánea y gratis, 
 (el driver atraviesa una fila, el wedge cae a plomo y abre un área). **El palo pega y la habilidad pone
 el efecto**: salvo el fantasma, **no pegan ni empujan**, solo dejan el efecto, y el efecto sale solo si
 la pelota **toca** (si el escudo la para, la burbuja divina se la come o el aura de invencible lo
-protege, no hace nada). Lo que hace cada una, por nivel:
+protege, no hace nada).
+
+**El elemento compartido** (7/10): el efecto no va por el nivel de la carta sino por el **total del
+elemento**, la suma de los niveles de todo lo que tenés de ese elemento (tiros y guante). Cada carta que
+sumás o subís le sube el efecto a todas, y la carta lo dice («Todo tu fuego: 3 → 4 de daño»). Los
+números de abajo son los del total 1, 2 y 3; siguen un poco más hasta el tope (fuego hasta 6, hielo y
+silencio hasta 10 s, viento un 20 % más), salvo el rayo, que no pasa de 4 saltos. El hielo congela con
+el total en 3, o con la carta en su nivel de congelar. Lo que hace cada una:
 - *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela (al élite y al jefe no: solo los frena), y el golpe que rompe el hielo pega 1 más, también al fantasma. El frío lleva a cada uno al 40 % de su velocidad pero no por debajo de 1 m/s, y a todos los frena por lo menos un 20 %: mucho a los rápidos, poco a los lentos.
 - *Fuego*: lo prende; pierde 1 de vida cada 2 s, el primero también a los 2 s (desde el 5/10): 2 en total (3 y 4), y el blindaje no le resta. Volver a prenderlo no suma: le alarga el fuego.
 - *Rayo*: **a cada uno que toca le cae un rayo**, y de ahí sale para los dos lados: en cada rama salta
@@ -201,8 +208,17 @@ corta ninguna racha.
 **Maestrías**, que solo salen con dos habilidades del mismo elemento:
 - *Hielo*: un segundo hielo sobre el que ya está frío lo **congela**, y el golpe que rompe el hielo pega
   1 más.
-- *Fuego*: el que muere prendido contagia a los de al lado.
+- *Fuego*: el que muere prendido contagia a los de al lado (a 2.5 m, 3 de daño).
 - *Rayo*: salta una vez más, y cada salto pega el doble.
+
+**Maestrías mixtas** (7/10), que salen con una habilidad de cada elemento: los tiros de cada uno ponen
+también el otro, con el total de ese elemento. **Solo la pelota**: el rayo que salta no prende ni enfría a
+nadie.
+- *Escarcha ardiente* (hielo y fuego): los de fuego también enfrían, y los de hielo también queman.
+- *Tormenta helada* (hielo y rayo): los de hielo también largan un rayo, y los de rayo también enfrían
+  al que tocan.
+- *Tormenta de fuego* (fuego y rayo): los de fuego también largan un rayo, y los de rayo también prenden
+  al que tocan.
 
 **Enemigos nuevos**: el *goblin acorazado* (1 de vida, pero le resta 1 a cada golpe: el driver de cerca
 no le hace nada) y el *esqueleto bendito* (el primer golpe no le entra, y el escudo se le recarga a los
@@ -482,8 +498,8 @@ directamente no se compila:
 - **la demo** (`dist/demo/`, en `/GolfKnight/demo/`): sin los talentos de dificultad (se ven con
   candado), sin las herramientas de prueba, y sin algunos poderes: los enemigos traen solo escudo,
   esquiva, fantasma e intocable (tres de esos cuatro por partida), y el caballero no tiene los tiros
-  fantasma ni de viento, los guantes, ni las mejoras de racha y de matar a dos juntos (`DEMO_LOCKS` en
-  `src/edition.ts`). Con Abe.
+  fantasma ni de viento, los guantes, ni las mejoras de racha, de matar a dos juntos y las maestrías
+  mixtas (`DEMO_LOCKS` en `src/edition.ts`). Con Abe.
 - **la de Abe** (`dist/abe/`, en `/GolfKnight/abe/`): solo para ser Abe en la partida de otro. Sin
   enlace pide el código de la sala; no puede arrancar una partida.
 

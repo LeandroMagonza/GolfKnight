@@ -35,7 +35,8 @@ export const DEV_TOOLS = __DEV_TOOLS__;
  *   una carta floja. El silencio queda: está bueno que lo conozcan.
  * - `gloves`: los guantes, todos. Son una segunda versión de los elementos: en la demo alcanza con los
  *   tiros. En la completa siguen.
- * - `perks`: las mejoras de racha y las de matar a dos juntos, que son para jugadores avanzados.
+ * - `perks`: las mejoras de racha y las de matar a dos juntos, y las maestrías mixtas: son para
+ *   jugadores avanzados.
  *
  * La idea (Leandro): la demo se gana en el nivel 0 sin demasiado desafío, en menos de las dos horas que da
  * Steam para devolver el juego; el que quiere más, sube la dificultad, y eso es la completa.
@@ -44,5 +45,5 @@ export const DEMO_LOCKS: { powers: ScenarioPower[]; elements: Element[]; gloves:
   powers: ['armor', 'divine', 'regen'],
   elements: ['ghost', 'wind'],
   gloves: true,
-  perks: ['rhythm', 'hotStreak', 'masonStreak', 'smithStreak', 'giftPerfect'],
+  perks: ['rhythm', 'hotStreak', 'masonStreak', 'smithStreak', 'giftPerfect', 'mixIceFire', 'mixIceLightning', 'mixFireLightning'],
 };

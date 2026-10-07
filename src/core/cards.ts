@@ -9,11 +9,11 @@
 //
 // Todo acá es lógica pura, sin Three.js, para poder probar el sorteo.
 import { L } from '../i18n';
-import { ABILITIES, ABILITY_LIST, cooldownAt, elementOf, ELEMENT_INFO, hintAt, maxLevelOf, SLOTS, upgradeNote, type AbilityId, type Element } from './abilities';
+import { ABILITIES, ABILITY_LIST, cooldownAt, elementNote, elementOf, elementTotal, ELEMENT_INFO, hintAt, maxLevelOf, SLOTS, upgradeNote, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
   | 'quickWrist' | 'sweetSpot' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'smithStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
-  | 'masteryIce' | 'masteryFire' | 'masteryLightning';
+  | 'masteryIce' | 'masteryFire' | 'masteryLightning' | 'mixIceFire' | 'mixIceLightning' | 'mixFireLightning';
 
 export interface Perk {
   id: PerkId;
@@ -25,6 +25,11 @@ export interface Perk {
   color: number;
   /** Las maestrías: solo salen si tenés al menos dos habilidades de ese elemento. */
   needs?: Element;
+  /**
+   * Las maestrías mixtas (7/10, idea de Leandro): salen si tenés al menos una habilidad de cada uno. Los
+   * tiros de cada elemento ponen también el otro, con todo lo que tenés de ese (ver `mixPartners`).
+   */
+  pair?: [Element, Element];
 }
 
 /** Los números de las mejoras. Se tocan en el panel de balance. */
@@ -97,7 +102,24 @@ export const PERKS: Record<PerkId, Perk> = {
   masteryIce: { id: 'masteryIce', name: L('Maestría del hielo', 'Ice Mastery'), title: L('congela', 'freezes'), max: 1, color: ELEMENT_INFO.ice.color, needs: 'ice', hint: L('El hielo congela a los que ya estaban fríos. Romper el hielo pega 1 más, también al fantasma', 'Ice freezes the already chilled. Breaking the ice hits for 1 more, ghosts too') },
   masteryFire: { id: 'masteryFire', name: L('Maestría del fuego', 'Fire Mastery'), title: L('contagia', 'spreads'), max: 1, color: ELEMENT_INFO.fire.color, needs: 'fire', hint: L('El que muere prendido fuego contagia a los de al lado', 'Enemies that die burning set their neighbors on fire') },
   masteryLightning: { id: 'masteryLightning', name: L('Maestría del rayo', 'Lightning Mastery'), title: L('salta más', 'jumps more'), max: 1, color: ELEMENT_INFO.lightning.color, needs: 'lightning', hint: L('El rayo salta una vez más y pega el doble', 'Lightning jumps once more and hits twice as hard') },
+  // las mixtas: con el rayo, solo la pelota pone el otro elemento; el rayo que salta no prende ni enfría
+  // a nadie (Leandro: «ahí sí nos vamos al carajo»)
+  mixIceFire: { id: 'mixIceFire', name: L('Escarcha ardiente', 'Burning Frost'), title: L('hielo y fuego', 'ice and fire'), max: 1, color: 0xd19be0, pair: ['ice', 'fire'], hint: L('Tus tiros de fuego también enfrían, y los de hielo también queman', 'Your fire shots also chill, and your ice shots also burn') },
+  mixIceLightning: { id: 'mixIceLightning', name: L('Tormenta helada', 'Frost Storm'), title: L('hielo y rayo', 'ice and lightning'), max: 1, color: 0xa9d4ff, pair: ['ice', 'lightning'], hint: L('Tus tiros de hielo también largan un rayo, y los de rayo también enfrían al que tocan', 'Your ice shots also call down lightning, and your lightning shots also chill whoever they touch') },
+  mixFireLightning: { id: 'mixFireLightning', name: L('Tormenta de fuego', 'Firestorm'), title: L('fuego y rayo', 'fire and lightning'), max: 1, color: 0xffa070, pair: ['fire', 'lightning'], hint: L('Tus tiros de fuego también largan un rayo, y los de rayo también prenden fuego al que tocan', 'Your fire shots also call down lightning, and your lightning shots also set whoever they touch on fire') },
 };
+
+/** Los elementos que pone también un tiro de `element`, por las maestrías mixtas que tenés. */
+export function mixPartners(perks: Partial<Record<PerkId, number>>, element: Element): Element[] {
+  const out: Element[] = [];
+  for (const id of PERK_LIST) {
+    const pair = PERKS[id].pair;
+    if (!pair || !perks[id]) continue;
+    if (pair[0] === element) out.push(pair[1]);
+    else if (pair[1] === element) out.push(pair[0]);
+  }
+  return out;
+}
 export const PERK_LIST = Object.keys(PERKS) as PerkId[];
 
 /** Cuánto cura cada carta de curarse. */
@@ -146,8 +168,9 @@ export function candidates(build: Build): { card: Card; weight: number }[] {
     const have = build.perks[id] ?? 0;
     if (have >= p.max) continue;
     if (p.needs && elementCount(build, p.needs) < 2) continue;
+    if (p.pair && p.pair.some((e) => elementCount(build, e) < 1)) continue;
     // la maestría aparece poco y cuando aparece se nota: pesa más que una mejora común
-    out.push({ card: { kind: 'perk', id, level: have + 1 }, weight: p.needs ? 4 : 2 });
+    out.push({ card: { kind: 'perk', id, level: have + 1 }, weight: p.needs || p.pair ? 4 : 2 });
   }
   return out;
 }
@@ -207,13 +230,19 @@ export function perkCooldown(id: PerkId): number | null {
  * Nombre, título, texto y color de una carta, para mostrarla. Las de habilidad, y las mejoras que
  * recargan, dicen también su recarga.
  */
-export function describe(card: Card): { name: string; title: string; hint: string; color: number; tag: string; up?: string; cool?: { text: string; slower: boolean } } {
+/**
+ * Lo que dice la carta. Con `build`, la de un elemento dice también cuánto le sube a todo ese elemento
+ * (el elemento compartido, ver core/abilities).
+ */
+export function describe(card: Card, build?: Build): { name: string; title: string; hint: string; color: number; tag: string; up?: string; cool?: { text: string; slower: boolean } } {
   if (card.kind === 'ability') {
     const a = ABILITIES[card.id];
+    const total = build && a.element ? elementTotal(build.slots, a.element) : 0;
+    const up = [upgradeNote(card.id, card.level), a.element ? elementNote(a.element, total, total + 1, a.club) : null].filter((x): x is string => !!x);
     return {
       name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color,
       tag: card.level > 1 ? L(`HABILIDAD · NIVEL ${card.level}`, `ABILITY · LEVEL ${card.level}`) : L('HABILIDAD NUEVA', 'NEW ABILITY'),
-      up: upgradeNote(card.id, card.level) ?? undefined, cool: cooldownNote(card.id, card.level) ?? undefined,
+      up: up.length ? up.join(' · ') : undefined, cool: cooldownNote(card.id, card.level) ?? undefined,
     };
   }
   if (card.kind === 'perk') {
@@ -221,7 +250,7 @@ export function describe(card: Card): { name: string; title: string; hint: strin
     const cooldown = perkCooldown(card.id);
     return {
       name: p.name, title: p.title, hint: p.hint, color: p.color,
-      tag: p.needs ? L('MAESTRÍA', 'MASTERY') : p.max > 1 && card.level > 1 ? L(`MEJORA · ${card.level}`, `PERK · ${card.level}`) : L('MEJORA', 'PERK'),
+      tag: p.needs || p.pair ? L('MAESTRÍA', 'MASTERY') : p.max > 1 && card.level > 1 ? L(`MEJORA · ${card.level}`, `PERK · ${card.level}`) : L('MEJORA', 'PERK'),
       cool: cooldown ? { text: L(`Recarga: ${+cooldown.toFixed(1)} s`, `Cooldown: ${+cooldown.toFixed(1)} s`), slower: false } : undefined,
     };
   }

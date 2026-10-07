@@ -111,18 +111,68 @@ export function chilledSpeed(speed: number): number {
  *   fantasma, que pasa las defensas en ese golpe y no deja nada. El wedge silenciador es el silencio en
  *   área (antes era la granada).
  */
+// **El elemento compartido** (7/10, idea de Leandro): las tablas de cada elemento no van por el nivel de
+// la carta sino por el **total del elemento**, la suma de los niveles de todo lo que tenés de ese
+// elemento (tiros y guante, ver `elementTotal`). Cada carta que sumás o subís le sube el efecto a todas.
+// La columna 3 es lo que daba una carta sola en nivel 3, así que nada quedó peor; el último número es el
+// tope. El rayo no sube más que antes: ya estaba fuerte. El fantasma no tiene tabla: es un golpe, y va
+// por la carta.
 export const ELEMENTS = {
-  iceSeconds: [5, 6.5, 8], iceFreezeFrom: 3, freezeSeconds: 2, breakBonus: 1,
+  iceSeconds: [5, 6.5, 8, 9, 10], iceFreezeFrom: 3, freezeSeconds: 2, breakBonus: 1,
   // cuánto frena el frío (ver chilledSpeed)
   chillSlow: 0.4, chillFloor: 1, chillLeast: 0.8,
-  burnTicks: [2, 3, 4], burnTick: 2, burnDamage: 1, spreadRadius: 2.5,
-  chainJumps: [2, 3, 4], chainRange: 6, chainDamage: 1,
+  burnTicks: [2, 3, 4, 5, 6], burnTick: 2, burnDamage: 1, spreadRadius: 2.5,
+  chainJumps: [2, 3, 4, 4, 4], chainRange: 6, chainDamage: 1,
   // el viento hace algo distinto con cada palo (ver WIND_HINT): el driver junta sobre la línea a los de
   // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a
   // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`
-  windLine: [3, 3.75, 4.5], windPush: [6, 8, 10], windPushRadius: 3.5, windPull: [4.5, 5.25, 6],
-  silenceSeconds: [5, 6.5, 8], silenceElite: 0.5,
+  windLine: [3, 3.75, 4.5, 4.95, 5.4], windPush: [6, 8, 10, 11, 12], windPushRadius: 3.5, windPull: [4.5, 5.25, 6, 6.6, 7.2],
+  silenceSeconds: [5, 6.5, 8, 9, 10], silenceElite: 0.5,
 };
+
+/**
+ * El total de un elemento: la suma de los niveles de las habilidades de ese elemento que tenés (tiros y
+ * guante). Es lo que decide su efecto (ver ELEMENTS).
+ */
+export function elementTotal(slots: readonly { id: AbilityId; level: number }[], element: Element): number {
+  return slots.reduce((n, s) => n + (ABILITIES[s.id]?.element === element ? s.level : 0), 0);
+}
+
+/**
+ * Qué le pasa a todo el elemento cuando su total va de `from` a `to` (una carta nueva o una subida):
+ * «Todo tu fuego: 3 → 4 de daño». Null si todavía no tenías nada de ese elemento (lo dice la carta), si no
+ * cambia (llegó al tope), o para el fantasma, que va por la carta. `club`: el palo de la carta, para el
+ * viento, que hace algo distinto con cada uno.
+ */
+export function elementNote(element: Element, from: number, to: number, club?: ClubId | null): string | null {
+  if (from < 1 || element === 'ghost') return null;
+  const num = (n: number) => `${+n.toFixed(2)}`;
+  const change = (label: string, table: number[], unit: string) => {
+    const a = lv(table, from);
+    const b = lv(table, to);
+    return a === b ? null : `${label}: ${num(a)} → ${num(b)}${unit}`;
+  };
+  switch (element) {
+    case 'fire': {
+      const a = lv(ELEMENTS.burnTicks, from) * ELEMENTS.burnDamage;
+      const b = lv(ELEMENTS.burnTicks, to) * ELEMENTS.burnDamage;
+      return a === b ? null : L(`Todo tu fuego: ${num(a)} → ${num(b)} de daño`, `All your fire: ${num(a)} → ${num(b)} damage`);
+    }
+    case 'ice': {
+      const seconds = change(L('Todo tu hielo', 'All your ice'), ELEMENTS.iceSeconds, ' s');
+      const freezes = from < ELEMENTS.iceFreezeFrom && to >= ELEMENTS.iceFreezeFrom;
+      if (!freezes) return seconds;
+      return `${seconds ?? L('Todo tu hielo', 'All your ice')}${L(', y congela', ', and freezes')}`;
+    }
+    case 'lightning': return change(L('Todo tu rayo, saltos por lado', 'All your lightning, jumps per side'), ELEMENTS.chainJumps, '');
+    case 'silence': return change(L('Todo tu silencio', 'All your silence'), ELEMENTS.silenceSeconds, ' s');
+    case 'wind': {
+      const table = club === 'iron' ? ELEMENTS.windPush : club === 'wedge' ? ELEMENTS.windPull : ELEMENTS.windLine;
+      return change(L('Todo tu viento', 'All your wind'), table, ' m');
+    }
+  }
+  return null;
+}
 
 /** ¿Es un tiro de efecto, que no pega? Todos los elementos menos el fantasma, que es un golpe. */
 export function effectOnly(element: Element | null | undefined): boolean {
@@ -411,10 +461,7 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
   const gains = (label: string, from: number) => { if (level >= from && level - 1 < from) parts.push(label); };
   const lasts = L('Dura', 'Lasts');
   const radius = L('Radio', 'Radius');
-  const chills = L('Enfría', 'Chills');
   const freezes = L('Congela', 'Freezes');
-  const burn = L('Daño del fuego', 'Burn damage');
-  const jumps = L('Saltos por lado', 'Jumps per side');
   switch (a.kind) {
     case 'cart': table(L('Daño', 'Damage'), CART.damage); break;
     case 'hole': table(L('Se traga a', 'Swallows'), HOLE.swallows); break;
@@ -427,27 +474,16 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
     case 'echo': table(L('Repeticiones', 'Repeats'), ECHO.shots); break;
     case 'boost': table(L('Daño extra', 'Extra damage'), BOOST.bonus); break;
     case 'might': table(lasts, MIGHT.seconds, ' s'); break;
+    // el efecto del elemento ya no va por el nivel de la carta sino por el total (7/10): eso lo dice
+    // `elementNote`. Acá queda lo de la carta: el congelar en su nivel, el golpe del fantasma y el área
     case 'glove':
       table(lasts, GLOVE.seconds, ' s');
-      // el efecto va al nivel del guante
-      if (a.element === 'ice') { table(chills, ELEMENTS.iceSeconds, ' s'); gains(freezes, ELEMENTS.iceFreezeFrom); }
-      else if (a.element === 'fire') stat(burn, (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage);
-      else if (a.element === 'lightning') table(jumps, ELEMENTS.chainJumps);
+      if (a.element === 'ice') gains(freezes, ELEMENTS.iceFreezeFrom);
       break;
     case 'shot': {
       const club = CLUBS[a.club!];
-      switch (a.element) {
-        case 'ice': table(chills, ELEMENTS.iceSeconds, ' s'); gains(freezes, freezeFrom(a.club!)); break;
-        case 'fire': stat(burn, (l) => lv(ELEMENTS.burnTicks, l) * ELEMENTS.burnDamage); break;
-        case 'lightning': table(jumps, ELEMENTS.chainJumps); break;
-        case 'wind':
-          if (a.club === 'driver') table(L('Junta desde', 'Gathers from'), ELEMENTS.windLine, ' m');
-          else if (a.club === 'iron') table(L('Empuja', 'Pushes'), ELEMENTS.windPush, ' m');
-          else table(L('Atrae desde', 'Pulls from'), ELEMENTS.windPull, ' m');
-          break;
-        case 'ghost': stat(L('Golpe', 'Hit'), (l) => l); break;
-        case 'silence': table(L('Silencia', 'Silences'), ELEMENTS.silenceSeconds, ' s'); break;
-      }
+      if (a.element === 'ice') gains(freezes, freezeFrom(a.club!));
+      else if (a.element === 'ghost') stat(L('Golpe', 'Hit'), (l) => l);
       // el tiro sale con el golpe del nivel (el wedge, uno más): el área del hierro y del wedge crece con
       // él (el viento no: el remolino y la ráfaga tienen su propio radio, que ya dice arriba)
       if (a.element !== 'wind') stat(L('Área', 'Area'), (l) => spreadFor(club, shotQuality(a.club!, l)), ' m');
