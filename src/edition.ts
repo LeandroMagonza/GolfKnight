@@ -25,16 +25,17 @@ export const DEV_TOOLS = __DEV_TOOLS__;
 
 /**
  * Lo que la demo no trae, además de los talentos (7/10, pedido de Leandro): no salen en el sorteo.
- * - `powers`: poderes de escenario de los enemigos. Quedan tres, así que la demo trae siempre los mismos
- *   tres, en otro orden. Tienen que quedar por lo menos tres (uno por escenario).
- * - `elements`: los tiros y el guante de esos elementos, en las cartas del caballero. El fantasma y el
- *   silencio son justo los que mejor contestan a los poderes que se van (pasan escudos, burbujas y
- *   esquivas: ver docs/counters.md).
+ * - `powers`: poderes de escenario de los enemigos. Quedan escudo, esquiva, fantasma e intocable: uno de
+ *   cada par de los que se parecen (Leandro: el divino y la esquiva; el blindaje y el fantasma, que
+ *   también comparten con el escudo; el que se cura y el intocable, los dos con su reloj). Cada partida
+ *   sortea tres de esos cuatro. Tienen que quedar por lo menos tres (uno por escenario).
+ * - `elements`: los tiros y el guante de esos elementos, en las cartas del caballero. El fantasma pasa
+ *   todo (escudos, esquivas, etéreos). El silencio queda: está bueno que lo conozcan.
  *
  * La idea (Leandro): la demo se gana en el nivel 0 sin demasiado desafío, en menos de las dos horas que da
  * Steam para devolver el juego; el que quiere más, sube la dificultad, y eso es la completa.
  */
 export const DEMO_LOCKS: { powers: ScenarioPower[]; elements: Element[] } = {
-  powers: ['shield', 'dodge', 'divine', 'phase'],
-  elements: ['ghost', 'silence'],
+  powers: ['armor', 'divine', 'regen'],
+  elements: ['ghost'],
 };

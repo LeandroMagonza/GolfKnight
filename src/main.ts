@@ -664,9 +664,10 @@ function demoTeaser(): string {
   const n = DEMO_LOCKS.powers.length;
   const elements = DEMO_LOCKS.elements.map((e) => ELEMENT_INFO[e].name.toLowerCase());
   const list = (and: string) => elements.length > 1 ? `${elements.slice(0, -1).join(', ')} ${and} ${elements[elements.length - 1]}` : elements.join('');
+  const one = elements.length === 1;
   return L(
-    `En la versión completa, cada partida ganada desbloquea un nivel de dificultad, y vienen ${n} poderes de enemigos más y los elementos ${list('y')}`,
-    `In the full game, every win unlocks a difficulty level, and there are ${n} more enemy powers and the ${list('and')} elements`,
+    `En la versión completa, cada partida ganada desbloquea un nivel de dificultad, y vienen ${n} poderes de enemigos más y ${one ? 'el elemento' : 'los elementos'} ${list('y')}`,
+    `In the full game, every win unlocks a difficulty level, and there are ${n} more enemy powers and the ${list('and')} element${one ? '' : 's'}`,
   );
 }
 

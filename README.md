@@ -480,9 +480,9 @@ directamente no se compila:
 - **la completa** (`dist/`, en la raíz del sitio): todo, y mientras se desarrolla también las
   herramientas de prueba (panel B, `__gk`, `?bot`, `?palos`).
 - **la demo** (`dist/demo/`, en `/GolfKnight/demo/`): sin los talentos de dificultad (se ven con
-  candado), sin las herramientas de prueba, y sin algunos poderes: los enemigos no traen escudo,
-  esquiva, escudo divino ni intocable, y el caballero no tiene los elementos fantasma ni silencio
-  (`DEMO_LOCKS` en `src/edition.ts`). Con Abe.
+  candado), sin las herramientas de prueba, y sin algunos poderes: los enemigos traen solo escudo,
+  esquiva, fantasma e intocable (tres de esos cuatro por partida), y el caballero no tiene el elemento
+  fantasma (`DEMO_LOCKS` en `src/edition.ts`). Con Abe.
 - **la de Abe** (`dist/abe/`, en `/GolfKnight/abe/`): solo para ser Abe en la partida de otro. Sin
   enlace pide el código de la sala; no puede arrancar una partida.
 

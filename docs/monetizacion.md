@@ -28,10 +28,13 @@ la consola del navegador.
   `vite.config.ts` para esa compilación).
 - **Demo** (`dist/demo/`): sin los talentos de dificultad. Se ven en el menú con candado, y al ganar dice
   lo que trae la completa. Sin herramientas de prueba. Con Abe y con la cinemática. Además, sin algunos
-  poderes (`DEMO_LOCKS` en `src/edition.ts`, se cambian ahí): los enemigos no traen escudo, esquiva,
-  escudo divino ni intocable (quedan blindaje, fantasma y se cura, siempre los tres), y el caballero no
-  tiene los elementos fantasma ni silencio, que son los que mejor contestan a esos cuatro. Esto no se
-  saca de la compilación: no sale en el sorteo.
+  poderes (`DEMO_LOCKS` en `src/edition.ts`, se cambian ahí). Esto no se saca de la compilación: no sale
+  en el sorteo.
+  - **Enemigos:** escudo, esquiva, fantasma e intocable, y cada partida sortea tres. Es uno de cada par
+    de los que se parecen (Leandro): el divino y la esquiva; el blindaje y el fantasma (que también
+    comparten con el escudo); el que se cura y el intocable (los dos con su reloj, al revés).
+  - **Caballero:** sin el elemento fantasma, que pasa todo. El silencio queda: está bueno que lo
+    conozcan. El resto está en discusión (abajo).
 - **Abe** (`dist/abe/`): solo para ser Abe. Sin enlace, pide el código de la sala (o el enlace pegado).
   No puede arrancar una partida: el bucle del que juega, el tiro, las oleadas, las cartas, el tutorial y
   la parte de transmitir no se compilan. Sin cinemática (pesa 30 MB en vez de 48).
@@ -45,6 +48,25 @@ es la completa. Hay un solo campo (el liso) porque los de lomas son un talento.
 
 **El modo tenis** es un prototipo: desde el 7/10 no tiene botón en la pantalla de inicio en ninguna
 versión. Se entra desde el panel B (pestaña Pruebas) o con `?tenis`.
+
+## En discusión: las cartas del caballero en la demo (7/10)
+
+Leandro lo pensó en voz alta, con dudas; esto es lo que propuse, sin hacer todavía:
+
+| Qué | Propuesta | Por qué |
+|---|---|---|
+| Silencio | En la demo (hecho) | Está bueno que lo conozcan |
+| Fantasma (tiros y guante) | Afuera (hecho) | Pasa todo: con escudo, esquiva, fantasma e intocable en la demo, sería la respuesta a todo |
+| Viento | Afuera | Hoy casi no sirve: mejor que la primera impresión no sea una carta floja |
+| Guantes | Afuera | Son una segunda versión de los elementos: en la demo alcanza con los tiros |
+| Ritmo y En racha (racha); El albañil, El herrero y Perfecto de regalo (matar a dos juntos) | Afuera | Son para jugadores avanzados |
+| Rayo | Queda | Está medio pasado, pero en la demo eso ayuda a ganar el nivel 0 |
+| Putter de fuego | Queda, si se hace lo del fuego compartido | Hoy es flojo: de cerca no les da tiempo a quemarse, y el putter pierde su golpe fuerte porque el tiro de fuego no pega |
+
+**El fuego compartido** (idea de Leandro, para todo el juego): los tiros de fuego no ganan mordiscos por
+su propio nivel; la suma de los niveles de todo lo de fuego que se tiene (tiros y guante) sube los
+mordiscos de todo lo que prende fuego. Así el putter de fuego es el flojo que se elige para subirle el
+fuego a lo demás.
 
 ## Juego cruzado: el amigo que no tiene el juego
 
