@@ -301,6 +301,13 @@
       #end .earned.in { opacity: 1; transform: none; animation: endbadge 0.6s cubic-bezier(0.2, 1.6, 0.4, 1), endglow 1.8s ease-in-out 0.6s infinite; }
       #end .level { font-size: 14px; color: #9aa4b2; opacity: 0; transition: opacity 0.5s; }
       #end .foot { opacity: 0; transition: opacity 0.5s; }
+      /* el HUD no recibe clicks: el botón sí, recién cuando el cartel terminó de armarse (antes no se ve) */
+      #end.done button.again { pointer-events: auto; }
+      #end button.again { display: inline-flex; align-items: center; gap: 12px; margin: 8px auto 4px; padding: 12px 34px; border: 0; border-radius: 12px; background: #5be07a; color: #102; font: inherit; font-size: 21px; font-weight: 800; letter-spacing: 0.5px; cursor: pointer;
+        box-shadow: 0 4px 0 #2a8a45, 0 0 22px rgba(91, 224, 122, 0.35); transition: transform 0.12s, box-shadow 0.12s; }
+      #end button.again:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #2a8a45, 0 0 30px rgba(91, 224, 122, 0.55); }
+      #end button.again:active { transform: translateY(2px); box-shadow: 0 2px 0 #2a8a45, 0 0 18px rgba(91, 224, 122, 0.35); }
+      #end button.again kbd { font-size: 14px; font-weight: 700; color: #cfe9d6; }
       #end.done .level, #end.done .foot { opacity: 1; }
       #end.plain .score, #end.plain .best, #end.plain .stats, #end.plain .level { display: none; }
       #end.calm *, #end.calm *::before { animation: none !important; transition: none !important; }
@@ -661,7 +668,7 @@
           <div class="unlock" hidden><div class="slot"></div><div class="what"></div><div class="why"></div></div>
           <p class="earned" hidden></p>
           <p class="level"></p>
-          <div class="foot"><button id="enddiff" type="button" class="threat" tabindex="-1" hidden></button><p class="again" data-en="R to play again">R para jugar de nuevo</p></div>
+          <div class="foot"><button id="enddiff" type="button" class="threat" tabindex="-1" hidden></button><button id="again" type="button" class="again" tabindex="-1" data-en-html="Play again &lt;kbd&gt;R&lt;/kbd&gt;">Jugar de nuevo <kbd>R</kbd></button></div>
         </div>
         <div class="flash"></div>
       </div>

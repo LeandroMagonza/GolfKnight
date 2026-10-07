@@ -39,7 +39,7 @@ export type Aura = 'ward' | 'heal';
  * reparten al azar (ver `spawnOrder`), o van fijos por grupo (`WaveGroup.mods`).
  */
 export interface EnemyMods {
-  /** Armadura: se le resta a cada golpe (1 a 3). */
+  /** Armadura: se le resta a cada golpe (1 o 2, ver ARMOR_MAX). */
   armor?: number;
   /** Escudo de frente: le resta esto a lo que le llega de frente (1 a 5, o SHIELD_WALL). */
   shield?: number;
@@ -64,6 +64,8 @@ export interface EnemyMods {
   regen?: number;
   /** Intocable (ver PHASE): invulnerable casi siempre; los segundos que dura su ventana vulnerable. */
   phase?: number;
+  /** Intocable: los segundos que pasa invulnerable, si no son los de PHASE (con «Poderes más duros», más). */
+  phaseShut?: number;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
   /**
@@ -177,7 +179,7 @@ export function behaviorOf(stats: EnemyStats, mods: EnemyMods = {}): Behavior {
  * Topes para que ninguna combinación quede imposible con el mejor golpe en 4. Cada enemigo trae un solo
  * poder, así que el blindaje y el etéreo nunca van juntos en el mismo; lo que queda es cuidar los
  * cuerpos grandes: el etéreo (que se lleva de a 1 por golpe) no va en los de más de 8 de vida, y el
- * blindaje 3 (que al mejor golpe le deja pasar 1) solo en los de hasta 4. Y el etéreo tampoco va en los
+ * blindaje 3 (que al mejor golpe le deja pasar 1; desde el 7/10 no sale, ver ARMOR_MAX) solo en los de hasta 4. Y el etéreo tampoco va en los
  * de 1 de vida: al goblin no le cambia nada, así que el fantasma pasa al próximo que pueda tenerlo.
  */
 export const LIMITS = { etherealMinHp: 2, etherealMaxHp: 8, armor3MaxHp: 4, regenMinHp: 2 };
@@ -269,14 +271,32 @@ export interface WaveGroup {
 export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner' | 'regen' | 'phase';
 
 /**
- * Qué tan duros salen los poderes, según la dificultad: hasta qué nivel llegan el escudo y el blindaje
- * (`cap`), y por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar (`recharge`).
+ * Qué tan duros salen los poderes, según la dificultad (el talento «Poderes más duros», 7/10: toca a
+ * todos los poderes de escenario):
+ * - `cap`: hasta qué nivel llega el escudo.
+ * - `armorRolls`: el blindaje (que no pasa de ARMOR_MAX) sale con el mayor de tantos sorteos: con 2, el
+ *   blindaje 1 sale mucho menos.
+ * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar, y la
+ *   ventana en que el intocable es vulnerable.
+ * - `regen`: por cuánto se multiplica el margen del que se cura (más margen, más tarda en curarse).
+ * - `shut`: por cuánto se multiplica el rato que el intocable pasa invulnerable.
+ * - `ghostHp`: vida de más del fantasma.
  */
 export interface PowerHardness {
   cap: number;
+  armorRolls: number;
   recharge: number;
+  regen: number;
+  shut: number;
+  ghostHp: number;
 }
-export const HARDEST_POWERS: PowerHardness = { cap: 3, recharge: 1 };
+export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, shut: 1.3, ghostHp: 1 };
+
+/**
+ * El blindaje no pasa de 2 (7/10, pedido de Leandro): con 3, al mejor golpe le entraba 1 y se terminaba
+ * dependiendo del fuego. El escudo sí llega a 3, que se resuelve por detrás con el área.
+ */
+export const ARMOR_MAX = 2;
 
 /**
  * Lo que tarda en recargar el escudo divino, en segundos (el del élite, `elite`). Además, **cada golpe que
@@ -303,7 +323,8 @@ export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5
  * el chamán (se lo ve violeta y las pelotas rebotan). Una barra violeta debajo de su vida se va
  * descargando en `shut` s; cuando se vacía queda **vulnerable** `open` s (la barra se pone dorada y se
  * vacía), y vuelve a ser invulnerable. Hay que tirar para que la pelota llegue en esa ventana. El élite:
- * `eliteShut` y `eliteOpen`. Con poca dificultad la ventana dura más (×la recarga). Cada uno arranca en
+ * `eliteShut` y `eliteOpen`. Con poca dificultad la ventana dura más (×la recarga), y con «Poderes más
+ * duros» pasa más rato invulnerable (×`PowerHardness.shut`, en `EnemyMods.phaseShut`). Cada uno arranca en
  * un punto distinto del ciclo. El golpe fantasma le entra siempre; silenciado es vulnerable, y el ciclo
  * vuelve a empezar (invulnerable) cuando se le pasa.
  */
@@ -319,29 +340,42 @@ function dodgeMods(hard: PowerHardness): EnemyMods {
   return hard.recharge === 1 ? { dodge: true } : { dodge: true, dodgeEvery: DODGE.cooldown * hard.recharge };
 }
 
+/** El blindaje de un común: de 1 en el primer escenario, y después 1 o 2 (el mayor de `armorRolls` sorteos). */
+function armorLevel(tier: number, rand: () => number, hard: PowerHardness): number {
+  let best = 0;
+  for (let i = 0; i < Math.max(1, hard.armorRolls); i++) best = Math.max(best, rand());
+  return 1 + Math.floor(best * Math.min(ARMOR_MAX, tier + 1));
+}
+
 /**
- * Un poder, según el escenario (`tier`: 0, 1 y 2, y 3 en la oleada del jefe): el escudo y el blindaje
- * suben de nivel con la partida, de 1 en el primer escenario hasta `hard.cap` (3) en el tercero. No
+ * Un poder, según el escenario (`tier`: 0, 1 y 2, y 3 en la oleada del jefe): el escudo sube de nivel con
+ * la partida, de 1 en el primer escenario hasta `hard.cap` (3) en el tercero, y el blindaje hasta 2. No
  * pasan de 3: con el mejor golpe en 4, un escudo o un blindaje de 4 ya no deja pasar nada.
  */
 export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: PowerHardness) => EnemyMods> = {
   shield: (tier, rand, hard = HARDEST_POWERS) => ({ shield: 1 + Math.floor(rand() * Math.min(hard.cap, tier + 1)) }),
-  armor: (tier, rand, hard = HARDEST_POWERS) => ({ armor: 1 + Math.floor(rand() * Math.min(hard.cap, tier + 1)) }),
+  armor: (tier, rand, hard = HARDEST_POWERS) => ({ armor: armorLevel(tier, rand, hard) }),
   explode: () => ({ explode: true }),
   ranged: () => ({ ranged: true }),
   // cava: por ahora afuera de las partidas (ver docs/pendientes.md). El poder sigue andando
   dig: () => ({ dig: true }),
   heal: () => ({ aura: 'heal' }),
-  ethereal: () => ({ ethereal: true }),
+  ethereal: (_tier, _rand, hard = HARDEST_POWERS) => (hard.ghostHp ? { ethereal: true, hp: hard.ghostHp } : { ethereal: true }),
   ward: () => ({ aura: 'ward' }),
   dodge: (_tier, _rand, hard = HARDEST_POWERS) => dodgeMods(hard),
   divine: (_tier, _rand, hard = HARDEST_POWERS) => ({ divine: DIVINE.every * hard.recharge }),
   banner: () => ({ banner: true }),
-  // con poca dificultad, más margen (como la recarga de la esquiva y del divino), y vida de más
-  regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.recharge, hp: REGEN.hp }),
-  // la ventana en que es vulnerable: con poca dificultad, más larga
-  phase: (_tier, _rand, hard = HARDEST_POWERS) => ({ phase: PHASE.open * hard.recharge }),
+  // con poca dificultad, más margen (tarda más en curarse), y vida de más
+  regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.regen, hp: REGEN.hp }),
+  // con poca dificultad, la ventana en que es vulnerable es más larga; con «Poderes más duros», además,
+  // pasa más rato invulnerable
+  phase: (_tier, _rand, hard = HARDEST_POWERS) => phaseMods(PHASE.open, PHASE.shut, hard),
 };
+
+/** El intocable: la ventana (`open`) y el rato invulnerable (`shut`), según la dificultad. */
+function phaseMods(open: number, shut: number, hard: PowerHardness): EnemyMods {
+  return hard.shut === 1 ? { phase: open * hard.recharge } : { phase: open * hard.recharge, phaseShut: shut * hard.shut };
+}
 
 /**
  * **Los poderes de escenario**: cada partida sortea tres de estos, uno por escenario. Son los que se
@@ -361,16 +395,17 @@ export const SUPPORT_POWERS = ['ranged', 'heal', 'ward', 'banner'] as const;
 export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardness) => EnemyMods> = {
   // la calavera: de frente no le entra nada
   shield: () => ({ shield: SHIELD_WALL }),
-  // 1 en el primer escenario y 2 después: con 3, el gólem chico pedía diez golpes perfectos
-  armor: (tier) => ({ armor: Math.min(2, tier + 1) }),
-  ethereal: () => ({ ethereal: true }),
+  // siempre 1 (7/10): con 2, al caballero esqueleto (9 a 11 de vida) había que meterle un golpe perfecto
+  // tras otro, de 1 cada uno. Hasta el 7/10, 1 en el primer escenario y 2 después
+  armor: () => ({ armor: 1 }),
+  ethereal: (_tier, hard = HARDEST_POWERS) => (hard.ghostHp ? { ethereal: true, hp: hard.ghostHp } : { ethereal: true }),
   // el divino se le recarga más rápido
   divine: (_tier, hard = HARDEST_POWERS) => ({ divine: DIVINE.elite * hard.recharge }),
   dodge: (_tier, hard = HARDEST_POWERS) => dodgeMods(hard),
   // menos margen: se lo mata con golpes medios, pero sin errar
-  regen: (_tier, hard = HARDEST_POWERS) => ({ regen: REGEN.eliteMargin * hard.recharge }),
+  regen: (_tier, hard = HARDEST_POWERS) => ({ regen: REGEN.eliteMargin * hard.regen }),
   // ventana más larga que la del común (tiene más vida), y menos rato invulnerable
-  phase: (_tier, hard = HARDEST_POWERS) => ({ phase: PHASE.eliteOpen * hard.recharge }),
+  phase: (_tier, hard = HARDEST_POWERS) => phaseMods(PHASE.eliteOpen, PHASE.eliteShut, hard),
 };
 
 /** Qué parte de los enemigos de una oleada sale con poder, y de esos, cuántos con el del escenario. */
@@ -512,6 +547,8 @@ export interface RunRules {
    * esto, o con menos de tres (no alcanzan para los tres escenarios), de todos.
    */
   pool?: readonly ScenarioPower[];
+  /** Por cuánto se multiplica la recarga de las habilidades del caballero (el talento «Recarga lenta»). */
+  cooldown: number;
 }
 
 /** Segundos de descanso entre oleadas. */
@@ -520,7 +557,7 @@ export const INTERMISSION = 6;
 /** Todo al máximo: lo que arma `buildRun()` sin reglas. */
 export const HARDEST: RunRules = {
   stack: true, specials: 2, supports: 2, hard: HARDEST_POWERS, speed: 1, share: 1 / 3, eliteHp: [2, 3, 4], escort: true, rest: INTERMISSION,
-  fourth: false, extraHp: 0, bossHp: 0,
+  fourth: false, extraHp: 0, bossHp: 0, cooldown: 1,
 };
 
 const TITLES: Record<ScenarioPower, string> = L({

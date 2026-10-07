@@ -3,11 +3,12 @@ import { DIFFICULTY, earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, set
 import { ELITE, HARDEST, INTERMISSION } from './waves';
 
 describe('dificultad', () => {
-  it('once talentos, dieciséis puntos: la velocidad tiene tres, y olas especiales, apoyos y más con poder, dos', () => {
-    expect(TALENTS).toHaveLength(11);
-    expect(MAX_POINTS).toBe(16);
+  it('doce talentos, dieciocho puntos: la velocidad tiene tres, y olas especiales, apoyos, más con poder y la recarga lenta, dos', () => {
+    expect(TALENTS).toHaveLength(12);
+    expect(MAX_POINTS).toBe(18);
     expect(TALENTS.filter((t) => t.levels.length === 3).map((t) => t.id)).toEqual(['speed']);
-    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['powered', 'special', 'support']);
+    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['cooldown', 'powered', 'special', 'support']);
+    expect(TALENTS.find((t) => t.id === 'cooldown')!.levels.map((f) => f())).toEqual(['Tus habilidades tardan un 50 % más en recargar', 'Tardan el doble']);
     for (const t of TALENTS) for (const text of t.levels) expect(text(), t.id).not.toBe('');
     expect(TALENTS.find((t) => t.id === 'powered')!.levels[0]()).toBe('Un tercio de los enemigos trae poder, en vez de un cuarto');
     expect(TALENTS.find((t) => t.id === 'powered')!.levels[1]()).toBe('La mitad trae poder');
@@ -19,12 +20,17 @@ describe('dificultad', () => {
     expect(easy).toMatchObject({ stack: false, specials: 0, supports: 0, escort: false, rest: INTERMISSION, speed: DIFFICULTY.speed[0], share: DIFFICULTY.share[0] });
     expect(easy.hard.cap).toBe(2);
     expect(easy.hard.recharge).toBeGreaterThan(1);
+    expect(easy.hard).toMatchObject({ armorRolls: 1, regen: DIFFICULTY.regen[0], shut: 1, ghostHp: 0 });
+    expect(easy.cooldown).toBe(1);
     expect(easy.eliteHp).toEqual(ELITE.hp.map((h) => h - 2));
     const all = Object.fromEntries(TALENTS.map((t) => [t.id, t.levels.length]));
     // el golpe 4 es aparte: no existía antes del 3/10
     const hard = rulesFor({ ...all, fourth: 0 });
-    // lo mismo que la de antes del 3/10 en todo, salvo que va más rápido, descansa menos y la mitad trae poder
-    expect({ ...hard, speed: 1, rest: INTERMISSION, share: HARDEST.share }).toEqual(HARDEST);
+    // lo mismo que la de antes del 3/10 en todo, salvo que va más rápido, descansa menos, la mitad trae
+    // poder y las habilidades recargan el doble de lento
+    expect({ ...hard, speed: 1, rest: INTERMISSION, share: HARDEST.share, cooldown: 1 }).toEqual(HARDEST);
+    expect(hard.cooldown).toBe(2);
+    expect(rulesFor({ cooldown: 1 }).cooldown).toBe(1.5);
     expect(hard.speed).toBeGreaterThan(1);
     expect(hard.rest).toBeLessThan(INTERMISSION);
     expect(hard.share).toBe(0.5);
@@ -33,8 +39,11 @@ describe('dificultad', () => {
     expect(rulesFor({ speed: 2 }).speed).toBe(1);
     // y un número de más no pasa del máximo
     expect(rulesFor({ special: 9 }).specials).toBe(2);
-    // un solo punto en poderes más duros pone todo: escudos hasta 3 y la recarga de siempre
+    // un solo punto en poderes más duros pone todo: escudos hasta 3, más blindajes de 2, la recarga de
+    // siempre, el que se cura y el intocable más duros, y el fantasma con 1 de vida más
     expect(rulesFor({ powers: 1 }).hard).toEqual(HARDEST.hard);
+    expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1 });
+    expect(HARDEST.hard.shut).toBeGreaterThan(1);
   });
 
   it('el golpe 4: lo prende, y todos traen vida de más (los élites y el jefe, más)', () => {

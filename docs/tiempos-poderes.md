@@ -26,7 +26,8 @@ tirar otra vez):
 | Medio (2) | **1.52 s** | 2 | 1.3 |
 | Fuerte (3) | **1.78 s** | 3 | 1.7 (si clavás la ventana de 0.06 s) |
 
-La recarga de los poderes depende de la dificultad: sin el punto en «Poderes» tardan ×1.6. La burbuja
+La recarga de los poderes depende de la dificultad: sin el punto en «Poderes» tardan ×1.6 (desde el 7/10
+el talento toca a todos los poderes: ver el final). La burbuja
 del bendito vuelve a los 8 s (5 con el punto), la del élite a los 4.8 s (3), y la esquiva a los 8 s (5).
 
 ## Cuánto tarda cada poder, a 6 de vida
@@ -119,7 +120,8 @@ cura. Así que el ciclo no es fijo: sale de su vida (`REGEN` y `regenPeriod` en 
 
 - **3 s son cuatro flojos**, no tres: a 0, 0.9, 1.8 y 2.6 s del primero, corriendo a la pelota entre
   uno y otro (los 0.88 s ya incluyen correr un puesto y medio).
-- Con poca dificultad el margen se multiplica por la recarga (×1.6): un poco más de aire.
+- Con poca dificultad el margen se multiplicaba por la recarga (×1.6): un poco más de aire. Desde el 7/10,
+  ×2.5 (ver el final).
 - Se cura **entero** y brilla verde aunque esté sano: así se le lee el ritmo. La barra verde debajo de la
   vida es el ciclo; silenciado se pone gris y no corre.
 - Va desde los de 2 de vida (como el fantasma): al goblin se lo mata de un golpe y la cura no se vería.
@@ -138,7 +140,8 @@ Idea de Leandro: casi todo el tiempo invulnerable, como los que protege el cham�
 descarga; al vaciarse queda vulnerable un momento, y vuelve a ser invulnerable un rato más largo.
 
 - **Común**: invulnerable 3.5 s y vulnerable 1.5 s (ciclo de 5 s). **Élite**: 3 s y 2 s. Con poca dificultad
-  la ventana se multiplica por la recarga (×1.6: 2.4 s y 3.2 s).
+  la ventana se multiplica por la recarga (×1.6: 2.4 s y 3.2 s). Desde el 7/10, con «Poderes más duros»
+  además pasa más rato invulnerable (ver el final).
 - **En una ventana de 1.5 s entran uno o dos golpes**: con la pelota ya en el aire al abrirse, un fuerte
   (3) y, si el siguiente es flojo, otro más. Con 6 de vida, dos ventanas con fuertes: unos 6 s. El élite
   de 14, con 2 golpes medios por ventana: unas 4 ventanas, 18 a 20 s. Es el más lento sin cartas, a
@@ -152,3 +155,33 @@ descarga; al vaciarse queda vulnerable un momento, y vuelve a ser invulnerable u
 **El que se cura trae 2 de vida de más** (5/10, pedido de Leandro): al de 2 de vida se lo mataba de un
 golpe y era como no tener poder. La goblina que se cura tiene 4 (dos medios), el orco 5, el esqueleto 6.
 El élite no: ya trae la suya.
+
+## «Poderes más duros» para todos (7/10)
+
+Leandro preguntó si el talento tocaba a todos los poderes: el texto decía escudo, blindaje, escurridizo y
+bendito, pero ya tocaba también al que se cura (el margen ×1.6) y al intocable (la ventana ×1.6). Al
+fantasma no le hacía nada. Pidió además que el blindaje no pase de 2 (con 3 se dependía del fuego), que el
+que se cura sea más fácil sin el punto, y que el talento le dé algo al fantasma. Quedó así (los números en
+`DIFFICULTY` de core/difficulty y `PowerHardness` de core/waves; se tocan en el panel B):
+
+| Poder | Sin el punto | Con «Poderes más duros» |
+|---|---|---|
+| Escudo | hasta 2 | hasta 3 (se resuelve por detrás, con el área) |
+| Blindaje | 1 en el primer escenario; después 1 o 2, mitad y mitad | igual de alto (**hasta 2**, antes 3), pero sale de 2 tres de cada cuatro veces (el mayor de dos sorteos) |
+| Blindaje del élite | **1** (antes 1 y después 2) | **1** (antes 1 y después 2) |
+| Escurridizo, bendito | recargan ×1.6: 8 s (élite 4.8) | 5 s (élite 3) |
+| Se cura | margen ×2.5: 3 s (élite 2): con 6 de vida se cura cada **6 s** (antes 4.9) | margen de siempre, 1.2 s (élite 0.8): cada 4.2 s |
+| Intocable | invulnerable 3.5 s y ventana de 2.4 s (élite 3 y 3.2) | invulnerable **4.55 s** (antes 3.5) y ventana de 1.5 s (élite 3.9 y 2) |
+| Fantasma | — | **1 de vida más** (también el élite) |
+
+**El élite blindado, siempre 1.** Con 2, al caballero esqueleto del segundo escenario (9 a 11 de vida)
+había que meterle un golpe perfecto tras otro, de 1 cada uno, y el medio no le entraba; desde que el
+golpe que el blindaje se come entero frena la pelota, todavía peor. Con 1, el perfecto le saca 2 y el medio 1.
+
+## La recarga lenta (7/10)
+
+Talento nuevo, de dos puntos: las habilidades del caballero tardan en recargar un 50 % más, y con el
+segundo, el doble (`DIFFICULTY.cooldown`). La carta de una habilidad dice la recarga que va a tener. No
+toca a las mejoras que recargan (segundo aire, carcaj) ni a los hechizos de Abe. Leandro tenía dudas de
+que sea una forma divertida de hacerlo más difícil: como todos los talentos, es opcional, y el que no lo
+quiere pone el punto en otro.

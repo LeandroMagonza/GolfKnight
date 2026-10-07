@@ -111,6 +111,8 @@ export class Abilities {
   readonly cooldowns: number[] = new Array(SLOTS).fill(0);
   /** Segundo aire: si se tiene, y cuánto le falta. */
   readonly secondWind = { owned: false, left: 0 };
+  /** Por cuánto se multiplica la recarga de todas: el talento «Recarga lenta» (ver core/difficulty). */
+  cooldownScale = 1;
   onEvent: ((e: AbilityEvent) => void) | null = null;
   hooks: AbilityHooks | null = null;
   private readonly balls: AbilityBall[] = [];
@@ -169,10 +171,10 @@ export class Abilities {
     return true;
   }
 
-  /** Recarga total del lugar `i`, con el nivel de lo que tiene. */
+  /** Recarga total del lugar `i`, con el nivel de lo que tiene (y la dificultad). */
   cooldownOf(i: number): number {
     const s = this.slots[i];
-    return s ? cooldownAt(ABILITIES[s.id], s.level) : 0;
+    return s ? cooldownAt(ABILITIES[s.id], s.level) * this.cooldownScale : 0;
   }
 
   /**

@@ -11,7 +11,7 @@ import { L } from '../i18n';
 import { FOURTH } from './clubs';
 import { ELITE, INTERMISSION, type RunRules } from './waves';
 
-export type TalentId = 'stack' | 'special' | 'support' | 'powers' | 'speed' | 'terrain' | 'powered' | 'elite' | 'escort' | 'rest' | 'fourth';
+export type TalentId = 'stack' | 'special' | 'support' | 'powers' | 'speed' | 'terrain' | 'powered' | 'elite' | 'escort' | 'rest' | 'cooldown' | 'fourth';
 
 export interface Talent {
   id: TalentId;
@@ -24,8 +24,12 @@ export interface Talent {
  * Los números de cada talento, por nivel (el primero es sin puntos). Se tocan en el panel B.
  * - speed: la velocidad de los enemigos, sobre la de su cuerpo.
  * - share: qué parte sale con poder.
- * - cap: hasta qué nivel llegan el escudo y el blindaje. recharge: por cuánto se multiplica la recarga
- *   del escurridizo y el bendito. Los dos van con el mismo punto.
+ * - Los poderes (un solo punto, «Poderes más duros», que desde el 7/10 toca a todos los de escenario; ver
+ *   PowerHardness en core/waves): cap, hasta qué nivel llega el escudo; armorRolls, de cuántos sorteos
+ *   sale el blindaje (el mayor: con 2, casi siempre de 2); recharge, por cuánto se multiplica la recarga
+ *   del escurridizo y el bendito y la ventana del intocable; regen, el margen del que se cura (más, tarda
+ *   más en curarse); shut, el rato que el intocable pasa invulnerable; ghostHp, la vida de más del fantasma.
+ * - cooldown: por cuánto se multiplica la recarga de las habilidades del caballero («Recarga lenta»).
  * - eliteHpLess: cuánta vida de más le sacan al élite (sobre ELITE.hp).
  * - rest: segundos de descanso entre oleadas.
  * - fourthHp, fourthEliteHp, fourthBossHp: el golpe 4 (ver FOURTH en core/clubs), la vida de más que
@@ -36,7 +40,13 @@ export const DIFFICULTY = {
   speed: [0.76, 0.88, 1, 1.12],
   share: [0.25, 1 / 3, 0.5],
   cap: [2, 3],
+  armorRolls: [1, 2],
   recharge: [1.6, 1],
+  // el que se cura (7/10): sin el punto, más fácil que antes (era ×1.6); con el punto, lo de siempre
+  regen: [2.5, 1],
+  shut: [1, 1.3],
+  ghostHp: [0, 1],
+  cooldown: [1, 1.5, 2],
   eliteHpLess: [2, 0],
   rest: [INTERMISSION, 4],
   fourthHp: 1,
@@ -64,8 +74,10 @@ export const TALENTS: Talent[] = [
   ] },
   { id: 'powers', name: L('Poderes más duros', 'Tougher Powers'), levels: [
     () => L(
-      `Escudos y blindajes de hasta ${DIFFICULTY.cap[1]}, y los escurridizos y los benditos recargan más rápido`,
-      `Shields and armor up to ${DIFFICULTY.cap[1]}, and slippery and blessed enemies recharge faster`,
+      `Escudos de hasta ${DIFFICULTY.cap[1]} y más blindajes de 2; los escurridizos y los benditos recargan antes, los que se curan se curan `
+        + `más seguido, los intocables pasan más rato invulnerables y los fantasmas traen ${DIFFICULTY.ghostHp[1]} de vida más`,
+      `Shields up to ${DIFFICULTY.cap[1]} and more level-2 armor; slippery and blessed enemies recharge sooner, regenerators heal `
+        + `more often, untouchables stay invulnerable longer and ghosts get ${DIFFICULTY.ghostHp[1]} more HP`,
     ),
   ] },
   { id: 'speed', name: L('Más rápidos', 'Faster Enemies'), levels: [
@@ -87,6 +99,15 @@ export const TALENTS: Talent[] = [
   ] },
   { id: 'escort', name: L('Escolta del jefe', 'Boss Escort'), levels: [() => L('El jefe viene con enemigos con poderes', 'The boss brings powered-up enemies')] },
   { id: 'rest', name: L('Sin respiro', 'No Breather'), levels: [() => L('Menos descanso entre oleadas', 'Less rest between waves')] },
+  { id: 'cooldown', name: L('Recarga lenta', 'Slow Recharge'), levels: [
+    () => L(
+      `Tus habilidades tardan un ${Math.round((DIFFICULTY.cooldown[1] - 1) * 100)} % más en recargar`,
+      `Your abilities take ${Math.round((DIFFICULTY.cooldown[1] - 1) * 100)}% longer to recharge`,
+    ),
+    () => (DIFFICULTY.cooldown[2] === 2
+      ? L('Tardan el doble', 'They take twice as long')
+      : L(`Tardan un ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)} % más`, `They take ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)}% longer`)),
+  ] },
   { id: 'fourth', name: L('Golpe 4', 'Hit 4'), levels: [
     () => L(
       `En el medio del rojo aparece el golpe 4: pega ${FOURTH.bonus} más que el 3, y entre los dos duran lo que el 3 de siempre. `
@@ -131,7 +152,14 @@ export function rulesFor(picks: Picks): RunRules {
     stack: lv('stack') >= 1,
     specials: lv('special'),
     supports: lv('support'),
-    hard: { cap: at(DIFFICULTY.cap, lv('powers')), recharge: at(DIFFICULTY.recharge, lv('powers')) },
+    hard: {
+      cap: at(DIFFICULTY.cap, lv('powers')),
+      armorRolls: at(DIFFICULTY.armorRolls, lv('powers')),
+      recharge: at(DIFFICULTY.recharge, lv('powers')),
+      regen: at(DIFFICULTY.regen, lv('powers')),
+      shut: at(DIFFICULTY.shut, lv('powers')),
+      ghostHp: at(DIFFICULTY.ghostHp, lv('powers')),
+    },
     speed: at(DIFFICULTY.speed, lv('speed')),
     share: at(DIFFICULTY.share, lv('powered')),
     eliteHp: ELITE.hp.map((hp) => Math.max(0, hp - at(DIFFICULTY.eliteHpLess, lv('elite'))) + (fourth ? DIFFICULTY.fourthEliteHp : 0)),
@@ -140,6 +168,7 @@ export function rulesFor(picks: Picks): RunRules {
     fourth,
     extraHp: fourth ? DIFFICULTY.fourthHp : 0,
     bossHp: fourth ? DIFFICULTY.fourthBossHp : 0,
+    cooldown: at(DIFFICULTY.cooldown, lv('cooldown')),
   };
 }
 

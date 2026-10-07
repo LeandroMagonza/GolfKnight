@@ -1129,9 +1129,9 @@ export class Enemy {
     this.phaseTime = 0;
   }
 
-  /** El intocable: cuánto rato del ciclo es invulnerable (el élite, menos). */
+  /** El intocable: cuánto rato del ciclo es invulnerable (el élite, menos; con «Poderes más duros», más). */
   private get phaseShutSeconds(): number {
-    return this.size > 1 ? PHASE.eliteShut : PHASE.shut;
+    return this.mods.phaseShut ?? (this.size > 1 ? PHASE.eliteShut : PHASE.shut);
   }
 
   /** El intocable: el ciclo entero, invulnerable más la ventana. */

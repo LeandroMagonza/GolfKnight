@@ -310,7 +310,8 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   escudo, blindaje, fantasma, divino y esquiva. Cada escenario son tres oleadas: la primera presenta su
   poder (lo trae el primero que aparece), y la tercera la cierra un **élite**: el cuerpo fuerte del
   escenario (jefe goblin en el primero, caballero en el segundo, gólem chico en el tercero) con el poder
-  en su versión más dura (la calavera, blindaje 2, el divino que recarga en 3 s...) y agrandado hasta
+  en su versión más dura (la calavera, el divino que recarga en 3 s...; el blindaje, 1: desde el 7/10 no
+  lleva 2) y agrandado hasta
   unos 3 m, así que el jefe goblin crece mucho y el caballero poco.
 - **El cuerpo fuerte viene desde el arranque del escenario**: uno en la primera oleada, tres en la
   segunda y tres en la tercera, **siempre sin poder**: de ese cuerpo, el único con poder es el élite. La décima es la
@@ -335,9 +336,10 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   entran el caballero y el chamán en el segundo; el gólem chico y el alma en pena en el tercero.
 - **Arriba, debajo del número de oleada**, van los íconos de los tres poderes de la partida y la
   calavera del jefe, con el escenario en curso encendido.
-- **Topes** para que nada quede imposible con el mejor golpe en 4: escudo y blindaje van de 1 a 3 (más
-  en el tercer escenario), el etéreo no va en cuerpos de más de 8 de vida ni en los de 1 (al goblin no
-  le cambia nada: el fantasma pasa al próximo que pueda tenerlo) y el blindaje 3 solo en los de hasta 4.
+- **Topes** para que nada quede imposible con el mejor golpe en 4: el escudo va de 1 a 3 (más en el
+  tercer escenario) y el blindaje de 1 a 2 (desde el 7/10: con 3, al mejor golpe le entraba 1), y el
+  etéreo no va en cuerpos de más de 8 de vida ni en los de 1 (al goblin no le cambia nada: el fantasma
+  pasa al próximo que pueda tenerlo).
 - **Una bandera por vez**: si ya hay un abanderado en el campo, el siguiente sale sin bandera.
 - **Los que sostienen un aura** (cura, invencible) caminan al paso del aliado más lento que tengan
   cerca, para no dejarlo afuera.
@@ -365,17 +367,18 @@ aunque solo se mande cuando corresponde.
 | Poderes acumulados | los poderes de los escenarios anteriores siguen viniendo |
 | Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
 | Apoyos | 1: en el último escenario; 2: desde el segundo |
-| Poderes más duros | escudos y blindajes de hasta 3 (sin el punto, hasta 2), y el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6) |
+| Poderes más duros | toca a todos los poderes de escenario (desde el 7/10; ver docs/tiempos-poderes.md): escudos de hasta 3 (sin el punto, hasta 2); el blindaje sigue hasta 2, pero casi siempre de 2 (el mayor de dos sorteos); el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6); el que se cura, con el margen de siempre (sin el punto, ×2.5: tarda más en curarse); el intocable, invulnerable ×1.3 y la ventana de siempre (sin el punto, ventana ×1.6); el fantasma, 1 de vida más |
 | Más rápidos | sin puntos los enemigos van a ×0.76; 1: ×0.88; 2: a su velocidad; 3: ×1.12 |
 | Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). Cambiarlo en la pantalla de inicio cambia el campo en el acto |
 | Más con poder | 1: un tercio en vez de un cuarto; 2: la mitad |
 | Élites más duros | +2 de vida (sin el punto, el élite trae 2 menos) |
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
 | Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
+| Recarga lenta | las habilidades del caballero tardan en recargar 1: un 50 % más; 2: el doble. La carta dice la recarga que va a tener |
 | Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +2 y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga) |
 
-Con todo puesto es la partida de antes del 3/10, más rápida y con menos descanso, y con dos olas especiales
-que dejan marca en vez de tres. Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas
+Con todo puesto es la partida de antes del 3/10, más rápida, con menos descanso y las habilidades más
+lentas, y con dos olas especiales que dejan marca en vez de tres. Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas
 en `MARKS` (`src/core/waves.ts`); los dos se tocan en el panel B, pestaña Enemigos, donde también se
 pueden poner los puntos ganados para probar cualquier nivel.
 

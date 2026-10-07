@@ -1141,7 +1141,7 @@ const LOCKED_CARDS: ReadonlySet<string> = new Set(DEMO ? [
 ] : []);
 
 function build(): Build {
-  return { slots: abilities.slots, perks, hp: player.hp, hpMax: player.maxHp, gate: gateHp, gateMax: GATE_MAX, locked: LOCKED_CARDS };
+  return { slots: abilities.slots, perks, hp: player.hp, hpMax: player.maxHp, gate: gateHp, gateMax: GATE_MAX, locked: LOCKED_CARDS, cooldown: abilities.cooldownScale };
 }
 
 /**
@@ -1519,6 +1519,8 @@ async function startGame(withTutorial = false, quiet = false): Promise<void> {
   started = true;
   difficultyMenu.hide();
   if (difficultyMenu.dirty) rebuildRun();
+  // la recarga de las habilidades, con la dificultad («Recarga lenta»); el tenis no tiene dificultad
+  abilities.cooldownScale = TENNIS_ON ? 1 : rules.cooldown;
   if (quiet) {
     const unlock = () => {
       removeEventListener('pointerdown', unlock, true);
@@ -1746,9 +1748,11 @@ const input = new Input(ABE_ONLY ? abeKeys : {
     // R solo desde la pausa o desde el cartel del final, que son los dos lugares que la ofrecen. En
     // pleno juego un toque de más te borraba la partida sin preguntar nada
     if (difficultyMenu.open) return;
-    if (started && (paused || ended)) {
-      // con Abe (o alguien mirando): se les avisa, y la partida nueva arranca sola, sin pasar por la
-      // pantalla de inicio, así nadie se queda esperando
+    // al final, la R es «Jugar de nuevo»: arranca otra partida en el acto
+    if (started && ended) playAgain();
+    else if (started && paused) {
+      // desde la pausa vuelve a la pantalla de inicio. Con Abe (o alguien mirando): se les avisa, y la
+      // partida nueva arranca sola, así nadie se queda esperando
       if (netHost?.restarting()) sessionStorage.setItem(AUTOSTART_KEY, '1');
       location.reload();
     }
@@ -2029,6 +2033,23 @@ async function loadModels(): Promise<void> {
 const overlay = document.getElementById('overlay')!;
 /** Reiniciando con alguien mirando, la partida nueva arranca sola (ver `restart`). */
 const AUTOSTART_KEY = 'gk.autostart';
+
+/**
+ * «Jugar de nuevo», en el cartel del final (el botón o la R): otra partida que arranca sola, sin pasar
+ * por la pantalla de inicio, con la dificultad que haya quedado puesta (la llama está ahí mismo, en el
+ * cartel). Si hay alguien mirando se le avisa, y se queda para la nueva.
+ */
+function playAgain(): void {
+  netHost?.restarting();
+  try {
+    sessionStorage.setItem(AUTOSTART_KEY, '1');
+  } catch { /* sin sessionStorage: vuelve a la pantalla de inicio */ }
+  location.reload();
+}
+document.getElementById('again')?.addEventListener('click', (e) => {
+  (e.currentTarget as HTMLElement).blur();
+  if (ended && !difficultyMenu.open) playAgain();
+});
 const intro = new Intro((withTutorial) => {
   if (!WATCH && !ABE_ONLY) void startGame(withTutorial);
 }, tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON), !!WATCH || ABE_ONLY);
@@ -2543,9 +2564,9 @@ const hudBottom = document.getElementById('rows')!;
 const CAM_LIMITS = { pitch: [12, 78], rise: [-3, 14] };
 
 function tiltCamera(delta: number): void {
-  // en pausa la rueda no es del juego: se está leyendo el panel de balance, que está por encima. Y el
-  // espectador acerca con la rueda su propia cámara
-  if (paused || WATCH) return;
+  // la rueda inclina la cámara solo jugando: con un menú o un cartel abierto (la pantalla de inicio, la
+  // dificultad, las cartas, la pausa, el final) es del menú. Y el espectador acerca con la rueda su propia cámara
+  if (!started || paused || ended || cardOpen || difficultyMenu.open || WATCH) return;
   cam.pitch = THREE.MathUtils.clamp(cam.pitch + delta * 2.5, CAM_LIMITS.pitch[0], CAM_LIMITS.pitch[1]);
   hud.feedback(L(`Cámara: ${cam.pitch.toFixed(0)}° de inclinación`, `Camera: ${cam.pitch.toFixed(0)}° tilt`), 'neutral');
   debugPanel?.save();

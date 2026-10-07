@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, POWERS, REGEN, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, POWERS, REGEN, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -65,8 +65,8 @@ describe('waves', () => {
         const size = last.mods!.size!;
         expect(size).toBeGreaterThanOrEqual(ELITE.minScale);
         expect(ENEMIES[last.kind].height * size).toBeGreaterThanOrEqual(ELITE.height - 1e-9);
-        // y trae vida de más: +2, +3 y +4 según el escenario
-        expect(last.mods!.hp).toBe(ELITE.hp[s]);
+        // y trae vida de más: +2, +3 y +4 según el escenario (el fantasma, con «Poderes más duros», 1 más)
+        expect(last.mods!.hp).toBe(ELITE.hp[s] + (run.powers[s] === 'ethereal' ? HARDEST.hard.ghostHp : 0));
       }
     }
     // el más duro que pueda: el gólem chico en el tercero, salvo que el poder no le entre
@@ -206,8 +206,8 @@ describe('waves', () => {
       for (const o of spawnOrder(w, seeded(4))) {
         // (en la segunda oleada no hay élite: a todos les toca lo mismo; la marca de los gigantes, si
         // vino antes, les suma vida a unos cuantos)
-        // (el que se cura trae su vida de más encima)
-        if (!o.mods?.giant) expect(o.mods?.hp, o.kind).toBe(POWERED.hp + (o.mods?.regen ? REGEN.hp : 0));
+        // (el que se cura trae su vida de más encima, y el fantasma, con «Poderes más duros», la suya)
+        if (!o.mods?.giant) expect(o.mods?.hp, o.kind).toBe(POWERED.hp + (o.mods?.regen ? REGEN.hp : 0) + (o.mods?.ethereal ? HARDEST.hard.ghostHp : 0));
         for (const p of SCENARIO_POWERS) if (has(o.mods, p) && !run.powers.includes(p)) outside.add(p);
       }
     }
@@ -342,7 +342,7 @@ describe('waves', () => {
     expect(buildRun(seeded(1), { ...rulesFor({}), pool: ['armor'] }).powers).toHaveLength(3);
   });
 
-  it('el escudo y el blindaje suben con el escenario, sin pasar de 3', () => {
+  it('el escudo sube con el escenario hasta 3, y el blindaje hasta 2', () => {
     const levels = (scenario: number, key: 'shield' | 'armor') => {
       const seen = new Set<number>();
       for (const run of runs(40)) {
@@ -355,7 +355,8 @@ describe('waves', () => {
     expect([...levels(0, 'shield')]).toEqual([1]);
     expect([...levels(0, 'armor')]).toEqual([1]);
     expect(Math.max(...levels(2, 'shield'))).toBe(3);
-    expect(Math.max(...levels(3, 'armor'))).toBe(3);
+    expect(Math.max(...levels(3, 'armor'))).toBe(ARMOR_MAX);
+    expect(ARMOR_MAX).toBe(2);
     // en cada oleada, los escudos van de menor a mayor
     for (const run of runs(10)) {
       for (const w of run.waves) {
@@ -499,6 +500,38 @@ describe('waves', () => {
     expect(order.find((s) => s.kind === 'goblin')?.mods).toBeUndefined();
   });
 
+  it('«Poderes más duros» toca a todos los de escenario', () => {
+    const easy = rulesFor({}).hard;
+    const hard = rulesFor({ powers: 1 }).hard;
+    // el blindaje: con el punto sale casi siempre de 2 (el mayor de dos sorteos); sin él, mitad y mitad.
+    // En el primer escenario, siempre 1
+    const share2 = (h: typeof easy) => {
+      const rand = seeded(3);
+      let two = 0;
+      for (let i = 0; i < 2000; i++) if (POWERS.armor(1, rand, h).armor === 2) two++;
+      return two / 2000;
+    };
+    expect(share2(easy)).toBeGreaterThan(0.42);
+    expect(share2(easy)).toBeLessThan(0.58);
+    expect(share2(hard)).toBeGreaterThan(0.68);
+    expect(POWERS.armor(0, () => 0.99, hard).armor).toBe(1);
+    // el élite blindado, siempre 1 (con 2 había que meterle un golpe perfecto tras otro)
+    for (const s of [0, 1, 2, 3]) expect(elite(s, 'armor').mods!.armor).toBe(1);
+    // el que se cura: sin el punto tarda bastante más en curarse
+    expect(POWERS.regen(0, () => 0, easy).regen!).toBeGreaterThan(POWERS.regen(0, () => 0, hard).regen! * 2);
+    expect(POWERS.regen(0, () => 0, hard).regen).toBe(REGEN.margin);
+    expect(elite(0, 'regen', 0, easy).mods!.regen!).toBeGreaterThan(REGEN.eliteMargin);
+    // el intocable: con el punto, más rato invulnerable y la ventana más corta
+    expect(POWERS.phase(0, () => 0, easy).phaseShut).toBeUndefined();
+    expect(POWERS.phase(0, () => 0, hard).phaseShut!).toBeGreaterThan(PHASE.shut);
+    expect(POWERS.phase(0, () => 0, hard).phase!).toBeLessThan(POWERS.phase(0, () => 0, easy).phase!);
+    expect(elite(1, 'phase', 0, hard).mods!.phaseShut!).toBeGreaterThan(PHASE.eliteShut);
+    // el fantasma: con el punto, 1 de vida más (también el élite)
+    expect(POWERS.ethereal(0, () => 0, easy).hp).toBeUndefined();
+    expect(POWERS.ethereal(0, () => 0, hard).hp).toBe(1);
+    expect(elite(1, 'ethereal', 3, hard).mods!.hp).toBe(4);
+  });
+
   it('el que se cura: el ciclo alcanza para matarlo con golpes medios, y con flojos no', () => {
     // 6 de vida: 3 medios (3 s) y el margen
     expect(regenPeriod(6, REGEN.margin)).toBeCloseTo(REGEN.margin + 2 * REGEN.gap);
@@ -524,7 +557,7 @@ describe('waves', () => {
     expect(SCENARIO_POWERS).toContain('phase');
     expect(PHASE.open).toBeLessThan(PHASE.shut);
     expect(POWERS.phase(0, () => 0).phase).toBe(PHASE.open);
-    expect(POWERS.phase(0, () => 0, { cap: 2, recharge: 1.6 }).phase).toBeCloseTo(PHASE.open * 1.6);
+    expect(POWERS.phase(0, () => 0, rulesFor({}).hard).phase).toBeCloseTo(PHASE.open * DIFFICULTY.recharge[0]);
     // el élite: ventana más larga, menos rato invulnerable
     const boss = elite(1, 'phase').mods!;
     expect(boss.phase).toBe(PHASE.eliteOpen);

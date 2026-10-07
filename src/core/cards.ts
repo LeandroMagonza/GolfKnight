@@ -147,6 +147,8 @@ export interface Build {
   gateMax: number;
   /** Las habilidades y mejoras (por id) que no salen en las cartas (la demo: ver src/edition.ts). */
   locked?: ReadonlySet<string>;
+  /** Por cuánto se multiplica la recarga de las habilidades (el talento «Recarga lenta»). Sin esto, 1. */
+  cooldown?: number;
 }
 
 /** Cuántas habilidades de cada elemento hay en la mano: es lo que abre las maestrías. */
@@ -211,14 +213,14 @@ export function drawCards(build: Build, n = 3, rand: () => number = Math.random)
 
 /**
  * La recarga de una carta de habilidad: la de base si es nueva, y si sube de nivel, de cuánto a cuánto y
- * si se alarga o se acorta (`slower`).
+ * si se alarga o se acorta (`slower`). `scale`: la de la dificultad («Recarga lenta»).
  */
-export function cooldownNote(id: AbilityId, level: number): { text: string; slower: boolean } | null {
+export function cooldownNote(id: AbilityId, level: number, scale = 1): { text: string; slower: boolean } | null {
   const a = ABILITIES[id];
   const s = (n: number) => `${+n.toFixed(1)} s`;
-  const to = cooldownAt(a, level);
+  const to = cooldownAt(a, level) * scale;
   if (level <= 1) return { text: L(`Recarga: ${s(to)}`, `Cooldown: ${s(to)}`), slower: false };
-  const from = cooldownAt(a, level - 1);
+  const from = cooldownAt(a, level - 1) * scale;
   // si subir no la cambia (todas menos el palazo), la carta no dice nada: ya dice qué mejora
   if (to === from) return null;
   const change = to > from ? L('más lenta', 'slower') : L('más rápida', 'faster');
@@ -248,7 +250,7 @@ export function describe(card: Card, build?: Build): { name: string; title: stri
     return {
       name: a.name, title: a.title, hint: hintAt(a, card.level), color: a.color,
       tag: card.level > 1 ? L(`HABILIDAD · NIVEL ${card.level}`, `ABILITY · LEVEL ${card.level}`) : L('HABILIDAD NUEVA', 'NEW ABILITY'),
-      up: up.length ? up.join(' · ') : undefined, cool: cooldownNote(card.id, card.level) ?? undefined,
+      up: up.length ? up.join(' · ') : undefined, cool: cooldownNote(card.id, card.level, build?.cooldown) ?? undefined,
     };
   }
   if (card.kind === 'perk') {
