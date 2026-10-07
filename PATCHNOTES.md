@@ -39,6 +39,15 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   El viento va primero: los junta, y después les cae lo otro a todos los que movió. Los tiros del otro
   elemento también soplan. `228733a`
 
+**Dificultad**
+- La dificultad ahora es una **llama con tu nivel adentro**: ámbar con pocos puntos, roja y nerviosa con
+  muchos, e infernal con todos puestos. En la pantalla de entrada es un botón grande con una rayita por
+  punto, que late en dorado si te quedan puntos sin poner. `79f945c`
+- En la partida, la llama va **al lado del título de la oleada** (Abe también la ve). `79f945c`
+- **Desbloquear un nivel ahora se siente**: al final del cartel, la llama cae con el número de antes y
+  revienta con el nuevo, con destello, temblor, chispas y fuego que sube desde abajo. Después aparece el
+  botón de Dificultad latiendo para que pongas el punto. `79f945c`
+
 **Enemigos**
 - El blindaje que se come el golpe entero ahora para la pelota: el driver y el hierro ya no siguen de
   largo detrás del acorazado. Si le sacan aunque sea 1, siguen como siempre. `4d6988e`
