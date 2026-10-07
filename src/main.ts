@@ -9,7 +9,7 @@ import { ABILITIES, ABILITY_KEYS, ECHO, ELEMENT_INFO, ELEMENTS, lv, MIGHT, PALAZ
 import { describe, drawCards, HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type ScenarioPower } from './core/waves';
-import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used } from './core/difficulty';
+import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
@@ -26,9 +26,9 @@ import { Player, type Shot } from './game/player';
 import { FIELD_HALF_WIDTH, GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { loadVisual, VISUAL, Visuals } from './game/visuals';
 import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
-import { DebugPanel, loadBalance } from './debug';
+import { DebugPanel, loadBalance, type SavedExtras } from './debug';
 import { Hud, type PerkChip } from './hud';
-import { Input } from './input';
+import { Input, type InputEvents } from './input';
 import { Intro } from './intro';
 import { DifficultyMenu } from './difficultyMenu';
 import { flushRuns, RunRecorder } from './telemetry';
@@ -47,6 +47,7 @@ import { Abe, BOLT_SLOT, castColor, SPELL_INFO } from './coop/abe';
 import { ABE_SLOTS, BOLT_INFO, boltHint, spellHint, spellSize } from './coop/spells';
 import type { AbeStatus } from './net/spectator';
 import { L } from './i18n';
+import { ABE_ONLY, DEMO, DEV_TOOLS } from './edition';
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -63,7 +64,8 @@ const params = new URLSearchParams(location.search);
  * La dificultad: los puntos ganados y dónde están puestos (ver core/difficulty.ts). Se eligen en un menú
  * entre partidas, desde la pantalla de inicio o el cartel del final.
  */
-const progress = loadProgress();
+// la demo no tiene los talentos (ver src/edition.ts): siempre la partida de base, y no se guarda nada
+const progress: Progress = DEMO || ABE_ONLY ? { points: 0, picks: {} } : loadProgress();
 /** Los campos con lomas son un talento: sin él se juega en el liso. Es lo que está armado ahora. */
 let builtHills = hillsOn(progress.picks);
 // el tenis se juega en cancha lisa: la pelota que rebota no sabe de lomas. ?campo=N y ?plano mandan
@@ -71,7 +73,8 @@ let builtHills = hillsOn(progress.picks);
 let gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.get('campo') ?? (builtHills ? null : 'plano'));
 // el balance ajustado en el panel vuelve al recargar: cambiar de campo recarga la página, así que sin
 // esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
-const savedBalance = loadBalance();
+// (solo con las herramientas de prueba: lo que se publica para jugadores juega con los números del código)
+const savedBalance: SavedExtras = DEV_TOOLS ? loadBalance() : {};
 // el modo tenis cambia los palos y las cartas: antes de armar el HUD, que dibuja los palos
 if (TENNIS_ON) applyTennis();
 const world = new World(scene);
@@ -111,7 +114,7 @@ const QUALITY_COLORS_4 = [0xffffff, 0xffe066, 0xff9a2e, 0xff2d3c];
 const DUFF_COLORS_4 = [0x6b7480, 0x5be07a, 0xffd21f, 0xff9a2e];
 const hud = new Hud();
 const audio = new GameAudio();
-const difficultyMenu = new DifficultyMenu(progress);
+const difficultyMenu = new DifficultyMenu(progress, DEMO);
 /**
  * La partida de esta vez: tres escenarios, cada uno con un poder sorteado, y el jefe (ver `buildRun`), con
  * lo que diga la dificultad. Reiniciar recarga la página, así que cada partida sortea de nuevo; si se
@@ -156,11 +159,14 @@ function rebuildRun(): void {
 /** El botón de la dificultad, en la pantalla de inicio y en el cartel del final: aparece con el primer punto. */
 const diffButtons = [document.getElementById('diffbtn'), document.getElementById('enddiff')].filter((x): x is HTMLElement => !!x);
 function paintDifficulty(): void {
-  const on = progress.points > 0 && !params.has('mirar');
+  // en la demo se ve siempre, con candado: es lo que trae la completa
+  const on = (DEMO || progress.points > 0) && !params.has('mirar');
   const start = document.getElementById('diffbtn');
   if (start) {
     start.hidden = !on;
-    start.textContent = L(`Dificultad: nivel ${used(progress.picks)} (de ${progress.points} ganados)`, `Difficulty: level ${used(progress.picks)} (of ${progress.points} earned)`);
+    start.textContent = DEMO
+      ? L('🔒 Dificultad: en la versión completa', '🔒 Difficulty: in the full game')
+      : L(`Dificultad: nivel ${used(progress.picks)} (de ${progress.points} ganados)`, `Difficulty: level ${used(progress.picks)} (of ${progress.points} earned)`);
   }
   const end = document.getElementById('enddiff');
   if (end) end.hidden = !on;
@@ -188,7 +194,7 @@ difficultyMenu.onClose = () => {
  * El registro de la partida, que se manda solo al terminar (src/telemetry.ts). Arranca con la primera
  * oleada (el tutorial no cuenta). Ni el bot, ni el espectador, ni las pruebas automáticas mandan nada.
  */
-const RECORD = !params.has('bot') && !params.has('mirar') && !navigator.webdriver;
+const RECORD = !ABE_ONLY && !params.has('bot') && !params.has('mirar') && !navigator.webdriver;
 let recorder: RunRecorder | null = null;
 /** Cómo se anota quién pegó: el cuerpo, y si es élite o hace algo distinto, eso también. */
 function sourceOf(enemy: { stats: { kind: EnemyKind }; size: number; behavior: string } | null, fallback: string): string {
@@ -228,9 +234,9 @@ let cardOpen = false;
 /** Segundos de juego transcurridos (no corre en pausa). */
 let gameClock = 0;
 /** Con ?palos en la URL arrancan todos los palos habilitados, para probar sin jugar las oleadas. */
-const ALL_CLUBS = params.has('palos');
+const ALL_CLUBS = DEV_TOOLS && params.has('palos');
 /** Con ?bot en la URL juega solo (src/bot.ts), para mirarlo o para chequear el balance. */
-const BOT = params.has('bot');
+const BOT = DEV_TOOLS && params.has('bot');
 /**
  * El espectador (src/net): con ?mirar=CÓDIGO no se juega, se mira la partida de otro con cámara propia.
  * ?transmitir=CÓDIGO es el que juega, transmitiendo (lo pone el botón de invitar). Con &local van entre
@@ -238,7 +244,8 @@ const BOT = params.has('bot');
  */
 const WATCH = params.get('mirar');
 const NET_LOCAL = params.has('local');
-if (WATCH) {
+// (la versión de Abe es siempre el que mira, también mientras pide el enlace)
+if (WATCH || ABE_ONLY) {
   abilities.remote = true;
   document.body.classList.add('watching');
 }
@@ -662,10 +669,12 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   else player.celebrate();
   // ganar con todos los puntos de dificultad puestos desbloquea un nivel más (el bot no: juega para probar)
   const level = used(progress.picks);
-  const earned = result === 'victory' && !BOT && earnPoint(progress);
+  const earned = result === 'victory' && !BOT && !DEMO && earnPoint(progress);
   if (earned) saveProgress(progress);
   paintDifficulty();
-  const earnedText = !earned ? '' : progress.points === 1
+  const earnedText = DEMO && result === 'victory'
+    ? L('En la versión completa, cada partida ganada desbloquea un nivel de dificultad', 'In the full game, every win unlocks a difficulty level')
+    : !earned ? '' : progress.points === 1
     ? L('¡Desbloqueaste tu primer nivel de dificultad! Elegí en Dificultad qué se pone más difícil', 'You unlocked your first difficulty level! Pick what gets harder in Difficulty')
     : L(`¡Desbloqueaste el nivel ${progress.points} de dificultad!`, `You unlocked difficulty level ${progress.points}!`);
   const info = endInfo(result, title, detail, level, earnedText);
@@ -1379,7 +1388,7 @@ function removeClone(): void {
   clone = null;
 }
 
-abilities.hooks = {
+if (!ABE_ONLY) abilities.hooks = {
   fireShot(clubId: ClubId, level: number, element: Element) {
     const club = CLUBS[clubId];
     player.teePosition(tee);
@@ -1523,6 +1532,8 @@ async function startGame(withTutorial = false, quiet = false): Promise<void> {
  * una sola vez, cuando ya hay golfista.
  */
 let debugPanel: DebugPanel | null = null;
+// sin las herramientas de prueba (la demo, la de Abe), tampoco su botón
+if (!DEV_TOOLS) document.getElementById('balancebtn')?.remove();
 function makeDebugPanel(): DebugPanel {
   return new DebugPanel({
     director,
@@ -1618,7 +1629,32 @@ function togglePause(): void {
   else audio.resume();
 }
 
-const input = new Input({
+/**
+ * La versión de Abe (ver src/edition.ts): el teclado solo elige y tira sus hechizos (1 a 4, Q W E R), lo
+ * lleva por la cancha (flechas) y apaga el sonido, como al que mira desde la completa.
+ */
+const abeKeys: InputEvents = {
+  swingStart() {},
+  swingRelease() {},
+  swingCancel() {},
+  castAbility: (i) => spectator?.quickCast(i),
+  selectClub: (i) => spectator?.select(i),
+  tiltCamera() {},
+  raiseCamera: (d) => spectator?.cam.walk(d * 3),
+  debugPanel() {},
+  space() {},
+  // la R es el cuarto hechizo
+  restart: () => spectator?.quickCast(3),
+  pause() {},
+  muteToggle() {
+    if (audio.ready) audio.toggleMute();
+  },
+  muteAll: toggleAllSound,
+  skin() {},
+  step() {},
+};
+
+const input = new Input(ABE_ONLY ? abeKeys : {
   swingStart() {
     if (!started || paused || ended || cardOpen) return;
     useQuiver();
@@ -1777,113 +1813,116 @@ async function makePlayer(skin: Skin): Promise<Player> {
       half: FIELD_HALF_WIDTH - 1,
     };
   }
-  p.canFire = () => {
-    if (tennis) return tennis.fire();
-    const i = p.stanceSpot();
-    return i >= 0 && tees.take(i);
-  };
-  p.canStart = () => hasBallHere();
-  // la pifia: un golpe que con ese palo no pega nada (el golpe 1 del wedge) no sale. La pelota se queda
-  // en el puesto y cuenta como errar
-  p.duffs = (club, quality) => {
-    // en el tenis no hay pifia: el nivel lo da el timing
-    if (tennis) return false;
-    const range = shotRange(club);
-    return damageFor(club, range, quality) <= 0 && areaDamageFor(club, range, quality) <= 0;
-  };
-  p.onDuff = () => {
-    // la pifia también gasta el eco y la potencia
-    dropNextShot();
-    audio.duff();
-    hud.feedback(L('¡Pifia!', 'Whiff!'), 'bad');
-    setCleanStreak(0);
-    tutorial?.onDuff();
-  };
-  // la esquiva salta ni bien soltás (pifie o no): siempre, si está lista. Se le gana haciéndola saltar
-  // con un tiro cualquiera y pegándole con el que importa antes de que recargue. Al tiro fantasma (el
-  // guante fantasma) no lo ve venir
-  p.onRelease = () => {
-    if (tennis || glove?.element === 'ghost') return;
-    p.teePosition(tee);
-    horde.dodgeAim(tee, p.aimDir);
-  };
-  p.onWhiff = () => {
-    audio.whoosh(0.3);
-    hud.feedback(L('¡Sin pelota!', 'No ball!'), 'bad');
-  };
-  p.onShot = (shot) => {
-    // tenis: el nivel lo decidió el timing, y quizás es una que volvía
-    const t = tennis?.shot();
-    if (t) shot = { ...shot, quality: t.quality };
-    shots++;
-    // el perfecto es el golpe más alto que hay: el 3, o el 4 con su talento
-    recorder?.shot(shot.quality >= QUALITY_LEVELS);
-    audio.tock(shot.quality >= topQuality());
-    if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? L('¡Golpe 4!', 'Hit 4!') : L('¡Golpe perfecto!', 'Perfect hit!'), 'good');
-    const range = shotRange(shot.club);
-    // la potencia y el herrero van en este tiro, y el eco lo repite igual (con eso incluido). El herrero
-    // se gasta recién acá, cuando sale la pelota: cancelar, cambiar de palo o pifiar no lo tocan
-    const bonus = nextShot.bonus + smithBonus;
-    if (bonus) shot = { ...shot, bonus };
-    smithBonus = 0;
-    // el guante: el tiro lleva su elemento, al nivel del guante, y pega como siempre (el eco y el clon, igual)
-    if (glove) shot = { ...shot, element: glove.element, level: glove.level, gloved: true };
-    // tenis: si le pegó a una que venía de vuelta, esa ya está en la raqueta y sale como un saque, desde
-    // tu lugar y por donde marca la línea de tiro
-    const back = t?.back ?? null;
-    const lift = shotLift(shot.club, range);
-    const fired = balls.fire(shot, range, lift);
-    tennis?.fired(fired);
-    if (back) {
-      fired.rally = back.rally + 1;
-      balls.retire(back);
-      const bonus = Math.floor(fired.rally / TENNIS.rallyStep);
-      const s = toScreen(fired.mesh.position, 0.8);
-      hud.float(s.x, s.y, bonus ? `×${fired.rally} +${bonus}` : `×${fired.rally}`, bonus ? 'kill' : '');
-    }
-    for (let k = 1; k <= nextShot.echoes; k++) {
-      echoQueue.push({ at: gameClock + k * ECHO.delay, shot: { ...shot, ability: true, from: shot.from.clone(), dir: shot.dir.clone() }, range, lift });
-    }
-    nextShot.echoes = 0;
-    nextShot.bonus = 0;
-    // el clon repite el tiro desde donde quedó, **hacia el mouse**: las dos pelotas se cruzan donde
-    // apuntaste. Con el palo de distancia fija, solo la dirección
-    if (clone && clone.shots > 0) {
-      const from = clone.pos.clone();
-      const dx = aimPoint.x - from.x;
-      const dz = aimPoint.z - from.z;
-      const len = Math.hypot(dx, dz);
-      // para atrás no se tira: si el mouse queda detrás del clon, sale para el mismo lado que el tuyo
-      const dir = len > 0.5 && dz > 0.3 ? new THREE.Vector3(dx / len, 0, dz / len) : shot.dir.clone();
-      const cloneRange = shot.club.fixedRange > 0 ? range : THREE.MathUtils.clamp(len, shot.club.minRange, shot.club.maxRange);
-      balls.fire({ ...shot, from, dir }, cloneRange, shotLift(shot.club, cloneRange, from));
-      effects.blink(from, ABILITIES.clone.color);
-      if (--clone.shots <= 0) removeClone();
-    }
-  };
-  p.onGift = () => audio.chargeTick(topQuality());
-  // Palazo (una habilidad más): no hace daño. Empuja hacia atrás a todo lo que haya alrededor de un punto
-  // un paso adelante del golfista, hacia donde apunta.
-  p.onMelee = () => {
-    const radius = lv(PALAZO.radius, meleeLevel);
-    const center = p.position.clone().addScaledVector(p.aimDir, 1);
-    const targets = horde.nearest(center, radius, new Set(), PALAZO.targets);
-    effects.swipe(center, radius);
-    audio.whoosh(0.9);
-    const dir = new THREE.Vector3();
-    for (const e of targets) {
-      // los manda hacia atrás, por donde vinieron, apenas abiertos hacia el costado de donde estaban
-      dir.set((e.position.x - p.position.x) * 0.25, 0, 1).normalize();
-      e.shove(dir, PALAZO.knockback);
-      // es el botón de sacárselos de encima: además les corta el ataque
-      e.stagger(lv(PALAZO.stagger, meleeLevel));
-    }
-    if (targets.length) {
-      audio.thud();
-      shake = Math.max(shake, 0.12);
-      hud.feedback(targets.length > 1 ? L(`¡Palazo! ×${targets.length}`, `Whack! ×${targets.length}`) : L('¡Palazo!', 'Whack!'), 'neutral');
-    }
-  };
+  // la versión de Abe no le pega a nada: el caballero de verdad juega en la compu del otro (ver src/edition.ts)
+  if (!ABE_ONLY) {
+    p.canFire = () => {
+      if (tennis) return tennis.fire();
+      const i = p.stanceSpot();
+      return i >= 0 && tees.take(i);
+    };
+    p.canStart = () => hasBallHere();
+    // la pifia: un golpe que con ese palo no pega nada (el golpe 1 del wedge) no sale. La pelota se queda
+    // en el puesto y cuenta como errar
+    p.duffs = (club, quality) => {
+      // en el tenis no hay pifia: el nivel lo da el timing
+      if (tennis) return false;
+      const range = shotRange(club);
+      return damageFor(club, range, quality) <= 0 && areaDamageFor(club, range, quality) <= 0;
+    };
+    p.onDuff = () => {
+      // la pifia también gasta el eco y la potencia
+      dropNextShot();
+      audio.duff();
+      hud.feedback(L('¡Pifia!', 'Whiff!'), 'bad');
+      setCleanStreak(0);
+      tutorial?.onDuff();
+    };
+    // la esquiva salta ni bien soltás (pifie o no): siempre, si está lista. Se le gana haciéndola saltar
+    // con un tiro cualquiera y pegándole con el que importa antes de que recargue. Al tiro fantasma (el
+    // guante fantasma) no lo ve venir
+    p.onRelease = () => {
+      if (tennis || glove?.element === 'ghost') return;
+      p.teePosition(tee);
+      horde.dodgeAim(tee, p.aimDir);
+    };
+    p.onWhiff = () => {
+      audio.whoosh(0.3);
+      hud.feedback(L('¡Sin pelota!', 'No ball!'), 'bad');
+    };
+    p.onShot = (shot) => {
+      // tenis: el nivel lo decidió el timing, y quizás es una que volvía
+      const t = tennis?.shot();
+      if (t) shot = { ...shot, quality: t.quality };
+      shots++;
+      // el perfecto es el golpe más alto que hay: el 3, o el 4 con su talento
+      recorder?.shot(shot.quality >= QUALITY_LEVELS);
+      audio.tock(shot.quality >= topQuality());
+      if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? L('¡Golpe 4!', 'Hit 4!') : L('¡Golpe perfecto!', 'Perfect hit!'), 'good');
+      const range = shotRange(shot.club);
+      // la potencia y el herrero van en este tiro, y el eco lo repite igual (con eso incluido). El herrero
+      // se gasta recién acá, cuando sale la pelota: cancelar, cambiar de palo o pifiar no lo tocan
+      const bonus = nextShot.bonus + smithBonus;
+      if (bonus) shot = { ...shot, bonus };
+      smithBonus = 0;
+      // el guante: el tiro lleva su elemento, al nivel del guante, y pega como siempre (el eco y el clon, igual)
+      if (glove) shot = { ...shot, element: glove.element, level: glove.level, gloved: true };
+      // tenis: si le pegó a una que venía de vuelta, esa ya está en la raqueta y sale como un saque, desde
+      // tu lugar y por donde marca la línea de tiro
+      const back = t?.back ?? null;
+      const lift = shotLift(shot.club, range);
+      const fired = balls.fire(shot, range, lift);
+      tennis?.fired(fired);
+      if (back) {
+        fired.rally = back.rally + 1;
+        balls.retire(back);
+        const bonus = Math.floor(fired.rally / TENNIS.rallyStep);
+        const s = toScreen(fired.mesh.position, 0.8);
+        hud.float(s.x, s.y, bonus ? `×${fired.rally} +${bonus}` : `×${fired.rally}`, bonus ? 'kill' : '');
+      }
+      for (let k = 1; k <= nextShot.echoes; k++) {
+        echoQueue.push({ at: gameClock + k * ECHO.delay, shot: { ...shot, ability: true, from: shot.from.clone(), dir: shot.dir.clone() }, range, lift });
+      }
+      nextShot.echoes = 0;
+      nextShot.bonus = 0;
+      // el clon repite el tiro desde donde quedó, **hacia el mouse**: las dos pelotas se cruzan donde
+      // apuntaste. Con el palo de distancia fija, solo la dirección
+      if (clone && clone.shots > 0) {
+        const from = clone.pos.clone();
+        const dx = aimPoint.x - from.x;
+        const dz = aimPoint.z - from.z;
+        const len = Math.hypot(dx, dz);
+        // para atrás no se tira: si el mouse queda detrás del clon, sale para el mismo lado que el tuyo
+        const dir = len > 0.5 && dz > 0.3 ? new THREE.Vector3(dx / len, 0, dz / len) : shot.dir.clone();
+        const cloneRange = shot.club.fixedRange > 0 ? range : THREE.MathUtils.clamp(len, shot.club.minRange, shot.club.maxRange);
+        balls.fire({ ...shot, from, dir }, cloneRange, shotLift(shot.club, cloneRange, from));
+        effects.blink(from, ABILITIES.clone.color);
+        if (--clone.shots <= 0) removeClone();
+      }
+    };
+    p.onGift = () => audio.chargeTick(topQuality());
+    // Palazo (una habilidad más): no hace daño. Empuja hacia atrás a todo lo que haya alrededor de un punto
+    // un paso adelante del golfista, hacia donde apunta.
+    p.onMelee = () => {
+      const radius = lv(PALAZO.radius, meleeLevel);
+      const center = p.position.clone().addScaledVector(p.aimDir, 1);
+      const targets = horde.nearest(center, radius, new Set(), PALAZO.targets);
+      effects.swipe(center, radius);
+      audio.whoosh(0.9);
+      const dir = new THREE.Vector3();
+      for (const e of targets) {
+        // los manda hacia atrás, por donde vinieron, apenas abiertos hacia el costado de donde estaban
+        dir.set((e.position.x - p.position.x) * 0.25, 0, 1).normalize();
+        e.shove(dir, PALAZO.knockback);
+        // es el botón de sacárselos de encima: además les corta el ataque
+        e.stagger(lv(PALAZO.stagger, meleeLevel));
+      }
+      if (targets.length) {
+        audio.thud();
+        shake = Math.max(shake, 0.12);
+        hud.feedback(targets.length > 1 ? L(`¡Palazo! ×${targets.length}`, `Whack! ×${targets.length}`) : L('¡Palazo!', 'Whack!'), 'neutral');
+      }
+    };
+  }
   return p;
 }
 
@@ -1944,9 +1983,11 @@ async function loadModels(): Promise<void> {
   hud.setClub(player.club);
   hud.setSkin(SKINS[skinIndex].name);
   hud.onSkinClick = () => void cycleSkin();
-  hud.onCardDismiss = dismissCard;
-  hud.onPick = pickCard;
-  debugPanel = makeDebugPanel();
+  if (!ABE_ONLY) {
+    hud.onCardDismiss = dismissCard;
+    hud.onPick = pickCard;
+  }
+  if (DEV_TOOLS) debugPanel = makeDebugPanel();
   player.update(0);
 }
 
@@ -1955,19 +1996,43 @@ const overlay = document.getElementById('overlay')!;
 /** Reiniciando con alguien mirando, la partida nueva arranca sola (ver `restart`). */
 const AUTOSTART_KEY = 'gk.autostart';
 const intro = new Intro((withTutorial) => {
-  if (!WATCH) void startGame(withTutorial);
-}, tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON), !!WATCH);
-// el espectador no tiene intro: entra directo a mirar
+  if (!WATCH && !ABE_ONLY) void startGame(withTutorial);
+}, tutorialFirst && !TENNIS_ON, TENNIS_ON, () => switchMode(!TENNIS_ON), !!WATCH || ABE_ONLY);
+// el espectador no tiene intro: entra directo a mirar. La versión de Abe sin sala pide el enlace
 if (WATCH) overlay.hidden = true;
-intro.onInvite = async () => {
-  const link = await invite();
-  showPauseInvite(link);
-  return link;
-};
+else if (ABE_ONLY) showAbeJoin();
+if (!ABE_ONLY) {
+  intro.onInvite = async () => {
+    const link = await invite();
+    showPauseInvite(link);
+    return link;
+  };
+}
+
+/**
+ * La versión de Abe sin sala (ver src/edition.ts): se entra con el enlace del caballero, o escribiendo el
+ * código de su sala (o pegando el enlace entero).
+ */
+function showAbeJoin(): void {
+  document.body.classList.add('abejoin');
+  const box = document.getElementById('abejoin')!;
+  box.hidden = false;
+  const field = box.querySelector('input') as HTMLInputElement;
+  box.querySelector('form')!.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = field.value.trim();
+    const code = (/mirar=([A-Za-z0-9]+)/.exec(raw)?.[1] ?? raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!code) return;
+    const url = new URL(location.href);
+    url.searchParams.set('mirar', code);
+    location.href = url.toString();
+  });
+  field.focus();
+}
 loadModels().then(() => {
   intro.setReady();
   // reiniciaste con alguien mirando: arranca directo (ver `restart`)
-  if (!WATCH && sessionStorage.getItem(AUTOSTART_KEY)) {
+  if (!WATCH && !ABE_ONLY && sessionStorage.getItem(AUTOSTART_KEY)) {
     sessionStorage.removeItem(AUTOSTART_KEY);
     void startGame(false, true);
   }
@@ -2134,7 +2199,7 @@ function showAbe(s: AbeStatus): void {
       ? `${SPELL_INFO[sel.id].name}: ${spellHint(sel.id, sel.level)} · ${sel.ready
         ? L(`el próximo toque lo tira (tocá el botón otra vez para volver a la ${BOLT_INFO.name.toLowerCase()})`, `your next tap casts it (tap the button again to go back to ${BOLT_INFO.name.toLowerCase()})`)
         : L(`listo en ${Math.ceil(sel.left)} s`, `ready in ${Math.ceil(sel.left)} s`)}`
-      : `${L('Tocá el piso', 'Tap the ground')}: ${BOLT_INFO.name.toLowerCase()}, ${boltHint().toLowerCase()}. ${s.slots.length
+      : `${L('Tocá el piso', 'Tap the ground')}: ${boltHint().replace(/^./, (c) => c.toLowerCase())}. ${s.slots.length
         ? L('Elegí un hechizo y el próximo toque lo tira', 'Pick a spell and your next tap casts it')
         : offer ? L('Elegí arriba tu primer hechizo', 'Pick your first spell above') : ''}`);
 }
@@ -2290,7 +2355,7 @@ async function invite(): Promise<string> {
   return startHosting(params.get('transmitir') ?? new URL(location.href).searchParams.get('transmitir') ?? roomCode());
 }
 // reiniciando con la sala abierta (o desde una prueba): vuelve a transmitir solo
-if (params.get('transmitir') && !WATCH) {
+if (!ABE_ONLY && params.get('transmitir') && !WATCH) {
   void invite().then((link) => {
     intro.showInvite(link);
     showPauseInvite(link);
@@ -2311,7 +2376,7 @@ function setPauseWatchers(n: number): void {
     : n === 1 ? L('🧙 Abe ya está en la partida', '🧙 Abe is already in the game') : abeAndWatchers(n - 1);
 }
 setPauseWatchers(0);
-pauseInviteOpen.addEventListener('click', () => {
+if (!ABE_ONLY) pauseInviteOpen.addEventListener('click', () => {
   pauseInviteOpen.disabled = true;
   invite().then((link) => {
     showPauseInvite(link);
@@ -2525,7 +2590,7 @@ function updateWaves(dt: number): void {
         // se anota siempre (los números del cartel del final salen de acá), pero solo se manda con RECORD
         if (!WATCH && !recorder && e.index === 0) {
           recorder = new RunRecorder({
-            version: __BUILD__, level: used(progress.picks), picks: { ...progress.picks }, points: progress.points,
+            version: DEMO ? `${__BUILD__} demo` : __BUILD__, level: used(progress.picks), picks: { ...progress.picks }, points: progress.points,
             powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
           }, RECORD);
         }
@@ -2575,18 +2640,25 @@ function frame(): void {
   const nowMs = performance.now();
   frameTimes.push(nowMs);
   if (frameTimes.length > 240) frameTimes = frameTimes.filter((t) => nowMs - t < 1000);
-  // el espectador no simula nada: pone todo donde dicen las fotos del que juega, y dibuja
-  if (WATCH) {
-    spectator?.update(dt);
-    moundView.update();
-    // en pausa o eligiendo carta, quieto como en el del que juega
-    const step = spectator?.frozen ? 0 : dt;
-    effects.update(step);
-    world.update(step);
-    visuals.updateDay(dt);
-    visuals.render();
-    return;
-  }
+  // la versión de Abe es siempre el que mira: lo del que juega ni se compila (ver src/edition.ts)
+  if (WATCH || ABE_ONLY) watchFrame(dt);
+  else playFrame(dt, nowMs);
+}
+
+/** El que mira no simula nada: pone todo donde dicen las fotos del que juega, y dibuja. */
+function watchFrame(dt: number): void {
+  spectator?.update(dt);
+  moundView.update();
+  // en pausa o eligiendo carta, quieto como en el del que juega
+  const step = spectator?.frozen ? 0 : dt;
+  effects.update(step);
+  world.update(step);
+  visuals.updateDay(dt);
+  visuals.render();
+}
+
+/** El que juega: la partida entera. */
+function playFrame(dt: number, nowMs: number): void {
   if (player && cardOpen && !paused) director.wait(dt);
   if (player && !paused && !cardOpen) {
 
@@ -2676,8 +2748,8 @@ addEventListener('resize', () => {
   visuals.resize(innerWidth, innerHeight);
 });
 
-// Para inspección automática (Playwright) y debugging en consola.
-(window as any).__gk = {
+// Para inspección automática (Playwright) y debugging en consola. Solo con las herramientas de prueba
+if (DEV_TOOLS) (window as any).__gk = {
   /** El espectador: el que transmite (y cuántos miran) o el que mira. */
   net: {
     get host() { return netHost; },

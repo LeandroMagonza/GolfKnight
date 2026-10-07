@@ -34,6 +34,13 @@
       #invitebox input { flex: 1; min-width: 0; font: 13px ui-monospace, monospace; padding: 6px 8px; border-radius: 6px; border: 1px solid #3a4452; background: #0e141c; color: #e4e9f0; }
       #overlay #invitebox button.copy { font-size: 14px; padding: 6px 12px; }
       #invitebox .who { font-size: 13px; color: #9aa4b2; }
+      /* la versión de Abe sin sala (ver src/edition.ts): se pide el enlace del caballero, y nada más */
+      #abejoin { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: min(460px, calc(100vw - 32px)); text-align: center; color: #cfd6e0; }
+      #abejoin[hidden] { display: none; }
+      #abejoin p { margin: 0; font-size: 16px; line-height: 1.4; }
+      #abejoin form { display: flex; gap: 6px; width: 100%; }
+      #abejoin input { flex: 1; min-width: 0; font: 18px ui-monospace, monospace; letter-spacing: 2px; padding: 8px 10px; border-radius: 6px; border: 1px solid #3a4452; background: #0e141c; color: #e4e9f0; text-transform: uppercase; }
+      body.abejoin #slide, body.abejoin #dots, body.abejoin #overlay .buttons, body.abejoin #alt, body.abejoin #mode, body.abejoin #diffbtn, body.abejoin #invite, body.abejoin #invitebox, body.abejoin #replaycine { display: none; }
       /* el que mira: estado de la conexión, el aviso del sonido y quiénes miran (en el que juega) */
       #netnote { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #e4e9f0; font-size: 15px; white-space: nowrap; }
       #netnote[hidden], #netsound[hidden], #watchers[hidden] { display: none; }
@@ -120,6 +127,9 @@
       #difficulty .list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; scrollbar-width: thin; }
       #difficulty .talent { padding: 8px 10px; border-radius: 8px; background: #19222e; border: 1px solid #263140; }
       #difficulty .talent.taken { border-color: #7a5a1e; background: #211e18; }
+      /* la demo: se ven, sin botones */
+      #difficulty.locked .head button { display: none; }
+      #difficulty.locked .talent { opacity: 0.75; }
       #difficulty .head { display: flex; align-items: center; gap: 8px; }
       #difficulty .head b { flex: 1; font-size: 16px; }
       #difficulty .pips { display: flex; gap: 4px; }
@@ -433,6 +443,10 @@
         <div class="row"><input type="text" readonly aria-label="Enlace para mirar" data-en-aria-label="Link to join" /><button type="button" class="copy" data-en="Copy">Copiar</button></div>
         <div class="who" data-en="Send them this link. They can join now or once the game has started.">Pasale este enlace. Puede entrar ahora o con la partida empezada.</div>
         <div class="netctl" hidden><button type="button" class="kick" hidden data-en="Kick Abe">Echar a Abe</button><button type="button" class="private"></button></div>
+      </div>
+      <div id="abejoin" hidden>
+        <p data-en="You're Abe, the wizard who summoned the knight. Open the link your friend sent you, or type their room code.">Sos Abe, el mago que invocó al caballero. Abrí el enlace que te pasó tu amigo, o escribí el código de su sala.</p>
+        <form><input type="text" autocomplete="off" spellcheck="false" aria-label="Código de la sala" data-en-aria-label="Room code" placeholder="ABCD" data-en-placeholder="ABCD" /><button type="submit" data-en="Join">Entrar</button></form>
       </div>
       <button id="replaycine" type="button" data-en="Watch the intro again">Ver la intro de nuevo</button>
       <div id="corner">

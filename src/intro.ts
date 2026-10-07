@@ -9,6 +9,7 @@
 // El tutorial: la primera vez, el botón grande lo empieza y abajo se lo puede saltear. Cuando ya se hizo
 // (o se salteó), el botón grande va directo a la partida y abajo se lo puede repetir.
 
+import { EDITION } from './edition';
 import { L, lang } from './i18n';
 import { setupLangPicker } from './langPicker';
 import { setupPatchNotes } from './patchnotes';
@@ -102,7 +103,9 @@ export class Intro {
       (e.currentTarget as HTMLButtonElement).textContent = L('¡Copiado!', 'Copied!');
     });
     const version = document.getElementById('version');
-    if (version) version.textContent = L(`versión ${__BUILD__}`, `version ${__BUILD__}`);
+    // la demo y la de Abe lo dicen al lado (ver src/edition.ts)
+    const tag = EDITION === 'full' ? '' : ` · ${EDITION === 'demo' ? 'demo' : 'Abe'}`;
+    if (version) version.textContent = L(`versión ${__BUILD__}${tag}`, `version ${__BUILD__}${tag}`);
     setupPatchNotes();
     setupLangPicker();
     this.dots.innerHTML = SLIDES.length > 1 ? SLIDES.map(() => '<span></span>').join('') : '';

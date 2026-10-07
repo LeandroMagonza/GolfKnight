@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:all": "node tools/build.mjs",
+    "build:demo": "node tools/build.mjs demo",
+    "build:abe": "node tools/build.mjs abe",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

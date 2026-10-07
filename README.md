@@ -16,6 +16,7 @@ npm install
 npm run dev          # http://localhost:5173
 npm test             # core: balística, medidor de swing, oleadas
 npm run typecheck
+npm run build:all    # las tres versiones: la completa, la demo y la de Abe (ver más abajo)
 npm run deploy       # compila y publica en GitHub Pages (rama gh-pages)
 ```
 
@@ -471,6 +472,19 @@ npm run deploy
 ```
 
 Compila con Vite (`base: './'`, así que anda en cualquier subcarpeta) y sube `dist/` a `gh-pages`.
+
+**Las versiones** (`src/edition.ts`, `tools/build.mjs`; el plan está en
+[`docs/monetizacion.md`](docs/monetizacion.md)). Cada compilación es una de tres, y lo que no tiene
+directamente no se compila:
+
+- **la completa** (`dist/`, en la raíz del sitio): todo, y mientras se desarrolla también las
+  herramientas de prueba (panel B, `__gk`, `?bot`, `?palos`).
+- **la demo** (`dist/demo/`, en `/GolfKnight/demo/`): sin los talentos de dificultad (se ven con
+  candado) y sin las herramientas de prueba. Con Abe.
+- **la de Abe** (`dist/abe/`, en `/GolfKnight/abe/`): solo para ser Abe en la partida de otro. Sin
+  enlace pide el código de la sala; no puede arrancar una partida.
+
+`npm run deploy` compila las tres. Para probar una en desarrollo: `GK_EDITION=demo npm run dev`.
 La carpeta `assets/` (FBX originales de Mixamo y modelos sin usar) no se sube al repo: son archivos
 fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa el juego sí están, en
 `public/models/`.

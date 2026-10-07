@@ -1,0 +1,135 @@
+# Monetización, versiones y juego cruzado
+
+Lo charlado con Leandro el 6 y 7 de octubre. La idea: una **demo gratis** que se juega en el navegador
+y sirve de propaganda, y la **versión completa paga** en itch.io y Steam. Abe, el segundo jugador, es la
+mejor propaganda que tiene el juego: cualquiera que reciba el enlace entra sin instalar nada.
+
+## Dónde va cada cosa
+
+| Dónde | Qué | Para qué |
+|---|---|---|
+| **itch.io** | La demo, jugable en el navegador. Más adelante, la completa paga en la misma página | Difusión: ahí te encuentran jugadores. Cobrar |
+| **Página web propia** (hoy GitHub Pages) | La versión de Abe, una carpeta por versión. La demo también | El enlace de Abe tiene que abrir **la misma versión** que el caballero, fuera de un iframe |
+| **Steam** | La completa (app paga) y la demo (app aparte, gratis). Las dos con Abe | Donde están los compradores. Logros, invitar amigos de Steam |
+
+Por qué Abe no juega desde itch: itch tiene **una** versión a la vez y mete el juego en un iframe. Para
+Abe hace falta cada versión publicada en su propia dirección (ver «Juego cruzado»), y eso solo se puede
+en una página propia. El caballero puede jugar en itch o en Steam: el enlace que comparte apunta a la
+página propia.
+
+## Las versiones (armado el 7/10)
+
+`src/edition.ts` dice qué versión es cada compilación; `tools/build.mjs` las compila (`npm run build:all`,
+o `build:demo` / `build:abe`). Lo que una versión no tiene **no se compila**: no se puede destrabar desde
+la consola del navegador.
+
+- **Completa** (`dist/`): todo. Mientras se desarrolla, trae las herramientas de prueba (panel B, `__gk`,
+  `?bot`, `?palos`). Para vender va a hacer falta una completa **sin** ellas (es cambiar `DEV_TOOLS` en
+  `vite.config.ts` para esa compilación).
+- **Demo** (`dist/demo/`): sin los talentos de dificultad. Se ven en el menú con candado, y al ganar dice
+  que en la completa cada partida desbloquea un nivel. Sin herramientas de prueba. Con Abe y con la
+  cinemática.
+- **Abe** (`dist/abe/`): solo para ser Abe. Sin enlace, pide el código de la sala (o el enlace pegado).
+  No puede arrancar una partida: el bucle del que juega, el tiro, las oleadas, las cartas, el tutorial y
+  la parte de transmitir no se compilan. Sin cinemática (pesa 30 MB en vez de 48).
+
+Las tres se publican con `npm run deploy`: la completa en la raíz, y las otras en
+https://leandromagonza.github.io/GolfKnight/demo/ y https://leandromagonza.github.io/GolfKnight/abe/.
+
+**Falta decidir qué más deja afuera la demo.** Solo con los talentos, la demo es casi el juego entero.
+Candidatos:
+- menos escenarios (poderes) en el sorteo, menos enemigos, menos cartas y habilidades;
+- lo que venga y sea solo de la completa: desbloqueos entre partidas, un modo sin fin, más escenarios, la
+  cinemática del final;
+- el modo tenis (hoy es un prototipo y está en todas).
+
+## Juego cruzado: el amigo que no tiene el juego
+
+La base ya lo permite: el caballero y Abe se encuentran por relays públicos con el código de la sala, sin
+importar dónde abrió el juego cada uno. La versión de Steam sería el mismo juego dentro de Electron
+(un Chrome), así que se conecta igual. Lo que falta:
+
+1. **El enlace.** Hoy se arma con la dirección de la página del caballero (`watchLink` en `main.ts`). En
+   Steam esa dirección es un archivo de su compu, y en itch es la del iframe. Tiene que apuntar siempre a
+   la página propia de Abe.
+2. **Las versiones.** Hoy, si no coinciden, solo dice «recarguen los dos». Con Steam va a pasar seguido:
+   el de Steam puede no haber actualizado. Solución: cada versión publicada queda en su carpeta
+   (`/abe/<versión>/`) y el enlace apunta a la del caballero. Los modelos no cambian entre versiones, así
+   que ocupa poco más (el código son 1,3 MB).
+3. **Que Abe vea todo.** Ya está: la versión de Abe trae todos los enemigos y escenarios, sin poder jugar.
+   Sirve también para un **pase de amigo**, como en It Takes Two: el que compró invita gratis a Abe a
+   su partida completa.
+4. **Que conecte siempre.** Hay redes que no dejan conectarse directo (sale el aviso). Para algo pago
+   hace falta un **servidor TURN**: Cloudflare tiene uno con una parte gratis por mes, y lo de Abe gasta
+   poco. Además, no depender solo de relays públicos gratis para encontrarse. Y el código de 4 letras se
+   puede adivinar: en el enlace, uno largo; las 4 letras solo para dictarlo.
+
+**Para vender desde Abe:** al terminar la partida, a Abe le aparece «Jugá vos: demo gratis o comprarlo en
+Steam». Cada Abe es un posible comprador.
+
+## Steam
+
+- **Costo:** US$100 por juego (se devuelven al vender US$1.000). Steam se queda con el 30 %.
+- **La página «próximamente»** tiene que estar al menos 2 semanas antes de lanzar; cuanto antes, mejor:
+  junta deseados, que es lo que hace que Steam te muestre. Los **Steam Next Fest** son festivales de
+  demos, varias veces por año.
+- **La versión de escritorio:** el juego web dentro de Electron, sin reescribir nada (Vampire Survivors
+  salió así: hecho en JavaScript, a US$3). Steamworks desde JavaScript con `steamworks.js` (logros,
+  amigos, invitaciones).
+- **Invitar, dos maneras:**
+  - **a un amigo de Steam:** la invitación de Steam lleva el código de la sala. El amigo abre su juego
+    (completa o demo) y entra como Abe.
+  - **un enlace web:** para el que no tiene el juego (ver «Juego cruzado»).
+- **Dos con el juego en Steam:** el Abe que entra desde Steam corre la app, así que puede tener **logros
+  de Abe** (ideas: detonar 100 marcas, ganar una partida como Abe, salvar la puerta con un hechizo). El
+  Abe del navegador no tiene logros.
+- **La demo en Steam** es una app aparte, gratis, y viene con Abe: se juega de a dos con la demo. Si trae
+  adentro la versión de Abe, un amigo con la completa puede invitar al de la demo a su partida completa:
+  la prueba entera, como Abe.
+- La conexión puede seguir siendo la misma (WebRTC con TURN). Más adelante se podría usar la red de
+  Steam entre dos que lo tienen en Steam.
+
+## itch.io
+
+- **Subir:** con `butler`, el programa oficial de itch, sumado a `npm run deploy` (sube solo lo que
+  cambió, los modelos no se vuelven a subir). Una vez, Leandro: crea la página del juego (tipo HTML),
+  corre `butler login` en su compu, y después de la primera subida marca «This file will be played in
+  the browser».
+- **Cobrar:** itch se queda con lo que uno elija (por defecto el 10 %). La demo puede tener «pagá lo que
+  quieras». En una misma página van la demo web gratis y la completa para los que compran.
+
+## El código, privado
+
+Cuando esté lo de itch. Hoy el repo es público porque GitHub Pages gratis solo sirve repos públicos.
+
+- **Plan:** el repo del código pasa a privado (por ejemplo `GolfKnight-codigo`) y un repo público
+  `GolfKnight` guarda solo lo compilado (lo que hoy va a `gh-pages`). El enlace y la landing no cambian;
+  hay que sacar de la landing el link al código. La otra sesión trabaja en esta misma carpeta: con
+  cambiar el remoto una vez, quedan las dos apuntando al repo nuevo.
+- **Cuando se venda:** en la página pública van solo la demo y la de Abe. La completa, gratis en un link,
+  no la compra nadie.
+- Lo compilado igual se puede bajar (es JavaScript minificado, sin mapas al código original): lo privado
+  es el código fuente, los docs, las herramientas y el historial.
+
+## Hosting
+
+GitHub Pages, itch.io y Cloudflare Pages son gratis y no cobran tráfico (ninguno pide tarjeta). S3 con
+CloudFront es barato con poco tráfico, pero no tiene techo: si el juego pega, se paga por visita (cada
+visita nueva baja unos 30 MB). Si GitHub Pages se queda corto (unos 100 GB por mes), mudarse a Cloudflare
+Pages es cambiar el deploy.
+
+## Otras fuentes
+
+- **Portales web** (CrazyGames, Poki): comparten lo que ganan con la publicidad. Piden que cargue rápido:
+  habría que comprimir los modelos (hoy 30 MB por visita), que igual conviene.
+- **Donaciones** en itch: poco, pero cero trabajo.
+
+## Pendiente
+
+- [ ] Leandro: crear la página en itch.io y correr `butler login`. Después: butler en el deploy.
+- [ ] Decidir qué más deja afuera la demo.
+- [ ] El enlace de Abe a la página propia, y una carpeta por versión.
+- [ ] TURN y código largo en el enlace.
+- [ ] Repo privado + repo público con lo compilado.
+- [ ] Una completa sin herramientas de prueba, para vender.
+- [ ] Steam: Electron, steamworks.js, invitaciones, logros, página «próximamente».

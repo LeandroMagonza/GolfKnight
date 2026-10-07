@@ -1,8 +1,9 @@
-// Publica el juego en GitHub Pages: compila con Vite y sube dist/ a la rama gh-pages del mismo remoto.
+// Publica el juego en GitHub Pages: compila las versiones y sube dist/ a la rama gh-pages del mismo remoto.
 // La rama gh-pages es solo el sitio compilado, así que se pisa entera en cada publicación.
 // uso: npm run deploy
 import { execSync } from 'node:child_process';
 import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { buildAll, EDITIONS } from './build.mjs';
 
 const run = (cmd, cwd = process.cwd()) => execSync(cmd, { cwd, stdio: 'inherit' });
 const out = (cmd, cwd = process.cwd()) => execSync(cmd, { cwd }).toString().trim();
@@ -14,7 +15,8 @@ const now = new Date();
 const two = (n) => String(n).padStart(2, '0');
 const build = `${now.getDate()}/${now.getMonth() + 1} ${two(now.getHours())}:${two(now.getMinutes())}`;
 run('npx tsc --noEmit');
-execSync('npx vite build', { stdio: 'inherit', env: { ...process.env, GK_BUILD: build } });
+// las tres versiones (ver tools/build.mjs): la completa en la raíz, y la demo y la de Abe en /demo/ y /abe/
+buildAll(EDITIONS, build);
 // sin esto GitHub pasa el sitio por Jekyll, que ignora lo que empieza con guion bajo
 writeFileSync('dist/.nojekyll', '');
 if (existsSync('dist/.git')) rmSync('dist/.git', { recursive: true, force: true });

@@ -1,6 +1,6 @@
 // El menú de dificultad, entre partidas: los puntos ganados y dónde ponerlos (ver core/difficulty.ts).
 // Se abre desde la pantalla de inicio y desde el cartel del final. Lo que se cambia vale para la próxima
-// partida, y queda guardado en el navegador.
+// partida, y queda guardado en el navegador. En la demo (ver src/edition.ts) se ven, pero con candado.
 
 import { levelOf, MAX_POINTS, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
 import { L } from './i18n';
@@ -16,7 +16,8 @@ export class DifficultyMenu {
   /** Avisa al cerrar (si se prendió o se apagó el terreno irregular, se cambia el campo). */
   onClose: (() => void) | null = null;
 
-  constructor(readonly progress: Progress) {
+  /** @param locked la demo: los talentos se ven, para saber qué trae la completa, pero no se pueden poner */
+  constructor(readonly progress: Progress, private readonly locked = false) {
     this.el.querySelector('.done')?.addEventListener('click', () => this.hide());
     // un click afuera de la caja también cierra
     this.el.addEventListener('click', (e) => { if (e.target === this.el) this.hide(); });
@@ -58,7 +59,11 @@ export class DifficultyMenu {
     const p = this.progress;
     const n = used(p.picks);
     const free = p.points - n;
-    this.summary.textContent = p.points === 0
+    this.el.classList.toggle('locked', this.locked);
+    this.summary.textContent = this.locked
+      ? L('🔒 En la versión completa: cada partida ganada te da un punto, y lo ponés en lo que querés que se ponga más difícil.',
+        '🔒 In the full game: every win gives you a point to spend on whatever you want to get harder.')
+      : p.points === 0
       ? L('Ganá una partida para tu primer punto.', 'Win a run to earn your first point.')
       : L(
         `Nivel ${n} · ${free ? `te ${free === 1 ? 'queda 1 punto' : `quedan ${free} puntos`} para poner` : 'todos tus puntos puestos'} · ${p.points} de ${MAX_POINTS} ganados`,
@@ -68,7 +73,7 @@ export class DifficultyMenu {
       const lv = levelOf(p.picks, t.id);
       const pips = t.levels.map((_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
       const lines = t.levels.map((text, i) => `<div class="${i < lv ? 'got' : ''}">${text()}</div>`).join('');
-      const canAdd = lv < t.levels.length && free > 0;
+      const canAdd = !this.locked && lv < t.levels.length && free > 0;
       return `<div class="talent${lv ? ' taken' : ''}">
         <div class="head"><span class="pips">${pips}</span><b>${t.name}</b>
           <button type="button" data-id="${t.id}" data-step="-1" ${lv ? '' : 'disabled'} aria-label="${L('Sacar un punto', 'Remove a point')}">−</button>

@@ -334,3 +334,15 @@ Probado con `logs/check-marca.mjs` (marca a los de adentro y no al de al lado; e
 en vez de 1; el fuego no; se va sola al segundo; el que llega al final arma 3, 3, 2, 2) y
 `logs/check-abe-otra.mjs` (dos pestañas: la oleada arranca sin que Abe elija; R, el aviso, la partida que
 arranca sola y Abe que vuelve como Abe).
+
+## Hecho: la versión de Abe (7/10/2026)
+
+Para el amigo que no tiene el juego (ver [monetizacion.md](monetizacion.md), «Juego cruzado»): una
+compilación aparte (`GK_EDITION=abe`, en `/GolfKnight/abe/`) que es siempre el que mira. Con
+`?mirar=CÓDIGO` entra directo; sin código, pide el código de la sala o el enlace pegado entero. No puede
+arrancar una partida: en `main.ts`, lo del que juega (`playFrame`, los ganchos del tiro en `makePlayer`,
+`startGame`, transmitir, las cartas) queda detrás de `ABE_ONLY` y no se compila. El teclado es el de
+Abe (`abeKeys`: 1 a 4 y Q W E R para los hechizos, las flechas para la cámara).
+
+Probado con `logs/check-versiones.mjs`: un caballero con la completa y un Abe con la de Abe, en dos
+pestañas; entra como Abe, ve la misma oleada, y su marca sale en la partida del caballero.
