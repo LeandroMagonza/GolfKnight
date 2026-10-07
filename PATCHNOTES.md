@@ -47,6 +47,21 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **Desbloquear un nivel ahora se siente**: al final del cartel, la llama cae con el número de antes y
   revienta con el nuevo, con destello, temblor, chispas y fuego que sube desde abajo. Después aparece el
   botón de Dificultad latiendo para que pongas el punto. `79f945c`
+- **«Poderes más duros» toca a todos los poderes**: además de los escudos de hasta 3 y la recarga del
+  escurridizo y el bendito, el blindaje sale casi siempre de 2, los que se curan se curan más seguido, los
+  intocables pasan más rato invulnerables y los fantasmas traen 1 de vida más. `f6fb30d`
+- **El blindaje ya no pasa de 2** (antes llegaba a 3 con ese talento), y **el élite blindado trae 1**:
+  con 2 había que meterle un golpe perfecto tras otro, de 1 cada uno. `f6fb30d`
+- **Los que se curan, más fáciles sin ese talento**: tardan más en curarse (al de 6 de vida, cada 6 s en
+  vez de 4.9). Con el talento, como hasta ahora. `f6fb30d`
+- **Talento nuevo: Recarga lenta**. Tus habilidades tardan un 50 % más en recargar, y con el segundo
+  punto el doble. La carta dice la recarga que va a tener. `f6fb30d`
+
+**Pantalla**
+- El cartel del final tiene un botón **Jugar de nuevo** (o la R): arranca otra partida en el acto, sin
+  pasar por la pantalla de inicio. `f6fb30d`
+- La rueda del mouse ya no inclina la cámara con un menú abierto (las cartas, la pausa, la dificultad, el
+  final o la pantalla de inicio): solo jugando. `f6fb30d`
 
 **Enemigos**
 - El blindaje que se come el golpe entero ahora para la pelota: el driver y el hierro ya no siguen de
