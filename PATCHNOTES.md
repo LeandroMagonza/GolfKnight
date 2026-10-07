@@ -62,6 +62,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   pasar por la pantalla de inicio. `f6fb30d`
 - La rueda del mouse ya no inclina la cámara con un menú abierto (las cartas, la pausa, la dificultad, el
   final o la pantalla de inicio): solo jugando. `f6fb30d`
+- **Barra de arriba**: las vidas, la oleada y los botones van en una barra fija, y el campo se dibuja
+  debajo, así nada tapa a los que vienen (se ve entero, un poco más chico). `65d29af`
+- **Las vidas**: el caballero tiene tres corazones (late el último), y la puerta un ícono con su número,
+  que se agrieta a medida que baja y tiembla cuando le pegan. `65d29af`
+- **El pasto**: tiene textura, franjas de corte, manchones más secos y más verdes, y pasto alto que se
+  mueve con el viento a los costados. Se fueron las manchas de arena: no hacían nada y confundían.
+  `65d29af`
 
 **Enemigos**
 - El blindaje que se come el golpe entero ahora para la pelota: el driver y el hierro ya no siguen de
