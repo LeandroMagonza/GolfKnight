@@ -2004,6 +2004,8 @@ export class Horde {
    * el elemento del tiro (la regla del toque, ver core/abilities).
    */
   lastStopped = false;
+  /** El blindaje se comió el último golpe entero: la pelota que atraviesa se frena ahí (ver Balls.directHit). */
+  lastArmored = false;
 
   /**
    * El tiro de palo que está pegando ahora: lo marca `Balls` mientras reparte su daño. `kills` cuenta los
@@ -2026,6 +2028,7 @@ export class Horde {
   damage(enemy: Enemy, amount: number, knockDir: THREE.Vector3 | null, knockback: number, dot = false, guard = 0, armorless = false): boolean {
     this.lastDealt = 0;
     this.lastStopped = false;
+    this.lastArmored = false;
     if (!enemy.alive || enemy.passed) return false;
     const ghost = this.shot?.ghost ?? 0;
     // el aura de invencible para todo, menos el golpe fantasma
@@ -2059,9 +2062,11 @@ export class Horde {
     // la armadura (hasta 3): el silencio se la saca mientras dura. Al fuego, al rayo y al golpe
     // fantasma no les resta
     const armor = dot || armorless || ghost ? 0 : enemy.armor;
+    let armored = false;
     if (armor > 0 && dealt > 0) {
       dealt = Math.max(0, dealt - armor);
-      if (dealt === 0) this.emit({ type: 'armored', enemy });
+      armored = dealt === 0;
+      if (armored) this.emit({ type: 'armored', enemy });
     }
     // el escudo es blindaje de frente: resta lo suyo a lo que le llegó por delante
     if (guard > 0 && dealt > 0) {
@@ -2114,6 +2119,7 @@ export class Horde {
     // la explosión de la pólvora pasa por acá con otros enemigos: lo que se lee después es de este golpe
     this.lastDealt = dealt;
     this.lastStopped = false;
+    this.lastArmored = armored;
     return killed;
   }
 

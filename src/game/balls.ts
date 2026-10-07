@@ -326,6 +326,10 @@ export class Balls {
     // el de efecto con la fuerza pega, pero no empuja
     const killed = this.horde.damage(enemy, damage, dir, ball.effect ? 0 : ball.club.knockback, false, guard);
     eaten();
+    // el blindaje que se come el golpe entero para la pelota (7/10, pedido de Leandro): el driver y el
+    // hierro no siguen de largo detrás del acorazado. Los tiros de efecto no pegan, así que no prueban el
+    // blindaje: esos siguen
+    if (this.horde.lastArmored && ball.phase === null) ball.done = true;
     // contra el escudo, si no pasó nada no es un golpe: para las rachas es como errar
     const landed = guard === 0 || this.horde.lastDealt > 0;
     // la regla del toque: si se lo comió el divino o lo paró el aura, el elemento no sale

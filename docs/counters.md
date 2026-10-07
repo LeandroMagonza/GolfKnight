@@ -30,6 +30,10 @@ Los poderes de escenario son los que piden decidir cartas; los de apoyo se resue
 El wedge cae a plomo y el escudo común no lo para nunca: **el wedge, con cualquier efecto, pasa
 escudos**.
 
+**El blindaje que se come el golpe entero para la pelota** (7/10, pedido de Leandro): si el blindaje le
+resta todo, el driver y el hierro no siguen de largo detrás del acorazado. Si le saca aunque sea 1,
+siguen. Los tiros de efecto no pegan, así que no prueban el blindaje: esos siguen siempre.
+
 **El divino (escudo sagrado)**: con la burbuja arriba es inmune a todo golpe y a todo tiro de efecto, y
 desde el 5/10 **la pelota que la rompe desaparece** (el driver no sigue de largo). El silencio se la
 apaga y la recarga empieza recién cuando se le pasa. Los tiempos de todos los poderes, en
