@@ -38,7 +38,8 @@ export const ABE_SPELLS = {
   /** Granizo: al rato cae hielo y los frena `seconds`; desde el nivel `freezeFrom`, además los congela. */
   hail: { cooldown: 8, delay: 1.5, radius: [3, 3.5, 4], seconds: [3, 4, 5], freezeFrom: 3 },
   /** Remolino: los del círculo se van al centro (hasta un metro de él). Al jefe no. */
-  whirl: { cooldown: 8, delay: 0.5, radius: [2.5, 3, 3.5] },
+  // más grande desde el 7/10, y los lleva hasta el centro (ver Horde.whirl)
+  whirl: { cooldown: 8, delay: 0.5, radius: [5, 6, 7] },
   /** Corriente: del caballero hasta donde tocás, los que están a `width` de la línea quedan sobre ella. */
   current: { cooldown: 10, delay: 0.5, width: [2, 2.5, 3] },
   /** Empujón: los del círculo salen `distance` m para atrás (hacia el fondo). Al jefe no. */

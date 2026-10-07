@@ -155,11 +155,11 @@ el total en 3, o con la carta en su nivel de congelar. Lo que hace cada una:
 - *Rayo*: **a cada uno que toca le cae un rayo**, y de ahí sale para los dos lados: en cada rama salta
   al más cercano 2 veces (3 y 4), a 6 m como mucho, sacándole 1 a cada uno. Un rayo **nunca toca dos
   veces al mismo** ni vuelve al que lo largó; el rayo de otro sí. El blindaje no le resta.
-- *Viento* (antes era el vendaval, solo rasante), distinto con cada palo:
-  - driver: el viento va detrás de la pelota y **junta sobre la línea** a los que pasa (3 m de cada
-    lado; 3.75 y 4.5 en los niveles 2 y 3), para el próximo tiro;
-  - hierro: donde revienta, una ráfaga **manda para atrás** 6 m (8 y 10) a los que están a 3.5 m;
-  - wedge: donde cae, un remolino **los amontona** hacia el centro, desde 4.5 m (5.25 y 6).
+- *Viento* (antes era el vendaval, solo rasante), distinto con cada palo. Todo al doble desde el 7/10:
+  - driver: el viento va detrás de la pelota y **junta sobre la línea** a los que pasa (6 m de cada
+    lado; 7.5 y 9), para el próximo tiro;
+  - hierro: donde revienta, una ráfaga **manda para atrás** 12 m (16 y 20) a los que están a 7 m;
+  - wedge: donde cae, un remolino **los lleva al centro**, hasta que se chocan, desde 9 m (10.5 y 12).
   Con el putter no hay.
 - *Fantasma* (el único que pega: un golpe cargado al nivel de la habilidad): le entra entero a
   cualquiera. Pasa escudos (también el de la calavera), blindaje, el tope del enemigo fantasma, el aura de
@@ -208,7 +208,8 @@ corta ninguna racha.
 **Maestrías**, que solo salen con dos habilidades del mismo elemento:
 - *Hielo*: un segundo hielo sobre el que ya está frío lo **congela**, y el golpe que rompe el hielo pega
   1 más.
-- *Fuego*: el que muere prendido contagia a los de al lado (a 2.5 m, 3 de daño).
+- *Fuego*: el que muere prendido, de lo que sea, **explota** y les saca 2 a los que tiene a 3 m (7/10;
+  antes los contagiaba, y casi no se veía). Si a alguno lo mata prendido, explota también.
 - *Rayo*: salta una vez más, y cada salto pega el doble.
 
 **Maestrías mixtas** (7/10), que salen con una habilidad de cada elemento: los tiros de cada uno ponen
@@ -219,6 +220,11 @@ nadie.
   al que tocan.
 - *Tormenta de fuego* (fuego y rayo): los de fuego también largan un rayo, y los de rayo también prenden
   al que tocan.
+- Con el **viento** (Ventisca con hielo, Torbellino de fuego, Huracán con rayo): los tiros de viento
+  ponen también el otro elemento, y los del otro elemento también soplan (el driver, el hierro y el
+  wedge, como su tiro de viento). **El viento va primero**: los mueve, y después el otro elemento les cae
+  a todos los que movió, además de a los que tocó la pelota. La burbuja y el aura lo paran, como al
+  toque.
 
 **Enemigos nuevos**: el *goblin acorazado* (1 de vida, pero le resta 1 a cada golpe: el driver de cerca
 no le hace nada) y el *esqueleto bendito* (el primer golpe no le entra, y el escudo se le recarga a los

@@ -95,8 +95,9 @@ export function chilledSpeed(speed: number): number {
  *   (2, 3 y 4 de daño en total, en 4, 6 y 8 s: **el primero a los 2 s**, desde el 5/10, para que no sea
  *   un golpe en el acto; hasta el 3/10 eran 4, 5 y 6 cada 1.5 s, y un tiro de fuego solo mataba a los
  *   élites antes de que llegaran). **El blindaje no le resta**, y cada mordisco es un golpe de 1: es la
- *   respuesta al blindado y al fantasma. Con la maestría, el que muere prendido contagia a los que tiene
- *   a `spreadRadius`.
+ *   respuesta al blindado y al fantasma. Con la maestría, el que muere prendido (de lo que sea) **explota**
+ *   y les saca `blastDamage` a los que tiene a `blastRadius` (7/10; antes los contagiaba, y casi no se
+ *   veía). Si alguno de esos muere prendido, explota también.
  * - **Rayo**: a **cada uno que toca la pelota le cae un rayo** (`chainDamage`), y de ahí sale para los
  *   dos lados: en cada rama salta `chainJumps` veces, a `chainRange` como mucho, sacándole `chainDamage` a
  *   cada uno (ver core/chain). Un rayo nunca toca dos veces al mismo ni vuelve al que lo largó; el de otro
@@ -121,12 +122,13 @@ export const ELEMENTS = {
   iceSeconds: [5, 6.5, 8, 9, 10], iceFreezeFrom: 3, freezeSeconds: 2, breakBonus: 1,
   // cuánto frena el frío (ver chilledSpeed)
   chillSlow: 0.4, chillFloor: 1, chillLeast: 0.8,
-  burnTicks: [2, 3, 4, 5, 6], burnTick: 2, burnDamage: 1, spreadRadius: 2.5,
+  burnTicks: [2, 3, 4, 5, 6], burnTick: 2, burnDamage: 1, blastRadius: 3, blastDamage: 2,
   chainJumps: [2, 3, 4, 4, 4], chainRange: 6, chainDamage: 1,
   // el viento hace algo distinto con cada palo (ver WIND_HINT): el driver junta sobre la línea a los de
   // `windLine` metros de cada lado; el hierro manda `windPush` metros para atrás a los que están a
-  // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`
-  windLine: [3, 3.75, 4.5, 4.95, 5.4], windPush: [6, 8, 10, 11, 12], windPushRadius: 3.5, windPull: [4.5, 5.25, 6, 6.6, 7.2],
+  // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`, hasta que se
+  // tocan. Todo al doble desde el 7/10 (Leandro: casi no servía; «para probar aunque sea»)
+  windLine: [6, 7.5, 9, 9.9, 10.8], windPush: [12, 16, 20, 22, 24], windPushRadius: 7, windPull: [9, 10.5, 12, 13.2, 14.4],
   silenceSeconds: [5, 6.5, 8, 9, 10], silenceElite: 0.5,
 };
 
@@ -499,7 +501,7 @@ export const ABILITY_LIST: AbilityId[] = [...BASE, ...SHOTS, ...GLOVES].map((a) 
 /** Las claves de ELEMENTS que usa cada elemento. */
 const ELEMENT_KEYS: Record<Element, string[]> = {
   ice: ['iceSeconds', 'iceFreezeFrom', 'freezeSeconds', 'breakBonus', 'chillSlow', 'chillFloor', 'chillLeast'],
-  fire: ['burnTicks', 'burnTick', 'burnDamage', 'spreadRadius'],
+  fire: ['burnTicks', 'burnTick', 'burnDamage', 'blastRadius', 'blastDamage'],
   lightning: ['chainJumps', 'chainRange', 'chainDamage'],
   wind: ['windLine', 'windPush', 'windPushRadius', 'windPull'],
   // el fantasma no tiene números propios: pasa todo

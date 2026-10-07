@@ -329,7 +329,7 @@ const LABELS: Record<string, string> = {
   seconds: 'dura s', blast: 'radio de la explosión m', reach: 'alcance m', hitRadius: 'radio del golpe m',
   scale: 'crecen ×', shots: 'tiros repetidos', ghostHit: 'al fantasma, hasta por golpe', eliteSilence: 'al élite, silencio ×', silenceSeconds: 'silencio s',
   iceSeconds: 'frío s', freezeSeconds: 'congelado s (maestría)', breakBonus: 'romper el hielo: daño de más', burnTicks: 'fuego: mordiscos', burnTick: 'pierde cada s',
-  burnDamage: 'daño por vez', spreadRadius: 'contagio m (maestría)', chainJumps: 'saltos',
+  burnDamage: 'daño por vez', blastRadius: 'explosión m (maestría)', blastDamage: 'explosión daño (maestría)', chainJumps: 'saltos',
   chainRange: 'salta hasta m', chainDamage: 'daño por salto',
   cooldownGrowth: 'recarga de más por nivel (todas menos el palazo)', meleeGrowth: 'la del palazo, por nivel', bonus: 'daño de más al vulnerable',
   gate: 'la puerta +', player: 'vos +',
@@ -349,7 +349,7 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
   quiver: [[PERK_NUMBERS, 'quiverCooldown', 'una cada s']],
   secondWind: [[PERK_NUMBERS, 'secondWindCooldown', 'recarga s']],
   masteryIce: [[ELEMENTS, 'freezeSeconds', 'congelado s'], [ELEMENTS, 'breakBonus', 'romper el hielo: daño de más']],
-  masteryFire: [[ELEMENTS, 'spreadRadius', 'contagio m']],
+  masteryFire: [[ELEMENTS, 'blastRadius', 'explosión m'], [ELEMENTS, 'blastDamage', 'explosión daño']],
 };
 
 const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Visual', 'Pruebas'] as const;

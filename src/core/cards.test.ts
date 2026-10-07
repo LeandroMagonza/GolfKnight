@@ -39,6 +39,9 @@ describe('cartas', () => {
     expect(has(fresh({ slots: [{ id: 'driver-fire', level: 1 }, { id: 'glove-ice', level: 1 }] }), 'mixFireLightning')).toBe(false);
     expect(mixPartners({ mixIceFire: 1, mixFireLightning: 1 }, 'fire').sort()).toEqual(['ice', 'lightning']);
     expect(mixPartners({ mixIceFire: 1 }, 'lightning')).toEqual([]);
+    // las de viento: el viento con los otros tres
+    expect(mixPartners({ mixWindIce: 1, mixWindFire: 1, mixWindLightning: 1 }, 'wind').sort()).toEqual(['fire', 'ice', 'lightning']);
+    expect(mixPartners({ mixWindFire: 1 }, 'fire')).toEqual(['wind']);
     expect(mixPartners({}, 'ice')).toEqual([]);
   });
 

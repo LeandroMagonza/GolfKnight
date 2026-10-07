@@ -45,5 +45,5 @@ export const DEMO_LOCKS: { powers: ScenarioPower[]; elements: Element[]; gloves:
   powers: ['armor', 'divine', 'regen'],
   elements: ['ghost', 'wind'],
   gloves: true,
-  perks: ['rhythm', 'hotStreak', 'masonStreak', 'smithStreak', 'giftPerfect', 'mixIceFire', 'mixIceLightning', 'mixFireLightning'],
+  perks: ['rhythm', 'hotStreak', 'masonStreak', 'smithStreak', 'giftPerfect', 'mixIceFire', 'mixIceLightning', 'mixFireLightning', 'mixWindIce', 'mixWindFire', 'mixWindLightning'],
 };

@@ -35,7 +35,7 @@ la consola del navegador.
     comparten con el escudo); el que se cura y el intocable (los dos con su reloj, al revés).
   - **Caballero:** sin los tiros fantasma (pasa todo) ni de viento (hoy casi no sirve), sin los guantes
     (en la completa siguen), sin las mejoras de racha y de matar a dos juntos ni las maestrías mixtas
-    (para avanzados): 19 cartas menos. El silencio queda: está bueno que lo conozcan.
+    (para avanzados): 22 cartas menos. El silencio queda: está bueno que lo conozcan.
 - **Abe** (`dist/abe/`): solo para ser Abe. Sin enlace, pide el código de la sala (o el enlace pegado).
   No puede arrancar una partida: el bucle del que juega, el tiro, las oleadas, las cartas, el tutorial y
   la parte de transmitir no se compilan. Sin cinemática (pesa 30 MB en vez de 48).

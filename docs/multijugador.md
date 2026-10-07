@@ -198,7 +198,7 @@ donde tocás), una **línea** (del caballero hasta donde tocás) o una **trampa*
 | Hechizo | Forma | Qué hace (nivel 1 · 2 · 3) | La jugada con el caballero | Recarga |
 |---|---|---|---|---|
 | ❄ **Granizo** | zona 3 · 3.5 · 4 m | Marca, y a los 1.5 s cae hielo: los frena 3 · 4 · 5 s; en el 3 además los congela | Frenarlos donde querés pegar | 8 s |
-| 🌀 **Remolino** | zona 2.5 · 3 · 3.5 m | Los junta en el centro (a 1 m de él) | Amontonados para un tiro de área | 8 s |
+| 🌀 **Remolino** | zona 5 · 6 · 7 m (desde el 7/10; antes 2.5 · 3 · 3.5) | Los lleva al centro, hasta que se chocan | Amontonados para un tiro de área | 8 s |
 | 💨 **Corriente** | línea de 4 · 5 · 6 m de ancho | **Del caballero hasta donde tocás**: los que están en el pasillo quedan sobre la línea, uno detrás del otro | Una fila servida para el tiro que atraviesa | 10 s |
 | ✋ **Empujón** | zona 2.5 · 3 · 3.5 m | Los manda 6 · 8 · 10 m para atrás | Sacarlos de la puerta, o separar uno del grupo | 10 s |
 | 🎯 **Maldición** | zona 2.5 · 3 · 3.5 m | Crecen y reciben 1 más por golpe, 3 · 4 · 5 s | Pegarles en esa ventana | 10 s |

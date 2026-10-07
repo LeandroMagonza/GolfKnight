@@ -747,6 +747,10 @@ horde.onEvent = (e) => {
       effects.explosion(e.pos, e.radius, ABILITIES.powder.color);
       audio.explosion();
       break;
+    case 'fireBlast':
+      effects.explosion(e.pos, e.radius, ELEMENT_INFO.fire.color);
+      audio.explosion();
+      break;
     case 'zap':
       effects.lightning(e.from, e.to);
       audio.zap();

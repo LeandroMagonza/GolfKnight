@@ -46,6 +46,8 @@ export type HordeEvent =
   | { type: 'frozen'; enemy: Enemy }
   /** Un marcado con pólvora explotó al morir. */
   | { type: 'powder'; pos: THREE.Vector3; radius: number }
+  /** La maestría del fuego: el que murió prendido explotó. */
+  | { type: 'fireBlast'; pos: THREE.Vector3; radius: number }
   /** Un rayo saltó de un enemigo a otro. */
   | { type: 'zap'; from: THREE.Vector3; to: THREE.Vector3 }
   | { type: 'attack'; enemy: Enemy }
@@ -2108,12 +2110,12 @@ export class Horde {
         this.emit({ type: 'powder', pos, radius: POWDER.blast });
         this.blast(pos, POWDER.blast, this.powderDamage, 6, enemy);
       }
-      // la maestría del fuego: el que muere prendido contagia a los que tiene al lado
+      // la maestría del fuego (7/10; antes contagiaba, y casi no se veía): el que muere prendido, de lo
+      // que sea, explota. Si a alguno de al lado lo mata prendido, explota también
       if (wasBurning && this.mastery.fire) {
-        for (const e of this.enemies) {
-          if (e === enemy || !e.alive || e.passed) continue;
-          if (Math.hypot(e.position.x - enemy.position.x, e.position.z - enemy.position.z) - e.radius <= ELEMENTS.spreadRadius) e.burn(burnSeconds(this.spreadBurn));
-        }
+        const pos = enemy.position.clone();
+        this.emit({ type: 'fireBlast', pos, radius: ELEMENTS.blastRadius });
+        this.blast(pos, ELEMENTS.blastRadius, ELEMENTS.blastDamage, 4, enemy);
       }
     }
     // la explosión de la pólvora pasa por acá con otros enemigos: lo que se lee después es de este golpe
@@ -2142,8 +2144,6 @@ export class Horde {
 
   /** Cuánto pega la explosión de la pólvora: lo fija el nivel de la habilidad al marcar. */
   powderDamage = 2;
-  /** Cuántas veces muerde el fuego contagiado. */
-  spreadBurn = 3;
 
   /**
    * Hielo de un golpe: enfría `seconds`. Con la maestría, al que **ya estaba frío** lo congela: la
@@ -2323,7 +2323,7 @@ export class Horde {
    * línea, justo lo que lo separa de ella, así que terminan todos parados sobre la línea del tiro: una
    * fila servida para el driver. Devuelve a cuántos movió.
    */
-  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>, oval = false): number {
+  sweep(pos: THREE.Vector3, along: THREE.Vector3, halfWidth: number, halfDepth: number, skip?: Set<number>, oval = false, onMoved?: (e: Enemy) => void): number {
     let count = 0;
     // el costado de la línea del tiro, en el piso
     const side = new THREE.Vector3(along.z, 0, -along.x);
@@ -2343,6 +2343,7 @@ export class Horde {
       } else if (Math.abs(lateral) > halfWidth || Math.abs(forward) > halfDepth + e.radius) continue;
       if (Math.abs(lateral) > 0.05) e.shove(dir.copy(side).multiplyScalar(-Math.sign(lateral)), Math.abs(lateral) * KNOCK_DECAY);
       skip?.add(e.id);
+      onMoved?.(e);
       count++;
     }
     return count;
@@ -2511,24 +2512,27 @@ export class Horde {
 
   /**
    * Ráfaga (hierro de viento): los que están a `radius` de `pos` salen `distance` metros hacia `dir`
-   * (unitario en el piso), sin daño. Devuelve cuántos.
+   * (unitario en el piso), sin daño. Devuelve cuántos; `onMoved`, con cada uno.
    */
-  gust(pos: THREE.Vector3, radius: number, dir: THREE.Vector3, distance: number): number {
+  gust(pos: THREE.Vector3, radius: number, dir: THREE.Vector3, distance: number, onMoved?: (e: Enemy) => void): number {
     let n = 0;
     for (const e of this.enemies) {
       if (!e.alive || e.passed || e.stats.boss) continue;
       if (Math.hypot(e.position.x - pos.x, e.position.z - pos.z) > radius + e.radius) continue;
       e.shove(dir, distance * KNOCK_DECAY);
+      onMoved?.(e);
       n++;
     }
     return n;
   }
 
   /**
-   * Remolino (wedge de viento): los que están a `radius` de `pos` se van hacia el centro, hasta quedar
-   * casi pegados, sin daño. Devuelve cuántos.
+   * Remolino (el wedge de viento y el de Abe): los que están a `radius` de `pos` se van **hasta el
+   * centro**, sin daño: cada uno se para a su radio del centro, así que terminan chocándose (7/10, pedido
+   * de Leandro; antes quedaban a un metro, y el de Abe era tan chico que casi no movía). Devuelve cuántos;
+   * `onMoved`, con cada uno.
    */
-  whirl(pos: THREE.Vector3, radius: number): number {
+  whirl(pos: THREE.Vector3, radius: number, onMoved?: (e: Enemy) => void): number {
     let n = 0;
     const dir = new THREE.Vector3();
     for (const e of this.enemies) {
@@ -2537,9 +2541,9 @@ export class Horde {
       const d = dir.length();
       if (d > radius + e.radius) continue;
       n++;
-      // hasta un metro del centro: no los apila todos en el mismo punto
-      const travel = d - 1;
+      const travel = d - e.radius;
       if (travel > 0.05) e.shove(dir.normalize(), travel * KNOCK_DECAY);
+      onMoved?.(e);
     }
     return n;
   }

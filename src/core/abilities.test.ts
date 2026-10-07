@@ -64,7 +64,7 @@ describe('habilidades', () => {
     expect(lv(ELEMENTS.chainJumps, 9)).toBe(4);
     expect(elementNote('fire', 2, 3)).toBe('Todo tu fuego: 3 → 4 de daño');
     expect(elementNote('ice', 2, 3)).toBe('Todo tu hielo: 6.5 → 8 s, y congela');
-    expect(elementNote('wind', 1, 2, 'iron')).toBe('Todo tu viento: 6 → 8 m');
+    expect(elementNote('wind', 1, 2, 'iron')).toBe('Todo tu viento: 12 → 16 m');
     // la primera de un elemento lo dice la carta; el tope no cambia nada; el fantasma va por la carta
     expect(elementNote('fire', 0, 1)).toBeNull();
     expect(elementNote('lightning', 3, 4)).toBeNull();

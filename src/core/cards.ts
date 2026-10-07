@@ -9,11 +9,12 @@
 //
 // Todo acá es lógica pura, sin Three.js, para poder probar el sorteo.
 import { L } from '../i18n';
-import { ABILITIES, ABILITY_LIST, cooldownAt, elementNote, elementOf, elementTotal, ELEMENT_INFO, hintAt, maxLevelOf, SLOTS, upgradeNote, type AbilityId, type Element } from './abilities';
+import { ABILITIES, ABILITY_LIST, cooldownAt, elementNote, elementOf, elementTotal, ELEMENT_INFO, ELEMENTS, hintAt, maxLevelOf, SLOTS, upgradeNote, type AbilityId, type Element } from './abilities';
 
 export type PerkId =
   | 'quickWrist' | 'sweetSpot' | 'rhythm' | 'hotStreak' | 'masonStreak' | 'smithStreak' | 'medkit' | 'giftPerfect' | 'quiver' | 'extraBall' | 'secondWind'
-  | 'masteryIce' | 'masteryFire' | 'masteryLightning' | 'mixIceFire' | 'mixIceLightning' | 'mixFireLightning';
+  | 'masteryIce' | 'masteryFire' | 'masteryLightning' | 'mixIceFire' | 'mixIceLightning' | 'mixFireLightning'
+  | 'mixWindIce' | 'mixWindFire' | 'mixWindLightning';
 
 export interface Perk {
   id: PerkId;
@@ -100,13 +101,18 @@ export const PERKS: Record<PerkId, Perk> = {
   extraBall: { id: 'extraBall', name: L('Pelota extra', 'Extra Ball'), title: L('una más en juego', 'one more in play'), max: 2, color: 0xfff1b8, hint: L('Una pelota más esperando en los puestos', 'One more ball waiting at the tees') },
   secondWind: { id: 'secondWind', name: L('Segundo aire', 'Second Wind'), title: L('otra vez', 'again'), max: 1, color: 0x8fe3b0, hint: L('Usás una habilidad aunque esté recargando', 'Use an ability even while on cooldown') },
   masteryIce: { id: 'masteryIce', name: L('Maestría del hielo', 'Ice Mastery'), title: L('congela', 'freezes'), max: 1, color: ELEMENT_INFO.ice.color, needs: 'ice', hint: L('El hielo congela a los que ya estaban fríos. Romper el hielo pega 1 más, también al fantasma', 'Ice freezes the already chilled. Breaking the ice hits for 1 more, ghosts too') },
-  masteryFire: { id: 'masteryFire', name: L('Maestría del fuego', 'Fire Mastery'), title: L('contagia', 'spreads'), max: 1, color: ELEMENT_INFO.fire.color, needs: 'fire', hint: L('El que muere prendido fuego contagia a los de al lado', 'Enemies that die burning set their neighbors on fire') },
+  masteryFire: { id: 'masteryFire', name: L('Maestría del fuego', 'Fire Mastery'), title: L('explota', 'explodes'), max: 1, color: ELEMENT_INFO.fire.color, needs: 'fire', hint: L(`El que muere prendido fuego, de lo que sea, explota: les saca ${ELEMENTS.blastDamage} a los de al lado`, `Enemies that die while burning, from anything, explode: ${ELEMENTS.blastDamage} damage to those nearby`) },
   masteryLightning: { id: 'masteryLightning', name: L('Maestría del rayo', 'Lightning Mastery'), title: L('salta más', 'jumps more'), max: 1, color: ELEMENT_INFO.lightning.color, needs: 'lightning', hint: L('El rayo salta una vez más y pega el doble', 'Lightning jumps once more and hits twice as hard') },
   // las mixtas: con el rayo, solo la pelota pone el otro elemento; el rayo que salta no prende ni enfría
   // a nadie (Leandro: «ahí sí nos vamos al carajo»)
   mixIceFire: { id: 'mixIceFire', name: L('Escarcha ardiente', 'Burning Frost'), title: L('hielo y fuego', 'ice and fire'), max: 1, color: 0xd19be0, pair: ['ice', 'fire'], hint: L('Tus tiros de fuego también enfrían, y los de hielo también queman', 'Your fire shots also chill, and your ice shots also burn') },
   mixIceLightning: { id: 'mixIceLightning', name: L('Tormenta helada', 'Frost Storm'), title: L('hielo y rayo', 'ice and lightning'), max: 1, color: 0xa9d4ff, pair: ['ice', 'lightning'], hint: L('Tus tiros de hielo también largan un rayo, y los de rayo también enfrían al que tocan', 'Your ice shots also call down lightning, and your lightning shots also chill whoever they touch') },
   mixFireLightning: { id: 'mixFireLightning', name: L('Tormenta de fuego', 'Firestorm'), title: L('fuego y rayo', 'fire and lightning'), max: 1, color: 0xffa070, pair: ['fire', 'lightning'], hint: L('Tus tiros de fuego también largan un rayo, y los de rayo también prenden fuego al que tocan', 'Your fire shots also call down lightning, and your lightning shots also set whoever they touch on fire') },
+  // las de viento (7/10, Leandro): el viento va primero, los mueve, y después les cae lo otro a todos los
+  // que movió (además de a los que toca la pelota)
+  mixWindIce: { id: 'mixWindIce', name: L('Ventisca', 'Blizzard'), title: L('viento y hielo', 'wind and ice'), max: 1, color: 0xb8f0e0, pair: ['wind', 'ice'], hint: L('Tus tiros de viento también enfrían, y los de hielo también soplan: primero el viento los mueve, y después les cae el hielo', 'Your wind shots also chill, and your ice shots also blow: the wind moves them first, then the ice hits') },
+  mixWindFire: { id: 'mixWindFire', name: L('Torbellino de fuego', 'Fire Whirl'), title: L('viento y fuego', 'wind and fire'), max: 1, color: 0xffc070, pair: ['wind', 'fire'], hint: L('Tus tiros de viento también queman, y los de fuego también soplan: primero el viento los mueve, y después los prende', 'Your wind shots also burn, and your fire shots also blow: the wind moves them first, then sets them on fire') },
+  mixWindLightning: { id: 'mixWindLightning', name: L('Huracán', 'Hurricane'), title: L('viento y rayo', 'wind and lightning'), max: 1, color: 0xb0e8d0, pair: ['wind', 'lightning'], hint: L('Tus tiros de viento también largan rayos, y los de rayo también soplan: primero el viento los mueve, y después les cae el rayo', 'Your wind shots also call down lightning, and your lightning shots also blow: the wind moves them first, then the lightning strikes') },
 };
 
 /** Los elementos que pone también un tiro de `element`, por las maestrías mixtas que tenés. */

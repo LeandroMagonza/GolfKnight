@@ -53,6 +53,8 @@ export interface Ball {
   spin: Spin | null;
   spinTime: number;
   hitIds: Set<number>;
+  /** A quiénes ya les puso sus elementos: una vez por enemigo, lo toque la pelota o lo mueva su viento. */
+  effected: Set<number>;
   hits: number;
   /** Daño de más a cada uno que alcanza (la potencia). */
   bonus: number;
@@ -212,7 +214,7 @@ export class Balls {
       element: shot.element ?? null, ability: !!shot.ability, gloved: !!shot.gloved,
       effect: effectOnly(shot.element) && !shot.gloved, floor: this.minDamage(shot.club.id),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
-      hitIds: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
       phase: tennis ? 'out' : null, rally: 0, walls: 0,
     };
     this.list.push(ball);
@@ -276,6 +278,8 @@ export class Balls {
     // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie. Al que esta
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
     const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
+    // el viento va primero (7/10): con las maestrías de viento, los mueve y después les cae lo demás
+    if (this.windy(ball)) this.windBurst(ball, pos);
     const shot = this.markShot(ball);
     // el tiro de efecto no pega: toca a los del área y les deja el efecto (con la fuerza pega, sin empujar)
     const hits = this.touchOnly(ball)
@@ -285,7 +289,6 @@ export class Balls {
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
     this.countKills(ball, shot.kills);
-    if (ball.element === 'wind') this.windBurst(ball, pos);
     ball.hits += hits;
     this.checkConnected(ball);
     // tenis: el globo, después de reventar, vuelve por el aire a la línea para seguir jugando
@@ -355,15 +358,35 @@ export class Balls {
    * rayo.
    */
   private applyElement(ball: Ball, enemy: Enemy): void {
-    // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst). El
-    // fantasma no deja nada: lo suyo es el golpe mismo (ver Horde.damage)
-    if (!ball.element || ball.element === 'wind' || ball.element === 'ghost') return;
-    // el nivel del guante es el suyo, no el del tiro de habilidad de ese palo (el wedge llega a 2)
-    const cardFreezes = ball.level >= (ball.gloved ? ELEMENTS.iceFreezeFrom : freezeFrom(ball.club.id));
-    this.applyEffect(ball.element, this.totalOf(ball.element, ball.level), enemy, cardFreezes);
+    // el fantasma no deja nada: lo suyo es el golpe mismo (ver Horde.damage)
+    if (!ball.element || ball.element === 'ghost') return;
+    // una vez por enemigo: el que tocó la pelota y además movió su viento no cobra dos veces
+    if (ball.effected.has(enemy.id)) return;
+    ball.effected.add(enemy.id);
+    // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst)
+    if (ball.element !== 'wind') {
+      // el nivel del guante es el suyo, no el del tiro de habilidad de ese palo (el wedge llega a 2)
+      const cardFreezes = ball.level >= (ball.gloved ? ELEMENTS.iceFreezeFrom : freezeFrom(ball.club.id));
+      this.applyEffect(ball.element, this.totalOf(ball.element, ball.level), enemy, cardFreezes);
+    }
     // las maestrías mixtas: la pelota pone también el otro elemento, con todo lo que tenés de ese. Solo la
     // pelota: el rayo que salta (Horde.chain) no prende ni enfría a nadie
-    for (const other of this.partners(ball.element)) this.applyEffect(other, this.totalOf(other, 1), enemy, false);
+    for (const other of this.partners(ball.element)) if (other !== 'wind') this.applyEffect(other, this.totalOf(other, 1), enemy, false);
+  }
+
+  /** ¿Esta pelota trae viento? La de viento, y cualquiera con una maestría mixta de viento. */
+  private windy(ball: Ball): boolean {
+    return ball.element === 'wind' || (!!ball.element && this.partners(ball.element).includes('wind'));
+  }
+
+  /**
+   * Uno que movió el viento de esta pelota: si la pelota trae algo más que viento (las maestrías de
+   * viento), le cae, como si lo hubiera tocado. Con la regla del toque: la burbuja y el aura lo paran.
+   */
+  private windTouch(ball: Ball, enemy: Enemy): void {
+    if (!ball.element || ball.effected.has(enemy.id)) return;
+    const more = ball.element !== 'wind' || this.partners(ball.element).some((e) => e !== 'wind');
+    if (more && this.horde.touch(enemy, 0, ball.element === 'silence')) this.applyElement(ball, enemy);
   }
 
   /** Con qué total sale el efecto: el del elemento, y nunca menos que la carta que tiró esta pelota. */
@@ -392,10 +415,10 @@ export class Balls {
     const level = this.totalOf('wind', ball.level);
     if (ball.club.id === 'wedge') {
       const radius = lv(ELEMENTS.windPull, level);
-      this.horde.whirl(pos, radius);
+      this.horde.whirl(pos, radius, (e) => this.windTouch(ball, e));
       this.effects.swipe(pos, radius);
     } else if (ball.club.id === 'iron') {
-      this.horde.gust(pos, ELEMENTS.windPushRadius, ball.dir, lv(ELEMENTS.windPush, level));
+      this.horde.gust(pos, ELEMENTS.windPushRadius, ball.dir, lv(ELEMENTS.windPush, level), (e) => this.windTouch(ball, e));
       this.effects.swipe(pos, ELEMENTS.windPushRadius);
     }
   }
@@ -411,7 +434,7 @@ export class Balls {
     const half = lv(ELEMENTS.windLine, this.totalOf('wind', ball.level));
     const mid = ball.from.clone().addScaledVector(ball.dir, (ball.windSwept + gone) / 2);
     mid.y = heightAt(mid.x, mid.z);
-    this.horde.sweep(mid, ball.dir, half, (gone - ball.windSwept) / 2, ball.windCaught);
+    this.horde.sweep(mid, ball.dir, half, (gone - ball.windSwept) / 2, ball.windCaught, false, (e) => this.windTouch(ball, e));
     // un remolino cada tantos metros: uno por cuadro sería una nube continua
     if (Math.floor(gone / 6) > Math.floor(ball.windSwept / 6)) this.effects.swipe(new THREE.Vector3(s.pos.x, heightAt(s.pos.x, s.pos.z), s.pos.z), half);
     ball.windSwept = gone;
@@ -667,6 +690,7 @@ export class Balls {
     ball.phase = 'back';
     ball.burst = false;
     ball.hitIds.clear();
+    ball.effected.clear();
     ball.arc = { from: new THREE.Vector3(at.x, Math.max(BALL_RADIUS, at.y), at.z), to: new THREE.Vector3(x, 0.9, TEE_LINE_Z), t: 0, time: Math.max(0.3, time), height, rawX };
     const s = ball.state;
     s.vel.x = 0;
@@ -807,7 +831,7 @@ export class Balls {
         this.drawBall(ball);
         continue;
       }
-      if (ball.element === 'wind' && ball.club.id === 'driver' && !ball.done) this.windTrail(ball);
+      if (ball.club.id === 'driver' && !ball.done && this.windy(ball)) this.windTrail(ball);
       // la que para sin haber tocado a nadie y abre área por el piso (el globo) hace su efecto ahí
       if (s.resting && !ball.done && !ball.burst && ball.club.burstsOnGround && hasArea(ball.club)) this.burst(ball);
       if (s.resting) ball.restTime += dt;

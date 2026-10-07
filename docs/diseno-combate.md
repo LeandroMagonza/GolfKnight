@@ -2637,3 +2637,27 @@ salen: son para avanzados.
 Probado con `logs/check-elemento.mjs`: con una carta de fuego quema 4 s y con dos 6; el fuego con
 Tormenta de fuego prende al tocado y le larga un rayo, y el de al lado recibe el rayo sin prenderse; el
 rayo con Tormenta helada enfría solo al tocado.
+
+## Hecho: el fuego que explota, el viento al doble y sus maestrías mixtas (7/10/2026)
+
+Pedidos de Leandro después de probar lo anterior:
+- **La maestría del fuego explota** en vez de contagiar: no la veía activar nunca (tenía que coincidir la
+  muerte de uno prendido con otro al lado, y el contagio casi no se notaba). Ahora el que muere prendido,
+  de lo que sea, explota: 2 de daño a 3 m (`ELEMENTS.blastDamage`, `blastRadius`). Si a uno de al lado lo
+  mata prendido, explota también.
+- **El viento, todo al doble** («para probar aunque sea»): el driver junta desde 6 m, el hierro empuja 12
+  m a los que están a 7 m, el wedge chupa desde 9 m. El remolino lleva **hasta el centro**: cada uno se
+  para a su radio, así que se chocan.
+- **Maestrías mixtas de viento**: Ventisca (hielo), Torbellino de fuego y Huracán (rayo). **El viento va
+  primero**: el tiro mueve, y después el otro elemento cae sobre todos los que movió el viento (con la
+  regla del toque: la burbuja y el aura lo paran), además de a los que tocó la pelota. Los tiros del otro
+  elemento también soplan, como el tiro de viento de ese palo (el putter no tiene viento). Cada enemigo
+  cobra los elementos de una pelota una sola vez (`Ball.effected`).
+- **El remolino de Abe**, más grande (5, 6 y 7 m) y hasta el centro, con el mismo `Horde.whirl`.
+
+Cuánto pega el rayo: 1 por salto (`chainDamage`), también al tocado; con la maestría, 2. El blindaje no le
+resta. Con el total sube la cantidad de saltos, no lo que pega cada uno.
+
+Probado con `logs/check-viento.mjs`: la explosión en cadena (y sin maestría, nada); el wedge de viento con
+Torbellino de fuego junta a cuatro que estaban a 12 m y los prende a todos; el wedge de hielo con
+Ventisca sopla y enfría a los que juntó; el remolino de Abe junta a tres que estaban a 9 m.
