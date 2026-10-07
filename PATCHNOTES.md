@@ -16,8 +16,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   que no tiene el juego. Con el enlace del caballero entra directo; sin él, pide el código de la sala.
   `2cf7dd7`
 - En la demo los enemigos traen escudo, esquiva, fantasma o intocable (tres de esos cuatro por partida),
-  y el caballero no tiene el tiro ni el guante fantasma. El blindaje, el escudo divino, los que se curan
-  y el fantasma del caballero, en la completa. `d704132` `7b94dc4`
+  y el caballero no tiene los tiros fantasma ni de viento, los guantes, ni las mejoras de racha y de
+  matar a dos juntos. El blindaje, el escudo divino, los que se curan y esas 16 cartas, en la completa.
+  `d704132` `7b94dc4` `3622776`
 - El modo tenis ya no tiene botón en la pantalla de entrada: es un prototipo. `d704132`
 
 **Enemigos**
