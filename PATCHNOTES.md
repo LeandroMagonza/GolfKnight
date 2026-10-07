@@ -16,10 +16,20 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   que no tiene el juego. Con el enlace del caballero entra directo; sin él, pide el código de la sala.
   `2cf7dd7`
 - En la demo los enemigos traen escudo, esquiva, fantasma o intocable (tres de esos cuatro por partida),
-  y el caballero no tiene los tiros fantasma ni de viento, los guantes, ni las mejoras de racha y de
-  matar a dos juntos. El blindaje, el escudo divino, los que se curan y esas 16 cartas, en la completa.
-  `d704132` `7b94dc4` `3622776`
+  y el caballero no tiene los tiros fantasma ni de viento, los guantes, ni las mejoras de racha, las de
+  matar a dos juntos y las maestrías mixtas. El blindaje, el escudo divino, los que se curan y esas 19
+  cartas, en la completa. `d704132` `7b94dc4` `3622776` `7019bef`
 - El modo tenis ya no tiene botón en la pantalla de entrada: es un prototipo. `d704132`
+
+**Habilidades**
+- **El elemento compartido**: el efecto de cada elemento ya no va por el nivel de la carta, sino por la
+  suma de los niveles de todo lo que tenés de ese elemento. Dos cartas de fuego de nivel 1 queman como una
+  de nivel 2, y las dos; sumar el putter de fuego le sube el fuego a todo lo demás. Llega más alto que
+  antes (el fuego hasta 6, el hielo y el silencio hasta 10 s), menos el rayo, que se queda en 4 saltos. La
+  carta dice cuánto sube: «Todo tu fuego: 3 → 4 de daño». `7019bef`
+- **Maestrías mixtas**, con una carta de cada elemento: *Escarcha ardiente* (los tiros de fuego también
+  enfrían y los de hielo también queman), *Tormenta helada* (hielo y rayo) y *Tormenta de fuego* (fuego y
+  rayo). La pelota pone los dos; el rayo que salta no prende ni enfría a nadie. `7019bef`
 
 **Enemigos**
 - El blindaje que se come el golpe entero ahora para la pelota: el driver y el hierro ya no siguen de
