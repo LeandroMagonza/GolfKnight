@@ -17,8 +17,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   `2cf7dd7`
 - En la demo los enemigos traen escudo, esquiva, fantasma o intocable (tres de esos cuatro por partida),
   y el caballero no tiene los tiros fantasma ni de viento, los guantes, ni las mejoras de racha, las de
-  matar a dos juntos y las maestrías mixtas. El blindaje, el escudo divino, los que se curan y esas 19
-  cartas, en la completa. `d704132` `7b94dc4` `3622776` `7019bef`
+  matar a dos juntos y las maestrías mixtas. El blindaje, el escudo divino, los que se curan y esas 22
+  cartas, en la completa. `d704132` `7b94dc4` `3622776` `7019bef` `228733a`
 - El modo tenis ya no tiene botón en la pantalla de entrada: es un prototipo. `d704132`
 
 **Habilidades**
@@ -30,6 +30,14 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **Maestrías mixtas**, con una carta de cada elemento: *Escarcha ardiente* (los tiros de fuego también
   enfrían y los de hielo también queman), *Tormenta helada* (hielo y rayo) y *Tormenta de fuego* (fuego y
   rayo). La pelota pone los dos; el rayo que salta no prende ni enfría a nadie. `7019bef`
+- **La maestría del fuego ahora explota**: el que muere prendido, de lo que sea, revienta y les saca 2 a
+  los que tiene al lado; si a alguno lo mata prendido, explota también. Antes los contagiaba, y casi no
+  se notaba. `228733a`
+- **El viento, al doble**: el driver junta desde el doble de lejos, el hierro empuja el doble, y el
+  remolino del wedge chupa desde el doble y los lleva hasta el centro, hasta que se chocan. `228733a`
+- **Maestrías mixtas de viento**: *Ventisca* (con hielo), *Torbellino de fuego* y *Huracán* (con rayo).
+  El viento va primero: los junta, y después les cae lo otro a todos los que movió. Los tiros del otro
+  elemento también soplan. `228733a`
 
 **Enemigos**
 - El blindaje que se come el golpe entero ahora para la pelota: el driver y el hierro ya no siguen de
@@ -37,6 +45,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 **De a dos**
 - La ayuda de Abe ya no dice «marca, marca». `2cf7dd7`
+- El remolino de Abe es más grande (5 m en vez de 2.5) y los lleva hasta el centro: antes casi no los
+  movía. `228733a`
 
 ## 6 de octubre
 
