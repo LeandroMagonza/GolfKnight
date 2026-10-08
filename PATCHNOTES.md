@@ -17,6 +17,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Abe anda con cualquier versión del juego que hable lo mismo: la app de Windows ya no avisa «el que
   juega tiene otra versión» cada vez. `d8e9a87`
 - El banner de la página de itch, nuevo: el caballero pegando y la horda viniendo por el campo. `2a2991f`
+  Rehecho: el caballero a la izquierda apuntando a la derecha, la horda repartida por el campo y el
+  título más grande. Las capturas, con un margen, para que en el celular no se vean pegadas. `8df32c1`
 
 **Dificultad**
 - Los **élites** tienen el doble de vida: el del primer escenario, 10 (eran 5), el del segundo 18 y el
