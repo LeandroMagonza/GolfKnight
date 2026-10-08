@@ -22,6 +22,12 @@ export function pushItch(dir, channel, version) {
     console.log(`itch: falta \`butler login\`, no se subió ${channel}`);
     return false;
   }
-  execSync(`butler push "${dir}" ${ITCH_GAME}:${channel} --userversion "${version}"`, { stdio: 'inherit' });
-  return true;
+  try {
+    execSync(`butler push "${dir}" ${ITCH_GAME}:${channel} --userversion "${version}"`, { stdio: 'inherit' });
+    return true;
+  } catch {
+    // por ejemplo, si itch todavía procesa la subida anterior de ese canal: lo demás ya se publicó
+    console.log(`itch: no se pudo subir ${channel} (ver arriba). Se puede volver a probar con: butler push "${dir}" ${ITCH_GAME}:${channel}`);
+    return false;
+  }
 }
