@@ -10,6 +10,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 8 de octubre
 
 **Dificultad**
+- Los **élites** tienen el doble de vida: el del primer escenario, 10 (eran 5), el del segundo 18 y el
+  del tercero 24, y con cualquier poder piden el doble de golpes. Caminan un poco más lento, así hay
+  tiempo de bajarlos. `380fabc`
+- La **bandera** ya no desvía a los élites. `380fabc`
+- El **silencio** dura 2 s (eran 5), y sube hasta 4 s (eran 10). Al élite, la mitad. `380fabc`
+- La pelota que rebota en un escudo va adonde estabas cuando rebotó: ya no te sigue mientras vuela. `380fabc`
 - El élite blindado vuelve a traer blindaje 2 desde el segundo escenario (ayer lo habíamos bajado a 1):
   de lejos con el driver y de cerca con el putter le entra sin el golpe perfecto. `ffb3627`
 - Con «Poderes más duros», el élite fantasma trae 2 de vida más (los comunes, 1). `ffb3627`
