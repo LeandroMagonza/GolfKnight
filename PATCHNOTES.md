@@ -33,7 +33,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   pantalla completa (F11 o Alt+Enter la cambian), y la pantalla de inicio y la pausa tienen «Salir del
   juego». El enlace para invitar a Abe va a la página pública, así lo abre cualquiera. `b47d472`
 - Si hay una versión nueva, la pantalla de inicio lo avisa, con el botón para bajarla. Sin internet no
-  dice nada y se juega igual. `0a25a08` `ddbb8a5`
+  dice nada y se juega igual. `0a25a08` `ddbb8a5` `21febcd`
   El botón lleva a la página del juego en itch.io. `382f3b6`
 - Tiene ícono propio: un escudo con un palo de golf y una espada cruzados. `0a25a08`
 
