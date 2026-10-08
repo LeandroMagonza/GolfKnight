@@ -38,7 +38,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Tiene ícono propio: un escudo con un palo de golf y una espada cruzados. `0a25a08`
 
 **Detrás de escena**
-- La demo y la versión de Windows se suben solas a la página de itch.io (con butler). `15b88b8`
+- La demo y la versión de Windows se suben solas a la página de itch.io (con butler). `15b88b8` `f7762a4`
 - Las imágenes y el texto de la página de itch.io, en español e inglés (`promo/itch/`). `e417880`
   Rehechas con el Caballero, la cámara del juego y los enemigos caminando de verdad. `0a25a08`
 - El plan de itch, con una sola página: la demo para jugar en el navegador y la completa para bajar, la
