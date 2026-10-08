@@ -2649,6 +2649,8 @@ const CAM_MARGIN = 117;
 const cam = {
   pitch: savedBalance.camera?.pitch ?? 32, dist: 18.9, rise: savedBalance.camera?.rise ?? 0, ahead: 5.5,
   auto: savedBalance.camera?.auto ?? true, margin: savedBalance.camera?.margin ?? CAM_MARGIN,
+  /** Metros que se corre de costado, sin girar (+x queda a la izquierda): solo para las imágenes de promoción. */
+  side: 0,
 };
 /** Dónde empieza el HUD de abajo, en píxeles desde arriba. Se mide cada tanto: casi no cambia. */
 let hudTop = innerHeight * 0.8;
@@ -2713,7 +2715,7 @@ function updateCamera(dt: number): void {
   // La cámara sigue al **puesto**, no al cuerpo. Apuntar mueve al golfista alrededor de la pelota, y si
   // la cámara lo seguía, moverse el mouse movía la cámara: el foco es dónde está la pelota.
   // Nunca se mete detrás de la muralla: cerca de la puerta mira más desde arriba.
-  const x = player.anchor.x * 0.75;
+  const x = player.anchor.x * 0.75 + cam.side;
   // La cámara se arma desde el punto que mira: se aleja `dist` con una inclinación de `pitch` grados.
   // Así la rueda cambia el ángulo sin cambiar qué tan lejos está, y las flechas suben las dos cosas a
   // la vez, que es mover la cámara para arriba sin girarla.

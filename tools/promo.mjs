@@ -29,7 +29,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const COVER_CAM = { pitch: 8, dist: 6.5, rise: 1.3, ahead: 3, auto: false };
 
 /** El cuadro de cada ráfaga que se usa (se eligen mirándolos). */
-const ELEGIDOS = { portada: 1, embed: 2, banner: 1, oleada: 1, rayo: { es: '2-1', en: '2-1' }, jefe: 0, abe: 0 };
+const ELEGIDOS = { portada: 1, embed: 2, banner: 2, oleada: 1, rayo: { es: '2-1', en: '2-1' }, jefe: 0, abe: 0 };
 
 /** La cinemática en el segundo `t`, sin barra de controles ni botón de saltar; `clean` saca también las franjas y los textos. */
 async function cineFrame(name, t, { width = 1920, height = 1080, lang = 'es', clean = true } = {}) {
@@ -131,8 +131,11 @@ async function nearestAhead(page, min = 10) {
  * Cargar apuntando al más cercano y sacar la foto en pleno swing. Después se cancela (X): soltando, la
  * pelota se va y el puesto queda vacío, y sin pelota no se puede volver a cargar.
  */
-async function swingShot(page, path, { hold = 500, min = 10 } = {}) {
-  const at = await nearestAhead(page, min);
+async function swingShot(page, path, { hold = 500, min = 10, first = false } = {}) {
+  // `first`: al primero de la escena (el del escudo del banner), esté donde esté
+  const at = first
+    ? await page.evaluate(() => { const e = window.__t[0]; return e?.alive ? window.__gk.screenOf(e.position.x, e.position.z) : null; })
+    : await nearestAhead(page, min);
   if (at) await page.mouse.move(at.x, at.y);
   await sleep(150);
   await page.mouse.down();
@@ -146,10 +149,13 @@ async function swingShot(page, path, { hold = 500, min = 10 } = {}) {
  * La horda del banner, más ancha (el banner es 3.2 veces más ancho que alto). Mirando hacia el fondo, +x
  * queda a la izquierda: la horda va más a ese lado, y el título a la derecha.
  */
-const BANNER_HORDE = [['skeleton', 0.5, 31, { shield: 2 }], ['orc', 4, 36, {}], ['warchief', 4.5, 39, {}], ['knight', 8, 42, {}], ['orc', 12, 46, {}],
-  ['shaman', 2, 47, {}], ['skeleton', -4, 50, {}], ['stoneling', 15, 52, {}], ['goblina', 6, 55, {}], ['goblin', 10, 58, {}], ['orc', -1, 60, {}],
-  ['goblin', 17, 62, {}], ['goblina', 3, 64, {}], ['skeleton', 13, 66, {}], ['goblin', -6, 68, {}], ['goblina', 9, 71, {}], ['orc', 19, 73, {}],
-  ['goblin', 1, 75, {}], ['knight', 15, 78, {}]];
+// (8/10, Leandro: muy juntos en el centro) repartidos por todo el ancho del campo, que mide 36 m: con
+// la perspectiva, los de lejos se juntan solos. El primero, el del escudo, a la derecha del caballero:
+// es al que apunta. Lejos a la derecha, nadie: ahí va el título
+const BANNER_HORDE = [['skeleton', -6, 32, { shield: 2 }], ['orc', 7, 40, {}], ['goblina', -14, 50, {}], ['warchief', 13, 43, {}],
+  ['orc', -2, 47, {}], ['knight', -10, 45, {}], ['shaman', 4, 51, {}], ['goblin', 16, 62, {}], ['stoneling', -16, 53, {}], ['skeleton', 10, 55, {}],
+  ['goblina', -6, 66, {}], ['orc', 1, 61, {}], ['goblin', 8, 72, {}], ['skeleton', 15, 68, {}], ['goblina', -1, 76, {}], ['goblin', 5, 80, {}],
+  ['knight', 12, 78, {}]];
 
 /**
  * El banner (8/10, Leandro: el de la cinemática mostraba a Abe y al caballero, que se nota que son de
@@ -157,7 +163,8 @@ const BANNER_HORDE = [['skeleton', 0.5, 31, { shield: 2 }], ['orc', 4, 36, {}], 
  * pegando. Sin Abe.
  */
 /** La cámara del banner: la de la portada, más atrás y más alta, con el ángulo más cerrado. */
-const BANNER_CAM = { pitch: 11, dist: 10.5, rise: 0.9, ahead: 3, auto: false };
+// corrida de costado (side): el caballero a la izquierda de la imagen, y la horda a su derecha
+const BANNER_CAM = { pitch: 10, dist: 10.5, rise: 1, ahead: 3, auto: false, side: -2.5 };
 const BANNER_FOV = 30;
 
 async function bannerShots() {
@@ -172,6 +179,10 @@ async function bannerShots() {
       requestAnimationFrame(hide);
     };
     hide();
+    // los guardias de la puerta (GUARD_POSTS en game/world): con la cámara corrida, uno queda delante
+    for (const o of g.horde.scene.children) {
+      if (Math.abs(o.position.z - 4.5) < 0.4 && [-14, -5, 5, 14].some((x) => Math.abs(o.position.x - x) < 0.5)) o.visible = false;
+    }
     // tan ancho, con el ángulo de siempre la horda queda chiquita: se cierra
     g.view.fov = fov;
     g.view.updateProjectionMatrix();
@@ -181,7 +192,7 @@ async function bannerShots() {
   await camera(page, BANNER_CAM);
   await sleep(2500);
   for (let i = 0; i < 10; i++) {
-    await swingShot(page, `${RAW}/banner-juego-${i}.png`, { hold: 520, min: 12 });
+    await swingShot(page, `${RAW}/banner-juego-${i}.png`, { hold: 520, first: true });
     await sleep(700);
   }
   await page.close();
@@ -411,6 +422,9 @@ const TEXTS = {
   en: { tagline: 'Golf vs. the horde', coop: ['The knight', 'Abe, from a link'] },
 };
 
+/** El margen transparente de las capturas, en píxeles (ver `framed`). */
+const FRAME = 40;
+
 /** El título como el de la cinemática: dorado, con el borde marrón abajo. */
 const TITLE_CSS = `
   .title { font: 700 var(--size) Georgia, serif; letter-spacing: calc(var(--size) * 0.06); color: #ffd66b; white-space: nowrap;
@@ -451,8 +465,8 @@ if (step === 'armar') {
     // el banner de arriba de la página: 960 de ancho (el de itch), al doble
     await compose(`${out}/banner-1920x600.png`, 1920, 600, `
       <img class="bg" src="RAW/banner-juego-${ELEGIDOS.banner}.png">
-      <div style="position:absolute; inset:0; background: radial-gradient(ellipse 470px 190px at 82% 57%, rgba(10, 22, 44, 0.5), transparent 75%)"></div>
-      <div style="position:absolute; right:2%; top:56%; transform:translateY(-50%); text-align:center; --size: 84px; --tag: 30px">
+      <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(10, 22, 44, 0.62) 0%, rgba(10, 22, 44, 0.22) 28%, transparent 42%)"></div>
+      <div style="position:absolute; right:3%; top:3.5%; text-align:center; --size: 118px; --tag: 36px">
         <div class="title">GOLF KNIGHT</div>
         <div class="tag" style="margin-top: 16px">${t.tagline}</div>
       </div>`);
@@ -463,18 +477,21 @@ if (step === 'armar') {
       <div style="position:absolute; left:0; right:0; top:6%; text-align:center; --size: 92px; --tag: 30px">
         <div class="title">GOLF KNIGHT</div>
       </div>`);
-    // las capturas, 1920×1080
-    const shot = (name, src) => compose(`${out}/${name}.jpg`, 1920, 1080, `<img class="bg" src="RAW/${src}.png">`, { type: 'jpeg' });
+    // las capturas, 1920×1080, con un margen transparente alrededor (8/10, Leandro: en el celular itch
+    // las muestra una pegada a la otra y no se ve dónde termina cada una): queda el fondo de la página
+    const framed = (name, body) => compose(`${out}/${name}.png`, 1920 + 2 * FRAME, 1080 + 2 * FRAME, `
+      <div style="position:absolute; left:${FRAME}px; top:${FRAME}px; width:1920px; height:1080px; overflow:hidden; border-radius:16px">${body}</div>`, { transparent: true });
+    const shot = (name, src) => framed(name, `<img class="bg" src="RAW/${src}.png">`);
     await shot('1-oleada', `oleada-${lang}-${ELEGIDOS.oleada}`);
     await shot('2-rayo-y-fuego', `rayo-${lang}-${ELEGIDOS.rayo[lang]}`);
     await shot('3-jefe', `jefe-${lang}-${ELEGIDOS.jefe}`);
     await shot('4-cartas', `cartas-${lang}`);
     // de a dos: las dos pantallas en el mismo momento, el caballero a la izquierda y Abe a la derecha
-    await compose(`${out}/5-de-a-dos.jpg`, 1920, 1080, `
+    await framed('5-de-a-dos', `
       <img src="RAW/abe-caballero-${lang}.png" style="position:absolute; left:0; top:0; width:960px; height:1080px; object-fit:cover; object-position:50% 50%">
       <img src="RAW/abe-${lang}-${ELEGIDOS.abe}.png" style="position:absolute; left:960px; top:0; width:960px; height:1080px; object-fit:cover; object-position:50% 50%">
       <div style="position:absolute; left:956px; top:0; width:8px; height:1080px; background:#ffd66b; box-shadow: 0 0 18px rgba(0,0,0,.6)"></div>
-      ${t.coop.map((label, i) => `<div class="tag" style="position:absolute; top:70px; ${i ? 'right' : 'left'}:40px; --tag: 40px; padding:8px 18px; background:rgba(8,12,18,.72); border-radius:10px">${label}</div>`).join('')}`, { type: 'jpeg' });
+      ${t.coop.map((label, i) => `<div class="tag" style="position:absolute; top:70px; ${i ? 'right' : 'left'}:40px; --tag: 40px; padding:8px 18px; background:rgba(8,12,18,.72); border-radius:10px">${label}</div>`).join('')}`);
     await shot('6-historia-feria', `cine-feria-${lang}`);
     await shot('7-historia-mago', `cine-mago-${lang}`);
   }
