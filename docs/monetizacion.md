@@ -115,6 +115,8 @@ Steam». Cada Abe es un posible comprador.
 
 ## itch.io
 
+- **La página:** https://forja-de-almas.itch.io/golf-knight (cuenta Forja de Almas; creada el 8/10, se
+  edita en https://itch.io/game/edit/5119564).
 - **Subir:** con `butler`, el programa oficial de itch, sumado a `npm run deploy` (sube solo lo que
   cambió, los modelos no se vuelven a subir). Una vez, Leandro: crea la página del juego (tipo HTML),
   corre `butler login` en su compu, y después de la primera subida marca «This file will be played in
@@ -137,7 +139,7 @@ Steam». Cada Abe es un posible comprador.
   y, si la publicada es más nueva que la suya, la pantalla de inicio dice «Hay una versión nueva» con el
   botón para bajarla. Sin internet, si tarda más de 5 s o si el archivo no está, no hace nada.
   `npm run desktop -- --publicar` anota la versión en `public/version.json` (con la dirección de
-  descarga de `DOWNLOAD` en `tools/desktop.mjs`: falta la de la página de itch) y arma el zip; hay que
+  descarga de `DOWNLOAD` en `tools/desktop.mjs`: la página de itch) y arma el zip; hay que
   commitear ese archivo y hacer el deploy. Un actualizador propio (electron-updater) no vale la pena:
   pide instalador, alojar las versiones y firmar el ejecutable.
 - **Copias:** lo de itch es sin DRM, el zip anda en cualquier compu. No hay forma real de evitarlo (el
@@ -203,7 +205,8 @@ Pages es cambiar el deploy.
 
 ## Pendiente
 
-- [ ] Leandro: crear la página en itch.io y correr `butler login`. Después: butler en el deploy.
+- [x] Leandro: crear la página en itch.io (8/10, https://forja-de-almas.itch.io/golf-knight).
+- [ ] Leandro: correr `butler login`. Después: butler en el deploy.
 - [x] Qué deja afuera la demo (7/10): talentos, cuatro poderes de enemigos y dos elementos.
 - [ ] Que el nivel 0 se gane en menos de dos horas (probarlo jugando).
 - [ ] El enlace de Abe a la página propia, y una carpeta por versión.

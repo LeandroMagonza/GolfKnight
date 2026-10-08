@@ -1,5 +1,7 @@
 # La página de itch.io
 
+**https://forja-de-almas.itch.io/golf-knight** (se edita en https://itch.io/game/edit/5119564).
+
 Las imágenes se arman con `node tools/promo.mjs crudas` (capturas del juego y de la cinemática, en
 `logs/promo/`) y `node tools/promo.mjs armar` (lo de esta carpeta). Las capturas del juego son con la
 cámara de siempre y oleadas de verdad: los enemigos vienen caminando (ninguno quieto; quietos se los veía

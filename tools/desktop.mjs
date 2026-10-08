@@ -16,7 +16,8 @@ const args = process.argv.slice(2);
 const publish = args.includes('--publicar');
 const edition = args.find((a) => !a.startsWith('--')) ?? 'full';
 /** Dónde se baja cada una: el aviso de versión nueva lleva ahí. Sin dirección, avisa sin el botón. */
-const DOWNLOAD = { full: null, demo: null };
+const ITCH = 'https://forja-de-almas.itch.io/golf-knight';
+const DOWNLOAD = { full: ITCH, demo: ITCH };
 if (!['full', 'demo'].includes(edition)) throw new Error(`versión de escritorio desconocida: ${edition} (son full y demo)`);
 const name = edition === 'demo' ? 'golf-knight-demo' : 'golf-knight';
 const title = edition === 'demo' ? 'Golf Knight Demo' : 'Golf Knight';
