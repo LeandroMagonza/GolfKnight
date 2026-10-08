@@ -69,8 +69,21 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **El pasto**: tiene textura, franjas de corte, manchones más secos y más verdes, y pasto alto que se
   mueve con el viento a los costados. Se fueron las manchas de arena: no hacían nada y confundían.
   `65d29af`
+- **Árboles y piedras nuevos**: pinos de pisos, árboles redondos (alguno de otoño), abedules blancos,
+  arbustos, piedras con musgo y piedritas sueltas. Y flores en el pasto alto. `6c9c20d`
+- **Marcas en el piso**: la pelota deja su pique donde cae, el hierro y el wedge levantan un pedazo de
+  pasto delante del puesto, y la horda deja pisadas. Todo se va borrando. `6c9c20d`
+- En el panel de balance (Visual) se puede probar la puerta con **una puerta por punto**, en el medio
+  entre los corazones y la oleada. `6c9c20d`
 
 **Enemigos**
+- **Campo en trapecio, para probar** (panel de balance → Campo → Forma, o `?trapecio`): adelante igual
+  que siempre, el fondo más ancho. Los enemigos salen sobre un arco y cada uno camina por su fila: los del
+  medio derecho, los de las puntas en diagonal, y todos llegan repartidos a lo ancho de los puestos.
+  `6c9c20d`
+- **El intocable** se lee mejor: mientras no se le puede pegar, su barra es violeta, rayada, y se vacía;
+  cuando se abre la ventana, la barra se llena de dorado a rojo, y al llenarse vuelve a cerrarse.
+  `6c9c20d`
 - El blindaje que se come el golpe entero ahora para la pelota: el driver y el hierro ya no siguen de
   largo detrás del acorazado. Si le sacan aunque sea 1, siguen como siempre. `4d6988e`
 
