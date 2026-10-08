@@ -8,7 +8,7 @@ mejor propaganda que tiene el juego: cualquiera que reciba el enlace entra sin i
 
 | Dónde | Qué | Para qué |
 |---|---|---|
-| **itch.io** | La demo, jugable en el navegador. Más adelante, la completa paga en la misma página | Difusión: ahí te encuentran jugadores. Cobrar |
+| **itch.io** | La demo, jugable en el navegador (gratis). La completa, paga, **como descarga**: la app de escritorio, la misma de Steam | Difusión: ahí te encuentran jugadores. Cobrar |
 | **Página web propia** (hoy GitHub Pages) | La versión de Abe, una carpeta por versión. La demo también | El enlace de Abe tiene que abrir **la misma versión** que el caballero, fuera de un iframe |
 | **Steam** | La completa (app paga) y la demo (app aparte, gratis). Las dos con Abe | Donde están los compradores. Logros, invitar amigos de Steam |
 
@@ -119,8 +119,16 @@ Steam». Cada Abe es un posible comprador.
   cambió, los modelos no se vuelven a subir). Una vez, Leandro: crea la página del juego (tipo HTML),
   corre `butler login` en su compu, y después de la primera subida marca «This file will be played in
   the browser».
-- **Cobrar:** itch se queda con lo que uno elija (por defecto el 10 %). La demo puede tener «pagá lo que
-  quieras». En una misma página van la demo web gratis y la completa para los que compran.
+- **itch no cobra juegos que se juegan en el navegador** (lo confirmé el 8/10 en sus foros): un juego
+  HTML es gratis, a lo sumo con donación. Así que la completa paga va como **descarga**: el juego dentro
+  de Electron (Windows primero; Mac pide firmar y notarizar con Apple), que es lo mismo que hace falta
+  para Steam. Lo más simple: dos páginas, la demo web gratis y la completa paga para bajar.
+- **Cobrar:** itch se queda con lo que uno elija (por defecto el 10 %). Se puede poner un mínimo y dejar
+  pagar más.
+- **Precio (propuesta del 8/10):** US$4,99, como Brotato y Vampire Survivors (que salió a US$2,99 en
+  acceso anticipado). Deja lugar para descuentos (Steam vive de las ofertas) y se puede subir con más
+  contenido. El mismo en itch y en Steam: Steam pide que las claves de Steam vendidas afuera no salgan más
+  baratas, y aunque itch venda sin claves, conviene no ser más barato que Steam.
 
 ## El código, privado
 
@@ -157,4 +165,6 @@ Pages es cambiar el deploy.
 - [ ] TURN y código largo en el enlace.
 - [ ] Repo privado + repo público con lo compilado.
 - [ ] Una completa sin herramientas de prueba, para vender.
+- [ ] La completa como app de escritorio (Electron), para itch (descarga paga) y Steam.
+- [ ] Al abrir la venta, sacar la completa de GitHub Pages (queda la demo y la de Abe).
 - [ ] Steam: Electron, steamworks.js, invitaciones, logros, página «próximamente».
