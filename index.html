@@ -128,6 +128,20 @@
       #gatebox.broken .num { color: #ff6b6b; }
       #gatebox.broken { animation: gatelow 1s ease-in-out infinite alternate; }
       #gatebox.alert { background: rgba(255, 60, 60, 0.28); animation: gatehit 0.45s ease-out; }
+      /* la otra forma (panel B → Visual): una puerta por punto, en el medio entre los corazones y la oleada.
+         Las perdidas, rotas y apagadas */
+      #gatebox .icons { display: none; gap: 2px; }
+      #topbar.gateicons #gatebox { margin: 0 auto; padding: 3px 8px; }
+      #topbar.gateicons #gatebox > svg, #topbar.gateicons #gatebox .num { display: none; }
+      #topbar.gateicons #gatebox .icons { display: flex; }
+      #gatebox .icons i { display: block; width: 24px; height: 24px; }
+      #gatebox .icons svg { width: 100%; height: 100%; }
+      #topbar.gateicons #gatebox .icons i:not(.lost) .crack1, #topbar.gateicons #gatebox .icons i:not(.lost) .crack2 { display: none; }
+      #gatebox .icons i.lost { opacity: 0.28; filter: grayscale(1); }
+      #gatebox .icons i.lost .crack1, #gatebox .icons i.lost .crack2 { display: inline; }
+      #gatebox .icons i.fall { animation: gatefall 0.6s ease-out; }
+      #gatebox .icons i.gain { animation: heartgain 0.6s ease-out; }
+      @keyframes gatefall { 0% { transform: scale(1.4); opacity: 1; filter: drop-shadow(0 0 6px #ff3b3b); } 35% { transform: rotate(-14deg) translateY(-2px); opacity: 1; } 100% { transform: none; } }
       @keyframes gatehit { 0%, 100% { transform: none; } 20% { transform: translateX(-4px) rotate(-3deg); } 40% { transform: translateX(4px) rotate(3deg); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
       @keyframes gatelow { from { box-shadow: 0 0 0 1px rgba(255, 80, 80, 0.2); } to { box-shadow: 0 0 0 2px rgba(255, 80, 80, 0.85), 0 0 12px rgba(255, 60, 60, 0.4); } }
       /* los botones de la derecha van por encima de la pausa y del final, como antes */
@@ -398,6 +412,8 @@
         #hearts i { width: 20px; height: 20px; }
         #gatebox svg { width: 24px; height: 24px; }
         #gatebox .num { font-size: 18px; }
+        #gatebox .icons i { width: 14px; height: 14px; }
+        #gatebox .icons { gap: 1px; }
         #wave { gap: 6px; }
         #wave .n { font-size: 15px; }
         #run { padding-left: 6px; gap: 3px; }

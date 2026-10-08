@@ -43,6 +43,15 @@ export class Hud {
   private hearts = $('hearts');
   private gateBox = $('gatebox');
   private gateNum = this.gateBox.querySelector('.num') as HTMLElement;
+  /** La otra forma de la puerta: una por punto (VISUAL.gateIcons, ver `setGateIcons`). */
+  private gateIcons = (() => {
+    const el = document.createElement('span');
+    el.className = 'icons';
+    this.gateBox.append(el);
+    return el;
+  })();
+  private gateIconsOn = false;
+  private readonly gateSvg = this.gateBox.querySelector('svg')!.outerHTML;
   /** Lo último que se dibujó: solo se toca el DOM cuando cambia. */
   private shownHp = -1;
   private shownHpMax = -1;
@@ -344,12 +353,39 @@ export class Hud {
     }
     gate = Math.max(0, Math.round(gate));
     if (gate !== this.shownGate) {
+      const before = this.shownGate;
       this.shownGate = gate;
       this.gateNum.innerHTML = `${gate}<small>/${gateMax}</small>`;
+      if (this.gateIconsOn) {
+        if (this.gateIcons.children.length !== gateMax) this.gateIcons.innerHTML = `<i>${this.gateSvg}</i>`.repeat(gateMax);
+        Array.from(this.gateIcons.children).forEach((el, i) => {
+          el.classList.toggle('lost', i >= gate);
+          // la que se acaba de romper tiembla y se cae; la que se arregla, salta
+          const changed = before >= 0 && (i < before) !== (i < gate);
+          el.classList.remove('fall', 'gain');
+          if (changed) {
+            void (el as HTMLElement).offsetWidth;
+            el.classList.add(i >= gate ? 'fall' : 'gain');
+          }
+        });
+      }
       this.gateBox.classList.toggle('hurt', gate <= gateMax * 0.6);
       this.gateBox.classList.toggle('broken', gate <= gateMax * 0.3);
     }
     if (this.gateBox.classList.contains('alert') && performance.now() > this.gateAlertUntil) this.gateBox.classList.remove('alert');
+  }
+
+  /**
+   * La vida de la puerta: un ícono y el número (de fábrica), o una puerta por punto en el medio de la
+   * izquierda de la barra (VISUAL.gateIcons, panel B → Visual).
+   */
+  setGateIcons(on: boolean): void {
+    if (on === this.gateIconsOn) return;
+    this.gateIconsOn = on;
+    $('topbar').classList.toggle('gateicons', on);
+    this.gateIcons.innerHTML = '';
+    // se vuelve a dibujar en el próximo cuadro, ya de la otra forma
+    this.shownGate = -1;
   }
 
   /** Le pegaron a la puerta: tiembla y se pone roja un momento. */

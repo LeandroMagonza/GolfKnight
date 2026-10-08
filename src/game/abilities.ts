@@ -17,7 +17,8 @@ import { heightAt, relief, terrainOn } from '../core/terrain';
 import { r2, type CartSnap, type MarkSnap } from '../net/snapshot';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
-import { FIELD_HALF_WIDTH, GATE_Z } from './world';
+import { fieldHalfAt } from '../core/field';
+import { GATE_Z } from './world';
 
 /** Lo que las habilidades le piden al juego. */
 export interface AbilityHooks {
@@ -322,7 +323,7 @@ export class Abilities {
   /** El carrito sale del costado donde estás y cruza todo el campo a la altura `z`. */
   private sendCart(z: number, fromX: number, level: number, id = this.nextId++): Cart {
     const dir = fromX <= 0 ? 1 : -1;
-    const x = -dir * (FIELD_HALF_WIDTH + 3);
+    const x = -dir * (fieldHalfAt(z) + 3);
     const mesh = new THREE.Group();
     const body = new THREE.MeshStandardMaterial({ color: 0xe9e2cf, roughness: 0.6 });
     const roof = new THREE.MeshStandardMaterial({ color: 0x2f6b3a, roughness: 0.8 });
@@ -482,7 +483,7 @@ export class Abilities {
         this.horde.damage(e, lv(CART.damage, c.level), new THREE.Vector3(c.dir, 0, 0.4).normalize(), 7);
         this.onEvent?.({ type: 'bump', pos: e.position.clone() });
       }
-      if (Math.abs(c.x) <= FIELD_HALF_WIDTH + 4) continue;
+      if (Math.abs(c.x) <= fieldHalfAt(c.z) + 4) continue;
       this.scene.remove(c.mesh);
       this.carts.splice(i, 1);
     }

@@ -69,6 +69,8 @@ export type MeterSpot = (typeof METER_SPOTS)[number];
 
 export const VISUAL = {
   meterAt: 'adelante' as MeterSpot,
+  /** La vida de la puerta como una puerta por punto, en el medio de la izquierda de la barra (8/10, Leandro). */
+  gateIcons: false,
   /** Versión del lugar del arco: un guardado de antes de que el de fábrica fuera «adelante» no lo pisa. */
   meterVersion: 2,
   shadows: true,

@@ -15,6 +15,7 @@ import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from '.
 import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, FOURTH, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
+import { FIELD_HALF_WIDTH, FIELD_SHAPE } from './core/field';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
@@ -77,6 +78,8 @@ export interface DebugHooks {
   setCourse(index: number | null): void;
   /** Qué campo está en juego, para marcarlo. */
   courseIndex(): number;
+  /** Se tocó la forma del campo (FIELD_SHAPE): se rearma en el acto, con la partida andando. */
+  reshapeField(): void;
   /** La cámara en vivo: el panel la muestra, la copia y le cambia el encuadre automático. */
   camera(): { pitch: number; rise: number; dist: number; auto: boolean; margin: number };
   /** Pasa a la escena lo tocado en la pestaña Visual. */
@@ -153,6 +156,8 @@ function outdated(from: number, key: string): boolean {
 export interface SavedExtras {
   camera?: { pitch: number; rise: number; auto?: boolean; margin?: number };
   disabled?: string[];
+  /** La forma del campo (ver core/field): rectángulo o trapecio, y sus números. */
+  field?: Partial<typeof FIELD_SHAPE>;
 }
 
 type Saved = SavedExtras & {
@@ -234,6 +239,10 @@ export function loadBalance(): SavedExtras {
     if (typeof from.attackEvery === 'number' && s.attackEvery !== undefined) s.attackEvery = from.attackEvery;
   }
   const camera = saved.camera && outdated(version, 'camera.margin') ? { ...saved.camera, margin: undefined } : saved.camera;
+  if (saved.field) {
+    if (typeof saved.field.trapezoid === 'boolean') FIELD_SHAPE.trapezoid = saved.field.trapezoid;
+    for (const k of ['backHalf', 'arc'] as const) if (typeof saved.field[k] === 'number') FIELD_SHAPE[k] = saved.field[k];
+  }
   return { camera, disabled: saved.disabled };
 }
 
@@ -428,7 +437,7 @@ export class DebugPanel {
   /** Guarda el balance tocado, con lo que vive fuera de CLUBS y ENEMIES. */
   save(): void {
     const c = this.hooks.camera();
-    saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled] });
+    saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled], field: { ...FIELD_SHAPE } });
   }
 
   private button(label: string, onClick: (b: HTMLButtonElement) => void, title = ''): HTMLButtonElement {
@@ -1128,6 +1137,20 @@ export class DebugPanel {
     courses.append(this.button('Sortear', () => this.hooks.setCourse(null)));
     el.append(courses, note('Cambiar de campo reinicia la partida: el terreno se arma una sola vez, al cargar.'));
 
+    // la forma: rectángulo o trapecio (ver core/field). Cambia en el acto, sin recargar
+    el.append(heading('Forma'));
+    const reshape = () => { this.hooks.reshapeField(); this.save(); };
+    const shape = this.numbers([
+      ['medio ancho del fondo', () => FIELD_SHAPE.backHalf, (v) => { FIELD_SHAPE.backHalf = Math.max(FIELD_HALF_WIDTH + 1, v); reshape(); }, 1, 'm'],
+      ['arco (las puntas, más cerca)', () => FIELD_SHAPE.arc, (v) => { FIELD_SHAPE.arc = Math.max(0, v); reshape(); }, 1, 'm'],
+    ]);
+    el.append(this.row(this.toggleButton('Trapecio', () => FIELD_SHAPE.trapezoid, (v) => { FIELD_SHAPE.trapezoid = v; reshape(); })), shape.table, note(
+      `Adelante, donde estás, igual que siempre (${FIELD_HALF_WIDTH} m de cada lado); el fondo, más ancho. Los enemigos salen sobre un arco `
+      + '(los de las puntas, más cerca) y cada uno camina por su fila hacia un punto detrás de la muralla: el del medio derecho, los de las puntas en diagonal, '
+      + 'y cada punto del arco llega a su punto de la línea de los puestos. Al que empujás sigue la fila de donde quedó. '
+      + `Con el fondo de ${FIELD_HALF_WIDTH} m o menos, es el rectángulo de siempre. También se prende con ?trapecio en la dirección.`,
+    ));
+
     el.append(heading('Cámara'));
     const camLine = document.createElement('p');
     camLine.className = 'note';
@@ -1149,7 +1172,7 @@ export class DebugPanel {
     const applied = () => { this.hooks.applyVisual(); saveVisual(); };
     // cada control se repinta al abrir y al usar «todo prendido / apagado», que los cambia a todos juntos
     const paints: (() => void)[] = [];
-    const toggle = (label: string, key: 'shadows' | 'rim' | 'bloom') => {
+    const toggle = (label: string, key: 'shadows' | 'rim' | 'bloom' | 'gateIcons') => {
       const b = this.button(label, () => { VISUAL[key] = !VISUAL[key]; applied(); paintAll(); });
       paints.push(() => b.classList.toggle('on', VISUAL[key]));
       return b;
@@ -1183,6 +1206,11 @@ export class DebugPanel {
       this.button('Todo apagado (como antes)', () => { Object.assign(VISUAL, VISUAL_OFF); applied(); paintAll(); }, 'Sin sombras, sin corrección de color, sol de mediodía, sin contorno ni brillo'),
     );
     el.append(heading('Visual'), fps, all, note('Nada de esto cambia cómo se juega. Se guarda aparte del balance: «Restaurar» de abajo no lo toca.'));
+
+    el.append(heading('Barra de arriba'), this.row(toggle('Puerta con íconos', 'gateIcons')), note(
+      'La vida de la puerta como una puerta por punto (las perdidas, rotas y apagadas), en el medio entre los corazones y la oleada. '
+      + 'Apagado: un ícono y el número, al lado de los corazones.',
+    ));
 
     el.append(heading('Arco de carga'), choice('dónde va', METER_SPOTS, () => VISUAL.meterAt, (v: MeterSpot) => { VISUAL.meterAt = v; }, {
       adelante: 'Unos metros adelante, al costado del camino del tiro (el de fábrica)',
@@ -1281,6 +1309,7 @@ export class DebugPanel {
     const lines = [
       '// Golf Knight · balance',
       `campo: ${COURSES[this.hooks.courseIndex()].name}`,
+      `forma: ${FIELD_SHAPE.trapezoid ? `trapecio, fondo ${FIELD_SHAPE.backHalf} m de cada lado, arco ${FIELD_SHAPE.arc} m` : 'rectangulo'}`,
       `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}, encuadre ${c.auto ? `automatico a ${c.margin} px de las barras` : 'fijo'}`,
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
       `visual: ${JSON.stringify(VISUAL)}`,

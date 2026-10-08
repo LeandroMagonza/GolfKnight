@@ -8,6 +8,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { burnSeconds, chilledSpeed, ELEMENTS, LENS, POWDER, VULNERABLE } from '../core/abilities';
 import { chainJumps } from '../core/chain';
 import { EXPLOSION_RADIUS, KNOCK, KNOCK_DECAY, type ClubId } from '../core/clubs';
+import { fieldHalfAt, laneX, spawnAt, trapezoidOn, vanishZ } from '../core/field';
 import { ABE_BOLT, BOLT_INFO } from '../coop/spells';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
@@ -17,7 +18,7 @@ import { LayeredAnimator } from './animator';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
 import { TEE_Z } from './tees';
-import { FIELD_HALF_WIDTH, GATE_HALF_WIDTH, GATE_Z, SPAWN_Z } from './world';
+import { GATE_HALF_WIDTH, GATE_Z } from './world';
 
 /** A esta distancia (más su radio) un enemigo que pasa le pega al golfista. */
 const TRAMPLE_REACH = 0.55;
@@ -164,6 +165,9 @@ const REGEN_GLOW_SECONDS = 0.7;
 /** El intocable: su barra violeta mientras es invulnerable, y dorada en la ventana en que se le puede pegar. */
 const PHASE_COLOR = '#b26bff';
 const PHASE_OPEN_COLOR = '#ffd34d';
+/** La ventana del intocable se va poniendo roja a medida que se cierra. */
+const PHASE_OPEN = new THREE.Color('#ffc21a');
+const PHASE_CLOSING = new THREE.Color('#ff2020');
 
 /** Un ícono suelto, como imagen (el HUD los usa para el recorrido de la partida). */
 export function badgeImage(icon: BadgeIcon): string {
@@ -1015,8 +1019,10 @@ export class Enemy {
       }
     }
     if (regen || phase) {
-      // la barra del ciclo. El que se cura: se llena de verde y al llenarse se cura. El intocable: violeta
-      // que se descarga, y al vaciarse la ventana, dorada, que también se vacía. Silenciado, gris
+      // La barra del ciclo. El que se cura: se llena de verde y al llenarse se cura. El intocable (8/10,
+      // Leandro: que se distinga para qué lado va): invulnerable, violeta rayada que se VACÍA, y al
+      // vaciarse se le puede pegar; en la ventana, una barra que se LLENA, de dorado a rojo, y al llenarse
+      // vuelve a ser intocable. Silenciado, gris y llena
       const x0 = left + 4;
       const w = 32 * slots - 8;
       const y = BADGE_PX;
@@ -1026,9 +1032,27 @@ export class Enemy {
       ctx.roundRect(x0, y, w, h, 4);
       ctx.fill();
       const ph = this.phaseBar;
-      const fill = phase ? Math.abs(ph) : Math.min(1, this.regenProgress);
-      ctx.fillStyle = this.silenced ? '#6b7480' : phase ? (ph > 0 ? PHASE_COLOR : PHASE_OPEN_COLOR) : REGEN_COLOR;
-      ctx.fillRect(x0, y, w * (this.silenced && phase ? 1 : fill), h);
+      const shut = phase && ph > 0;
+      const fill = this.silenced && phase ? 1 : phase ? (shut ? ph : 1 - Math.abs(ph)) : Math.min(1, this.regenProgress);
+      ctx.fillStyle = this.silenced ? '#6b7480' : !phase ? REGEN_COLOR : shut ? PHASE_COLOR
+        : PHASE_OPEN.clone().lerp(PHASE_CLOSING, THREE.MathUtils.smoothstep(fill, 0.35, 1)).getStyle();
+      ctx.fillRect(x0, y, w * fill, h);
+      if (shut && !this.silenced) {
+        // rayada: se ve «cerrada», no es la misma barra con otro color
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x0, y, w * fill, h);
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(52, 0, 96, 0.55)';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        for (let sx = x0 - h; sx < x0 + w; sx += 9) {
+          ctx.moveTo(sx, y + h);
+          ctx.lineTo(sx + h, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.roundRect(x0, y, w, h, 4);
@@ -1448,8 +1472,18 @@ export class Enemy {
           : behavior === 'geomancer' && this.digState !== 'done' ? this.holdAt
             : null;
     const holding = holdZ !== null && this.target === 'gate';
-    const gateX = holding ? this.position.x : THREE.MathUtils.clamp(this.position.x, -GATE_HALF_WIDTH + 0.3, GATE_HALF_WIDTH - 0.3);
-    const gateZ = holding ? holdZ : GATE_Z + this.radius + 0.3;
+    let gateX = holding ? this.position.x : THREE.MathUtils.clamp(this.position.x, -GATE_HALF_WIDTH + 0.3, GATE_HALF_WIDTH - 0.3);
+    let gateZ = holding ? holdZ : GATE_Z + this.radius + 0.3;
+    // En el trapecio (ver core/field) cada uno camina por su fila, hacia el punto de fuga detrás de la
+    // muralla, hasta pasar los puestos; de ahí, a la puerta como siempre. El que se planta, lo hace en
+    // su fila. Al que empujan sigue la fila del lugar donde quedó
+    if (trapezoidOn() && this.target === 'gate' && !this.passed) {
+      if (holding) gateX = laneX(this.position.x, this.position.z, holdZ);
+      else if (this.position.z > TEE_Z) {
+        gateX = 0;
+        gateZ = vanishZ();
+      }
+    }
     // la bandera le gana a la puerta mientras dura; al alma en pena no la engaña, que va por vos
     const lured = this.lureTimer > 0 && this.target === 'gate' && !this.passed;
     const tx = lured ? this.lure.x : this.target === 'player' ? player.position.x : gateX;
@@ -1678,7 +1712,8 @@ export class Enemy {
   }
 
   private clampToField(): void {
-    this.position.x = THREE.MathUtils.clamp(this.position.x, -FIELD_HALF_WIDTH - 2, FIELD_HALF_WIDTH + 2);
+    const half = fieldHalfAt(this.position.z) + 2;
+    this.position.x = THREE.MathUtils.clamp(this.position.x, -half, half);
     this.position.z = Math.max(this.position.z, GATE_Z + this.radius * 0.5);
   }
 
@@ -1988,8 +2023,9 @@ export class Horde {
     const stats = ENEMIES[kind];
     // reparte las apariciones a lo ancho con la razón áurea, para que no salgan encimados
     const u = (this.spawnCount++ * 0.618034) % 1;
-    const half = stats.behavior === 'golem' ? 3 : FIELD_HALF_WIDTH - 3;
-    return this.add(kind, (u * 2 - 1) * half, SPAWN_Z + Math.random() * 3, mods);
+    // a lo ancho del fondo (en el trapecio, sobre el arco: ver core/field); el gólem, en el medio
+    const from = spawnAt(stats.behavior === 'golem' ? (u * 2 - 1) * 0.2 : u * 2 - 1);
+    return this.add(kind, from.x, from.z + Math.random() * 3, mods);
   }
 
   /** Las maestrías que tiene el golfista: cambian qué hacen el hielo, el fuego y el rayo. */
@@ -2567,7 +2603,7 @@ export class Horde {
       if (along < 1 || Math.abs(lateral) > DODGE.aimWidth + e.radius) continue;
       let sign = Math.abs(lateral) > 0.3 ? Math.sign(lateral) : Math.random() < 0.5 ? -1 : 1;
       const landX = e.position.x + side.x * sign * DODGE.distance;
-      if (Math.abs(landX) > FIELD_HALF_WIDTH - 1) sign = -sign;
+      if (Math.abs(landX) > fieldHalfAt(e.position.z) - 1) sign = -sign;
       e.dodge(side.clone().multiplyScalar(sign));
       this.emit({ type: 'dodged', enemy: e });
       n++;

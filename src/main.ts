@@ -4,6 +4,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
+import { FIELD_SHAPE, trapezoidOn } from './core/field';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
 import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
@@ -16,6 +17,7 @@ import { Abilities } from './game/abilities';
 import { Balls, RICOCHET_COLOR } from './game/balls';
 import { RICOCHET } from './core/shield';
 import { MoundView } from './game/mounds';
+import { Scuffs } from './game/scuffs';
 import { Effects } from './game/effects';
 import { badgeImage, Horde, SCENARIO_ICONS, shadowMat, SHIELD_MODELS, SHIELD_PROPS } from './game/enemies';
 import { BALLS, TEE_Z, Tees } from './game/tees';
@@ -76,6 +78,10 @@ let gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.
 // esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
 // (solo con las herramientas de prueba: lo que se publica para jugadores juega con los números del código)
 const savedBalance: SavedExtras = DEV_TOOLS ? loadBalance() : {};
+// el campo en trapecio (ver core/field): con ?trapecio se prende para esta visita. El tenis, siempre en el
+// rectángulo: la cancha tiene sus paredes
+if (params.has('trapecio')) FIELD_SHAPE.trapezoid = true;
+if (TENNIS_ON) FIELD_SHAPE.trapezoid = false;
 // el modo tenis cambia los palos y las cartas: antes de armar el HUD, que dibuja los palos
 if (TENNIS_ON) applyTennis();
 const world = new World(scene);
@@ -86,6 +92,8 @@ const horde = new Horde(scene);
 const balls = new Balls(scene, horde, effects);
 /** Las lomas del geomante, a la vista (la altura ya la leen todos de core/terrain). */
 const moundView = new MoundView(scene, world);
+/** Las marcas del piso: piques, divots y pisadas (ver game/scuffs). */
+const scuffs = new Scuffs(scene);
 const abilities = new Abilities(scene, horde, effects);
 /** El granizo de Abe, el segundo jugador (src/coop): lo pide el que mira, cae en este juego. */
 const abe = new Abe(scene, horde, effects);
@@ -114,6 +122,7 @@ const DUFF_COLORS = [0x6b7480, 0x5be07a, 0xffd21f];
 const QUALITY_COLORS_4 = [0xffffff, 0xffe066, 0xff9a2e, 0xff2d3c];
 const DUFF_COLORS_4 = [0x6b7480, 0x5be07a, 0xffd21f, 0xff9a2e];
 const hud = new Hud();
+hud.setGateIcons(VISUAL.gateIcons);
 const audio = new GameAudio();
 const difficultyMenu = new DifficultyMenu(progress, DEMO);
 /**
@@ -906,6 +915,7 @@ balls.onEvent = (e) => {
       break;
     case 'bounce':
       audio.bounce();
+      scuffs.pitch(e.pos.x, e.pos.z);
       break;
     // tenis: rebotó en un enemigo o en una pared, o quedó en el piso para levantarla
     case 'returned':
@@ -1618,6 +1628,10 @@ function makeDebugPanel(): DebugPanel {
       location.href = url.toString();
     },
     courseIndex: () => relief.index,
+    reshapeField() {
+      if (TENNIS_ON) FIELD_SHAPE.trapezoid = false;
+      world.rebuildField();
+    },
     offerChoice() {
       if (!cardOpen) offerChoice();
     },
@@ -1633,7 +1647,10 @@ function makeDebugPanel(): DebugPanel {
     },
     refreshPerks: applyPerks,
     camera: () => cam,
-    applyVisual: () => visuals.apply(),
+    applyVisual() {
+      visuals.apply();
+      hud.setGateIcons(VISUAL.gateIcons);
+    },
     fps: () => frameTimes.filter((t) => performance.now() - t < 1000).length,
     timing: currentTiming,
     tennis: TENNIS_ON,
@@ -1909,6 +1926,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
       const back = t?.back ?? null;
       const lift = shotLift(shot.club, range);
       const fired = balls.fire(shot, range, lift);
+      // el hierro y el wedge levantan un pedazo de pasto delante del puesto
+      if (!pocket && (shot.club.id === 'iron' || shot.club.id === 'wedge')) scuffs.divot(shot.from, shot.dir);
       tennis?.fired(fired);
       if (back) {
         fired.rally = back.rally + 1;
@@ -2301,6 +2320,7 @@ async function startHosting(code: string): Promise<string> {
         skin: SKINS[skinIndex].id,
         powers: run.powers,
         day: director.waveCount > 1 ? Math.max(0, director.index) / (director.waveCount - 1) : 0,
+        shape: trapezoidOn() ? [FIELD_SHAPE.backHalf, FIELD_SHAPE.arc] : null,
       }),
       game: (): GameSnap => ({
         st: started,
@@ -2498,6 +2518,13 @@ async function startWatching(code: string): Promise<void> {
         if (h.tenis) url.searchParams.set('tenis', '');
         location.replace(url.toString().replace(/=(&|$)/g, '$1'));
         return;
+      }
+      // la forma del campo, la del que juega (sin recargar: se rearma en el acto)
+      const shape = h.shape ?? null;
+      if ((shape !== null) !== trapezoidOn() || (shape && (shape[0] !== FIELD_SHAPE.backHalf || shape[1] !== FIELD_SHAPE.arc))) {
+        FIELD_SHAPE.trapezoid = shape !== null;
+        if (shape) [FIELD_SHAPE.backHalf, FIELD_SHAPE.arc] = shape;
+        world.rebuildField();
       }
       const powers = h.powers.filter((p): p is ScenarioPower => p in POWER_NAMES);
       hud.setRun([
@@ -2737,6 +2764,8 @@ function watchFrame(dt: number): void {
   const step = spectator?.frozen ? 0 : dt;
   effects.update(step);
   world.update(step);
+  scuffs.walk(horde.enemies);
+  scuffs.update(step);
   visuals.updateDay(dt);
   visuals.render();
 }
@@ -2820,6 +2849,11 @@ function playFrame(dt: number, nowMs: number): void {
   // el panel se lee también en pausa: se abre desde ahí, y sus números calculados tienen que estar vivos
   debugPanel?.tick();
   netHost?.tick(nowMs);
+  // las marcas del piso: las pisadas de los que caminan, y se borra lo viejo
+  if (!paused) {
+    scuffs.walk(horde.enemies);
+    scuffs.update(dt);
+  }
   visuals.updateDay(dt);
   visuals.render();
 }
@@ -2876,6 +2910,8 @@ if (DEV_TOOLS) (window as any).__gk = {
   /** Píxel de pantalla que corresponde a un punto del piso, para apuntar con el mouse en los tests. */
   /** Lo visual del panel B (sombras, luz, dónde va el arco de carga). */
   get visual() { return VISUAL; },
+  /** Las marcas del piso (piques, divots, pisadas), para probarlas. */
+  get scuffs() { return scuffs; },
   // con los globos el mouse apunta sobre el piso plano (ver updateAim): el píxel es el del plano
   screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, isLob(player.club) || !terrainOn() ? 0 : heightAt(x, z), z), 0); },
   heightAt,

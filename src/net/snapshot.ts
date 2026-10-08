@@ -204,6 +204,8 @@ export interface Hello {
   powers: string[];
   /** El momento del día (0 mañana, 1 atardecer). */
   day: number;
+  /** El campo en trapecio: el medio ancho del fondo y el arco (ver core/field). Null, el rectángulo. */
+  shape?: [backHalf: number, arc: number] | null;
 }
 
 /** Un evento suelto: un método del que juega que el que mira repite (efecto, sonido o cartel). */

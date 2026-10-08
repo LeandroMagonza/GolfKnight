@@ -15,7 +15,8 @@ import * as THREE from 'three';
 import { heightAt, relief } from '../core/terrain';
 import type { Effects } from '../game/effects';
 import type { Enemy, Horde } from '../game/enemies';
-import { FIELD_HALF_WIDTH, GATE_Z, SPAWN_Z } from '../game/world';
+import { fieldHalfAt } from '../core/field';
+import { GATE_Z, SPAWN_Z } from '../game/world';
 import { r2, r3 } from '../net/snapshot';
 import { ABE_BOLT, ABE_SPELLS, applyPick, at, BOLT_INFO, catchUpLevels, draftOffer, nextOffer, sizeOf, SPELL_INFO, SPELL_ORDER, type AbeSlot, type Offer, type SpellId } from './spells';
 
@@ -165,8 +166,8 @@ export class Abe {
    * está recargando.
    */
   cast(slot: number, x: number, z: number): boolean {
-    let cx = THREE.MathUtils.clamp(x, -FIELD_HALF_WIDTH, FIELD_HALF_WIDTH);
     let cz = THREE.MathUtils.clamp(z, GATE_Z + 2, SPAWN_Z + 4);
+    let cx = THREE.MathUtils.clamp(x, -fieldHalfAt(cz), fieldHalfAt(cz));
     if (slot === BOLT_SLOT) {
       if (this.boltCooldown > 0) return false;
       this.boltCooldown = ABE_BOLT.cooldown;
