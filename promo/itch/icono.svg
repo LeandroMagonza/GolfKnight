@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22436a"/><stop offset="1" stop-color="#0b1626"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".55" stop-color="#ffc94d"/><stop offset="1" stop-color="#c98a1e"/></linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a3262c"/><stop offset="1" stop-color="#4e0b12"/></linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#cfd8e2"/><stop offset="1" stop-color="#8794a3"/></linearGradient>
+    <radialGradient id="ball" cx=".36" cy=".32" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#e9edf2"/><stop offset="1" stop-color="#aeb8c4"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="92" fill="url(#bg)"/>
+  <path d="M256 34 L430 88 V214 C430 320 356 392 256 436 C156 392 82 320 82 214 V88 Z" fill="url(#shield)" stroke="url(#gold)" stroke-width="16" stroke-linejoin="round"/>
+  <g transform="rotate(-38 256 222)">
+    <polygon points="256,50 271,80 271,300 241,300 241,80" fill="url(#steel)" stroke="#3a4552" stroke-width="3"/>
+    <line x1="256" y1="74" x2="256" y2="296" stroke="#8794a3" stroke-width="3"/>
+    <rect x="200" y="298" width="112" height="18" rx="9" fill="url(#gold)" stroke="#6b3f0c" stroke-width="3"/>
+    <rect x="247" y="316" width="18" height="62" rx="5" fill="#5a2e12" stroke="#2a1406" stroke-width="3"/>
+    <circle cx="256" cy="388" r="14" fill="url(#gold)" stroke="#6b3f0c" stroke-width="3"/>
+  </g>
+  <g transform="rotate(38 256 222)">
+    <rect x="247" y="46" width="18" height="86" rx="6" fill="#26303b" stroke="#0e1319" stroke-width="3"/>
+    <rect x="251" y="130" width="10" height="240" fill="url(#steel)" stroke="#3a4552" stroke-width="2"/>
+    <path d="M262 362 C 266 392 246 412 210 410 C 186 408 180 388 196 376 C 214 364 238 368 262 362 Z" fill="#1d2733" stroke="#0a0e13" stroke-width="3"/>
+    <path d="M250 372 C 236 374 214 376 202 384" stroke="#7d8da0" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </g>
+  <circle cx="232" cy="338" r="30" fill="url(#ball)" stroke="#5d6b7a" stroke-width="3"/>
+  <g fill="#9aa6b3" opacity=".55">
+    <circle cx="221" cy="327" r="3.2"/><circle cx="234" cy="324" r="3.2"/><circle cx="244" cy="331" r="3.2"/>
+    <circle cx="225" cy="340" r="3.2"/><circle cx="237" cy="338" r="3.2"/><circle cx="248" cy="343" r="3.2"/>
+    <circle cx="228" cy="352" r="3.2"/><circle cx="241" cy="350" r="3.2"/><circle cx="218" cy="347" r="3.2"/>
+  </g>
+  <path d="M22 376 H490 L466 412 L490 448 H22 L46 412 Z" fill="url(#gold)" stroke="#6b3f0c" stroke-width="5" stroke-linejoin="round"/>
+  <text x="256" y="429" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="50" letter-spacing="2" fill="#3b1f05">GOLF KNIGHT</text>
+</svg>

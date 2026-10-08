@@ -1,7 +1,10 @@
 # La página de itch.io
 
 Las imágenes se arman con `node tools/promo.mjs crudas` (capturas del juego y de la cinemática, en
-`logs/promo/`) y `node tools/promo.mjs armar` (lo de esta carpeta). Hay una carpeta por idioma: `es/` y
+`logs/promo/`) y `node tools/promo.mjs armar` (lo de esta carpeta). Las capturas del juego son con la
+cámara de siempre y oleadas de verdad: los enemigos vienen caminando (ninguno quieto; quietos se los veía
+mirando para el costado), y se juega de verdad. De las ráfagas, el cuadro que se usa está en `ELEGIDOS`.
+El caballero es el Caballero (desde el 8/10, el único skin junto con la Caballera). Hay una carpeta por idioma: `es/` y
 `en/`. La página de itch va en inglés (la mayoría de los que pasan por itch lo leen), con el texto en
 español debajo.
 
@@ -13,7 +16,7 @@ español debajo.
 | **Screenshots** (la columna de la derecha, en este orden) | `en/1-oleada.jpg` … `en/7-historia-mago.jpg` | cualquiera; 1920×1080 |
 | **Banner** (Edit theme → Banner, arriba de la página) | `en/banner-1920x600.png` | 960 de ancho; la de 1920 se ve nítida |
 | **Embed background** (detrás del botón «Run game» de la demo) | `en/boton-jugar-1280x720.png` | 640×360 |
-| **Ícono de la app de escritorio** | `icono-512.png` (y `desktop/icon.ico`, que usa `npm run desktop`) | — |
+| **Ícono de la app de escritorio** | `icono-512.png` (y `desktop/icon.ico`, que usa `npm run desktop`): un escudo con el palo y la espada cruzados y el título; dibujado (`icono.svg`), no una captura | — |
 
 Para la demo web: Kind of project **HTML**; Embed options **1280 × 720**, con «Fullscreen button» marcado y
 «Mobile friendly» sin marcar (se juega con mouse y teclado). Después de la primera subida con butler,
@@ -31,12 +34,17 @@ marcar «This file will be played in the browser».
 
 **Título:** Golf Knight
 
-**Short description (tagline):** Golf vs. the horde. A medieval fair, a car, a wizard and a bag of golf
-clubs: defend the gate with perfect swings. *(es: Golf contra la horda.)*
+**Nombre:** Golf Knight, a secas. «Isekai» atrae, pero mejor en la frase corta y en las etiquetas (que
+es por donde busca itch) que en el nombre: un nombre corto se recuerda, y «Golf Knight - Isekai» suena a
+relleno para el buscador.
+
+**Short description (tagline):** An isekai golf roguelite: summoned to a fantasy world with only your golf
+clubs, stop the horde with perfect swings. *(es: Un isekai de golf: te invocan a otro mundo con tus palos de
+golf, y la horda se frena a golpes perfectos.)*
 
 **Descripción (en inglés):**
 
-> You went to a medieval fair dressed as a knight. Your golf clubs were still in the trunk. Then a car
+> **An isekai golf roguelite.** You went to a medieval fair dressed as a knight. Your golf clubs were still in the trunk. Then a car
 > hit you, and a wizard summoned you to another world: the prophecy called for shining armor and a
 > weapon of deadly precision. He got the golf clubs.
 >
@@ -58,7 +66,7 @@ clubs: defend the gate with perfect swings. *(es: Golf contra la horda.)*
 
 **Descripción (en español):**
 
-> Fuiste a una feria medieval disfrazado de caballero. Los palos de golf seguían en el baúl. Te pisó un
+> **Un isekai de golf.** Fuiste a una feria medieval disfrazado de caballero. Los palos de golf seguían en el baúl. Te pisó un
 > auto, y un mago te invocó a otro mundo: la profecía pedía armadura reluciente y un arma de precisión
 > letal. Le tocaron los palos de golf.
 >
@@ -79,7 +87,8 @@ clubs: defend the gate with perfect swings. *(es: Golf contra la horda.)*
 > La demo es el juego base en dificultad 0. El completo suma el árbol de dificultad, más poderes de
 > enemigos y más cartas.
 
-**Genre:** Action · **Tags:** golf, tower-defense, roguelite, medieval, co-op, 3D, low-poly, funny ·
+**Genre:** Action · **Tags (máximo 10):** golf, isekai, roguelite, tower-defense, medieval, co-op,
+low-poly, funny, fantasy, 3D ·
 **Inputs:** Mouse, Keyboard · **Languages:** English, Spanish.
 
 **Precio** (la completa, como descarga): US$2,99. La demo, gratis (se puede dejar «pagá lo que quieras»).

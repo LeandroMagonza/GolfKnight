@@ -10,6 +10,8 @@ function stamp(): string {
   return `${d.getDate()}/${d.getMonth() + 1} ${two(d.getHours())}:${two(d.getMinutes())}`;
 }
 const BUILD = process.env.GK_BUILD ?? stamp();
+/** El mismo momento en milisegundos (GK_BUILD_TIME, si lo pasa quien compila): para avisar que hay una nueva. */
+const BUILD_TIME = Number(process.env.GK_BUILD_TIME) || Date.now();
 
 /**
  * Qué versión del juego se compila (ver src/edition.ts y tools/build.mjs): la completa, la demo o la de
@@ -24,7 +26,7 @@ const DEV_TOOLS = EDITION === 'full' && process.env.GK_DEV_TOOLS !== '0';
 // y tiene que andar igual abierto desde cualquier ruta.
 export default defineConfig({
   base: './',
-  define: { __BUILD__: JSON.stringify(BUILD), __EDITION__: JSON.stringify(EDITION), __DEV_TOOLS__: JSON.stringify(DEV_TOOLS) },
+  define: { __BUILD__: JSON.stringify(BUILD), __BUILD_TIME__: JSON.stringify(BUILD_TIME), __EDITION__: JSON.stringify(EDITION), __DEV_TOOLS__: JSON.stringify(DEV_TOOLS) },
   build: {
     chunkSizeWarningLimit: 1500,
     // la completa en dist/, y las otras adentro, cada una en su carpeta: dist/demo/ y dist/abe/

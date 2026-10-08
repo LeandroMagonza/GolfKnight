@@ -603,6 +603,10 @@
       /* solo en la app de escritorio (desktop/preload.cjs): en pantalla completa no hay otra forma a mano */
       #pause .quit { margin-top: 18px; font-size: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
       #pause .quit:hover { background: rgba(120, 20, 20, 0.6); }
+      /* la app de escritorio, cuando hay una versión nueva publicada (checkUpdate en main) */
+      #update { display: flex; align-items: center; gap: 4px; margin-top: 12px; padding: 6px 8px 6px 14px; border: 1px solid #ffd66b; border-radius: 8px; background: rgba(255, 214, 107, 0.12); color: #ffe9a8; font-size: 15px; }
+      #update[hidden] { display: none; }
+      #overlay #update button.link { margin: 0; color: #ffd66b; font-size: 15px; font-weight: 700; }
       /* echar a Abe y la partida privada, debajo del enlace (en la intro y en la pausa) */
       .netctl { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
       .netctl[hidden], .netctl [hidden] { display: none; }
@@ -635,6 +639,7 @@
       </div>
       <button id="replaycine" type="button" data-en="Watch the intro again">Ver la intro de nuevo</button>
       <button type="button" class="link quit" hidden data-en="Quit game">Salir del juego</button>
+      <div id="update" hidden></div>
       <div id="corner">
         <div id="langpick" translate="no" role="group" aria-label="Idioma" data-en-aria-label="Language"><button type="button" data-lang="es" lang="es" title="Español">ES</button><button type="button" data-lang="en" lang="en" title="English">EN</button></div>
         <button id="notesbtn" type="button" title="Patch notes" aria-label="Patch notes" data-en-title="Patch notes" data-en-aria-label="Patch notes">

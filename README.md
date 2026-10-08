@@ -514,7 +514,9 @@ directamente no se compila:
 
 `npm run deploy` compila las tres. Para probar una en desarrollo: `GK_EDITION=demo npm run dev`.
 
-**La app de escritorio** (`npm run desktop`, o `npm run desktop:demo`; desde el 8/10): la completa **para
+**La app de escritorio** (`npm run desktop`, o `npm run desktop:demo`; con `-- --publicar`, la que se sube:
+anota su versión en `public/version.json` para el aviso de versión nueva y arma el zip en
+`release/itch/`; desde el 8/10): la completa **para
 vender**, sin las herramientas de prueba, adentro de Electron (`desktop/main.cjs`), en
 `release/golf-knight-win32-x64/` (unos 390 MB: 235 son Electron). Es la que va paga a itch (como
 descarga: itch no cobra juegos web) y después a Steam. Arranca en pantalla completa (F11 o Alt+Enter la
@@ -585,12 +587,15 @@ Los bichos del pack cute (lobos, caparazón, bombín, dragón) ya no se usan; su
 
 ## Personajes y palo
 
+- **Desde el 8/10 los skins son solo el Caballero y la Caballera** (`dungeon.glb`): los dos guardias de
+  Mixamo dejaron de ser jugables y sus modelos (`player.glb` y `player-guard3.glb`) salieron de
+  `public/models/` (siguen en el historial de git). Lo que sigue explica cómo se armaban.
 - `player.glb`: el guardia `castle_guard_01` (Guard02) de Mixamo, con `Idle`, `Running`, `Walking`,
   `Falling To Roll` y `Hard Landing` del Action Adventure Pack de MonsterTamer, los clips `Golf Drive`
   (driver y hierro), `Golf Chip` (wedge) y `Golf Putt` (putter), y `Rallying` (los brazos en alto: el
-  festejo al ganar, el mismo clip de la cinemática). Los cuatro skins lo tienen.
+  festejo al ganar, el mismo clip de la cinemática). Todos los skins lo tienen.
 - `player-guard3.glb` y `guard.glb`: el guardia de `Dropping.fbx` (Guard03) con todos los clips del
-  jugador más `Dropping` (`guard.glb` es el armado anterior, sin `Rallying`: los de la puerta no festejan). Es el segundo skin, y el que hace guardia al lado de la puerta.
+  jugador más `Dropping` (`guard.glb` es el armado anterior, sin `Rallying`: los de la puerta no festejan). `guard.glb` es el que hace guardia al lado de la puerta.
   Sus hombros descansan a 31° de los del esqueleto de los clips, así que se arma con
   `retarget_to_glb.py` (con `-` en lugar del atlas) y no con `fbx_to_glb.py`.
 - Los skins Caballero y Caballera salen de `dungeon.glb`. La lista está en `SKINS` (`src/main.ts`).

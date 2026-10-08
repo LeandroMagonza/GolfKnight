@@ -132,9 +132,14 @@ Steam». Cada Abe es un posible comprador.
   de Kokoro, que es síntesis de voz con IA aunque corra en la compu. Las imágenes son capturas del juego,
   los modelos son de Synty y Mixamo y la música sale de Tone.js.
 - **Actualizaciones:** la app de itch actualiza sola lo que se sube con butler (manda solo lo que
-  cambió); Steam también. El que bajó el zip a mano no se entera: la propuesta es que el juego avise al
-  abrir (lee la última versión de la página pública y ofrece el link a itch). Un actualizador propio
-  (electron-updater) no vale la pena: pide instalador, alojar las versiones y firmar el ejecutable.
+  cambió); Steam también. El que bajó el zip a mano no se entera, así que **la app avisa al abrir**
+  (hecho el 8/10, `checkUpdate` en `src/main.ts`): lee `https://leandromagonza.github.io/GolfKnight/version.json`
+  y, si la publicada es más nueva que la suya, la pantalla de inicio dice «Hay una versión nueva» con el
+  botón para bajarla. Sin internet, si tarda más de 5 s o si el archivo no está, no hace nada.
+  `npm run desktop -- --publicar` anota la versión en `public/version.json` (con la dirección de
+  descarga de `DOWNLOAD` en `tools/desktop.mjs`: falta la de la página de itch) y arma el zip; hay que
+  commitear ese archivo y hacer el deploy. Un actualizador propio (electron-updater) no vale la pena:
+  pide instalador, alojar las versiones y firmar el ejecutable.
 - **Copias:** lo de itch es sin DRM, el zip anda en cualquier compu. No hay forma real de evitarlo (el
   juego es JavaScript: cualquier chequeo se saca). Al que compró le quedan las actualizaciones y la clave
   de Steam; al que se lo pasaron, el aviso de versión nueva lo manda a comprar.
@@ -164,7 +169,8 @@ desktop:demo` hace lo mismo con la demo (para la app gratis de Steam). Electron 
 - **El enlace de Abe** va a la página pública, https://leandromagonza.github.io/GolfKnight/abe/ (lo
   mismo jugando desde itch): el amigo no tiene el juego. Falta lo de una carpeta por versión: hoy, si la
   app quedó vieja, Abe ve el aviso de que son versiones distintas.
-- **Ícono:** `desktop/icon.ico`, el caballero de frente (lo arma `tools/promo.mjs`, ver `promo/itch/`).
+- **Ícono:** `desktop/icon.ico`, un escudo con un palo de golf y una espada cruzados y el título en una
+  cinta (8/10, Leandro: sin personaje). Lo dibuja `tools/promo.mjs icono` (`promo/itch/icono.svg`).
 - **Para publicarla**, compilarla desde un commit limpio (como el deploy), no desde la carpeta de
   trabajo, que puede tener cambios a medias de la otra sesión.
 - Mac y Linux, más adelante (Mac pide firmar y notarizar con Apple, US$99 por año).

@@ -1670,6 +1670,47 @@ if (desktop) {
   }
 }
 
+/** La página pública del juego: la de Abe y el aviso de versión nueva salen de acá. */
+const SITE = 'https://leandromagonza.github.io/GolfKnight/'; // i18n-ok
+
+/**
+ * ¿Hay una versión nueva? Solo en la app de escritorio: el que la bajó de itch a mano no se entera solo
+ * (la app de itch y Steam actualizan solas). Lee la última publicada en la página (version.json, que
+ * escribe `tools/desktop.mjs --publicar`) y, si es más nueva, lo dice en la pantalla de inicio con el
+ * enlace para bajarla. Sin internet, si tarda o si el archivo no está, no pasa nada: se juega igual.
+ */
+async function checkUpdate(): Promise<void> {
+  if (!desktop) return;
+  try {
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), 5000);
+    const res = await fetch(`${SITE}version.json`, { cache: 'no-store', signal: stop.signal });
+    clearTimeout(timer);
+    if (!res.ok) return;
+    const all = (await res.json()) as Record<string, { build?: string; time?: number; url?: string | null } | undefined>;
+    const last = all[DEMO ? 'demo' : 'full'];
+    // un minuto de margen: la que se publica es esta misma, compilada un poco antes de escribir el archivo
+    if (!last || typeof last.time !== 'number' || last.time <= __BUILD_TIME__ + 60_000) return;
+    const box = document.getElementById('update');
+    if (!box) return;
+    const text = document.createElement('span');
+    text.textContent = L(`Hay una versión nueva (${last.build ?? ''}).`, `A new version is out (${last.build ?? ''}).`);
+    box.replaceChildren(text);
+    if (last.url && /^https:\/\//.test(last.url)) {
+      const url = last.url;
+      const get = document.createElement('button');
+      get.type = 'button';
+      get.className = 'link';
+      get.textContent = L('Bajarla', 'Download it');
+      // en la app, lo que se abre con window.open va al navegador (desktop/main.cjs)
+      get.addEventListener('click', () => window.open(url, '_blank'));
+      box.append(get);
+    }
+    box.hidden = false;
+  } catch { /* sin internet, o la página no contesta: se juega igual */ }
+}
+void checkUpdate();
+
 /** El botón (y la N) de todo el sonido: música y efectos, en el que juega y en el que mira. */
 const muteBtn = document.getElementById('muteall') as HTMLButtonElement;
 function showAllSound(): void {
@@ -1820,9 +1861,9 @@ interface Skin {
 /** Los modelos se piden relativos a la base del sitio, para que el juego ande publicado en una subcarpeta. */
 const MODELS = `${import.meta.env.BASE_URL}models/`;
 
+// los dos guardias de Mixamo dejaron de ser jugables el 8/10 (Leandro, antes de subir a itch): quedan el
+// caballero y la caballera. El guardia sigue al lado de la puerta (guard.glb)
 const SKINS: Skin[] = [
-  { id: 'guard2', name: L('Guardia del castillo', 'Castle guard'), url: `${MODELS}player.glb` },
-  { id: 'guard3', name: L('Guardia veterano', 'Veteran guard'), url: `${MODELS}player-guard3.glb` },
   { id: 'knight', name: L('Caballero', 'Knight'), url: `${MODELS}dungeon.glb`, mesh: 'Character_Hero_Knight_Male' },
   { id: 'knightF', name: L('Caballera', 'Lady knight'), url: `${MODELS}dungeon.glb`, mesh: 'Character_Hero_Knight_Female' },
 ];
@@ -2310,7 +2351,7 @@ function courseNumber(): number {
  * La página pública de Abe. El enlace que se comparte desde afuera de nuestra página (la app de
  * escritorio, itch) va ahí: el amigo no tiene el juego. Ver docs/monetizacion.md.
  */
-const ABE_PAGE = 'https://leandromagonza.github.io/GolfKnight/abe/'; // i18n-ok
+const ABE_PAGE = `${SITE}abe/`;
 /** ¿Se juega desde nuestra página, o en la compu probando? Entonces el enlace es a esta misma página. */
 const OWN_PAGE = location.hostname === 'leandromagonza.github.io' || location.hostname === 'localhost' || /^[\d.]+$/.test(location.hostname);
 
