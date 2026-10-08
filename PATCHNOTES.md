@@ -14,6 +14,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   de lejos con el driver y de cerca con el putter le entra sin el golpe perfecto. `ffb3627`
 - Con «Poderes más duros», el élite fantasma trae 2 de vida más (los comunes, 1). `ffb3627`
 
+**Personajes**
+- Los personajes para jugar son el **Caballero** y la **Caballera**: los dos guardias dejaron de estar
+  (el guardia sigue cuidando la puerta). `0a25a08`
+
 **La intro**
 - Las voces de la cinemática ahora son de software (Kokoro), en español y **también en inglés**: el
   narrador, el mago y el caballero tienen voz en los dos idiomas. `8d6ea50`
@@ -22,9 +26,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Hay una **versión para Windows**, la que va a venderse en itch.io y después en Steam: arranca en
   pantalla completa (F11 o Alt+Enter la cambian), y la pantalla de inicio y la pausa tienen «Salir del
   juego». El enlace para invitar a Abe va a la página pública, así lo abre cualquiera. `b47d472`
+- Si hay una versión nueva, la pantalla de inicio lo avisa, con el botón para bajarla. Sin internet no
+  dice nada y se juega igual. `0a25a08` `ddbb8a5`
+- Tiene ícono propio: un escudo con un palo de golf y una espada cruzados. `0a25a08`
 
 **Detrás de escena**
 - Las imágenes y el texto de la página de itch.io, en español e inglés (`promo/itch/`). `e417880`
+  Rehechas con el Caballero, la cámara del juego y los enemigos caminando de verdad. `0a25a08`
 - El plan de itch, con una sola página: la demo para jugar en el navegador y la completa para bajar, la
   declaración de IA, cómo llegan las actualizaciones y qué pasa con las copias. `7e9dbc6`
 - El plan de venta (`docs/monetizacion.md`): itch no cobra juegos que se juegan en el navegador, así que
