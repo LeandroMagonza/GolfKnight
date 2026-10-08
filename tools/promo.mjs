@@ -29,7 +29,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const COVER_CAM = { pitch: 8, dist: 6.5, rise: 1.3, ahead: 3, auto: false };
 
 /** El cuadro de cada ráfaga que se usa (se eligen mirándolos). */
-const ELEGIDOS = { portada: 1, embed: 2, oleada: 1, rayo: { es: '2-1', en: '2-1' }, jefe: 0, abe: 0 };
+const ELEGIDOS = { portada: 1, embed: 2, banner: 1, oleada: 1, rayo: { es: '2-1', en: '2-1' }, jefe: 0, abe: 0 };
 
 /** La cinemática en el segundo `t`, sin barra de controles ni botón de saltar; `clean` saca también las franjas y los textos. */
 async function cineFrame(name, t, { width = 1920, height = 1080, lang = 'es', clean = true } = {}) {
@@ -140,6 +140,51 @@ async function swingShot(page, path, { hold = 500, min = 10 } = {}) {
   await page.screenshot({ path });
   await page.keyboard.press('KeyX');
   await page.mouse.up();
+}
+
+/**
+ * La horda del banner, más ancha (el banner es 3.2 veces más ancho que alto). Mirando hacia el fondo, +x
+ * queda a la izquierda: la horda va más a ese lado, y el título a la derecha.
+ */
+const BANNER_HORDE = [['skeleton', 0.5, 31, { shield: 2 }], ['orc', 4, 36, {}], ['warchief', 4.5, 39, {}], ['knight', 8, 42, {}], ['orc', 12, 46, {}],
+  ['shaman', 2, 47, {}], ['skeleton', -4, 50, {}], ['stoneling', 15, 52, {}], ['goblina', 6, 55, {}], ['goblin', 10, 58, {}], ['orc', -1, 60, {}],
+  ['goblin', 17, 62, {}], ['goblina', 3, 64, {}], ['skeleton', 13, 66, {}], ['goblin', -6, 68, {}], ['goblina', 9, 71, {}], ['orc', 19, 73, {}],
+  ['goblin', 1, 75, {}], ['knight', 15, 78, {}]];
+
+/**
+ * El banner (8/10, Leandro: el de la cinemática mostraba a Abe y al caballero, que se nota que son de
+ * modelos distintos): el juego, con la cámara de la portada, la horda viniendo de frente y el caballero
+ * pegando. Sin Abe.
+ */
+/** La cámara del banner: la de la portada, más atrás y más alta, con el ángulo más cerrado. */
+const BANNER_CAM = { pitch: 11, dist: 10.5, rise: 0.9, ahead: 3, auto: false };
+const BANNER_FOV = 30;
+
+async function bannerShots() {
+  const page = await newGame('en', { width: 1920, height: 600 });
+  await page.addStyleTag({ content: '#hud { visibility: hidden !important; }' });
+  await page.evaluate((fov) => {
+    const g = window.__gk;
+    g.director.timer = 9999;
+    // sin los carteles de distancia del costado (el juego los vuelve a prender: en cada cuadro)
+    const hide = () => {
+      g.horde.scene.traverse((o) => { if (o.isSprite) o.visible = false; });
+      requestAnimationFrame(hide);
+    };
+    hide();
+    // tan ancho, con el ángulo de siempre la horda queda chiquita: se cierra
+    g.view.fov = fov;
+    g.view.updateProjectionMatrix();
+  }, BANNER_FOV);
+  await crowd(page, BANNER_HORDE, { walk: true });
+  await hideBadges(page);
+  await camera(page, BANNER_CAM);
+  await sleep(2500);
+  for (let i = 0; i < 10; i++) {
+    await swingShot(page, `${RAW}/banner-juego-${i}.png`, { hold: 520, min: 12 });
+    await sleep(700);
+  }
+  await page.close();
 }
 
 /** La portada y la imagen del botón de jugar: el caballero de espaldas con el palo arriba, la horda viniendo. */
@@ -307,8 +352,6 @@ async function abeShot(lang) {
 
 if (step === 'crudas') {
   if (want('cine')) {
-    // el banner: el mago y el caballero mirando la horda bajo la luna, sin textos
-    await cineFrame('banner', 41.45, { width: 1920, height: 600 });
     // la historia, con sus textos, en los dos idiomas
     for (const lang of ['es', 'en']) {
       await cineFrame(`cine-feria-${lang}`, 5.6, { lang, clean: false });
@@ -316,6 +359,7 @@ if (step === 'crudas') {
     }
   }
   if (want('portada')) await coverShots();
+  if (want('banner')) await bannerShots();
   for (const lang of LANGS) {
     if (['oleada', 'rayo', 'jefe', 'cartas'].some(want)) await gameShots(lang);
     if (want('abe')) await abeShot(lang);
@@ -406,8 +450,9 @@ if (step === 'armar') {
     await compose(`${out}/portada-630x500.png`, 1260, 1000, cover, { scale: 0.5 });
     // el banner de arriba de la página: 960 de ancho (el de itch), al doble
     await compose(`${out}/banner-1920x600.png`, 1920, 600, `
-      <img class="bg" src="RAW/banner.png">
-      <div style="position:absolute; right:6%; top:58%; transform:translateY(-50%); text-align:center; --size: 116px; --tag: 38px">
+      <img class="bg" src="RAW/banner-juego-${ELEGIDOS.banner}.png">
+      <div style="position:absolute; inset:0; background: radial-gradient(ellipse 470px 190px at 82% 57%, rgba(10, 22, 44, 0.5), transparent 75%)"></div>
+      <div style="position:absolute; right:2%; top:56%; transform:translateY(-50%); text-align:center; --size: 84px; --tag: 30px">
         <div class="title">GOLF KNIGHT</div>
         <div class="tag" style="margin-top: 16px">${t.tagline}</div>
       </div>`);
