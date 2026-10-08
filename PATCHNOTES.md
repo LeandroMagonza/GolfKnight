@@ -14,6 +14,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   de lejos con el driver y de cerca con el putter le entra sin el golpe perfecto. `ffb3627`
 - Con «Poderes más duros», el élite fantasma trae 2 de vida más (los comunes, 1). `ffb3627`
 
+**Detrás de escena**
+- El plan de venta (`docs/monetizacion.md`): itch no cobra juegos que se juegan en el navegador, así que
+  la completa va como descarga (la misma app de escritorio que Steam), y el precio propuesto. `673e25c`
+
 ## 7 de octubre
 
 **Versiones**
