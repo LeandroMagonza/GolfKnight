@@ -9,6 +9,15 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 8 de octubre
 
+**Dónde se juega**
+- **Golf Knight se mudó a itch.io**: https://forja-de-almas.itch.io/golf-knight (la demo en el navegador
+  y la completa para Windows). La dirección de antes dice que se mudó, con el botón a itch, y los
+  enlaces para ser Abe siguen andando. Los que ayudan a probar entran ahí con una contraseña y siguen
+  jugando la completa. `d8e9a87`
+- Abe anda con cualquier versión del juego que hable lo mismo: la app de Windows ya no avisa «el que
+  juega tiene otra versión» cada vez. `d8e9a87`
+- El banner de la página de itch, nuevo: el caballero pegando y la horda viniendo por el campo. `2a2991f`
+
 **Dificultad**
 - Los **élites** tienen el doble de vida: el del primer escenario, 10 (eran 5), el del segundo 18 y el
   del tercero 24, y con cualquier poder piden el doble de golpes. Caminan un poco más lento, así hay
