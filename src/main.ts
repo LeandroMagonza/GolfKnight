@@ -45,7 +45,7 @@ import type { Ball } from './game/balls';
 import { connect, roomCode } from './net/link';
 import { MIRRORED, mirror, NetHost } from './net/host';
 import { NetSpectator } from './net/spectator';
-import { r2, type GameSnap, type Hello } from './net/snapshot';
+import { NET_PROTOCOL, r2, sameProtocol, type GameSnap, type Hello } from './net/snapshot';
 import { Abe, BOLT_SLOT, castColor, SPELL_INFO } from './coop/abe';
 import { ABE_SLOTS, BOLT_INFO, boltHint, spellHint, spellSize } from './coop/spells';
 import type { AbeStatus } from './net/spectator';
@@ -2349,9 +2349,10 @@ function courseNumber(): number {
 /** El enlace para mirar esta partida. */
 /**
  * La página pública de Abe. El enlace que se comparte desde afuera de nuestra página (la app de
- * escritorio, itch) va ahí: el amigo no tiene el juego. Ver docs/monetizacion.md.
+ * escritorio, itch) va ahí: el amigo no tiene el juego. Va a la copia de Abe de nuestro protocolo, que el
+ * deploy no borra: así una app vieja sigue andando (ver NET_PROTOCOL y docs/monetizacion.md).
  */
-const ABE_PAGE = `${SITE}abe/`;
+const ABE_PAGE = `${SITE}abe/p${NET_PROTOCOL}/`;
 /** ¿Se juega desde nuestra página, o en la compu probando? Entonces el enlace es a esta misma página. */
 const OWN_PAGE = location.hostname === 'leandromagonza.github.io' || location.hostname === 'localhost' || /^[\d.]+$/.test(location.hostname);
 
@@ -2376,6 +2377,7 @@ async function startHosting(code: string): Promise<string> {
     netHost = new NetHost(link, {
       hello: (): Omit<Hello, 'k'> => ({
         v: __BUILD__,
+        p: NET_PROTOCOL,
         course: courseNumber(),
         tenis: TENNIS_ON,
         skin: SKINS[skinIndex].id,
@@ -2595,7 +2597,8 @@ async function startWatching(code: string): Promise<void> {
       visuals.setDayProgress(h.day, true);
       const skin = SKINS.findIndex((s) => s.id === h.skin);
       if (skin >= 0 && skin !== skinIndex) void cycleSkin(skin - skinIndex, false);
-      if (h.v !== __BUILD__) hud.feedback(L('El que juega tiene otra versión: recarguen los dos', 'The knight is on another version: both of you, reload'), 'bad');
+      // el sello de la versión no: la app de escritorio se compila aparte y nunca coincide con la página
+      if (!sameProtocol(h)) hud.feedback(L('El que juega tiene otra versión del juego: puede que algo no ande', 'The knight is on another version of the game: something may not work'), 'bad');
     },
     note(text) {
       netNote.hidden = !text;
@@ -2942,6 +2945,8 @@ if (DEV_TOOLS) (window as any).__gk = {
   /** El granizo de Abe (el segundo jugador). */
   get abe() { return abe; },
   get horde() { return horde; },
+  /** La cámara de Three.js (las imágenes de promoción le cierran el ángulo: ver tools/promo.mjs). */
+  get view() { return camera; },
   get balls() { return balls; },
   get director() { return director; },
   get gateHp() { return gateHp; },

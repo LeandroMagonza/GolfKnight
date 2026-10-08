@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DELAY_MS, encodeArgs, EventQueue, HostClock, lerpAngle, Timeline } from './snapshot';
+import { DELAY_MS, encodeArgs, EventQueue, HostClock, lerpAngle, NET_PROTOCOL, sameProtocol, Timeline } from './snapshot';
 
 describe('las fotos en el tiempo', () => {
   const tl = () => {
@@ -72,5 +72,13 @@ describe('cuentas', () => {
   it('los vectores viajan como listas', () => {
     const v = { isVector3: true, x: 1.234, y: 0, z: -2 };
     expect(encodeArgs([v, 3, 'x'])).toEqual([{ v: [1.23, 0, -2] }, 3, 'x']);
+  });
+});
+
+describe('el protocolo con Abe', () => {
+  it('compara el protocolo, no la versión: los de antes del número hablaban el primero', () => {
+    expect(sameProtocol({ p: NET_PROTOCOL })).toBe(true);
+    expect(sameProtocol({ p: NET_PROTOCOL + 1 })).toBe(false);
+    expect(sameProtocol({})).toBe(NET_PROTOCOL === 1);
   });
 });

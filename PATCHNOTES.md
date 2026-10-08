@@ -1,8 +1,8 @@
 # Golf Knight · Patch notes
 
 Qué cambió en el juego, de lo más nuevo a lo más viejo. Se juega en
-https://leandromagonza.github.io/GolfKnight/ (la versión publicada se ve en la esquina de la pantalla
-de entrada).
+https://forja-de-almas.itch.io/golf-knight (la versión publicada se ve en la esquina de la pantalla de
+entrada).
 
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.

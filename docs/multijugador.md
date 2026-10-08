@@ -338,7 +338,8 @@ arranca sola y Abe que vuelve como Abe).
 ## Hecho: la versión de Abe (7/10/2026)
 
 Para el amigo que no tiene el juego (ver [monetizacion.md](monetizacion.md), «Juego cruzado»): una
-compilación aparte (`GK_EDITION=abe`, en `/GolfKnight/abe/`) que es siempre el que mira. Con
+compilación aparte (`GK_EDITION=abe`, en `/GolfKnight/abe/`; desde el 8/10 en `/GolfKnight/abe/p<N>/`, una
+por protocolo: ver `NET_PROTOCOL` en `src/net/snapshot.ts`) que es siempre el que mira. Con
 `?mirar=CÓDIGO` entra directo; sin código, pide el código de la sala o el enlace pegado entero. No puede
 arrancar una partida: en `main.ts`, lo del que juega (`playFrame`, los ganchos del tiro en `makePlayer`,
 `startGame`, transmitir, las cartas) queda detrás de `ABE_ONLY` y no se compila. El teclado es el de

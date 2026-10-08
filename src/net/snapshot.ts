@@ -8,6 +8,20 @@
 // Acá van solo los tipos y las cuentas, sin Three.js: se prueban sin navegador.
 import type { AbeSnap, StrikeSnap } from '../coop/abe';
 
+/**
+ * **El protocolo** entre el que juega y Abe (8/10): lo que se mandan (las fotos, los eventos, los
+ * hechizos). Sube solo cuando eso cambia, no en cada versión: así Abe, que está en la página
+ * (`/abe/p<N>/`), anda con cualquier app vieja (itch, Steam) que hable el mismo. El deploy guarda una
+ * copia de Abe por protocolo y no la borra más: la app manda a la suya. Si cambia el formato de algo de
+ * este archivo, de `coop/abe` o de los eventos que se reenvían, subir este número.
+ */
+export const NET_PROTOCOL = 1;
+
+/** ¿Hablan lo mismo? Los de antes del 8/10 no mandaban el número: hablaban el primero. */
+export function sameProtocol(hello: { p?: number }): boolean {
+  return (hello.p ?? 1) === NET_PROTOCOL;
+}
+
 /** Fotos por segundo. */
 export const SNAP_HZ = 15;
 /** Cuánto atrasado dibuja el que mira, en ms: un poco más que el tiempo entre dos fotos. */
@@ -194,8 +208,10 @@ export interface Snap {
 /** El saludo: con qué partida se va a encontrar el que mira. */
 export interface Hello {
   k: 'hello';
-  /** Versión publicada del que juega: si no coincide, avisa. */
+  /** Versión publicada del que juega (la que se ve en la entrada). */
   v: string;
+  /** El protocolo (ver NET_PROTOCOL): si no es el mismo, avisa. */
+  p?: number;
   /** Campo: 0 liso, 1..N el campo con relieve. */
   course: number;
   tenis: boolean;

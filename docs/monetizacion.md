@@ -40,8 +40,9 @@ la consola del navegador.
   No puede arrancar una partida: el bucle del que juega, el tiro, las oleadas, las cartas, el tutorial y
   la parte de transmitir no se compilan. Sin cinemática (pesa 30 MB en vez de 48).
 
-Las tres se publican con `npm run deploy`: la completa en la raíz, y las otras en
-https://leandromagonza.github.io/GolfKnight/demo/ y https://leandromagonza.github.io/GolfKnight/abe/.
+Las tres se compilan con `npm run deploy`. Desde el 8/10 la demo va a itch (en el navegador) y en GitHub
+Pages quedan Abe (`/GolfKnight/abe/p<N>/`) y la completa con contraseña para los que prueban: ver
+«GitHub Pages, desde el 8/10» más abajo.
 
 **La idea de Leandro (7/10):** la demo se gana en el nivel 0 sin demasiado desafío, y en **menos de dos
 horas**, que es lo que da Steam para devolver un juego. El que quiere jugar más, sube la dificultad: eso
@@ -73,13 +74,13 @@ La base ya lo permite: el caballero y Abe se encuentran por relays públicos con
 importar dónde abrió el juego cada uno. La versión de Steam sería el mismo juego dentro de Electron
 (un Chrome), así que se conecta igual. Lo que falta:
 
-1. **El enlace.** Hoy se arma con la dirección de la página del caballero (`watchLink` en `main.ts`). En
-   Steam esa dirección es un archivo de su compu, y en itch es la del iframe. Tiene que apuntar siempre a
-   la página propia de Abe.
-2. **Las versiones.** Hoy, si no coinciden, solo dice «recarguen los dos». Con Steam va a pasar seguido:
-   el de Steam puede no haber actualizado. Solución: cada versión publicada queda en su carpeta
-   (`/abe/<versión>/`) y el enlace apunta a la del caballero. Los modelos no cambian entre versiones, así
-   que ocupa poco más (el código son 1,3 MB).
+1. **El enlace** (hecho el 8/10). Fuera de nuestra página (la app de escritorio, itch) va a la página
+   de Abe (`ABE_PAGE` en `main.ts`): el amigo no tiene el juego.
+2. **Las versiones** (hecho el 8/10). Antes comparaban el sello de la versión, y la app de escritorio,
+   que se compila aparte, nunca coincidía. Ahora comparan un **número de protocolo** (`NET_PROTOCOL` en
+   `src/net/snapshot.ts`), que sube solo cuando cambia lo que se mandan. El deploy guarda un Abe por
+   protocolo (`/abe/p<N>/`) y no lo borra más, y la app manda al suyo: una app vieja sigue andando. Una
+   carpeta por versión no hacía falta, y con un deploy por tanda llenaba GitHub Pages en semanas.
 3. **Que Abe vea todo.** Ya está: la versión de Abe trae todos los enemigos y escenarios, sin poder jugar.
    Sirve también para un **pase de amigo**, como en It Takes Two: el que compró invita gratis a Abe a
    su partida completa.
@@ -171,9 +172,9 @@ desktop:demo` hace lo mismo con la demo (para la app gratis de Steam). Electron 
 - **Pantalla completa** al arrancar; F11 o Alt+Enter la cambian. La música suena sin esperar un click.
 - **«Salir del juego»** en la pantalla de inicio y en la pausa (`desktop/preload.cjs` le da al juego
   `window.gkDesktop`; en la web esos botones no se ven).
-- **El enlace de Abe** va a la página pública, https://leandromagonza.github.io/GolfKnight/abe/ (lo
-  mismo jugando desde itch): el amigo no tiene el juego. Falta lo de una carpeta por versión: hoy, si la
-  app quedó vieja, Abe ve el aviso de que son versiones distintas.
+- **El enlace de Abe** va a la página pública, https://leandromagonza.github.io/GolfKnight/abe/p1/ (la de
+  su protocolo; lo mismo jugando desde itch): el amigo no tiene el juego. La app de las 13:46 del 8/10,
+  anterior a los protocolos, manda a `/abe/`, que reenvía a `p1/`.
 - **Ícono:** `desktop/icon.ico`, un escudo con un palo de golf y una espada cruzados y el título en una
   cinta (8/10, Leandro: sin personaje). Lo dibuja `tools/promo.mjs icono` (`promo/itch/icono.svg`).
 - **Para publicarla**, compilarla desde un commit limpio (como el deploy), no desde la carpeta de
@@ -188,10 +189,30 @@ Cuando esté lo de itch. Hoy el repo es público porque GitHub Pages gratis solo
   `GolfKnight` guarda solo lo compilado (lo que hoy va a `gh-pages`). El enlace y la landing no cambian;
   hay que sacar de la landing el link al código. La otra sesión trabaja en esta misma carpeta: con
   cambiar el remoto una vez, quedan las dos apuntando al repo nuevo.
-- **Cuando se venda:** en la página pública van solo la demo y la de Abe. La completa, gratis en un link,
-  no la compra nadie.
+- **Cuando se venda:** en la página pública va solo Abe (hecho el 8/10: ver abajo). La completa, gratis
+  en un link, no la compra nadie.
 - Lo compilado igual se puede bajar (es JavaScript minificado, sin mapas al código original): lo privado
   es el código fuente, los docs, las herramientas y el historial.
+
+## GitHub Pages, desde el 8/10
+
+Leandro: «que quede solo Abe, y que el link anterior diga que se mudó a itch». Y para los amigos que
+venían probando: la completa sigue, pero con contraseña. Lo arma `tools/deploy.mjs` (ver el README):
+
+- **La raíz** (`site/index.html`): «Golf Knight se mudó a itch.io», con el banner y el botón a itch, en
+  español o inglés según el navegador. Los enlaces viejos para ser Abe (`?mirar=`) van a `abe/p1/`.
+- **Abe**, en `abe/p<N>/`, uno por protocolo, para siempre.
+- **La completa para los que prueban**: en una carpeta que sale de la contraseña (el SHA-256 de lo que
+  diga `.amigos`, que no se sube a git). La raíz tiene «¿Ayudás a probarlo? Entrá con la contraseña»;
+  el que entró una vez, la próxima va directo. Es la de siempre, con las herramientas de prueba, y el
+  progreso de la dificultad se conserva (el navegador lo guarda por sitio, no por carpeta).
+  **No es secreta de verdad**: GitHub Pages es estático y la rama `gh-pages` se ve en GitHub, así que
+  el que la busque la encuentra. Al que entra de casualidad lo manda a itch, que es lo que importaba.
+  Si hace falta cerrarla de verdad: un segundo proyecto en itch, «Restricted» con contraseña (itch la
+  pide del lado del servidor), y butler le sube la completa web en cada deploy.
+- **Cambiar la contraseña**: escribir la nueva en `web/.amigos` y hacer el deploy. La carpeta vieja
+  desaparece, y a los que ya habían entrado se les vuelve a pedir.
+- **`demo/`** reenvía a itch.
 
 ## Hosting
 
@@ -212,12 +233,12 @@ Pages es cambiar el deploy.
 - [x] Leandro: correr `butler login` (8/10). Butler en el deploy y en `desktop --publicar` (8/10).
 - [x] Qué deja afuera la demo (7/10): talentos, cuatro poderes de enemigos y dos elementos.
 - [ ] Que el nivel 0 se gane en menos de dos horas (probarlo jugando).
-- [ ] El enlace de Abe a la página propia, y una carpeta por versión.
+- [x] El enlace de Abe a la página propia (8/10), y un Abe por protocolo en vez de por versión (8/10).
 - [ ] TURN y código largo en el enlace.
 - [ ] Repo privado + repo público con lo compilado.
 - [x] Una completa sin herramientas de prueba, para vender (8/10, `GK_DEV_TOOLS=0`).
 - [x] La completa como app de escritorio (Electron) para Windows (8/10, `npm run desktop`).
 - [x] Las imágenes de la página de itch y el texto, en español e inglés (8/10, `promo/itch/`, armadas
   con `tools/promo.mjs`), y el ícono de la app (`desktop/icon.ico`).
-- [ ] Al abrir la venta, sacar la completa de GitHub Pages (queda la demo y la de Abe).
+- [x] Sacar la completa de GitHub Pages (8/10): queda Abe, y la completa con contraseña para los que prueban.
 - [ ] Steam: Electron, steamworks.js, invitaciones, logros, página «próximamente».

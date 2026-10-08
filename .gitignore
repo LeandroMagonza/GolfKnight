@@ -8,3 +8,6 @@ __pycache__/
 assets/
 # las voces de OpenAI (tools/voces_openai.py): el juego no las usa desde el 8/10
 voces-openai/
+dist-pages/
+# la contraseña de la versión para los que prueban (tools/deploy.mjs)
+.amigos

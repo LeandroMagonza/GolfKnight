@@ -7,7 +7,8 @@ Prototipo en Vite + Three.js + Tone.js, con la misma estructura que `MonsterTame
 `animator.ts`, el pipeline de Blender y las herramientas de Playwright). El proyecto Unity que está
 en la carpeta de arriba queda solo como fuente de assets.
 
-**Jugar:** https://leandromagonza.github.io/GolfKnight/
+**Jugar:** https://forja-de-almas.itch.io/golf-knight (desde el 8/10; en GitHub Pages quedan Abe y, con
+contraseña, la completa para los que prueban: ver «Publicar»).
 
 ## Correr
 
@@ -465,7 +466,7 @@ derecha, o `Esc`) queda la placa de controles para arrancar. Cuenta la historia 
 feria medieval, el atropello en el estacionamiento, el círculo de runas, el mago y los palos de golf
 como arma. Reemplazó a las placas de texto. Sale una vez por sesión (al reiniciar con `R` no vuelve),
 *Ver la intro de nuevo* la repite, `?sincine` la saca y `?cine` la fuerza (las pruebas automáticas no
-la ven, salvo con `?cine`). También se abre sola en https://leandromagonza.github.io/GolfKnight/cine.html.
+la ven, salvo con `?cine`). También se abre sola en `cine.html`, al lado del juego.
 La historia y el plan están en `docs/cinematica.md`.
 
 - El guion es `src/cine/intro.ts`: planos con escenario, cámara, qué hace cada actor, textos, sonidos y
@@ -490,29 +491,41 @@ La historia y el plan están en `docs/cinematica.md`.
 
 ## Publicar
 
-El juego está en https://leandromagonza.github.io/GolfKnight/, junto a los otros juegos de la landing
-(`S:\LeandroMagonza.github.io`, que lo lista en `script.js`). El repo es
-https://github.com/LeandroMagonza/GolfKnight: el código va en `main` y el sitio compilado en la rama
-`gh-pages`, que es la que sirve GitHub Pages.
+El juego se juega en **itch.io** (https://forja-de-almas.itch.io/golf-knight): la demo en el navegador y
+la completa de Windows para bajar. El repo es https://github.com/LeandroMagonza/GolfKnight: el código va
+en `main` y el sitio de GitHub Pages en la rama `gh-pages`.
 
 ```
-npm run deploy
+npm run deploy                 # todo: compila, sube GitHub Pages y la demo a itch
+npm run deploy -- --local      # arma el sitio en dist-pages/ sin subir nada
 ```
 
-Compila con Vite (`base: './'`, así que anda en cualquier subcarpeta) y sube `dist/` a `gh-pages`.
+Compila con Vite (`base: './'`, así que anda en cualquier subcarpeta), arma el sitio en `dist-pages/` y lo
+sube a `gh-pages`. Desde el 8/10, en https://leandromagonza.github.io/GolfKnight/ queda:
+
+- **la raíz**: el aviso de que se mudó a itch (`site/index.html`, con el banner), y `version.json`, el
+  que leen las apps de escritorio. Los enlaces viejos de Abe (`?mirar=`) siguen andando: van a `abe/p1/`.
+- **`abe/p<N>/`**: Abe, una copia por **protocolo** (`NET_PROTOCOL` en `src/net/snapshot.ts`: lo que se
+  mandan el caballero y Abe). Sube solo cuando eso cambia; el deploy trae las copias anteriores de la
+  `gh-pages` publicada y no las borra nunca, así una app vieja de itch o de Steam manda a la suya.
+- **la completa para los que prueban**, en una carpeta cuyo nombre sale de la contraseña de `.amigos`
+  (una línea, no se sube a git). La raíz la pide; el que entró una vez, la próxima va directo. Es la de
+  siempre, con las herramientas de prueba. No es secreta de verdad (la rama `gh-pages` es pública), pero
+  el que llega de casualidad no la encuentra.
+- **`demo/`**: reenvía a itch.
 
 **Las versiones** (`src/edition.ts`, `tools/build.mjs`; el plan está en
 [`docs/monetizacion.md`](docs/monetizacion.md)). Cada compilación es una de tres, y lo que no tiene
 directamente no se compila:
 
-- **la completa** (`dist/`, en la raíz del sitio): todo, y mientras se desarrolla también las
-  herramientas de prueba (panel B, `__gk`, `?bot`, `?palos`).
-- **la demo** (`dist/demo/`, en `/GolfKnight/demo/`): sin los talentos de dificultad (se ven con
+- **la completa** (`dist/`; en el sitio, la carpeta de la contraseña): todo, y mientras se desarrolla
+  también las herramientas de prueba (panel B, `__gk`, `?bot`, `?palos`).
+- **la demo** (`dist/demo/`, en itch, en el navegador): sin los talentos de dificultad (se ven con
   candado), sin las herramientas de prueba, y sin algunos poderes: los enemigos traen solo escudo,
   esquiva, fantasma e intocable (tres de esos cuatro por partida), y el caballero no tiene los tiros
   fantasma ni de viento, los guantes, ni las mejoras de racha, de matar a dos juntos y las maestrías
   mixtas (`DEMO_LOCKS` en `src/edition.ts`). Con Abe.
-- **la de Abe** (`dist/abe/`, en `/GolfKnight/abe/`): solo para ser Abe en la partida de otro. Sin
+- **la de Abe** (`dist/abe/`, en `/GolfKnight/abe/p<N>/`): solo para ser Abe en la partida de otro. Sin
   enlace pide el código de la sala; no puede arrancar una partida.
 
 `npm run deploy` compila las tres. Para probar una en desarrollo: `GK_EDITION=demo npm run dev`.
@@ -524,7 +537,7 @@ vender**, sin las herramientas de prueba, adentro de Electron (`desktop/main.cjs
 `release/golf-knight-win32-x64/` (unos 390 MB: 235 son Electron). Es la que va paga a itch (como
 descarga: itch no cobra juegos web) y después a Steam. Arranca en pantalla completa (F11 o Alt+Enter la
 cambian), la pantalla de inicio y la pausa tienen «Salir del juego», y el enlace de Abe va a la página
-pública (`/GolfKnight/abe/`), porque el amigo no tiene el juego. Para publicarla, compilarla desde un
+pública (`/GolfKnight/abe/p<N>/`, la de su protocolo), porque el amigo no tiene el juego. Para publicarla, compilarla desde un
 commit limpio, como el deploy. `logs/check-escritorio.mjs` la abre y la prueba.
 La carpeta `assets/` (FBX originales de Mixamo y modelos sin usar) no se sube al repo: son archivos
 fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa el juego sí están, en
