@@ -65,8 +65,12 @@ describe('waves', () => {
         const size = last.mods!.size!;
         expect(size).toBeGreaterThanOrEqual(ELITE.minScale);
         expect(ENEMIES[last.kind].height * size).toBeGreaterThanOrEqual(ELITE.height - 1e-9);
-        // y trae vida de más: +2, +3 y +4 según el escenario (el fantasma, con «Poderes más duros», 2 más)
-        expect(last.mods!.hp).toBe(ELITE.hp[s] + (run.powers[s] === 'ethereal' ? HARDEST.hard.ghostEliteHp : 0));
+        // y trae vida de más: +2, +3 y +4 según el escenario (el fantasma, con «Poderes más duros», 2 más),
+        // y desde el 8/10 toda su vida al doble; camina más lento que su cuerpo
+        const body = ENEMIES[last.kind].hp;
+        const extra = ELITE.hp[s] + (run.powers[s] === 'ethereal' ? HARDEST.hard.ghostEliteHp : 0);
+        expect(body + last.mods!.hp!).toBe((body + extra) * ELITE.hpScale);
+        expect(last.mods!.speed).toBe(ELITE.speed);
       }
     }
     // el más duro que pueda: el gólem chico en el tercero, salvo que el poder no le entre
@@ -268,8 +272,8 @@ describe('waves', () => {
         expect(w.kamikaze || w.giants || w.foreign, w.title).toBeFalsy();
         for (const o of spawnOrder(w, seeded(r * 31 + i))) {
           if (ENEMIES[o.kind].boss) continue;
-          // todos más lentos
-          expect(o.mods?.speed, o.kind).toBeCloseTo(DIFFICULTY.speed[0]);
+          // todos más lentos (el élite, además, el suyo)
+          expect(o.mods?.speed, o.kind).toBeCloseTo(DIFFICULTY.speed[0] * (o.mods?.size ? ELITE.speed : 1));
           if (!hasPower(o.mods) || o.mods?.size) continue;
           // solo el poder del escenario, más flojo; y en la del jefe, ninguno
           expect(w.focus, `${w.title}: ${o.kind}`).toBeDefined();
@@ -280,11 +284,15 @@ describe('waves', () => {
           if (o.mods?.divine) expect(o.mods.divine).toBeGreaterThan(DIVINE.every);
         }
       });
-      // el élite, con menos vida
+      // el élite, con menos vida (toda al doble)
       for (const s of [0, 1, 2]) {
         const e = run.waves[s * 3 + 2].groups.find((g) => g.mods?.size)!;
-        expect(e.mods!.hp).toBe(ELITE.hp[s] - DIFFICULTY.eliteHpLess[0]);
+        const body = ENEMIES[e.kind].hp;
+        expect(body + e.mods!.hp!).toBe((body + ELITE.hp[s] - DIFFICULTY.eliteHpLess[0]) * ELITE.hpScale);
       }
+      // el del primer escenario, 10 de vida (eran 5)
+      const first = run.waves[2].groups.find((g) => g.mods?.size)!;
+      expect(ENEMIES[first.kind].hp + first.mods!.hp!).toBe(10);
     }
   });
 
@@ -303,11 +311,11 @@ describe('waves', () => {
       });
     }
     expect(bosses).toBe(1);
-    // el élite: su vida de élite, más la del golpe 4
+    // el élite: su vida de élite, más la del golpe 4 (al doble, como toda su vida)
     const off = buildRun(seeded(9), rulesFor({}));
     for (let s = 0; s < 3; s++) {
       const e = (run: typeof off) => run.waves[s * 3 + 2].groups.find((g) => g.mods?.size)!;
-      expect(e(run).mods!.hp! - e(off).mods!.hp!).toBe(DIFFICULTY.fourthEliteHp);
+      expect(e(run).mods!.hp! - e(off).mods!.hp!).toBe(DIFFICULTY.fourthEliteHp * ELITE.hpScale);
     }
   });
 
@@ -526,11 +534,10 @@ describe('waves', () => {
     expect(POWERS.phase(0, () => 0, hard).phaseShut!).toBeGreaterThan(PHASE.shut);
     expect(POWERS.phase(0, () => 0, hard).phase!).toBeLessThan(POWERS.phase(0, () => 0, easy).phase!);
     expect(elite(1, 'phase', 0, hard).mods!.phaseShut!).toBeGreaterThan(PHASE.eliteShut);
-    // el fantasma: con el punto, 1 de vida más (el élite, 2)
+    // el fantasma: con el punto, 1 de vida más (el élite, 2, que con toda su vida al doble son 4)
     expect(POWERS.ethereal(0, () => 0, easy).hp).toBeUndefined();
     expect(POWERS.ethereal(0, () => 0, hard).hp).toBe(1);
-    expect(elite(1, 'ethereal', 3, easy).mods!.hp).toBe(3);
-    expect(elite(1, 'ethereal', 3, hard).mods!.hp).toBe(5);
+    expect(elite(1, 'ethereal', 3, hard).mods!.hp! - elite(1, 'ethereal', 3, easy).mods!.hp!).toBe(2 * ELITE.hpScale);
   });
 
   it('el que se cura: el ciclo alcanza para matarlo con golpes medios, y con flojos no', () => {

@@ -110,9 +110,9 @@ de la vida, dice cuánto resta. Al del escudo se lo resuelve pegándole fuerte, 
 cayéndole detrás con el wedge, con el golpe fantasma, o pegándole de costado.
 
 **La pelota que rebota en un escudo vuelve hacia vos** (desde el 2/10): sale roja, en arco, y el piso
-marca dónde va a caer, como el hechizo. La marca **te sigue** mientras vuela (te moviste a buscar otra
-pelota: va para ahí), y en los últimos 0.6 s se queda quieta: ese es el momento de correrse. Si cuando
-cae seguís adentro de la marca, te saca 1, venga como venga. Tarda entre 1 y 1.8 s según la distancia. Los números están en `RICOCHET` (core/shield) y en el panel B, pestaña Enemigos. El aura
+marca dónde va a caer, como el hechizo. Va **adonde estabas cuando rebotó** y la marca queda quieta ahí
+(hasta el 8/10 te seguía mientras volaba): correrse la esquiva. Si cuando cae seguís adentro de la
+marca, te saca 1, venga como venga. Tarda entre 1 y 1.8 s según la distancia. Los números están en `RICOCHET` (core/shield) y en el panel B, pestaña Enemigos. El aura
 del chamán no la devuelve: la frena y listo.
 
 El **escudo muro** (violeta, más grande, con el brillo de los inmunes del chamán) no deja pasar nada de
@@ -149,7 +149,7 @@ protege, no hace nada).
 elemento**, la suma de los niveles de todo lo que tenés de ese elemento (tiros y guante). Cada carta que
 sumás o subís le sube el efecto a todas, y la carta lo dice («Todo tu fuego: 3 → 4 de daño»). Los
 números de abajo son los del total 1, 2 y 3; siguen un poco más hasta el tope (fuego hasta 6, hielo y
-silencio hasta 10 s, viento un 20 % más), salvo el rayo, que no pasa de 4 saltos. El hielo congela con
+silencio hasta 4 s, viento un 20 % más), salvo el rayo, que no pasa de 4 saltos. El hielo congela con
 el total en 3, o con la carta en su nivel de congelar. Lo que hace cada una:
 - *Hielo*: enfría 5 s (6.5 y 8) a cada uno que toca; en el nivel 3, además lo congela (al élite y al jefe no: solo los frena), y el golpe que rompe el hielo pega 1 más, también al fantasma. El frío lleva a cada uno al 40 % de su velocidad pero no por debajo de 1 m/s, y a todos los frena por lo menos un 20 %: mucho a los rápidos, poco a los lentos.
 - *Fuego*: lo prende; pierde 1 de vida cada 2 s, el primero también a los 2 s (desde el 5/10): 2 en total (3 y 4), y el blindaje no le resta. Volver a prenderlo no suma: le alarga el fuego.
@@ -166,7 +166,7 @@ el total en 3, o con la carta en su nivel de congelar. Lo que hace cada una:
   cualquiera. Pasa escudos (también el de la calavera), blindaje, el tope del enemigo fantasma, el aura de
   invencible y la burbuja divina (sin gastarla). El del driver atraviesa además las lomas. La esquiva no
   lo ve venir: no salta, y el golpe no se la recarga.
-- *Silenciador*: silencia 5 s (6.5 y 8) a cada uno que toca (al élite, la mitad): se le apagan
+- *Silenciador*: silencia 2 s (2.5 y 3; hasta el 8/10 eran 5, 6.5 y 8) a cada uno que toca (al élite, la mitad): se le apagan
   **todos** los poderes (escudo, blindaje, fantasma, divino, esquiva, auras, bandera, hechizo, bomba); la
   burbuja divina y la esquiva quedan gastadas y recién recargan cuando se le pasa el silencio,
   para que lo que venga después le entre. El wedge silenciador es el silencio en área (la granada se
@@ -179,7 +179,7 @@ el total en 3, o con la carta en su nivel de congelar. Lo que hace cada una:
 | --- | --- |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
 | Hoyo | el primero que lo pisa cae entero y no vuelve, tenga los poderes que tenga (los jefes y los élites no). Recarga 20 s |
-| Bandera | los que están cerca van hacia ella en vez de a la puerta |
+| Bandera | los que están cerca van hacia ella en vez de a la puerta (el élite no, desde el 8/10) |
 | Pólvora | marca; el marcado que muere explota, y encadena si los de al lado están marcados |
 | Lluvia de pelotas | una pelota en cada puesto; son de regalo, así que los guardias siguen reponiendo las suyas |
 | Caddie dorado | unos segundos con pelota infinita en tu puesto |
@@ -312,7 +312,10 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   poder (lo trae el primero que aparece), y la tercera la cierra un **élite**: el cuerpo fuerte del
   escenario (jefe goblin en el primero, caballero en el segundo, gólem chico en el tercero) con el poder
   en su versión más dura (la calavera, blindaje 2, el divino que recarga en 3 s...) y agrandado hasta
-  unos 3 m, así que el jefe goblin crece mucho y el caballero poco.
+  unos 3 m, así que el jefe goblin crece mucho y el caballero poco. **Desde el 8/10 trae el doble de
+  vida** (se veían imponentes y caían fácil): sin puntos de dificultad, 10, 18 y 24 (eran 5, 9 y 12), y
+  camina al 85 % de su cuerpo, saliendo antes para llegar en su lugar de la oleada. Ver
+  docs/tiempos-poderes.md.
 - **El cuerpo fuerte viene desde el arranque del escenario**: uno en la primera oleada, tres en la
   segunda y tres en la tercera, **siempre sin poder**: de ese cuerpo, el único con poder es el élite. La décima es la
   del Gólem de roca, con todo lo anterior mezclado.
@@ -367,15 +370,15 @@ aunque solo se mande cuando corresponde.
 | Poderes acumulados | los poderes de los escenarios anteriores siguen viniendo |
 | Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
 | Apoyos | 1: en el último escenario; 2: desde el segundo |
-| Poderes más duros | toca a todos los poderes de escenario (desde el 7/10; ver docs/tiempos-poderes.md): escudos de hasta 3 (sin el punto, hasta 2); el blindaje sigue hasta 2, pero casi siempre de 2 (el mayor de dos sorteos); el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6); el que se cura, con el margen de siempre (sin el punto, ×2.5: tarda más en curarse); el intocable, invulnerable ×1.3 y la ventana de siempre (sin el punto, ventana ×1.6); el fantasma, 1 de vida más (el élite, 2) |
+| Poderes más duros | toca a todos los poderes de escenario (desde el 7/10; ver docs/tiempos-poderes.md): escudos de hasta 3 (sin el punto, hasta 2); el blindaje sigue hasta 2, pero casi siempre de 2 (el mayor de dos sorteos); el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6); el que se cura, con el margen de siempre (sin el punto, ×2.5: tarda más en curarse); el intocable, invulnerable ×1.3 y la ventana de siempre (sin el punto, ventana ×1.6); el fantasma, 1 de vida más (el élite, 4: 2 al doble) |
 | Más rápidos | sin puntos los enemigos van a ×0.76; 1: ×0.88; 2: a su velocidad; 3: ×1.12 |
 | Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). Cambiarlo en la pantalla de inicio cambia el campo en el acto |
 | Más con poder | 1: un tercio en vez de un cuarto; 2: la mitad |
-| Élites más duros | +2 de vida (sin el punto, el élite trae 2 menos) |
+| Élites más duros | +4 de vida (sin el punto, el élite trae 4 menos: 2, al doble como toda su vida) |
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
 | Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
 | Recarga lenta | las habilidades del caballero tardan en recargar 1: un 50 % más; 2: el doble. La carta dice la recarga que va a tener |
-| Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +2 y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga) |
+| Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +4 (2, al doble) y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga) |
 
 Con todo puesto es la partida de antes del 3/10, más rápida, con menos descanso y las habilidades más
 lentas, y con dos olas especiales que dejan marca en vez de tres. Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas

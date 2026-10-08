@@ -108,7 +108,7 @@ const STORE_KEY = 'gk.balance';
  * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
  * se ajustó *después* de una redefinición no se pierde en la siguiente.
  */
-const VERSION = 18;
+const VERSION = 19;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],
@@ -146,6 +146,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   17: ['niveles.cooldownGrowth', 'mejoras.quiverCooldown'],
   // el perfecto de regalo pasó a contar dobletes (5), y el fuego a 2, 3 y 4 de daño, cada 2 s
   18: ['mejoras.giftPerfect', 'elementos.burnTicks', 'elementos.burnTick'],
+  // el silencio pasó a 2 s de base (2, 2.5, 3, 3.5 y 4; eran 5 a 10)
+  19: ['elementos.silenceSeconds'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -1101,12 +1103,11 @@ export class DebugPanel {
       ['velocidad', () => RICOCHET.speed, (v) => { RICOCHET.speed = Math.max(1, v); }, 1, 'm/s'],
       ['tarda al menos', () => RICOCHET.minFlight, (v) => { RICOCHET.minFlight = Math.max(0.2, v); }, 0.1, 's'],
       ['tarda como mucho', () => RICOCHET.maxFlight, (v) => { RICOCHET.maxFlight = Math.max(RICOCHET.minFlight, v); }, 0.1, 's'],
-      ['deja de seguirte', () => RICOCHET.lock, (v) => { RICOCHET.lock = Math.max(0, v); }, 0.1, 's antes de caer'],
       ['sube', () => RICOCHET.height, (v) => { RICOCHET.height = Math.max(0, v); }, 0.5, 'm sobre la recta'],
       ['radio de la marca', () => RICOCHET.radius, (v) => { RICOCHET.radius = Math.max(0.3, v); }, 0.1, 'm'],
       ['daño', () => RICOCHET.damage, (v) => { RICOCHET.damage = Math.max(0, Math.round(v)); }, 1, 'de vida'],
     ]);
-    el.append(ricochet.table, note('La pelota que para un escudo vuelve por el aire hacia vos, con una marca roja que te sigue hasta poco antes de caer: ahí se queda quieta. Si seguís adentro cuando cae, te pega.'));
+    el.append(ricochet.table, note('La pelota que para un escudo vuelve por el aire adonde estabas cuando rebotó, con una marca roja quieta ahí. Si seguís adentro cuando cae, te pega.'));
 
     el.append(heading('El que se cura, el intocable y el bendito'));
     const regen = this.numbers([

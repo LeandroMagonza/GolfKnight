@@ -65,7 +65,7 @@ El tiempo va desde el primer impacto hasta el que lo mata (se suman los huecos e
 
 | Carta | Fantasma | Blindaje | Escudo | Esquiva | Divino |
 |---|---|---|---|---|---|
-| **Silenciador** (5 s; 2.5 al élite) | pega entero: 2 fuertes | sin blindaje: 2 fuertes | sin escudo, **también el muro** (desde hoy) | la gasta, y no recarga mientras dure | **desde hoy** apaga la burbuja, y la recarga empieza cuando termina el silencio: unos 13 s libres |
+| **Silenciador** (5 s; 2.5 al élite. Desde el 8/10, 2 s y 1 al élite) | pega entero: 2 fuertes | sin blindaje: 2 fuertes | sin escudo, **también el muro** (desde hoy) | la gasta, y no recarga mientras dure | **desde hoy** apaga la burbuja, y la recarga empieza cuando termina el silencio: unos 13 s libres |
 | **Golpe fantasma** | entero | entero | pasa | **no lo ve venir** (desde el 4/10) | pasa sin romperla |
 | **Guante fantasma** (5 a 7 s) | todos los tiros enteros: 2 fuertes | ídem | ídem | ídem | ídem |
 | **Fuerza** (5 a 7 s, todo pega 2) | no cambia (tope 1) | el flojo pasa a entrar: 2 − 1 = 1 cada 0.9 s | el wedge medio pega 2: 3 wedges | el golpe después del cebo puede ser flojo: pega 2 | no cambia |
@@ -148,8 +148,8 @@ descarga; al vaciarse queda vulnerable un momento, y vuelve a ser invulnerable u
   propósito: pide tiempo, no fuerza.
 - **El vuelo importa**: el driver llega en 0.25 s; el hierro en 0.8 a 1.2 s y el wedge en 1.3 a 2.1 s, así
   que con esos hay que soltar antes de que se abra.
-- **Lo resuelven**: el golpe fantasma (le entra siempre), el silencio (vulnerable mientras dure: 5 s, o
-  2.5 al élite, y cuando se le pasa arranca invulnerable), y todo lo que mete más daño en la ventana:
+- **Lo resuelven**: el golpe fantasma (le entra siempre), el silencio (vulnerable mientras dure: 2 s, o
+  1 al élite, desde el 8/10, y cuando se le pasa arranca invulnerable), y todo lo que mete más daño en la ventana:
   fuerza, potencia, lupa, eco y clon.
 
 **El que se cura trae 2 de vida de más** (5/10, pedido de Leandro): al de 2 de vida se lo mataba de un
@@ -172,7 +172,7 @@ que se cura sea más fácil sin el punto, y que el talento le dé algo al fantas
 | Escurridizo, bendito | recargan ×1.6: 8 s (élite 4.8) | 5 s (élite 3) |
 | Se cura | margen ×2.5: 3 s (élite 2): con 6 de vida se cura cada **6 s** (antes 4.9) | margen de siempre, 1.2 s (élite 0.8): cada 4.2 s |
 | Intocable | invulnerable 3.5 s y ventana de 2.4 s (élite 3 y 3.2) | invulnerable **4.55 s** (antes 3.5) y ventana de 1.5 s (élite 3.9 y 2) |
-| Fantasma | — | **1 de vida más** (el élite, 2) |
+| Fantasma | — | **1 de vida más** (el élite, 2; al doble desde el 8/10, 4) |
 
 **El élite blindado sigue con 2.** El 7/10 lo bajé a 1 (al caballero esqueleto del segundo escenario, de
 9 a 11 de vida, había que meterle un golpe perfecto tras otro), y el 8/10 Leandro lo volvió a 2: el driver
@@ -186,3 +186,41 @@ segundo, el doble (`DIFFICULTY.cooldown`). La carta de una habilidad dice la rec
 toca a las mejoras que recargan (segundo aire, carcaj) ni a los hechizos de Abe. Leandro tenía dudas de
 que sea una forma divertida de hacerlo más difícil: como todos los talentos, es opcional, y el que no lo
 quiere pone el punto en otro.
+
+## Los élites, al doble (8/10)
+
+Leandro: «parecen demasiado imponentes pero al final caen bastante fácil». Con los números de arriba,
+sin puntos de dificultad, el del primer escenario caía con 3 golpes medios. Ahora **toda su vida va al
+doble** (`ELITE.hpScale`: el cuerpo, la de más y la de su poder), así que con cualquier poder pide el
+doble de golpes:
+
+| Vida (sin puntos · con todos) | Primer escenario | Segundo | Tercero |
+|---|---|---|---|
+| Antes | 5 · 7 | 9 · 11 | 12 · 14 |
+| Ahora | **10 · 14** | **18 · 22** | **24 · 28** |
+| Fantasma, ahora (el del tercero es el caballero, 8 de cuerpo) | 10 · 18 | 18 · 26 | 20 · 28 |
+
+Golpes para matarlo sin cartas, sin puntos (antes → ahora), con las formas de la tabla de arriba:
+
+| Poder | Primer escenario | Segundo | Tercero |
+|---|---|---|---|
+| Calavera (wedges fuertes por detrás, 2) | 3 → 5 | 5 → 9 | 6 → 12 |
+| Blindaje (1 en el primero: fuertes de 2. Después 2: 1 a media distancia, 2 con el driver de lejos o el putter de cerca) | 3 → 5 | ~6 → ~12 | ~8 → ~16 |
+| Fantasma (1 por golpe) | 5 → 10 | 9 → 18 | 10 → 20 |
+| Bendito y escurridizo (cebo + medio) | 6 → 10 | 10 → 18 | 12 → 24 |
+| Se cura (medios, dentro del ciclo, que crece con la vida) | 3 → 5 | 5 → 9 | 6 → 12 |
+| Intocable (medios, uno o dos por ventana) | 3 → 5 | 5 → 9 | 6 → 12 |
+
+**El tiempo.** Tardar el doble en matarlo no da el doble de tiempo: camina lo mismo. Así que además
+**camina al 85 % de su cuerpo** (`ELITE.speed`) y sale antes, para llegar en su lugar de la oleada,
+con unos pocos detrás. Sin puntos tarda en llegar a los puestos 39 s el del primer escenario (eran 33),
+60 s el del segundo (51) y 64 s el del tercero (55). Los más justos son el intocable y el blindaje 2
+del tercero: sin cartas, unos 30 a 37 s de tirarle solo a él (antes, la mitad). Con todos los puntos,
+el intocable del tercero (28 de vida, ventana de 2 s y 3.9 s invulnerable) pide unos 40 s de los 49 que
+tarda en llegar: ahí hacen falta las cartas (el golpe fantasma, la lupa, el fuego). Si queda demasiado,
+lo siguiente es que venga con menos enemigos alrededor (`ELITE.at`), o bajarle más la velocidad.
+
+Lo que lo acompaña, el mismo día:
+- **El silencio** pasó a 2 s de base (2, 2.5, 3, 3.5 y 4; eran 5, 6.5, 8, 9 y 10), lo mismo que el de
+  Abe. Al élite, la mitad: 1 s. Ya no sirve para abrir al élite un rato largo.
+- **La bandera** (la habilidad) ya no desvía al élite.

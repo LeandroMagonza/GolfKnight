@@ -15,7 +15,7 @@ Los poderes de escenario son los que piden decidir cartas; los de apoyo se resue
   - fuego: 4, 5 y 6 mordiscos;
   - hielo: 5, 6.5 y 8 s, y en el nivel 3 congela;
   - rayo: le cae también al tocado, y salta 2, 3 y 4 veces por rama;
-  - silencio: 5, 6.5 y 8 s.
+  - silencio: 2, 2.5 y 3 s (hasta el 8/10, 5, 6.5 y 8).
 - **El fantasma es la excepción**: es un golpe, cargado al nivel de la habilidad.
 
 **La regla del toque.** El efecto sale solo si la pelota toca al enemigo.
@@ -148,7 +148,7 @@ lo mismo:
 
 | Carta | Pasa | Cuánto pesa |
 |---|---|---|
-| Silenciador | escudo (con wedge), blindaje, fantasma, esquiva (con wedge) | **Mayor**: lo apaga 5 s (6.5 y 8) y el tiro común siguiente le entra entero |
+| Silenciador | escudo (con wedge), blindaje, fantasma, esquiva (con wedge) | **Mayor**: lo apaga 2 s (2.5 y 3; eran 5 a 8 hasta el 8/10) y el tiro común siguiente le entra entero |
 | Hoyo | todos, menos élites y el Gólem | **Mayor**: se lo traga entero |
 | Golpe fantasma, nivel 1 | escudo, blindaje, fantasma, divino, esquiva | **Menor**: pega lo del golpe 1, casi siempre 1 (2 con el putter de cerca y el driver de lejos). A la goblina bendita de 2 la deja en 1 y con la burbuja: hace falta otro fantasma |
 | Golpe fantasma, nivel 2 y 3 | lo mismo | Mayor contra los de 2 o 3 de vida; menor contra los élites |

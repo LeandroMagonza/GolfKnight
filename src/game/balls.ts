@@ -92,8 +92,8 @@ export interface Ball {
   /** Modo tenis: rebotes en las paredes de los costados. */
   walls: number;
   /**
-   * La que paró un escudo: vuelve por el aire hasta `to`, donde estás vos, en `time` segundos, con la
-   * marca roja en el piso. `to` te sigue hasta los últimos `RICOCHET.lock` segundos (ver RICOCHET).
+   * La que paró un escudo: vuelve por el aire hasta `to`, donde estabas cuando rebotó, en `time`
+   * segundos, con la marca roja en el piso (ver RICOCHET).
    */
   ricochet?: { from: THREE.Vector3; to: THREE.Vector3; t: number; time: number; marker: THREE.Mesh };
 }
@@ -573,18 +573,12 @@ export class Balls {
   }
 
   /**
-   * La que devolvió un escudo: un arco hasta vos. Te sigue (a vos y a la marca) hasta que le quedan
-   * `RICOCHET.lock` segundos; ahí la marca se queda quieta. Al caer avisa dónde, y ahí termina.
+   * La que devolvió un escudo: un arco hasta donde estabas cuando rebotó, con la marca quieta ahí. Al
+   * caer avisa dónde, y ahí termina.
    */
   private updateRicochet(ball: Ball, dt: number): void {
     const r = ball.ricochet!;
     r.t = Math.min(1, r.t + dt / r.time);
-    const at = (1 - r.t) * r.time > RICOCHET.lock ? this.playerAt() : null;
-    if (at) {
-      const ground = heightAt(at.x, at.z);
-      r.to.set(at.x, ground + BALL_RADIUS, at.z);
-      r.marker.position.set(at.x, ground + 0.06, at.z);
-    }
     const s = ball.state;
     s.pos.x = r.from.x + (r.to.x - r.from.x) * r.t;
     s.pos.z = r.from.z + (r.to.z - r.from.z) * r.t;

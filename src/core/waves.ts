@@ -594,8 +594,15 @@ export const HEAVY: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
  * grande, poco. **Mata de una**: si entra por la puerta se pierde la partida, y si atropella al golfista
  * lo mata, tengan la vida que tengan (también con las mejoras que la suban). Y trae vida de más sobre la
  * de su cuerpo: `hp[escenario]` en la más difícil (la dificultad le puede sacar, ver `RunRules.eliteHp`).
+ *
+ * **El doble de golpes** (8/10, Leandro: se veían imponentes pero caían fácil): toda su vida, la del
+ * cuerpo, la de más y la de su poder, va por `hpScale`. Con el poder que sea, los golpes que pide crecen
+ * igual (el fantasma recibe 1 por golpe, al blindado le entra el golpe menos el blindaje, el bendito
+ * pide romper y pegar). En la dificultad 0 el del primer escenario tiene 10 (eran 5). Y camina a `speed`
+ * de su cuerpo: tarda el doble en caer, así que está más rato en el campo (sale antes, para llegar en su
+ * lugar de la oleada).
  */
-export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: Number.POSITIVE_INFINITY, hp: [2, 3, 4] };
+export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: Number.POSITIVE_INFINITY, hp: [2, 3, 4], hpScale: 2, speed: 0.85 };
 
 /** El élite del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
 export function elite(scenario: number, power: ScenarioPower, hp = ELITE.hp[scenario], hard = HARDEST_POWERS): WaveGroup {
@@ -608,7 +615,9 @@ export function elite(scenario: number, power: ScenarioPower, hp = ELITE.hp[scen
     }
   }
   const size = Math.max(ELITE.minScale, ELITE.height / ENEMIES[kind].height);
-  return { kind, count: 1, at: ELITE.at, mods: { ...mods, size, hp: (mods.hp ?? 0) + hp } };
+  const body = ENEMIES[kind].hp;
+  const total = Math.round((body + (mods.hp ?? 0) + hp) * ELITE.hpScale);
+  return { kind, count: 1, at: ELITE.at, mods: { ...mods, size, speed: (mods.speed ?? 1) * ELITE.speed, hp: total - body } };
 }
 
 /** `n` distintos de `list`, al azar. */
@@ -751,16 +760,20 @@ export function travelTime(kind: EnemyKind): number {
   return TRAVEL / ENEMIES[kind].speed;
 }
 
-/** Lo que tarda en llegar cada uno; el jefe cuenta como si caminara al paso promedio de los demás. */
-function lags(kinds: EnemyKind[]): number[] {
-  const walkers = kinds.filter((k) => !ENEMIES[k].boss);
-  const average = walkers.reduce((n, k) => n + travelTime(k), 0) / Math.max(1, walkers.length);
-  return kinds.map((k) => (ENEMIES[k].boss ? average : travelTime(k)));
+/**
+ * Lo que tarda en llegar cada uno; el jefe cuenta como si caminara al paso promedio de los demás. El
+ * élite camina más lento que su cuerpo (`ELITE.speed`): sale antes, para llegar en su lugar.
+ */
+function lags(spawns: Spawn[]): number[] {
+  const time = (s: Spawn) => travelTime(s.kind) / (s.mods?.size ? ELITE.speed : 1);
+  const walkers = spawns.filter((s) => !ENEMIES[s.kind].boss);
+  const average = walkers.reduce((n, s) => n + time(s), 0) / Math.max(1, walkers.length);
+  return spawns.map((s) => (ENEMIES[s.kind].boss ? average : time(s)));
 }
 
 /** Cuándo llega cada uno de `order` a los puestos, en segundos desde que sale el primero. */
 export function arrivals(order: Spawn[], interval: number): number[] {
-  const lag = lags(order.map((s) => s.kind));
+  const lag = lags(order);
   let t = 0;
   return order.map((s, i) => (t += i ? s.delay ?? interval : 0) + lag[i]);
 }
@@ -798,7 +811,7 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   // el turno `k` llega en k·intervalo + lo que tarda: sale justo cuando tiene que salir para llegar a
   // tiempo. Cada uno lleva la espera desde el anterior, así llegan con el ritmo de la oleada
   const arriving = slots.map((s) => s.spawn);
-  const lag = lags(arriving.map((s) => s.kind));
+  const lag = lags(arriving);
   const want = arriving.map((spawn, k) => k * wave.interval - lag[k]);
   // pero ningún pesado sale antes que el primer liviano: el caballero que tiene su turno al principio
   // salía veinte segundos antes que todos, y se lo mataba tranquilo antes de que apareciera el resto.

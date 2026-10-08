@@ -129,7 +129,9 @@ export const ELEMENTS = {
   // `windPushRadius` del impacto; el wedge chupa hacia donde cae a los que están a `windPull`, hasta que se
   // tocan. Todo al doble desde el 7/10 (Leandro: casi no servía; «para probar aunque sea»)
   windLine: [6, 7.5, 9, 9.9, 10.8], windPush: [12, 16, 20, 22, 24], windPushRadius: 7, windPull: [9, 10.5, 12, 13.2, 14.4],
-  silenceSeconds: [5, 6.5, 8, 9, 10], silenceElite: 0.5,
+  // el silencio, desde el 8/10 (Leandro: más corto, 2 s de base): lo mismo que el de Abe, y al élite la
+  // mitad. Era 5, 6.5, 8, 9 y 10
+  silenceSeconds: [2, 2.5, 3, 3.5, 4], silenceElite: 0.5,
 };
 
 /**
@@ -255,7 +257,7 @@ const BASE: Ability[] = [
   },
   {
     id: 'flag', kind: 'flag', name: L('Bandera', 'Flag'), title: L('los desvía', 'lures them'), cooldown: 15, range: 55, color: 0xd8413a,
-    hint: L('Planta una bandera: los que están cerca van hacia ella un rato', 'Plants a flag: nearby enemies walk to it for a while'),
+    hint: L('Planta una bandera: los que están cerca van hacia ella un rato. Menos los élites', 'Plants a flag: nearby enemies walk to it for a while. Not elites'),
   },
   {
     id: 'powder', kind: 'powder', name: L('Pólvora', 'Gunpowder'), title: L('en cadena', 'chain blast'), cooldown: 10, range: 50, color: 0xb0413e,

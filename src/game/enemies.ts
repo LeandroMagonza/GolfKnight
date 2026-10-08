@@ -1235,9 +1235,9 @@ export class Enemy {
     this.burnTimer = Math.max(this.burnTimer, seconds);
   }
 
-  /** La bandera: camina hacia (x, z) durante `seconds` en vez de ir a la puerta. */
+  /** La bandera: camina hacia (x, z) durante `seconds` en vez de ir a la puerta. Al élite no lo desvía (8/10). */
   lureTo(x: number, z: number, seconds: number): void {
-    if (!this.alive || this.passed) return;
+    if (!this.alive || this.passed || this.size > 1) return;
     this.lure.set(x, 0, z);
     this.lureTimer = Math.max(this.lureTimer, seconds);
   }

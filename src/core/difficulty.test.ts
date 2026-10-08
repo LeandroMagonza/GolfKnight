@@ -12,7 +12,7 @@ describe('dificultad', () => {
     for (const t of TALENTS) for (const text of t.levels) expect(text(), t.id).not.toBe('');
     expect(TALENTS.find((t) => t.id === 'powered')!.levels[0]()).toBe('Un tercio de los enemigos trae poder, en vez de un cuarto');
     expect(TALENTS.find((t) => t.id === 'powered')!.levels[1]()).toBe('La mitad trae poder');
-    expect(TALENTS.find((t) => t.id === 'elite')!.levels[0]()).toBe('Los élites tienen 2 de vida más');
+    expect(TALENTS.find((t) => t.id === 'elite')!.levels[0]()).toBe('Los élites tienen 4 de vida más');
   });
 
   it('sin puntos es la partida más simple; con todos, la más difícil', () => {

@@ -31,7 +31,8 @@ export interface Talent {
  *   más en curarse); shut, el rato que el intocable pasa invulnerable; ghostHp, la vida de más del fantasma
  *   (ghostEliteHp, la del élite).
  * - cooldown: por cuánto se multiplica la recarga de las habilidades del caballero («Recarga lenta»).
- * - eliteHpLess: cuánta vida de más le sacan al élite (sobre ELITE.hp).
+ * - eliteHpLess: cuánta vida de más le sacan al élite (sobre ELITE.hp; como toda su vida, va por
+ *   ELITE.hpScale: el punto le suma 4).
  * - rest: segundos de descanso entre oleadas.
  * - fourthHp, fourthEliteHp, fourthBossHp: el golpe 4 (ver FOURTH en core/clubs), la vida de más que
  *   traen con el talento los comunes, los élites y el jefe. Es el único talento que también te da algo.
@@ -77,9 +78,9 @@ export const TALENTS: Talent[] = [
   { id: 'powers', name: L('Poderes más duros', 'Tougher Powers'), levels: [
     () => L(
       `Escudos de hasta ${DIFFICULTY.cap[1]} y más blindajes de 2; los escurridizos y los benditos recargan antes, los que se curan se curan `
-        + `más seguido, los intocables pasan más rato invulnerables y los fantasmas traen ${DIFFICULTY.ghostHp[1]} de vida más (el élite, ${DIFFICULTY.ghostEliteHp[1]})`,
+        + `más seguido, los intocables pasan más rato invulnerables y los fantasmas traen ${DIFFICULTY.ghostHp[1]} de vida más (el élite, ${DIFFICULTY.ghostEliteHp[1] * ELITE.hpScale})`,
       `Shields up to ${DIFFICULTY.cap[1]} and more level-2 armor; slippery and blessed enemies recharge sooner, regenerators heal `
-        + `more often, untouchables stay invulnerable longer and ghosts get ${DIFFICULTY.ghostHp[1]} more HP (the elite, ${DIFFICULTY.ghostEliteHp[1]})`,
+        + `more often, untouchables stay invulnerable longer and ghosts get ${DIFFICULTY.ghostHp[1]} more HP (the elite, ${DIFFICULTY.ghostEliteHp[1] * ELITE.hpScale})`,
     ),
   ] },
   { id: 'speed', name: L('Más rápidos', 'Faster Enemies'), levels: [
@@ -95,8 +96,8 @@ export const TALENTS: Talent[] = [
   ] },
   { id: 'elite', name: L('Élites más duros', 'Tougher Elites'), levels: [
     () => L(
-      `Los élites tienen ${DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]} de vida más`,
-      `Elites have ${DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]} more HP`,
+      `Los élites tienen ${(DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]) * ELITE.hpScale} de vida más`,
+      `Elites have ${(DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]) * ELITE.hpScale} more HP`,
     ),
   ] },
   { id: 'escort', name: L('Escolta del jefe', 'Boss Escort'), levels: [() => L('El jefe viene con enemigos con poderes', 'The boss brings powered-up enemies')] },
@@ -113,9 +114,9 @@ export const TALENTS: Talent[] = [
   { id: 'fourth', name: L('Golpe 4', 'Hit 4'), levels: [
     () => L(
       `En el medio del rojo aparece el golpe 4: pega ${FOURTH.bonus} más que el 3, y entre los dos duran lo que el 3 de siempre. `
-        + `A cambio, los enemigos traen ${DIFFICULTY.fourthHp} de vida más, los élites ${DIFFICULTY.fourthEliteHp} y el jefe ${DIFFICULTY.fourthBossHp}`,
+        + `A cambio, los enemigos traen ${DIFFICULTY.fourthHp} de vida más, los élites ${DIFFICULTY.fourthEliteHp * ELITE.hpScale} y el jefe ${DIFFICULTY.fourthBossHp}`,
       `Hit 4 appears in the middle of the red: it deals ${FOURTH.bonus} more than hit 3, and together they last as long as hit 3 used to. `
-        + `In exchange, enemies get ${DIFFICULTY.fourthHp} more HP, elites ${DIFFICULTY.fourthEliteHp} and the boss ${DIFFICULTY.fourthBossHp}`,
+        + `In exchange, enemies get ${DIFFICULTY.fourthHp} more HP, elites ${DIFFICULTY.fourthEliteHp * ELITE.hpScale} and the boss ${DIFFICULTY.fourthBossHp}`,
     ),
   ] },
 ];
