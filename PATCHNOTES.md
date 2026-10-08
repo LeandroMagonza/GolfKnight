@@ -25,6 +25,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 **Detrás de escena**
 - Las imágenes y el texto de la página de itch.io, en español e inglés (`promo/itch/`). `e417880`
+- El plan de itch, con una sola página: la demo para jugar en el navegador y la completa para bajar, la
+  declaración de IA, cómo llegan las actualizaciones y qué pasa con las copias. `7e9dbc6`
 - El plan de venta (`docs/monetizacion.md`): itch no cobra juegos que se juegan en el navegador, así que
   la completa va como descarga (la misma app de escritorio que Steam), y el precio propuesto. `673e25c`
 
