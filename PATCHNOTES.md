@@ -7,6 +7,13 @@ de entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 8 de octubre
+
+**Dificultad**
+- El élite blindado vuelve a traer blindaje 2 desde el segundo escenario (ayer lo habíamos bajado a 1):
+  de lejos con el driver y de cerca con el putter le entra sin el golpe perfecto. `ffb3627`
+- Con «Poderes más duros», el élite fantasma trae 2 de vida más (los comunes, 1). `ffb3627`
+
 ## 7 de octubre
 
 **Versiones**
