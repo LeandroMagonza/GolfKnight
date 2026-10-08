@@ -65,8 +65,8 @@ describe('waves', () => {
         const size = last.mods!.size!;
         expect(size).toBeGreaterThanOrEqual(ELITE.minScale);
         expect(ENEMIES[last.kind].height * size).toBeGreaterThanOrEqual(ELITE.height - 1e-9);
-        // y trae vida de más: +2, +3 y +4 según el escenario (el fantasma, con «Poderes más duros», 1 más)
-        expect(last.mods!.hp).toBe(ELITE.hp[s] + (run.powers[s] === 'ethereal' ? HARDEST.hard.ghostHp : 0));
+        // y trae vida de más: +2, +3 y +4 según el escenario (el fantasma, con «Poderes más duros», 2 más)
+        expect(last.mods!.hp).toBe(ELITE.hp[s] + (run.powers[s] === 'ethereal' ? HARDEST.hard.ghostEliteHp : 0));
       }
     }
     // el más duro que pueda: el gólem chico en el tercero, salvo que el poder no le entre
@@ -515,8 +515,8 @@ describe('waves', () => {
     expect(share2(easy)).toBeLessThan(0.58);
     expect(share2(hard)).toBeGreaterThan(0.68);
     expect(POWERS.armor(0, () => 0.99, hard).armor).toBe(1);
-    // el élite blindado, siempre 1 (con 2 había que meterle un golpe perfecto tras otro)
-    for (const s of [0, 1, 2, 3]) expect(elite(s, 'armor').mods!.armor).toBe(1);
+    // el élite blindado: 1 en el primer escenario y 2 después, con el punto o sin él
+    expect([0, 1, 2, 3].map((s) => elite(s, 'armor', 0, easy).mods!.armor)).toEqual([1, 2, 2, 2]);
     // el que se cura: sin el punto tarda bastante más en curarse
     expect(POWERS.regen(0, () => 0, easy).regen!).toBeGreaterThan(POWERS.regen(0, () => 0, hard).regen! * 2);
     expect(POWERS.regen(0, () => 0, hard).regen).toBe(REGEN.margin);
@@ -526,10 +526,11 @@ describe('waves', () => {
     expect(POWERS.phase(0, () => 0, hard).phaseShut!).toBeGreaterThan(PHASE.shut);
     expect(POWERS.phase(0, () => 0, hard).phase!).toBeLessThan(POWERS.phase(0, () => 0, easy).phase!);
     expect(elite(1, 'phase', 0, hard).mods!.phaseShut!).toBeGreaterThan(PHASE.eliteShut);
-    // el fantasma: con el punto, 1 de vida más (también el élite)
+    // el fantasma: con el punto, 1 de vida más (el élite, 2)
     expect(POWERS.ethereal(0, () => 0, easy).hp).toBeUndefined();
     expect(POWERS.ethereal(0, () => 0, hard).hp).toBe(1);
-    expect(elite(1, 'ethereal', 3, hard).mods!.hp).toBe(4);
+    expect(elite(1, 'ethereal', 3, easy).mods!.hp).toBe(3);
+    expect(elite(1, 'ethereal', 3, hard).mods!.hp).toBe(5);
   });
 
   it('el que se cura: el ciclo alcanza para matarlo con golpes medios, y con flojos no', () => {

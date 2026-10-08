@@ -280,7 +280,7 @@ export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal
  *   ventana en que el intocable es vulnerable.
  * - `regen`: por cuánto se multiplica el margen del que se cura (más margen, más tarda en curarse).
  * - `shut`: por cuánto se multiplica el rato que el intocable pasa invulnerable.
- * - `ghostHp`: vida de más del fantasma.
+ * - `ghostHp`: vida de más del fantasma (`ghostEliteHp`, la del élite).
  */
 export interface PowerHardness {
   cap: number;
@@ -289,8 +289,9 @@ export interface PowerHardness {
   regen: number;
   shut: number;
   ghostHp: number;
+  ghostEliteHp: number;
 }
-export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, shut: 1.3, ghostHp: 1 };
+export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, shut: 1.3, ghostHp: 1, ghostEliteHp: 2 };
 
 /**
  * El blindaje no pasa de 2 (7/10, pedido de Leandro): con 3, al mejor golpe le entraba 1 y se terminaba
@@ -395,10 +396,11 @@ export const SUPPORT_POWERS = ['ranged', 'heal', 'ward', 'banner'] as const;
 export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardness) => EnemyMods> = {
   // la calavera: de frente no le entra nada
   shield: () => ({ shield: SHIELD_WALL }),
-  // siempre 1 (7/10): con 2, al caballero esqueleto (9 a 11 de vida) había que meterle un golpe perfecto
-  // tras otro, de 1 cada uno. Hasta el 7/10, 1 en el primer escenario y 2 después
-  armor: () => ({ armor: 1 }),
-  ethereal: (_tier, hard = HARDEST_POWERS) => (hard.ghostHp ? { ethereal: true, hp: hard.ghostHp } : { ethereal: true }),
+  // 1 en el primer escenario y 2 después: con 3, el gólem chico pedía diez golpes perfectos. Con 2 solo
+  // a media distancia hace falta el perfecto: el driver de lejos y el putter de cerca pegan más (Leandro,
+  // 8/10, que lo había bajado a 1 el 7/10)
+  armor: (tier) => ({ armor: Math.min(ARMOR_MAX, tier + 1) }),
+  ethereal: (_tier, hard = HARDEST_POWERS) => (hard.ghostEliteHp ? { ethereal: true, hp: hard.ghostEliteHp } : { ethereal: true }),
   // el divino se le recarga más rápido
   divine: (_tier, hard = HARDEST_POWERS) => ({ divine: DIVINE.elite * hard.recharge }),
   dodge: (_tier, hard = HARDEST_POWERS) => dodgeMods(hard),

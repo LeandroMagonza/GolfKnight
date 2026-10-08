@@ -1082,6 +1082,7 @@ export class DebugPanel {
       ['margen del que se cura, sin el punto', () => d.regen[0], (v) => { d.regen[0] = Math.max(0.5, v); }, 0.1, '×'],
       ['intocable invulnerable, con el punto', () => d.shut[1], (v) => { d.shut[1] = Math.max(0.5, v); }, 0.1, '×'],
       ['fantasma: vida de más con el punto', () => d.ghostHp[1], (v) => { d.ghostHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
+      ['fantasma élite: vida de más con el punto', () => d.ghostEliteHp[1], (v) => { d.ghostEliteHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
       ['recarga de tus habilidades, «recarga lenta» 1', () => d.cooldown[1], (v) => { d.cooldown[1] = Math.max(1, v); }, 0.1, '×'],
       ['recarga de tus habilidades, «recarga lenta» 2', () => d.cooldown[2], (v) => { d.cooldown[2] = Math.max(1, v); }, 0.1, '×'],
       ['vida de menos del élite, sin el punto', () => d.eliteHpLess[0], (v) => { d.eliteHpLess[0] = Math.max(0, Math.round(v)); }, 1, ''],

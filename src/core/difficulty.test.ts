@@ -20,7 +20,7 @@ describe('dificultad', () => {
     expect(easy).toMatchObject({ stack: false, specials: 0, supports: 0, escort: false, rest: INTERMISSION, speed: DIFFICULTY.speed[0], share: DIFFICULTY.share[0] });
     expect(easy.hard.cap).toBe(2);
     expect(easy.hard.recharge).toBeGreaterThan(1);
-    expect(easy.hard).toMatchObject({ armorRolls: 1, regen: DIFFICULTY.regen[0], shut: 1, ghostHp: 0 });
+    expect(easy.hard).toMatchObject({ armorRolls: 1, regen: DIFFICULTY.regen[0], shut: 1, ghostHp: 0, ghostEliteHp: 0 });
     expect(easy.cooldown).toBe(1);
     expect(easy.eliteHp).toEqual(ELITE.hp.map((h) => h - 2));
     const all = Object.fromEntries(TALENTS.map((t) => [t.id, t.levels.length]));
@@ -42,7 +42,7 @@ describe('dificultad', () => {
     // un solo punto en poderes más duros pone todo: escudos hasta 3, más blindajes de 2, la recarga de
     // siempre, el que se cura y el intocable más duros, y el fantasma con 1 de vida más
     expect(rulesFor({ powers: 1 }).hard).toEqual(HARDEST.hard);
-    expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1 });
+    expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1, ghostEliteHp: 2 });
     expect(HARDEST.hard.shut).toBeGreaterThan(1);
   });
 

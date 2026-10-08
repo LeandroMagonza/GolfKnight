@@ -168,15 +168,16 @@ que se cura sea más fácil sin el punto, y que el talento le dé algo al fantas
 |---|---|---|
 | Escudo | hasta 2 | hasta 3 (se resuelve por detrás, con el área) |
 | Blindaje | 1 en el primer escenario; después 1 o 2, mitad y mitad | igual de alto (**hasta 2**, antes 3), pero sale de 2 tres de cada cuatro veces (el mayor de dos sorteos) |
-| Blindaje del élite | **1** (antes 1 y después 2) | **1** (antes 1 y después 2) |
+| Blindaje del élite | 1 en el primer escenario, 2 después | igual |
 | Escurridizo, bendito | recargan ×1.6: 8 s (élite 4.8) | 5 s (élite 3) |
 | Se cura | margen ×2.5: 3 s (élite 2): con 6 de vida se cura cada **6 s** (antes 4.9) | margen de siempre, 1.2 s (élite 0.8): cada 4.2 s |
 | Intocable | invulnerable 3.5 s y ventana de 2.4 s (élite 3 y 3.2) | invulnerable **4.55 s** (antes 3.5) y ventana de 1.5 s (élite 3.9 y 2) |
-| Fantasma | — | **1 de vida más** (también el élite) |
+| Fantasma | — | **1 de vida más** (el élite, 2) |
 
-**El élite blindado, siempre 1.** Con 2, al caballero esqueleto del segundo escenario (9 a 11 de vida)
-había que meterle un golpe perfecto tras otro, de 1 cada uno, y el medio no le entraba; desde que el
-golpe que el blindaje se come entero frena la pelota, todavía peor. Con 1, el perfecto le saca 2 y el medio 1.
+**El élite blindado sigue con 2.** El 7/10 lo bajé a 1 (al caballero esqueleto del segundo escenario, de
+9 a 11 de vida, había que meterle un golpe perfecto tras otro), y el 8/10 Leandro lo volvió a 2: el driver
+de lejos y el putter de cerca pegan más, así que el perfecto solo hace falta a media distancia, si no
+tenés otras cartas que sirvan.
 
 ## La recarga lenta (7/10)
 

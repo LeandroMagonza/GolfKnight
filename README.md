@@ -310,8 +310,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   escudo, blindaje, fantasma, divino y esquiva. Cada escenario son tres oleadas: la primera presenta su
   poder (lo trae el primero que aparece), y la tercera la cierra un **élite**: el cuerpo fuerte del
   escenario (jefe goblin en el primero, caballero en el segundo, gólem chico en el tercero) con el poder
-  en su versión más dura (la calavera, el divino que recarga en 3 s...; el blindaje, 1: desde el 7/10 no
-  lleva 2) y agrandado hasta
+  en su versión más dura (la calavera, blindaje 2, el divino que recarga en 3 s...) y agrandado hasta
   unos 3 m, así que el jefe goblin crece mucho y el caballero poco.
 - **El cuerpo fuerte viene desde el arranque del escenario**: uno en la primera oleada, tres en la
   segunda y tres en la tercera, **siempre sin poder**: de ese cuerpo, el único con poder es el élite. La décima es la
@@ -367,7 +366,7 @@ aunque solo se mande cuando corresponde.
 | Poderes acumulados | los poderes de los escenarios anteriores siguen viniendo |
 | Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
 | Apoyos | 1: en el último escenario; 2: desde el segundo |
-| Poderes más duros | toca a todos los poderes de escenario (desde el 7/10; ver docs/tiempos-poderes.md): escudos de hasta 3 (sin el punto, hasta 2); el blindaje sigue hasta 2, pero casi siempre de 2 (el mayor de dos sorteos); el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6); el que se cura, con el margen de siempre (sin el punto, ×2.5: tarda más en curarse); el intocable, invulnerable ×1.3 y la ventana de siempre (sin el punto, ventana ×1.6); el fantasma, 1 de vida más |
+| Poderes más duros | toca a todos los poderes de escenario (desde el 7/10; ver docs/tiempos-poderes.md): escudos de hasta 3 (sin el punto, hasta 2); el blindaje sigue hasta 2, pero casi siempre de 2 (el mayor de dos sorteos); el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6); el que se cura, con el margen de siempre (sin el punto, ×2.5: tarda más en curarse); el intocable, invulnerable ×1.3 y la ventana de siempre (sin el punto, ventana ×1.6); el fantasma, 1 de vida más (el élite, 2) |
 | Más rápidos | sin puntos los enemigos van a ×0.76; 1: ×0.88; 2: a su velocidad; 3: ×1.12 |
 | Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). Cambiarlo en la pantalla de inicio cambia el campo en el acto |
 | Más con poder | 1: un tercio en vez de un cuarto; 2: la mitad |

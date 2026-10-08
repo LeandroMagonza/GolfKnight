@@ -28,7 +28,8 @@ export interface Talent {
  *   PowerHardness en core/waves): cap, hasta qué nivel llega el escudo; armorRolls, de cuántos sorteos
  *   sale el blindaje (el mayor: con 2, casi siempre de 2); recharge, por cuánto se multiplica la recarga
  *   del escurridizo y el bendito y la ventana del intocable; regen, el margen del que se cura (más, tarda
- *   más en curarse); shut, el rato que el intocable pasa invulnerable; ghostHp, la vida de más del fantasma.
+ *   más en curarse); shut, el rato que el intocable pasa invulnerable; ghostHp, la vida de más del fantasma
+ *   (ghostEliteHp, la del élite).
  * - cooldown: por cuánto se multiplica la recarga de las habilidades del caballero («Recarga lenta»).
  * - eliteHpLess: cuánta vida de más le sacan al élite (sobre ELITE.hp).
  * - rest: segundos de descanso entre oleadas.
@@ -46,6 +47,7 @@ export const DIFFICULTY = {
   regen: [2.5, 1],
   shut: [1, 1.3],
   ghostHp: [0, 1],
+  ghostEliteHp: [0, 2],
   cooldown: [1, 1.5, 2],
   eliteHpLess: [2, 0],
   rest: [INTERMISSION, 4],
@@ -75,9 +77,9 @@ export const TALENTS: Talent[] = [
   { id: 'powers', name: L('Poderes más duros', 'Tougher Powers'), levels: [
     () => L(
       `Escudos de hasta ${DIFFICULTY.cap[1]} y más blindajes de 2; los escurridizos y los benditos recargan antes, los que se curan se curan `
-        + `más seguido, los intocables pasan más rato invulnerables y los fantasmas traen ${DIFFICULTY.ghostHp[1]} de vida más`,
+        + `más seguido, los intocables pasan más rato invulnerables y los fantasmas traen ${DIFFICULTY.ghostHp[1]} de vida más (el élite, ${DIFFICULTY.ghostEliteHp[1]})`,
       `Shields up to ${DIFFICULTY.cap[1]} and more level-2 armor; slippery and blessed enemies recharge sooner, regenerators heal `
-        + `more often, untouchables stay invulnerable longer and ghosts get ${DIFFICULTY.ghostHp[1]} more HP`,
+        + `more often, untouchables stay invulnerable longer and ghosts get ${DIFFICULTY.ghostHp[1]} more HP (the elite, ${DIFFICULTY.ghostEliteHp[1]})`,
     ),
   ] },
   { id: 'speed', name: L('Más rápidos', 'Faster Enemies'), levels: [
@@ -159,6 +161,7 @@ export function rulesFor(picks: Picks): RunRules {
       regen: at(DIFFICULTY.regen, lv('powers')),
       shut: at(DIFFICULTY.shut, lv('powers')),
       ghostHp: at(DIFFICULTY.ghostHp, lv('powers')),
+      ghostEliteHp: at(DIFFICULTY.ghostEliteHp, lv('powers')),
     },
     speed: at(DIFFICULTY.speed, lv('speed')),
     share: at(DIFFICULTY.share, lv('powered')),
