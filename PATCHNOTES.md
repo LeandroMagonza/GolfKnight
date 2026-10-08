@@ -14,7 +14,17 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   de lejos con el driver y de cerca con el putter le entra sin el golpe perfecto. `ffb3627`
 - Con «Poderes más duros», el élite fantasma trae 2 de vida más (los comunes, 1). `ffb3627`
 
+**La intro**
+- Las voces de la cinemática ahora son de software (Kokoro), en español y **también en inglés**: el
+  narrador, el mago y el caballero tienen voz en los dos idiomas. `8d6ea50`
+
+**Versión de escritorio**
+- Hay una **versión para Windows**, la que va a venderse en itch.io y después en Steam: arranca en
+  pantalla completa (F11 o Alt+Enter la cambian), y la pantalla de inicio y la pausa tienen «Salir del
+  juego». El enlace para invitar a Abe va a la página pública, así lo abre cualquiera. `b47d472`
+
 **Detrás de escena**
+- Las imágenes y el texto de la página de itch.io, en español e inglés (`promo/itch/`). `e417880`
 - El plan de venta (`docs/monetizacion.md`): itch no cobra juegos que se juegan en el navegador, así que
   la completa va como descarga (la misma app de escritorio que Steam), y el precio propuesto. `673e25c`
 
