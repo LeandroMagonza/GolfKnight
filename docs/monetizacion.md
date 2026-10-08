@@ -122,7 +122,22 @@ Steam». Cada Abe es un posible comprador.
 - **itch no cobra juegos que se juegan en el navegador** (lo confirmé el 8/10 en sus foros): un juego
   HTML es gratis, a lo sumo con donación. Así que la completa paga va como **descarga**: el juego dentro
   de Electron (Windows primero; Mac pide firmar y notarizar con Apple), que es lo mismo que hace falta
-  para Steam. Lo más simple: dos páginas, la demo web gratis y la completa paga para bajar.
+  para Steam. **Va todo en una página** (Leandro, 8/10): un proyecto HTML con la demo embebida, que itch
+  deja siempre gratis, y la completa de Windows como descargable con precio mínimo, que solo se aplica a
+  los descargables. Hace falta configurar los pagos en la cuenta (sin eso, nadie puede bajar algo pago).
+- **Subir a mano**, mientras no esté butler: los zip de `release/itch/` (la demo web, marcada «This file
+  will be played in the browser», y la de Windows, marcada Windows). Embed de 1280×720, con el botón de
+  pantalla completa, sin «Mobile friendly».
+- **Declaración de IA** (itch y Steam la piden): **sí**. El código se escribió con un LLM y las voces son
+  de Kokoro, que es síntesis de voz con IA aunque corra en la compu. Las imágenes son capturas del juego,
+  los modelos son de Synty y Mixamo y la música sale de Tone.js.
+- **Actualizaciones:** la app de itch actualiza sola lo que se sube con butler (manda solo lo que
+  cambió); Steam también. El que bajó el zip a mano no se entera: la propuesta es que el juego avise al
+  abrir (lee la última versión de la página pública y ofrece el link a itch). Un actualizador propio
+  (electron-updater) no vale la pena: pide instalador, alojar las versiones y firmar el ejecutable.
+- **Copias:** lo de itch es sin DRM, el zip anda en cualquier compu. No hay forma real de evitarlo (el
+  juego es JavaScript: cualquier chequeo se saca). Al que compró le quedan las actualizaciones y la clave
+  de Steam; al que se lo pasaron, el aviso de versión nueva lo manda a comprar.
 - **Cobrar:** itch se queda con lo que uno elija (por defecto el 10 %). Se puede poner un mínimo y dejar
   pagar más.
 - **Precio: US$2,99** (Leandro, 8/10; yo había propuesto US$4,99, como Brotato y Vampire Survivors).
