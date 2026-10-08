@@ -15,8 +15,8 @@ export const OUT = { full: 'dist', demo: 'dist/demo', abe: 'dist/abe' };
 /** Lo que cada versión no usa: public/ se copia entero, así que se saca de su carpeta después de compilar. */
 const PRUNE = {
   full: [],
-  // las voces de Kokoro son para comparar, en desarrollo; el modelo del campesino no lo usa nadie todavía
-  demo: ['models/player-peasant.glb', 'voices/kokoro'],
+  // el modelo del campesino no lo usa nadie todavía
+  demo: ['models/player-peasant.glb'],
   // Abe no ve la cinemática: ni su escenario, ni el mago, ni las voces
   abe: ['models/player-peasant.glb', 'models/cine-dungeon.glb', 'models/mage.glb', 'voices'],
 };

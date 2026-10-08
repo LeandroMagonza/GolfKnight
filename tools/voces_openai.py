@@ -1,9 +1,12 @@
 """Voces de la cinemática con OpenAI (gpt-4o-mini-tts): a diferencia de Kokoro, actúan. Cada personaje
 tiene su voz y una indicación general, y cada línea suma cómo se dice (tools/voces_lineas.py).
 
-La key sale de OPENAI_API_KEY en el entorno o de E:\\asistente\\.env, y nunca se imprime. Escribe en
-public/voices/ (lo que usa la cinemática); las de Kokoro quedan en public/voices/kokoro/. Con --lang en,
-las inglesas (LINES_EN, con indicaciones en inglés) en public/voices/en/ (ver docs/localizacion.md).
+**Desde el 8/10 el juego no las usa** (Leandro: para venderlo, voces de software; las del juego son las de
+Kokoro, tools/voces.py). Este script queda para comparar: escribe en voces-openai/ (fuera de public/, no
+se publica), y con --lang en en voces-openai/en/. Las que estuvieron en el juego siguen en el historial de
+git (public/voices/, antes del 8/10).
+
+La key sale de OPENAI_API_KEY en el entorno o de E:\\asistente\\.env, y nunca se imprime.
 Cuesta menos de un centavo de dólar por pasada (unos 30 s de audio).
 
 uso: E:\\asistente\\.venv\\Scripts\\python.exe tools/voces_openai.py [--lang en] [nombre ...]   (desde web/)
@@ -23,7 +26,7 @@ from voces_lineas import LINES, LINES_EN
 
 ENV = r"E:\asistente\.env"
 ENGLISH = "--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1:][:1] == ["en"]
-OUT = os.path.join("public", "voices", "en") if ENGLISH else os.path.join("public", "voices")
+OUT = os.path.join("voces-openai", "en") if ENGLISH else "voces-openai"
 
 RIOPLATENSE = "Hablá en español rioplatense, con acento de Buenos Aires y voseo."
 CAST = {

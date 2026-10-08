@@ -70,10 +70,9 @@ atributo. Lo hace `lang.js` antes del primer cuadro, así no se ve el español u
 (la intro no se repite: ya se vio en la sesión). En plena partida no se cambia.
 
 **La cinemática** usa lo mismo: los subtítulos y globos van con `L`, y las voces tienen una carpeta por
-idioma: `public/voices/` (español, las de siempre) y `public/voices/en/`. Las líneas dichas y cómo se
-actúan, en los dos idiomas, están en `tools/voces_lineas.py`; `tools/voces_openai.py --lang en` genera
-las inglesas (mismas voces de OpenAI, con indicaciones en inglés). Los tiempos de los planos no
-cambiaron: las líneas en inglés son más cortas y entran en los mismos huecos.
+idioma: `public/voices/es/` y `public/voices/en/`. Las líneas dichas, en los dos idiomas, están en
+`tools/voces_lineas.py`, y `tools/voces.py` genera las dos carpetas con Kokoro (desde el 8/10; hasta ahí
+eran las de OpenAI, actuadas). Los tiempos de los planos no cambiaron: entran en los mismos huecos.
 
 ## Qué quedó en español a propósito
 
@@ -85,7 +84,6 @@ cambiaron: las líneas en inglés son más cortas y entran en los mismos huecos.
 - **La telemetría** guarda ids y números, no textos; se le agregó `lang` a cada partida para saber
   cuánta gente juega en cada idioma. El título de la oleada que guarda sale en el idioma del jugador.
 - **Nombres propios**: Valdehoyo, Abe y Golf Knight no se traducen.
-- **Las voces de Kokoro** (`?voces=kokoro`, para comparar) son solo en español.
 - **Las claves internas** que quedaron en español y no se tocan: las luces y lugares del arco de
   `game/visuals.ts` (se guardan en `gk.visual` y el panel B las compara por texto), las formas de los
   hechizos de Abe (`'zona' | 'línea' | 'trampa'`, se muestran traducidas con `spellSize`), las tablas del

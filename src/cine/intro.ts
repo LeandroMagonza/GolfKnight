@@ -105,7 +105,8 @@ export const INTRO: Script = {
         },
       },
       text: [
-        // en inglés algunas voces son un poco más largas (public/voices/en): los tiempos con L, como los textos
+        // en inglés algunas voces eran un poco más largas (las de OpenAI, hasta el 8/10): los tiempos con L,
+        // como los textos
         { at: 0.4, until: L(1.4, 1.55), kind: 'caption', text: L('A la salida.', 'On the way out.'), voice: 'narra-salida' },
         { at: L(1.5, 1.6), until: 6.2, kind: 'caption', text: L('Los palos de golf seguían en el baúl desde el domingo.', 'The golf clubs were still in the trunk from Sunday.'), voice: 'narra-palos' },
       ],

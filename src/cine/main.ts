@@ -113,10 +113,9 @@ const voices: { at: number; el: HTMLAudioElement }[] = [];
 INTRO.shots.forEach((shot, i) => {
   for (const cue of shot.text ?? []) {
     if (!cue.voice) continue;
-    // una carpeta por idioma: las españolas en voices/, las inglesas en voices/en/ (tools/voces_openai.py).
-    // ?voces=kokoro: las de Kokoro (neutras, solo en español), para comparar con las de OpenAI (actuadas)
-    const folder = lang === 'en' ? 'en/' : params.get('voces') === 'kokoro' ? 'kokoro/' : '';
-    const el = new Audio(`${import.meta.env.BASE_URL}voices/${folder}${cue.voice}.wav`);
+    // una carpeta por idioma, voices/es/ y voices/en/: las de Kokoro (tools/voces.py). Desde el 8/10 son
+    // las únicas: para venderlo, voces de software y no las de OpenAI (Leandro)
+    const el = new Audio(`${import.meta.env.BASE_URL}voices/${lang === 'en' ? 'en' : 'es'}/${cue.voice}.wav`);
     el.preload = 'auto';
     voices.push({ at: player.shotStarts[i] + cue.at, el });
   }

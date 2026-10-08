@@ -92,6 +92,10 @@ la narradora irónica en "sospechosamente buenos" y seca en "Y después, nada.".
   la bocina se corrieron), para que nada se pise. Con Kokoro los mismos tiempos sobran.
 - Mientras alguien habla la música baja unos 7 dB.
 - Se dice un texto apenas distinto del que se lee (comas en vez de puntos suspensivos).
+- **Desde el 8/10 el juego usa las de Kokoro**, en español y en inglés (`public/voices/es/` y
+  `public/voices/en/`): para venderlo, Leandro prefiere voces de software. En inglés: la narradora
+  `bf_emma` y el mago `bm_george` a 0.9 (británicos, de cuento) y el caballero `am_michael`
+  (norteamericano). Son más cortas que las de OpenAI, así que entran en los mismos tiempos.
 - La key de OpenAI se lee de `E:sistente\.env` sin imprimirla. Una pasada completa son unos 30 s de
   audio: menos de un centavo de dólar.
 
