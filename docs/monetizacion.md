@@ -149,7 +149,7 @@ desktop:demo` hace lo mismo con la demo (para la app gratis de Steam). Electron 
 - **El enlace de Abe** va a la página pública, https://leandromagonza.github.io/GolfKnight/abe/ (lo
   mismo jugando desde itch): el amigo no tiene el juego. Falta lo de una carpeta por versión: hoy, si la
   app quedó vieja, Abe ve el aviso de que son versiones distintas.
-- **Ícono:** `desktop/icon.ico` si está (si no, el de Electron).
+- **Ícono:** `desktop/icon.ico`, el caballero de frente (lo arma `tools/promo.mjs`, ver `promo/itch/`).
 - **Para publicarla**, compilarla desde un commit limpio (como el deploy), no desde la carpeta de
   trabajo, que puede tener cambios a medias de la otra sesión.
 - Mac y Linux, más adelante (Mac pide firmar y notarizar con Apple, US$99 por año).
@@ -190,7 +190,8 @@ Pages es cambiar el deploy.
 - [ ] Repo privado + repo público con lo compilado.
 - [x] Una completa sin herramientas de prueba, para vender (8/10, `GK_DEV_TOOLS=0`).
 - [x] La completa como app de escritorio (Electron) para Windows (8/10, `npm run desktop`).
-- [ ] Butler en `npm run desktop` (después de `butler login`), y el ícono.
-- [ ] Las imágenes de la página de itch (portada, capturas, banner).
+- [ ] Butler en `npm run desktop` (después de `butler login`).
+- [x] Las imágenes de la página de itch y el texto, en español e inglés (8/10, `promo/itch/`, armadas
+  con `tools/promo.mjs`), y el ícono de la app (`desktop/icon.ico`).
 - [ ] Al abrir la venta, sacar la completa de GitHub Pages (queda la demo y la de Abe).
 - [ ] Steam: Electron, steamworks.js, invitaciones, logros, página «próximamente».
