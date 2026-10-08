@@ -13,7 +13,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Los **élites** tienen el doble de vida: el del primer escenario, 10 (eran 5), el del segundo 18 y el
   del tercero 24, y con cualquier poder piden el doble de golpes. Caminan un poco más lento, así hay
   tiempo de bajarlos. `380fabc`
-- La **bandera** ya no desvía a los élites. `380fabc`
+- La **bandera** ya no desvía a los élites ni al jefe. `380fabc` `15b88b8`
 - El **silencio** dura 2 s (eran 5), y sube hasta 4 s (eran 10). Al élite, la mitad. `380fabc`
 - La pelota que rebota en un escudo va adonde estabas cuando rebotó: ya no te sigue mientras vuela. `380fabc`
 - El élite blindado vuelve a traer blindaje 2 desde el segundo escenario (ayer lo habíamos bajado a 1):
@@ -33,11 +33,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   pantalla completa (F11 o Alt+Enter la cambian), y la pantalla de inicio y la pausa tienen «Salir del
   juego». El enlace para invitar a Abe va a la página pública, así lo abre cualquiera. `b47d472`
 - Si hay una versión nueva, la pantalla de inicio lo avisa, con el botón para bajarla. Sin internet no
-  dice nada y se juega igual. `0a25a08` `ddbb8a5` `21febcd`
+  dice nada y se juega igual. `0a25a08` `ddbb8a5` `21febcd` `294338d`
   El botón lleva a la página del juego en itch.io. `382f3b6`
 - Tiene ícono propio: un escudo con un palo de golf y una espada cruzados. `0a25a08`
 
 **Detrás de escena**
+- La demo y la versión de Windows se suben solas a la página de itch.io (con butler). `15b88b8`
 - Las imágenes y el texto de la página de itch.io, en español e inglés (`promo/itch/`). `e417880`
   Rehechas con el Caballero, la cámara del juego y los enemigos caminando de verdad. `0a25a08`
 - El plan de itch, con una sola página: la demo para jugar en el navegador y la completa para bajar, la
