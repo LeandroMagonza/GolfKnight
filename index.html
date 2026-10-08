@@ -600,6 +600,9 @@
       #pause .invite input { flex: 1; min-width: 0; font: 13px ui-monospace, monospace; padding: 6px 8px; border-radius: 6px; border: 1px solid #3a4452; background: #0e141c; color: #e4e9f0; }
       #pause .invite .who { font-size: 13px; color: #9aa4b2; }
       #pause .invite [hidden] { display: none; }
+      /* solo en la app de escritorio (desktop/preload.cjs): en pantalla completa no hay otra forma a mano */
+      #pause .quit { margin-top: 18px; font-size: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; }
+      #pause .quit:hover { background: rgba(120, 20, 20, 0.6); }
       /* echar a Abe y la partida privada, debajo del enlace (en la intro y en la pausa) */
       .netctl { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
       .netctl[hidden], .netctl [hidden] { display: none; }
@@ -631,6 +634,7 @@
         <form><input type="text" autocomplete="off" spellcheck="false" aria-label="Código de la sala" data-en-aria-label="Room code" placeholder="ABCD" data-en-placeholder="ABCD" /><button type="submit" data-en="Join">Entrar</button></form>
       </div>
       <button id="replaycine" type="button" data-en="Watch the intro again">Ver la intro de nuevo</button>
+      <button type="button" class="link quit" hidden data-en="Quit game">Salir del juego</button>
       <div id="corner">
         <div id="langpick" translate="no" role="group" aria-label="Idioma" data-en-aria-label="Language"><button type="button" data-lang="es" lang="es" title="Español">ES</button><button type="button" data-lang="en" lang="en" title="English">EN</button></div>
         <button id="notesbtn" type="button" title="Patch notes" aria-label="Patch notes" data-en-title="Patch notes" data-en-aria-label="Patch notes">
@@ -717,6 +721,7 @@
             <div class="netctl" hidden><button type="button" class="kick" tabindex="-1" hidden data-en="Kick Abe">Echar a Abe</button><button type="button" class="private" tabindex="-1"></button></div>
           </div>
         </div>
+        <button type="button" class="quit" tabindex="-1" hidden data-en="Quit game">Salir del juego</button>
       </div>
       <div id="end" hidden>
         <div class="rays"></div><div class="fire"></div><canvas class="confetti"></canvas>

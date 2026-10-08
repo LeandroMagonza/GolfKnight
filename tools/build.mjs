@@ -43,17 +43,18 @@ function size(path) {
 
 /**
  * Compila una versión. La completa vacía dist/ entero (con las otras adentro): por eso, si van varias,
- * va primero. `build` es la versión que se ve en la pantalla de entrada (día y hora).
+ * va primero. `build` es la versión que se ve en la pantalla de entrada (día y hora). Con `out`, en esa
+ * carpeta y **para vender**: sin las herramientas de prueba (la de escritorio, ver tools/desktop.mjs).
  */
-export function buildEdition(edition, build) {
+export function buildEdition(edition, build, out = OUT[edition]) {
   if (!EDITIONS.includes(edition)) throw new Error(`versión desconocida: ${edition} (son ${EDITIONS.join(', ')})`);
-  const env = { ...process.env, GK_EDITION: edition, ...(build ? { GK_BUILD: build } : {}) };
+  const store = out !== OUT[edition];
+  const env = { ...process.env, GK_EDITION: edition, ...(build ? { GK_BUILD: build } : {}), ...(store ? { GK_OUT: out, GK_DEV_TOOLS: '0' } : {}) };
   execSync('npx vite build --logLevel warn', { stdio: 'inherit', env });
-  for (const p of PRUNE[edition]) rmSync(join(OUT[edition], p), { recursive: true, force: true });
-  pruneOrphans(OUT[edition]);
-  const out = OUT[edition];
+  for (const p of PRUNE[edition]) rmSync(join(out, p), { recursive: true, force: true });
+  pruneOrphans(out);
   // lo de las otras versiones, que viven adentro de dist/, no cuenta para la completa
-  const inner = edition === 'full' ? EDITIONS.filter((e) => e !== 'full' && existsSync(OUT[e])).reduce((n, e) => n + size(OUT[e]), 0) : 0;
+  const inner = edition === 'full' && !store ? EDITIONS.filter((e) => e !== 'full' && existsSync(OUT[e])).reduce((n, e) => n + size(OUT[e]), 0) : 0;
   console.log(`${edition}: ${out}/ · ${((size(out) - inner) / 1e6).toFixed(1)} MB`);
 }
 

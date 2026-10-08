@@ -1658,6 +1658,18 @@ function makeDebugPanel(): DebugPanel {
   });
 }
 
+/**
+ * La app de escritorio (desktop/preload.cjs; en la web no existe): la pantalla de inicio y la pausa
+ * tienen «Salir del juego», porque arranca en pantalla completa.
+ */
+const desktop = (window as unknown as { gkDesktop?: { quit(): void; toggleFullscreen(): void } }).gkDesktop ?? null;
+if (desktop) {
+  for (const b of document.querySelectorAll<HTMLButtonElement>('button.quit')) {
+    b.hidden = false;
+    b.addEventListener('click', () => desktop.quit());
+  }
+}
+
 /** El botón (y la N) de todo el sonido: música y efectos, en el que juega y en el que mira. */
 const muteBtn = document.getElementById('muteall') as HTMLButtonElement;
 function showAllSound(): void {
@@ -2294,8 +2306,16 @@ function courseNumber(): number {
 }
 
 /** El enlace para mirar esta partida. */
+/**
+ * La página pública de Abe. El enlace que se comparte desde afuera de nuestra página (la app de
+ * escritorio, itch) va ahí: el amigo no tiene el juego. Ver docs/monetizacion.md.
+ */
+const ABE_PAGE = 'https://leandromagonza.github.io/GolfKnight/abe/'; // i18n-ok
+/** ¿Se juega desde nuestra página, o en la compu probando? Entonces el enlace es a esta misma página. */
+const OWN_PAGE = location.hostname === 'leandromagonza.github.io' || location.hostname === 'localhost' || /^[\d.]+$/.test(location.hostname);
+
 function watchLink(code: string): string {
-  const url = new URL(location.origin + location.pathname);
+  const url = new URL(OWN_PAGE ? location.origin + location.pathname : ABE_PAGE);
   url.searchParams.set('mirar', code);
   const c = courseNumber();
   if (c) url.searchParams.set('campo', String(c));

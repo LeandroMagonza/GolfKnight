@@ -125,10 +125,34 @@ Steam». Cada Abe es un posible comprador.
   para Steam. Lo más simple: dos páginas, la demo web gratis y la completa paga para bajar.
 - **Cobrar:** itch se queda con lo que uno elija (por defecto el 10 %). Se puede poner un mínimo y dejar
   pagar más.
-- **Precio (propuesta del 8/10):** US$4,99, como Brotato y Vampire Survivors (que salió a US$2,99 en
-  acceso anticipado). Deja lugar para descuentos (Steam vive de las ofertas) y se puede subir con más
-  contenido. El mismo en itch y en Steam: Steam pide que las claves de Steam vendidas afuera no salgan más
+- **Precio: US$2,99** (Leandro, 8/10; yo había propuesto US$4,99, como Brotato y Vampire Survivors).
+  Se puede subir con más contenido.
+- **Claves de Steam para los que compraron en itch:** se puede. Steam da las claves gratis (a pedido,
+  en Steamworks) y en itch se cargan en «External keys»: cada comprador, también los que compraron
+  antes, la saca de su página de descarga. El mismo en itch y en Steam: Steam pide que las claves de Steam vendidas afuera no salgan más
   baratas, y aunque itch venda sin claves, conviene no ser más barato que Steam.
+
+## La app de escritorio (8/10)
+
+`npm run desktop` arma la completa para vender (`GK_DEV_TOOLS=0`: sin panel B, `__gk`, `?bot` ni
+`?palos`) adentro de Electron, para Windows x64, en `release/golf-knight-win32-x64/`; `npm run
+desktop:demo` hace lo mismo con la demo (para la app gratis de Steam). Electron se baja solo con
+`npm install` (está en las dependencias de desarrollo).
+
+- **Tamaño:** unos 390 MB sin comprimir (235 son el ejecutable de Electron, 55 el juego). Se sacan los
+  idiomas de Chromium que no hacen falta. Comprimido para itch, la mitad, más o menos.
+- **Cómo carga el juego:** desde `app://golfknight/` (un protocolo propio, `desktop/main.cjs`), no desde
+  `file://`: así los módulos, los modelos y el localStorage andan como en la web.
+- **Pantalla completa** al arrancar; F11 o Alt+Enter la cambian. La música suena sin esperar un click.
+- **«Salir del juego»** en la pantalla de inicio y en la pausa (`desktop/preload.cjs` le da al juego
+  `window.gkDesktop`; en la web esos botones no se ven).
+- **El enlace de Abe** va a la página pública, https://leandromagonza.github.io/GolfKnight/abe/ (lo
+  mismo jugando desde itch): el amigo no tiene el juego. Falta lo de una carpeta por versión: hoy, si la
+  app quedó vieja, Abe ve el aviso de que son versiones distintas.
+- **Ícono:** `desktop/icon.ico` si está (si no, el de Electron).
+- **Para publicarla**, compilarla desde un commit limpio (como el deploy), no desde la carpeta de
+  trabajo, que puede tener cambios a medias de la otra sesión.
+- Mac y Linux, más adelante (Mac pide firmar y notarizar con Apple, US$99 por año).
 
 ## El código, privado
 
@@ -164,7 +188,9 @@ Pages es cambiar el deploy.
 - [ ] El enlace de Abe a la página propia, y una carpeta por versión.
 - [ ] TURN y código largo en el enlace.
 - [ ] Repo privado + repo público con lo compilado.
-- [ ] Una completa sin herramientas de prueba, para vender.
-- [ ] La completa como app de escritorio (Electron), para itch (descarga paga) y Steam.
+- [x] Una completa sin herramientas de prueba, para vender (8/10, `GK_DEV_TOOLS=0`).
+- [x] La completa como app de escritorio (Electron) para Windows (8/10, `npm run desktop`).
+- [ ] Butler en `npm run desktop` (después de `butler login`), y el ícono.
+- [ ] Las imágenes de la página de itch (portada, capturas, banner).
 - [ ] Al abrir la venta, sacar la completa de GitHub Pages (queda la demo y la de Abe).
 - [ ] Steam: Electron, steamworks.js, invitaciones, logros, página «próximamente».

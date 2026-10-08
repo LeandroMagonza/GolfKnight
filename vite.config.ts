@@ -13,11 +13,12 @@ const BUILD = process.env.GK_BUILD ?? stamp();
 
 /**
  * Qué versión del juego se compila (ver src/edition.ts y tools/build.mjs): la completa, la demo o la de
- * Abe. Las herramientas de prueba van solo en la completa.
+ * Abe. Las herramientas de prueba van solo en la completa, y no en la que se vende (GK_DEV_TOOLS=0, la
+ * de escritorio: tools/desktop.mjs). GK_OUT cambia la carpeta.
  */
 const EDITION = process.env.GK_EDITION ?? 'full';
 if (!['full', 'demo', 'abe'].includes(EDITION)) throw new Error(`GK_EDITION desconocida: ${EDITION}`);
-const DEV_TOOLS = EDITION === 'full';
+const DEV_TOOLS = EDITION === 'full' && process.env.GK_DEV_TOOLS !== '0';
 
 // base relativa: el juego se publica en una subcarpeta de GitHub Pages (leandromagonza.github.io/GolfKnight/)
 // y tiene que andar igual abierto desde cualquier ruta.
@@ -27,7 +28,7 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1500,
     // la completa en dist/, y las otras adentro, cada una en su carpeta: dist/demo/ y dist/abe/
-    outDir: EDITION === 'full' ? 'dist' : `dist/${EDITION}`,
+    outDir: process.env.GK_OUT ?? (EDITION === 'full' ? 'dist' : `dist/${EDITION}`),
     // la cinemática es una página aparte (cine.html), mientras sea una prueba. Abe no la ve
     rollupOptions: { input: EDITION === 'abe' ? { main: 'index.html' } : { main: 'index.html', cine: 'cine.html' } },
   },

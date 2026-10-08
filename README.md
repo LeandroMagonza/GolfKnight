@@ -18,6 +18,7 @@ npm test             # core: balística, medidor de swing, oleadas
 npm run typecheck
 npm run build:all    # las tres versiones: la completa, la demo y la de Abe (ver más abajo)
 npm run deploy       # compila y publica en GitHub Pages (rama gh-pages)
+npm run desktop      # la app de escritorio para Windows, para vender (release/; ver más abajo)
 ```
 
 ## Idiomas
@@ -512,6 +513,14 @@ directamente no se compila:
   enlace pide el código de la sala; no puede arrancar una partida.
 
 `npm run deploy` compila las tres. Para probar una en desarrollo: `GK_EDITION=demo npm run dev`.
+
+**La app de escritorio** (`npm run desktop`, o `npm run desktop:demo`; desde el 8/10): la completa **para
+vender**, sin las herramientas de prueba, adentro de Electron (`desktop/main.cjs`), en
+`release/golf-knight-win32-x64/` (unos 390 MB: 235 son Electron). Es la que va paga a itch (como
+descarga: itch no cobra juegos web) y después a Steam. Arranca en pantalla completa (F11 o Alt+Enter la
+cambian), la pantalla de inicio y la pausa tienen «Salir del juego», y el enlace de Abe va a la página
+pública (`/GolfKnight/abe/`), porque el amigo no tiene el juego. Para publicarla, compilarla desde un
+commit limpio, como el deploy. `logs/check-escritorio.mjs` la abre y la prueba.
 La carpeta `assets/` (FBX originales de Mixamo y modelos sin usar) no se sube al repo: son archivos
 fuente de terceros que no corresponde redistribuir. Los GLB ya armados que usa el juego sí están, en
 `public/models/`.
