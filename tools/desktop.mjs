@@ -4,20 +4,21 @@
 // uso: node tools/desktop.mjs [full|demo] [--publicar]   (sin nada, la completa)
 //
 // --publicar: es la que se sube a itch. Anota su versión en public/version.json (con el próximo deploy
-// queda en la página, y las apps viejas avisan que hay una nueva: ver checkUpdate en src/main.ts) y arma
-// el zip para subir en release/itch/.
+// queda en la página, y las apps viejas avisan que hay una nueva: ver checkUpdate en src/main.ts), arma
+// el zip en release/itch/ (para subir a mano o guardar) y la completa la sube a itch con butler (canal
+// `windows`, ver tools/itch.mjs).
 import { execSync } from 'node:child_process';
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { packager } from '@electron/packager';
 import { buildEdition } from './build.mjs';
+import { ITCH_PAGE, pushItch } from './itch.mjs';
 
 const args = process.argv.slice(2);
 const publish = args.includes('--publicar');
 const edition = args.find((a) => !a.startsWith('--')) ?? 'full';
 /** Dónde se baja cada una: el aviso de versión nueva lleva ahí. Sin dirección, avisa sin el botón. */
-const ITCH = 'https://forja-de-almas.itch.io/golf-knight';
-const DOWNLOAD = { full: ITCH, demo: ITCH };
+const DOWNLOAD = { full: ITCH_PAGE, demo: ITCH_PAGE };
 if (!['full', 'demo'].includes(edition)) throw new Error(`versión de escritorio desconocida: ${edition} (son full y demo)`);
 const name = edition === 'demo' ? 'golf-knight-demo' : 'golf-knight';
 const title = edition === 'demo' ? 'Golf Knight Demo' : 'Golf Knight';
@@ -75,5 +76,8 @@ if (publish) {
   const zip = resolve('release', 'itch', `${name}-windows.zip`);
   rmSync(zip, { force: true });
   execSync(`7z a -tzip -mx=7 "${zip}" "${out}"`, { stdio: 'ignore' });
-  console.log(`para subir: ${zip} · ${(statSync(zip).size / 1e6).toFixed(0)} MB. Commitear public/version.json y hacer el deploy.`);
+  console.log(`el zip: ${zip} · ${(statSync(zip).size / 1e6).toFixed(0)} MB`);
+  // la completa, a la página de itch (la demo de escritorio es para Steam: en itch la demo va en el navegador)
+  if (edition === 'full') pushItch(out, 'windows', build);
+  console.log('Commitear public/version.json y hacer el deploy.');
 }

@@ -179,7 +179,7 @@ el total en 3, o con la carta en su nivel de congelar. Lo que hace cada una:
 | --- | --- |
 | Carrito | un carrito de golf cruza el campo de costado a la altura que apuntás, y atropella |
 | Hoyo | el primero que lo pisa cae entero y no vuelve, tenga los poderes que tenga (los jefes y los élites no). Recarga 20 s |
-| Bandera | los que están cerca van hacia ella en vez de a la puerta (el élite no, desde el 8/10) |
+| Bandera | los que están cerca van hacia ella en vez de a la puerta (el jefe y los élites no, desde el 8/10) |
 | Pólvora | marca; el marcado que muere explota, y encadena si los de al lado están marcados |
 | Lluvia de pelotas | una pelota en cada puesto; son de regalo, así que los guardias siguen reponiendo las suyas |
 | Caddie dorado | unos segundos con pelota infinita en tu puesto |

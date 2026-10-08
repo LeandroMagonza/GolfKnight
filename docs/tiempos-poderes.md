@@ -223,4 +223,4 @@ lo siguiente es que venga con menos enemigos alrededor (`ELITE.at`), o bajarle m
 Lo que lo acompaña, el mismo día:
 - **El silencio** pasó a 2 s de base (2, 2.5, 3, 3.5 y 4; eran 5, 6.5, 8, 9 y 10), lo mismo que el de
   Abe. Al élite, la mitad: 1 s. Ya no sirve para abrir al élite un rato largo.
-- **La bandera** (la habilidad) ya no desvía al élite.
+- **La bandera** (la habilidad) ya no desvía al élite, ni al jefe.

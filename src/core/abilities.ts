@@ -257,7 +257,7 @@ const BASE: Ability[] = [
   },
   {
     id: 'flag', kind: 'flag', name: L('Bandera', 'Flag'), title: L('los desvía', 'lures them'), cooldown: 15, range: 55, color: 0xd8413a,
-    hint: L('Planta una bandera: los que están cerca van hacia ella un rato. Menos los élites', 'Plants a flag: nearby enemies walk to it for a while. Not elites'),
+    hint: L('Planta una bandera: los que están cerca van hacia ella un rato. Menos el jefe y los élites', 'Plants a flag: nearby enemies walk to it for a while. Not the boss or elites'),
   },
   {
     id: 'powder', kind: 'powder', name: L('Pólvora', 'Gunpowder'), title: L('en cadena', 'chain blast'), cooldown: 10, range: 50, color: 0xb0413e,

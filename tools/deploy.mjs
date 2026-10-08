@@ -1,9 +1,11 @@
 // Publica el juego en GitHub Pages: compila las versiones y sube dist/ a la rama gh-pages del mismo remoto.
-// La rama gh-pages es solo el sitio compilado, así que se pisa entera en cada publicación.
-// uso: npm run deploy
+// La rama gh-pages es solo el sitio compilado, así que se pisa entera en cada publicación. Y la demo, a la
+// página de itch, para jugar en el navegador (ver tools/itch.mjs).
+// uso: npm run deploy [-- --sin-itch]
 import { execSync } from 'node:child_process';
 import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import { buildAll, EDITIONS } from './build.mjs';
+import { pushItch } from './itch.mjs';
 
 const run = (cmd, cwd = process.cwd()) => execSync(cmd, { cwd, stdio: 'inherit' });
 const out = (cmd, cwd = process.cwd()) => execSync(cmd, { cwd }).toString().trim();
@@ -25,4 +27,6 @@ run('git add -A', 'dist');
 run(`git -c user.name="${out('git config user.name')}" -c user.email="${out('git config user.email')}" commit -q -m "Publica ${source}"`, 'dist');
 run(`git push -f "${remote}" gh-pages`, 'dist');
 rmSync('dist/.git', { recursive: true, force: true });
-console.log(`Publicado: versión ${build} (${source}). GitHub Pages tarda un minuto o dos en actualizar.`);
+// la demo en itch: la misma de /demo/
+const itch = !process.argv.includes('--sin-itch') && pushItch('dist/demo', 'html5', build);
+console.log(`Publicado: versión ${build} (${source}). GitHub Pages tarda un minuto o dos en actualizar.${itch ? ' La demo, también en itch.' : ''}`);

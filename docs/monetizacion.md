@@ -117,17 +117,20 @@ Steam». Cada Abe es un posible comprador.
 
 - **La página:** https://forja-de-almas.itch.io/golf-knight (cuenta Forja de Almas; creada el 8/10, se
   edita en https://itch.io/game/edit/5119564).
-- **Subir:** con `butler`, el programa oficial de itch, sumado a `npm run deploy` (sube solo lo que
-  cambió, los modelos no se vuelven a subir). Una vez, Leandro: crea la página del juego (tipo HTML),
-  corre `butler login` en su compu, y después de la primera subida marca «This file will be played in
-  the browser».
+- **Subir (desde el 8/10):** con `butler`, el programa oficial de itch (instalado en
+  `C:\Users\leand\.local\bin`, con `butler login` hecho). Sube solo lo que cambió, y la app de itch
+  actualiza sola. `npm run deploy` sube la demo al canal `html5` (la de jugar en el navegador; con
+  `-- --sin-itch` no), y `npm run desktop -- --publicar` la completa de Windows al canal `windows`. Ver
+  `tools/itch.mjs`. butler no edita la página: el texto, las imágenes, el precio y la visibilidad se
+  cambian en https://itch.io/game/edit/5119564. Después de la primera subida, en la página: marcar la
+  de `html5` como «This file will be played in the browser».
 - **itch no cobra juegos que se juegan en el navegador** (lo confirmé el 8/10 en sus foros): un juego
   HTML es gratis, a lo sumo con donación. Así que la completa paga va como **descarga**: el juego dentro
   de Electron (Windows primero; Mac pide firmar y notarizar con Apple), que es lo mismo que hace falta
   para Steam. **Va todo en una página** (Leandro, 8/10): un proyecto HTML con la demo embebida, que itch
   deja siempre gratis, y la completa de Windows como descargable con precio mínimo, que solo se aplica a
   los descargables. Hace falta configurar los pagos en la cuenta (sin eso, nadie puede bajar algo pago).
-- **Subir a mano**, mientras no esté butler: los zip de `release/itch/` (la demo web, marcada «This file
+- **Subir a mano** (antes de butler; los zip siguen saliendo, de respaldo): los de `release/itch/` (la demo web, marcada «This file
   will be played in the browser», y la de Windows, marcada Windows). Embed de 1280×720, con el botón de
   pantalla completa, sin «Mobile friendly».
 - **Declaración de IA** (itch y Steam la piden): **sí**. El código se escribió con un LLM y las voces son
@@ -206,7 +209,7 @@ Pages es cambiar el deploy.
 ## Pendiente
 
 - [x] Leandro: crear la página en itch.io (8/10, https://forja-de-almas.itch.io/golf-knight).
-- [ ] Leandro: correr `butler login`. Después: butler en el deploy.
+- [x] Leandro: correr `butler login` (8/10). Butler en el deploy y en `desktop --publicar` (8/10).
 - [x] Qué deja afuera la demo (7/10): talentos, cuatro poderes de enemigos y dos elementos.
 - [ ] Que el nivel 0 se gane en menos de dos horas (probarlo jugando).
 - [ ] El enlace de Abe a la página propia, y una carpeta por versión.
@@ -214,7 +217,6 @@ Pages es cambiar el deploy.
 - [ ] Repo privado + repo público con lo compilado.
 - [x] Una completa sin herramientas de prueba, para vender (8/10, `GK_DEV_TOOLS=0`).
 - [x] La completa como app de escritorio (Electron) para Windows (8/10, `npm run desktop`).
-- [ ] Butler en `npm run desktop` (después de `butler login`).
 - [x] Las imágenes de la página de itch y el texto, en español e inglés (8/10, `promo/itch/`, armadas
   con `tools/promo.mjs`), y el ícono de la app (`desktop/icon.ico`).
 - [ ] Al abrir la venta, sacar la completa de GitHub Pages (queda la demo y la de Abe).
