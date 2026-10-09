@@ -294,10 +294,7 @@ Leandro probó con un amigo, los dos en PC y en casas distintas, él de Abe: a A
   «Alguien quiso entrar, pero sus redes no dejan conectarse directo».
 - **No hay TURN gratis sin cuenta**: probado el 6/10, openrelay.metered.ca rechaza las credenciales
   públicas de siempre («400 allocate error») y staticauth.openrelay.metered.ca ya no existe. Queda todo
-  listo para enchufar uno: `TURN.credentialsUrl` en net/link.ts, la dirección que da las credenciales.
-  Con una cuenta gratis de Metered (20 GB por mes) es
-  `https://<app>.metered.live/api/v1/turn/credentials?apiKey=<clave>`. La clave queda a la vista en la
-  página: para un juego chico está bien, en el peor caso alguien gasta la cuota del mes.
+  listo para enchufar uno (hecho el 9/10: ver «El TURN», más abajo).
 - `?soloturn` en la URL obliga a pasar por el TURN: sirve para probarlo (sin TURN, no conecta nunca).
 - La prueba es `logs/check-conexion.mjs`: dos navegadores, relays de verdad. Se encuentran en unos 2 s,
   y con `?soloturn` sin TURN salen los dos avisos y no entra en el bucle de reconexión.
@@ -347,3 +344,22 @@ Abe (`abeKeys`: 1 a 4 y Q W E R para los hechizos, las flechas para la cámara).
 
 Probado con `logs/check-versiones.mjs`: un caballero con la completa y un Abe con la de Abe, en dos
 pestañas; entra como Abe, ve la misma oleada, y su marca sale en la partida del caballero.
+
+## Hecho: el TURN (9/10/2026)
+
+Leandro pasó la consola de un intento de entrar como Abe: se encontraron por los relays, pero la conexión directa no
+salió («could not connect to peer … after exchanging SDP»; ver «Cuando no se pueden conectar», del 6/10).
+Ahora hay un **servidor TURN**: el de Metered, con la cuenta gratis de Leandro (metered.ca, 20 GB por
+mes, sin tarjeta: si se acaba, deja de andar, no cobra). Cuando la conexión directa no sale, los datos pasan
+por él; cuando sale, no lo usa.
+
+- Las credenciales son fijas y van en `TURN`, en net/link.ts: quedan a la vista en la página, y Leandro
+  eligió tenerlas en el código. En el peor caso alguien gasta la cuota del mes; se cambian desde el panel
+  de Metered (TURN Server → la credencial).
+- Por el puerto 80 y el 443, por UDP y por TCP (y TLS por el 443), para las redes que solo dejan la web.
+  En general alcanza con que uno de los dos lo tenga: una app de Windows vieja, sin TURN, debería
+  conectar con un Abe nuevo.
+- Las fotos son unos KB, 15 por segundo: una partida por el TURN gastaría del orden de 100 a 250 MB por
+  hora (estimado, sin medir). Los 20 GB darían para unas 100 horas por mes de partidas que no puedan ir directo.
+- Probado con `logs/check-conexion.mjs`: con `?soloturn` (sin conexión directa, todo por el TURN) se
+  encuentran en 3 s y las fotos siguen llegando.

@@ -1,8 +1,8 @@
 // La conexión entre el que juega y el que mira (ver docs/multijugador.md). Dos con la misma cara:
 //
 // - **Trystero**: WebRTC de navegador a navegador. Para encontrarse usan relays públicos de Nostr, gratis
-//   y sin cuenta; después los datos van directo entre los dos. Sin servidor propio: el juego sigue siendo
-//   una página estática.
+//   y sin cuenta; después los datos van directo entre los dos, o por el TURN de Metered si sus redes no
+//   dejan (ver `TURN`). Sin servidor propio: el juego sigue siendo una página estática.
 // - **Local** (`&local` en la URL): un BroadcastChannel entre pestañas del mismo navegador. Para probar
 //   los dos lados en una sola máquina, y en las pruebas automáticas, sin red.
 //
@@ -18,7 +18,7 @@ export interface Link {
   onPeer: ((id: string, joined: boolean) => void) | null;
   /**
    * Se encontraron por los relays, pero la conexión directa no salió: la red de alguno de los dos no la
-   * deja (algunos routers, el celular con datos). Hace falta un servidor TURN (ver `TURN`). Trystero lo
+   * deja (algunos routers, el celular con datos) y tampoco salió por el TURN (ver `TURN`). Trystero lo
    * sigue intentando.
    */
   onTrouble: ((peer: string) => void) | null;
@@ -33,25 +33,25 @@ export interface Link {
 const RELAYS = 8;
 
 /**
- * El servidor TURN, para cuando las redes no dejan conectar directo: los datos pasan por él. Es la
- * dirección que da las credenciales; con Metered (metered.ca, la cuenta gratis da 20 GB por mes) es
- * `https://<app>.metered.live/api/v1/turn/credentials?apiKey=<clave>`. Vacía = sin TURN, solo conexión
- * directa. Los gratis sin cuenta ya no andan (probado el 6/10: openrelay.metered.ca rechaza las
- * credenciales públicas de siempre). `?soloturn` en la URL obliga a pasar por el TURN, para probarlo.
+ * El servidor TURN, para cuando las redes no dejan conectar directo: los datos pasan por él. Es el de
+ * Metered (cuenta de Leandro en metered.ca; la gratis da 20 GB por mes; desde el 9/10). Las credenciales
+ * quedan a la vista en la página, y Leandro eligió tenerlas acá: en el peor caso alguien gasta la cuota del
+ * mes, y se cambian desde el panel de Metered. Por el puerto 80 y el 443, por UDP y por TCP, para pasar los
+ * firewalls que solo dejan la web. Basta con que uno de los dos lo tenga. `?soloturn` en la URL obliga a
+ * pasar por el TURN, para probarlo.
  */
-export const TURN = { credentialsUrl: '' };
-
-async function turnServers(): Promise<{ urls: string | string[]; username?: string; credential?: string }[] | undefined> {
-  if (!TURN.credentialsUrl) return undefined;
-  try {
-    const r = await fetch(TURN.credentialsUrl, { signal: AbortSignal.timeout(5000) });
-    const list: unknown = await r.json();
-    return Array.isArray(list) ? list : undefined;
-  } catch (e) {
-    console.warn('TURN: no pude pedir las credenciales', e);
-    return undefined;
-  }
-}
+export const TURN = [
+  {
+    urls: [
+      'turn:global.relay.metered.ca:80',
+      'turn:global.relay.metered.ca:80?transport=tcp',
+      'turn:global.relay.metered.ca:443',
+      'turns:global.relay.metered.ca:443?transport=tcp',
+    ],
+    username: '7455c78d21dd8e573c39ecc0',
+    credential: 'K8CAyhkbVwbE+QkJ',
+  },
+];
 
 /** El nombre de la app en los relays: separa nuestras salas de las de otros juegos. */
 const APP_ID = 'golfknight-mirar';
@@ -69,7 +69,7 @@ export function roomCode(): string {
 }
 
 async function trysteroLink(code: string): Promise<Link> {
-  const [{ joinRoom }, turn] = await Promise.all([import('trystero'), turnServers()]);
+  const { joinRoom } = await import('trystero');
   const relayOnly = new URLSearchParams(location.search).has('soloturn');
   let trouble: ((peer: string) => void) | null = null;
   const room = joinRoom(
@@ -77,7 +77,7 @@ async function trysteroLink(code: string): Promise<Link> {
       appId: APP_ID,
       // de la lista de relays, algunos siempre están caídos: que no llenen la consola de avisos
       relayConfig: { warnOnRelayFailure: false, redundancy: RELAYS },
-      ...(turn ? { turnConfig: turn } : {}),
+      turnConfig: TURN,
       ...(relayOnly ? { rtcConfig: { iceTransportPolicy: 'relay' as const } } : {}),
     },
     code,
