@@ -411,3 +411,16 @@ Con `?bot&transmitir=CÓDIGO` (en la carpeta de la completa) ahora:
 Abe entra con `abe/p1/?mirar=CÓDIGO`. La ventana del bot tiene que quedar a la vista: el navegador frena
 las pestañas escondidas o minimizadas (lo mejor, Abe en el celular). Probado con
 `logs/check-bot-abe.mjs`.
+
+**El bot, en serio** (el mismo día; Leandro: «es muy malo», erraba sobre todo en diagonal y contra los que
+esquivan). Tres niveles, `?bot=perfecto` (sin nada, este), `bueno` y `flojo` (más o menos el de antes):
+- apunta adonde van a coincidir la pelota y el enemigo: simula el vuelo con la misma física del juego y
+  le mide la velocidad a cada enemigo mirándolo caminar, y corrige la puntería hasta que sale la pelota;
+- carga lo justo: el golpe más corto que lo mata, o el más alto si no alcanza (con el blindaje, el tope
+  del fantasma, la lupa y la marca de Abe). Al fantasma, golpes de 1;
+- driver y putter; el wedge solo contra el escudo de frente (cae un poco detrás del enemigo);
+- al que esquiva y a la burbuja, primero un cebo corto; al intocable, cuando la pelota llega en su ventana;
+- con el driver se corre con la pelota para que la línea agarre a otro más;
+- se corre de los hechizos que le caen en el puesto.
+Probado con `logs/check-bot.mjs` (situaciones armadas, y jugando contra cada poder) y
+`logs/bot-compara.mjs` (una partida entera con cada nivel).

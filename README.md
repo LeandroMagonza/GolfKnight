@@ -562,8 +562,10 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
   - `oleadas.mts`: la dificultad de cada oleada (vida efectiva por segundo), para que la curva suba pareja.
     Se corre con `node --experimental-transform-types tools/oleadas.mts`.
   - `props_to_glb.py`: junta props de PolygonDungeon (los escudos) en un GLB con el atlas del pack.
-  - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las oleadas, para chequear balance. No
-    camina ni busca filas: es una cota inferior. Con `--ver` abre una ventana para mirarlo.
+  - `botplay.mjs`: un bot (`src/bot.ts`, el mismo de `?bot`) juega las oleadas, para chequear balance.
+    Desde el 9/10 tiene niveles (`--nivel=perfecto`, `bueno` o `flojo`; en el navegador, `?bot=bueno`):
+    el perfecto apunta adonde va a estar el enemigo, carga lo justo, le gasta la esquiva con un cebo y se
+    corre para alinear; el flojo es más o menos el de antes. Con `--ver` abre una ventana para mirarlo.
   - `swingshot.mjs`: capturas de cerca de cada fase del swing, y distancia cabeza-pelota en el impacto.
   - `visual.mjs`: capturas de la misma escena con la capa visual apagada y en cada hora del día
     (`logs/visual-*.png`). Usa la GPU, no el render por software. Las pruebas automáticas arrancan con

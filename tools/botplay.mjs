@@ -1,9 +1,10 @@
 // Un bot juega la partida entera, para chequear el balance sin jugar a mano. El bot vive en
 // src/bot.ts y se activa con ?bot en la URL, así que también se lo puede mirar jugar en el navegador:
 //   npm run dev   y abrir   http://localhost:5173/?bot
-// uso: node tools/botplay.mjs [minutosMax] [--ver]
+// uso: node tools/botplay.mjs [minutosMax] [--ver] [--nivel=perfecto|bueno|flojo]
 //   --ver abre una ventana de Chromium de verdad (con la placa de video) para mirarlo; sin eso corre
-//   sin ventana, con render por software.
+//   sin ventana, con render por software. --nivel elige qué tan bien juega (ver BOT_SKILLS en src/bot.ts;
+//   flojo es más o menos el bot de antes del 9/10, que soltaba siempre en el golpe 2).
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -11,6 +12,7 @@ import { mkdirSync } from 'node:fs';
 mkdirSync('logs', { recursive: true });
 const watch = process.argv.includes('--ver');
 const maxMinutes = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) ?? 14);
+const skill = process.argv.find((a) => a.startsWith('--nivel='))?.slice('--nivel='.length) ?? 'perfecto';
 const server = await createServer({ root: process.cwd(), server: { port: 5196, strictPort: true }, logLevel: 'error' });
 await server.listen();
 const browser = await chromium.launch(watch
@@ -20,12 +22,11 @@ const browser = await chromium.launch(watch
 const page = await browser.newPage({ viewport: watch ? { width: 1280, height: 720 } : { width: 640, height: 360 } });
 const errors = [];
 page.on('pageerror', (e) => { errors.push(e.message); console.log('[pageerror]', e.message); });
-await page.goto('http://localhost:5196/?bot');
+await page.goto(`http://localhost:5196/?bot=${skill}`);
 await page.evaluate(() => localStorage.removeItem('gk.globos'));
 await page.reload();
-await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 90000 });
-await page.click('#start');
-await page.waitForFunction(() => document.getElementById('overlay').hidden);
+// con ?bot la partida arranca sola (ver botAutostart en main)
+await page.waitForFunction(() => document.getElementById('overlay').hidden, null, { timeout: 90000 });
 await page.waitForFunction(() => window.__bot, null, { timeout: 10000 });
 
 const t0 = Date.now();
