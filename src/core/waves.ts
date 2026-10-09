@@ -549,6 +549,11 @@ export interface RunRules {
    * esto, o con menos de tres (no alcanzan para los tres escenarios), de todos.
    */
   pool?: readonly ScenarioPower[];
+  /**
+   * Los poderes de los tres escenarios, en orden, sin sortear (para probar: `?poderes=` con las
+   * herramientas de prueba). Con menos de tres, se sortean como siempre.
+   */
+  order?: readonly ScenarioPower[];
   /** Por cuánto se multiplica la recarga de las habilidades del caballero (el talento «Recarga lenta»). */
   cooldown: number;
 }
@@ -652,7 +657,7 @@ function bodies(goblin: number, goblina: number, orc: number, skeleton: number, 
  */
 export function buildRun(rand: () => number = Math.random, rules: RunRules = HARDEST): Run {
   const pool = rules.pool && rules.pool.length >= 3 ? rules.pool : SCENARIO_POWERS;
-  const powers = draw(pool, 3, rand);
+  const powers = rules.order && rules.order.length >= 3 ? rules.order.slice(0, 3) : draw(pool, 3, rand);
   const drawnSupports = draw(SUPPORT_POWERS, 2, rand);
   const drawnMods = draw(WAVE_MODS, 3, rand);
   // dónde va cada ola especial: la primera en el primer escenario, la segunda en el segundo o el tercero

@@ -424,3 +424,25 @@ esquivan). Tres niveles, `?bot=perfecto` (sin nada, este), `bueno` y `flojo` (m�
 - se corre de los hechizos que le caen en el puesto.
 Probado con `logs/check-bot.mjs` (situaciones armadas, y jugando contra cada poder) y
 `logs/bot-compara.mjs` (una partida entera con cada nivel).
+
+**Segunda vuelta** (Leandro lo vio perder contra el élite del escudo: lo dejó llegar, le tiraba de frente
+y se comía los rebotes; las habilidades, mal tiradas; alineaba poco):
+- **Elige el tiro y el puesto**: prueba los tiros desde cada puesto con pelota (contando lo que tarda en
+  ir) y se queda con el que más vale por segundo. Vale lo que les saca a todos los de la línea, pesado por
+  lo que apura cada uno y por lo que es: el élite y el jefe ×3, y el silenciado con escudo ×2 mientras
+  dure. Así deja venir a los de un costado que no apuran y los atraviesa juntos.
+- **Nunca le tira a un escudo de frente**, tampoco más atrás en la línea del driver (el rebote vuelve
+  contra él). Al del escudo:
+  - el **hierro a la cabeza**: apunta detrás para que el arco le llegue entre lo que tapa el escudo
+    (`SHIELD_TOP`) y la cabeza;
+  - el **wedge** cayendo detrás o al costado, nunca adelante (lo que estalla adelante lo tapa el escudo:
+    se calcula como `Horde.shadeOf`), donde agarre a más;
+  - el **combo**: carga el fuerte y tira el silenciador en el momento justo, contando el vuelo de las dos
+    pelotas, para que el fuerte llegue con el escudo bajo (al élite el silencio le dura la mitad).
+- **Clava la carga y espera** (la barra espaciadora), contra el intocable: suelta para que la pelota
+  llegue cuando se le abre la ventana.
+- **Las habilidades, cada una a lo suyo** (`abilityPlan`): las de tiro, con la misma puntería y solo si
+  llegan (el putter, 20 m); el carrito, a una fila; el hoyo, en el camino de uno; la bandera, detrás del
+  grupo que apura; la pólvora y la lupa, en un montón; los refuerzos, cuando hay a quién pegarle.
+- Para probarlo contra un poder: `?poderes=shield,dodge,phase` (con las herramientas de prueba) elige los
+  de los tres escenarios. En la comparación: `node logs/bot-compara.mjs 16 "perfecto@shield,dodge,phase"`.

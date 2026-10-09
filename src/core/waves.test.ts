@@ -572,4 +572,11 @@ describe('waves', () => {
     expect(PHASE.eliteOpen).toBeGreaterThan(PHASE.open);
     expect(PHASE.eliteShut).toBeLessThanOrEqual(PHASE.shut);
   });
+
+  it('`order` fija los poderes de los tres escenarios, sin sortear (?poderes= para probar)', () => {
+    const run = buildRun(Math.random, { ...HARDEST, order: ['shield', 'dodge', 'phase'] });
+    expect(run.powers).toEqual(['shield', 'dodge', 'phase']);
+    // con menos de tres, se sortean como siempre
+    expect(buildRun(Math.random, { ...HARDEST, order: ['shield'] }).powers).toHaveLength(3);
+  });
 });

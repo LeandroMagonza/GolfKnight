@@ -159,9 +159,14 @@ function showRun(): void {
 }
 showRun();
 
-/** Las reglas de la partida: las de la dificultad, y en la demo, sin los poderes que no trae (DEMO_LOCKS). */
+/**
+ * Las reglas de la partida: las de la dificultad, y en la demo, sin los poderes que no trae (DEMO_LOCKS).
+ * Con las herramientas de prueba, `?poderes=shield,dodge,phase` elige los de los tres escenarios.
+ */
 function runRules(): RunRules {
   const r = rulesFor(progress.picks);
+  const order = DEV_TOOLS ? (params.get('poderes') ?? '').split(',').filter((p): p is ScenarioPower => (SCENARIO_POWERS as readonly string[]).includes(p)) : [];
+  if (order.length >= 3) return { ...r, order };
   return DEMO ? { ...r, pool: SCENARIO_POWERS.filter((p) => !DEMO_LOCKS.powers.includes(p)) } : r;
 }
 
