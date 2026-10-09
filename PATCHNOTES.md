@@ -11,7 +11,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 **De a dos**
 - **Abe entra aunque sus redes no dejen conectarse directo** (algunos routers, el celular con datos):
-  ahora la partida pasa por un servidor intermedio. Antes se encontraban, pero no conectaban. `b583947`
+  ahora la partida pasa por un servidor intermedio. Antes se encontraban, pero no conectaban. También
+  en la app de Windows. `b583947` `57f2cb4`
 
 ## 8 de octubre
 
