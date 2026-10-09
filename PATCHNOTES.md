@@ -31,6 +31,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   silenciador justo antes. Contra el intocable, clava la carga y suelta cuando se abre. Usa bien las
   habilidades. Ganó partidas enteras contra cada poder. Para probar, `?poderes=` elige los poderes de la
   partida. `f21e524`
+  Al que se cura ya no le pega justo antes de la cura: si no llega a matarlo antes, carga y espera a que
+  se cure para pegarle con todo el ciclo por delante, y al que empezó lo termina antes de ir con otro. Ya
+  no se deja atropellar: mira por dónde pasa cada enemigo, no carga ni camina por donde alguien le va a
+  pasar por encima, y se corre de las pelotas que le devuelve un escudo. `5592950`
 
 **Los palos**
 - Las tarjetas de los palos dicen **cuánto pegan** en vez de hasta dónde llegan: lo de cada golpe (1·2·3)
