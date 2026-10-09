@@ -446,3 +446,25 @@ y se comía los rebotes; las habilidades, mal tiradas; alineaba poco):
   grupo que apura; la pólvora y la lupa, en un montón; los refuerzos, cuando hay a quién pegarle.
 - Para probarlo contra un poder: `?poderes=shield,dodge,phase` (con las herramientas de prueba) elige los
   de los tres escenarios. En la comparación: `node logs/bot-compara.mjs 16 "perfecto@shield,dodge,phase"`.
+
+**Tercera vuelta** (Leandro, mirándolo jugar: al que se cura le cargaba un golpe que llegaba justo antes de
+la cura, o le pegaba y se iba con otro y volvía tarde; y perdió contra el jefe porque lo atropelló un
+élite con la puerta todavía entera):
+- **El que se cura**: lo que no lo termina vale solo si se lo puede terminar antes de la cura (contando
+  los tiros que siguen, `finishTime`); lo que llega justo encima de la cura cuenta como después. Si no
+  llega, carga, clava y suelta para que la pelota le llegue **recién curado**, con todo el ciclo por
+  delante. Terminar al que ya se empezó salva lo que se le sacó: vale eso de más, y apura más cuanto menos
+  le falta para curarse. Contra cuatro que se curan, 60 s: sin saberlo se les curaban 66 de vida y bajaba
+  20; sabiéndolo, 10 y 27.
+- **Los que le pasan por encima** (lo atropellan: le sacan vida; el élite, la partida): mira por dónde va
+  a pasar cada uno con la velocidad que lleva, contra donde se va a parar el cuerpo (hasta 1.5 m al lado
+  de la pelota, según adónde apunte). No carga en un puesto por el que alguien pasa antes de que termine
+  el golpe, ni va a uno cruzándose con alguien en el camino (así lo había pisado el élite: iba de un
+  puesto a otro); suelta la carga si se le viene uno, y se corre al puesto seguro más cerca. Antes solo
+  miraba si alguien venía derecho a su puesto, y solo estando quieto. Con 6 caminando hacia los puestos
+  todo el tiempo, élites incluidos: nadie lo pisó en 60 s.
+- **Los rebotes**: se corre de la marca roja como de los hechizos (va adonde estaba cuando rebotó).
+- **El hierro a la cabeza con lomas**: la altura se cuenta desde la loma donde va a estar el enemigo (el
+  arco sale de la altura 0 del puesto). Con lomas de hasta 1 m rebotan 4 de cada 29 (en plano, 1 de 32), y
+  de esos se corre.
+Probado con `logs/check-bot-2.mjs` (`curan`, `pisa`, `loma`).

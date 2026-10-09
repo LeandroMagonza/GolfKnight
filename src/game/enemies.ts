@@ -21,7 +21,7 @@ import { TEE_Z } from './tees';
 import { GATE_HALF_WIDTH, GATE_Z } from './world';
 
 /** A esta distancia (más su radio) un enemigo que pasa le pega al golfista. */
-const TRAMPLE_REACH = 0.55;
+export const TRAMPLE_REACH = 0.55;
 /** Metros detrás de la línea de puestos a partir de los cuales un enemigo ya pasó: no se le pega más. */
 const PASSED_BEHIND = 1.6;
 /** El que pasó corre hasta la puerta a esta velocidad, para no quedarse a la vista sin poder tocarlo. */

@@ -29,11 +29,19 @@
 //   justo para que la pelota llegue cuando se le abre la ventana.
 // - **El que esquiva y la burbuja**: un tiro corto de cebo (la esquiva salta al soltar, la burbuja se come
 //   el primer golpe) y después el que importa, antes de que se recarguen.
+// - **El que se cura** (9/10, de mirarlo jugar: le pegaba justo antes de la cura, y se distraía con otro
+//   y volvía tarde): lo que le saca solo vale si lo puede terminar antes de que se cure. Si no llega,
+//   carga, clava y suelta para que la pelota le llegue recién curado, con todo el ciclo por delante; y al
+//   que ya empezó lo termina antes que a otro (lo que le sacó se pierde si se cura).
 // - **Las habilidades, cada una a lo suyo** (ver `abilityPlan`): las de tiro con la misma puntería que los
 //   tiros y solo si llegan (el putter, 20 m); el carrito, a una fila; el hoyo, en el camino de uno; la
 //   bandera, detrás de un grupo para juntarlo; la pólvora y la lupa, en un montón; los refuerzos, cuando
 //   hay a quién pegarle.
-// - **Se corre** de los hechizos que le caen en el puesto, y del que se le viene encima (o le da un palazo).
+// - **Se corre** de los hechizos que le caen en el puesto y de las pelotas que le devuelve un escudo (la
+//   marca roja: va adonde estaba). Y de los que le van a pasar por encima camino a la puerta (lo
+//   atropellan; el élite, de una): mira por dónde va a pasar cada uno, no carga en un puesto por el que
+//   alguien pasa antes de que termine el golpe, suelta la carga si se le viene uno, y al que lo tiene
+//   encima le da un palazo si lo tiene listo.
 // - Las cartas, al azar.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -41,9 +49,11 @@ import * as THREE from 'three';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, stepBall, type BounceParams } from './core/ballistics';
 import { areaDamageFor, CLUBS, damageFor, fourthFrom, qualityMarks, qualityOf, rollFrictionFor, SHIFT, spreadFor, topQuality, type Club, type ClubId } from './core/clubs';
 import { ABILITIES, CART, ELEMENTS, FLAG, LENS, POWDER, shotQuality } from './core/abilities';
-import { behindShield, SHIELD_FRONT, SHIELD_TOP, shieldFaces } from './core/shield';
+import { behindShield, RICOCHET, SHIELD_FRONT, SHIELD_TOP, shieldFaces } from './core/shield';
+import { heightAt } from './core/terrain';
 import { DODGE, RANGED, SHIELD_WALL } from './core/waves';
 import type { ChargeTimes } from './core/swing';
+import { TRAMPLE_REACH } from './game/enemies';
 
 type Gk = any;
 type Enemy = any;
@@ -61,8 +71,10 @@ export interface BotStats {
   jumps: number;
   /** Tiros cortos para gastarle la esquiva o la burbuja a uno. */
   baits: number;
-  /** Veces que se corrió de un hechizo. */
+  /** Veces que se corrió de un hechizo o de un rebote. */
   evades: number;
+  /** Cargas que soltó porque se le venía uno encima. */
+  aborts: number;
   /** Tiros que salieron corridos del puesto para alinear a varios. */
   aligned: number;
   /** Tiros de hierro a la cabeza, por encima del escudo. */
@@ -98,13 +110,15 @@ export interface BotSkill {
   shields: boolean;
   /** Usa las habilidades pensando (si no, al grupo más cercano, como el de antes). */
   abilities: boolean;
+  /** Sabe del que se cura: no le pega lo que no llega a terminar, espera la cura y termina lo que empezó. */
+  regen: boolean;
 }
 
 export const BOT_SKILLS: Record<string, BotSkill> = {
-  perfecto: { think: 0.05, aimError: 0, timing: 1, fixedQuality: null, align: true, posts: true, bait: true, evade: true, shields: true, abilities: true },
-  bueno: { think: 0.3, aimError: 0.35, timing: 0.85, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true },
+  perfecto: { think: 0.05, aimError: 0, timing: 1, fixedQuality: null, align: true, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: true },
+  bueno: { think: 0.3, aimError: 0.35, timing: 0.85, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: true },
   // más o menos el de antes: suelta en el 2 y no sabe nada de los poderes
-  flojo: { think: 0.6, aimError: 0.8, timing: 1, fixedQuality: 2, align: false, posts: false, bait: false, evade: false, shields: false, abilities: false },
+  flojo: { think: 0.6, aimError: 0.8, timing: 1, fixedQuality: 2, align: false, posts: false, bait: false, evade: false, shields: false, abilities: false, regen: false },
 };
 
 /** Cada palo tiene su tecla: Digit1 a Digit4, en este orden. */
@@ -119,6 +133,14 @@ const AFTER_SHOT = 0.7;
 const CAST_LAG = 0.1;
 /** El globo de la pólvora y la lupa (ver LOB en game/abilities). */
 const LOB = { loftDeg: 55, gravity: 40 };
+/**
+ * El que se cura: lo que llega hasta `before` s antes de la cura es antes; hasta `after` s después, no se
+ * sabe (cuenta como después, sin tiempo para seguir). `wait` es cuánto después de la cura hacerla llegar
+ * cuando la espera.
+ */
+const REGEN_EDGE = { before: 0.12, after: 0.08, wait: 0.2 };
+/** Cuánto se puede apartar el cuerpo de la pelota al pararse a tirar (según adónde apunte), más margen. */
+const STANCE_PAD = 1.0;
 
 function key(code: string): void {
   dispatchEvent(new KeyboardEvent('keydown', { code }));
@@ -239,7 +261,7 @@ export function startBot(): BotStats {
   const gk: Gk = (window as any).__gk;
   const name = new URLSearchParams(location.search).get('bot') || 'perfecto';
   const skill = BOT_SKILLS[name] ?? BOT_SKILLS.perfecto;
-  const stats: BotStats = { skill: BOT_SKILLS[name] ? name : 'perfecto', byClub: {}, casts: {}, melee: 0, moves: 0, dodges: 0, grabs: 0, jumps: 0, baits: 0, evades: 0, aligned: 0, heads: 0, combos: 0, holds: 0, hit: 0, miss: 0 };
+  const stats: BotStats = { skill: BOT_SKILLS[name] ? name : 'perfecto', byClub: {}, casts: {}, melee: 0, moves: 0, dodges: 0, grabs: 0, jumps: 0, baits: 0, evades: 0, aborts: 0, aligned: 0, heads: 0, combos: 0, holds: 0, hit: 0, miss: 0 };
   (window as any).__bot = stats;
 
   // El bot apunta moviendo el mouse. Para que el mouse de quien mira no le corra la puntería, repite
@@ -264,6 +286,9 @@ export function startBot(): BotStats {
   let releasedAt = -1;
   let shotsAtRelease = 0;
   let delay = 0.2;
+  /** Desde que soltó hasta que termina el gesto y puede moverse (se mide, como `delay`). */
+  let swingFrom = -1;
+  let swingTail = 0.6;
   /** Las pelotas que salieron (sin los cebos), para contar las que pegan. */
   const flying: any[] = [];
   let baitShot = false;
@@ -273,7 +298,7 @@ export function startBot(): BotStats {
   /** El silenciador del combo, esperando su momento: qué lugar y a qué hora del juego tirarlo. */
   let combo: { slot: number; at: number } | null = null;
   let castAt = -10;
-  let dodgedAt = 0;
+  let dodgedAt = -10;
   let cardSince = 0;
   let escaping = false;
   let last = performance.now();
@@ -342,10 +367,74 @@ export function startBot(): BotStats {
     return w;
   }
 
-  /** Lo que vale sacarle `dmg` a `e`: lo que le saca de verdad, más un plus si lo mata, por lo que pesa y apura. */
-  function value(e: Enemy, dmg: number, from: THREE.Vector3): number {
+  /**
+   * Lo que vale sacarle `dmg` a `e` con una pelota que le llega dentro de `t` s: lo que le saca de verdad,
+   * más un plus si lo mata, por lo que pesa y apura. Al que se cura (ver `regenWindow`), lo que no lo
+   * termina vale solo si se lo puede terminar antes de que se cure; y terminar al que ya se empezó salva lo
+   * que se le sacó (si no, se pierde): vale eso de más, y apura más cuanto menos le falta para curarse.
+   */
+  function value(e: Enemy, dmg: number, from: THREE.Vector3, t = 0): number {
     if (dmg <= 0) return 0;
-    return (Math.min(e.hp, dmg) + (dmg >= e.hp ? 1.5 : 0)) * weight(e) * urgency(e, from);
+    let hp: number = e.hp;
+    let saved = 0;
+    let urge = urgency(e, from);
+    const rg = skill.regen ? regenWindow(e, t) : null;
+    if (rg) {
+      hp = rg.hp;
+      const invested = e.maxHp - hp;
+      if (dmg < hp) {
+        if (finishTime(e, hp - dmg, from) > rg.left) return 0;
+        saved = invested / 2;
+      } else saved = invested;
+      // si no es este tiro, ¿llega otro antes de que se cure?
+      if (invested > 0) urge = Math.max(urge, rg.left < 1.5 * shotGap(topQuality()) ? 5 : 3);
+    }
+    return (Math.min(hp, dmg) + (dmg >= hp ? 1.5 : 0) + saved) * weight(e) * urge;
+  }
+
+  /**
+   * El que se cura (ver REGEN en core/waves): la vida que tiene cuando le llega la pelota, dentro de `t` s
+   * (si se curó antes, entera), y cuánto le falta desde ahí para la próxima cura. Silenciado el ciclo no
+   * corre, y arranca de cero cuando se le pasa. Null si no se cura.
+   */
+  function regenWindow(e: Enemy, t: number): { hp: number; left: number } | null {
+    if (!e.mods?.regen) return null;
+    const period: number = e.regenPeriod;
+    const heal = healIn(e);
+    if (t < heal - REGEN_EDGE.before) return { hp: e.hp, left: heal - t };
+    if (t < heal + REGEN_EDGE.after) return { hp: e.maxHp, left: 0 };
+    return { hp: e.maxHp, left: heal + period * Math.ceil((t - heal) / period) - t };
+  }
+
+  /** Cuánto le falta al que se cura para curarse. */
+  function healIn(e: Enemy): number {
+    return (e.silenced ? e.silenceTimer : 0) + (1 - e.regenProgress) * e.regenPeriod;
+  }
+
+  /** De un tiro al otro: cargar el golpe `q`, bajar el palo, ir al otro puesto y pensarlo. */
+  function shotGap(q: number): number {
+    return chargeTime(q, gk.player.timing) + delay + AFTER_SHOT + skill.think + 0.1;
+  }
+
+  /**
+   * Cuánto tardan los tiros que siguen en sacarle `rest` de vida a `e` (desde `o`, con el driver o el
+   * putter): cada uno con el golpe más corto que lo termina, o el más fuerte. Infinity si no le entra.
+   */
+  function finishTime(e: Enemy, rest: number, o: THREE.Vector3): number {
+    const d = Math.hypot(e.position.x - o.x, e.position.z - o.z);
+    const tops = Array.from({ length: topQuality() }, (_, i) => i + 1);
+    const hit = (q: number) => Math.max(...(['driver', 'putter'] as ClubId[])
+      .filter((id) => has(id) && (id !== 'putter' || d <= PUTTER_REACH))
+      .map((id) => Math.max(0, Math.max(1, damageFor(CLUBS[id], d, q)) - e.armor)), 0);
+    let time = 0;
+    for (let i = 0; i < 8 && rest > 0; i++) {
+      const q = tops.find((n) => hit(n) >= rest) ?? tops[tops.length - 1];
+      const dmg = e.ethereal && !e.silenced ? Math.min(1, hit(q)) : hit(q);
+      if (dmg <= 0) return Infinity;
+      rest -= dmg;
+      time += shotGap(q);
+    }
+    return rest > 0 ? Infinity : time;
   }
 
   /** ¿Tiene el escudo en alto dentro de `t` s? El silencio y el aturdido lo bajan mientras duran. */
@@ -426,7 +515,7 @@ export function startBot(): BotStats {
       const dmg = Math.max(0, dealt(e, raw, t) - guard);
       if (dmg <= 0) continue;
       if (e === need) got = true;
-      total += value(e, dmg, o);
+      total += value(e, dmg, o, t);
     }
     return got ? total : 0;
   }
@@ -492,15 +581,16 @@ export function startBot(): BotStats {
     const club = CLUBS.iron;
     const tan = Math.tan(THREE.MathUtils.degToRad(club.loftDeg));
     const g = club.gravity ?? GRAVITY;
-    // a la altura de la cabeza: entre lo que tapa el escudo y el tope
-    const want = e.height * (SHIELD_TOP + 1) / 2;
     let t = lead + 0.8;
     for (let i = 0; i < 4; i++) {
       const p = predict(e, t);
       const d = Math.hypot(p.x - o.x, p.z - o.z);
+      // a la altura de la cabeza (entre lo que tapa el escudo y el tope), contando la loma donde va a estar:
+      // la pelota sale de la altura 0 del puesto y el arco no sabe de lomas
+      const want = heightAt(p.x, p.z) + e.height * (SHIELD_TOP + 1) / 2 - BALL_RADIUS;
       const contact = d - e.radius;
       // el arco: y = x tan(a) (1 - x / R). Para que pase por la cabeza en `contact`, R sale de ahí
-      if (contact < 4 || want >= contact * tan * 0.95) return null;
+      if (contact < 4 || want <= 0 || want >= contact * tan * 0.95) return null;
       const range = contact / (1 - want / (contact * tan));
       if (range > club.maxRange) return null;
       t = lead + lobTime(club.loftDeg, g, range, contact);
@@ -528,7 +618,7 @@ export function startBot(): BotStats {
     // la esquiva y la burbuja: primero un tiro corto que se las gaste (vale menos que pegar, pero habilita)
     if (skill.bait && (e.canDodge || (e.divineReady && !e.silenced)) && has('driver') && near < travel(CLUBS.driver, 1)) {
       const cost = chargeTime(1, times) + delay + walk + AFTER_SHOT;
-      return make(CLUBS.driver, 1, 'bait', (0.5 * value(e, Math.min(e.hp, 3), o)) / cost);
+      return make(CLUBS.driver, 1, 'bait', (0.5 * value(e, Math.min(e.hp, 3), o, cost)) / cost);
     }
     let best: Plan | null = null;
     const consider = (p: Plan) => {
@@ -544,21 +634,19 @@ export function startBot(): BotStats {
         if (!hit) continue;
         const scan = scanLine(club, q, o, hit.x, hit.z, lead);
         if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
-        const total = scan.hits.reduce((n, h) => n + value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o), 0);
+        const total = scan.hits.reduce((n, h) => n + value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t), 0);
         if (total <= 0) continue;
         consider(make(club, q, 'lead', total / (lead + AFTER_SHOT)));
       }
     }
-    // El intocable cerrado: carga, clava el golpe y suelta para que la pelota llegue cuando se abre (un
-    // poco adentro de la ventana, por las dudas)
-    if (e.mods?.phase && e.phaseShut && !e.silenced) {
-      const opens = e.phaseBar * (e.phaseCycle - e.mods.phase);
-      const arrive = opens + Math.min(0.5, e.mods.phase / 2);
+    // Que la pelota llegue a una hora justa (`arrive` s desde ahora): carga, clava el golpe y suelta a
+    // tiempo. Cuándo soltar se ajusta con el vuelo, que depende de dónde esté
+    const timed = (arrive: number) => {
+      if (arrive > 5) return;
       for (const id of ['putter', 'driver'] as ClubId[]) {
-        if (!has(id) || arrive > 5) continue;
+        if (!has(id)) continue;
         const club = CLUBS[id];
         for (const q of tops) {
-          // cuándo soltar para que llegue a `arrive`: se ajusta con el vuelo, que depende de dónde esté
           let lead = Math.max(0.1, arrive - 0.3);
           let hit = intercept(e, club, q, o, lead);
           for (let i = 0; i < 3 && hit; i++) {
@@ -568,14 +656,18 @@ export function startBot(): BotStats {
           if (!hit || lead < chargeTime(q, times) + delay + walk || shutAt(e, hit.t)) continue;
           const scan = scanLine(club, q, o, hit.x, hit.z, lead);
           if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
-          const total = scan.hits.reduce((n, h) => n + value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o), 0);
+          const total = scan.hits.reduce((n, h) => n + value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t), 0);
           if (total <= 0) continue;
           const p = make(club, q, 'lead', total / (lead + AFTER_SHOT));
           p.releaseAt = gk.clock + lead - delay;
           consider(p);
         }
       }
-    }
+    };
+    // el intocable cerrado: que llegue cuando se abre (un poco adentro de la ventana, por las dudas)
+    if (e.mods?.phase && e.phaseShut && !e.silenced) timed(e.phaseBar * (e.phaseCycle - e.mods.phase) + Math.min(0.5, e.mods.phase / 2));
+    // el que se cura: que llegue recién curado, con todo el ciclo por delante para terminarlo
+    if (skill.regen && e.mods?.regen && !e.silenced) timed(healIn(e) + REGEN_EDGE.wait);
     // el escudo de frente: el hierro a la cabeza o el globo del wedge, que le caen por arriba
     if (skill.shields && e.hasShield) {
       if (has('iron')) {
@@ -584,7 +676,7 @@ export function startBot(): BotStats {
           const h = headShot(e, q, o, lead);
           if (!h || !shieldUpAt(e, h.t) || !faces(e, o, h.x, h.z)) continue;
           const dmg = dealt(e, damageFor(CLUBS.iron, h.d, q), h.t);
-          if (dmg > 0) consider(make(CLUBS.iron, q, 'head', value(e, dmg, o) / (lead + AFTER_SHOT)));
+          if (dmg > 0) consider(make(CLUBS.iron, q, 'head', value(e, dmg, o, h.t) / (lead + AFTER_SHOT)));
         }
       }
       if (has('wedge')) {
@@ -651,7 +743,7 @@ export function startBot(): BotStats {
             const scan = scanLine(club, q, o, hit.x, hit.z, lead, false, false, e);
             if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
             // silenciado no tiene blindaje
-            const total = scan.hits.reduce((n, h) => n + value(h.e, h.e === e ? Math.max(1, damageFor(club, h.d, q)) + (h.e.markTimer > h.t ? 1 : 0) : dealt(h.e, damageFor(club, h.d, q), h.t), o), 0);
+            const total = scan.hits.reduce((n, h) => n + value(h.e, h.e === e ? Math.max(1, damageFor(club, h.d, q)) + (h.e.markTimer > h.t ? 1 : 0) : dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t), 0);
             const p = make(club, q, 'lead', total / (lead + AFTER_SHOT));
             p.combo = { slot: hushSlot, flight: hushFlight };
             consider(p);
@@ -680,7 +772,7 @@ export function startBot(): BotStats {
       if (!h) return -1;
       const scan = scanLine(club, q, from, h.x, h.z, lead);
       if (scan.ricochet || !scan.hits.some((x) => x.e === e)) return -1;
-      return scan.hits.reduce((n, x) => n + value(x.e, dealt(x.e, damageFor(club, x.d, q), x.t), from), 0);
+      return scan.hits.reduce((n, x) => n + value(x.e, dealt(x.e, damageFor(club, x.d, q), x.t), from, x.t), 0);
     };
     let best = { shift: 0, value: worth(o) };
     const spotX = gk.tees.spots[gk.tees.nearest(o.x)]?.x ?? o.x;
@@ -731,7 +823,107 @@ export function startBot(): BotStats {
     for (let i = 0; i < tees.spots.length; i++) {
       if (!tees.hasBall(i)) continue;
       const p = bestFrom(i, walkTime(Math.abs(i - here)), times);
+      // ¿llega sin cruzarse con nadie, y termina el golpe antes de que le caiga algo o le pasen por encima?
+      if (p && skill.evade && !pathSafe(here, i, busyFor(p, 0))) continue;
       if (p && (!best || p.score > best.score)) best = p;
+    }
+    return best;
+  }
+
+  /** Lo que le falta para terminar el golpe `p` (cargar, esperar si clava, bajar el palo), con `elapsed` cargado. */
+  function busyFor(p: Plan, elapsed: number): number {
+    const wait = p.releaseAt !== undefined ? Math.max(0, p.releaseAt - gk.clock) : 0;
+    return Math.max(chargeTime(p.q, gk.player.timing) - elapsed, wait, 0) + swingTail;
+  }
+
+  /** ¿Se puede estar en el puesto de `x` los próximos `busy` s, sin que le caiga nada ni lo atropellen? */
+  function safeFor(x: number, busy: number): boolean {
+    return !incoming(x) && trampleAt(x, busy + 0.25) === Infinity;
+  }
+
+  /**
+   * ¿Puede ir del puesto `here` al `to` y quedarse ahí `stay` s? Que no le caiga nada en el de llegada, y
+   * que nadie le pase por encima en los puestos que cruza (cuando pasa por cada uno) ni en el de llegada.
+   */
+  function pathSafe(here: number, to: number, stay: number): boolean {
+    const spots = gk.tees.spots;
+    if (to === here) return safeFor(spots[here].x, stay);
+    if (incoming(spots[to].x)) return false;
+    const step = Math.sign(to - here);
+    for (let k = here + step; ; k += step) {
+      const at = walkTime(Math.abs(k - here));
+      const until = k === to ? at + stay + 0.25 : at + 0.3;
+      if (trampleAt(spots[k].x, until, Math.max(0, at - 0.45)) !== Infinity) return false;
+      if (k === to) return true;
+    }
+  }
+
+  /** Los que atropellan si le pasan por encima (ver `Enemy.update`): van a la puerta y no frenan por él. */
+  function tramples(e: Enemy): boolean {
+    if (e.state !== 'walk') return false;
+    const b = e.behavior;
+    return e.bombLive || b === 'melee' || b === 'banner' || b === 'geomancer' || b === 'kamikaze' || (b === 'shaman' && e.forsaken);
+  }
+
+  /**
+   * Cuándo le pasa por encima el primero de los que atropellan si está en el puesto de `x` entre `from` y
+   * `until` s desde ahora (Infinity si nadie): por dónde va a ir cada uno, con la velocidad que lleva, contra
+   * dónde va a estar el cuerpo. Cargando o bajando el palo en ese puesto, el cuerpo está donde está; si no,
+   * se va a parar al lado de la pelota, hasta 1.5 m según adónde apunte (en `STANCE_PAD` de margen).
+   */
+  function trampleAt(x: number, until: number, from = 0): number {
+    const pl = gk.player;
+    const set = pl.mode !== 'free' && Math.abs(x - pl.anchor.x) < 0.5;
+    const bx = set ? pl.position.x : x;
+    const bz = set ? pl.position.z : pl.anchor.z;
+    const pad = set ? 0.35 : STANCE_PAD;
+    let first = Infinity;
+    for (const e of alive()) {
+      if (!tramples(e)) continue;
+      const tr = tracks.get(e.id);
+      const vx = tr && !tr.fresh ? tr.vx : 0;
+      const vz = tr && !tr.fresh ? tr.vz : -(e.walkSpeed ?? 0);
+      // al élite, más margen: si lo pisa es la partida
+      const reach = e.radius + TRAMPLE_REACH + pad + (e.size > 1 ? 0.4 : 0);
+      for (let t = from; t <= Math.min(until, first); t += 0.05) {
+        if (Math.hypot(e.position.x + vx * t - bx, e.position.z + vz * t - bz) < reach) {
+          first = t;
+          break;
+        }
+      }
+    }
+    return first;
+  }
+
+  /**
+   * Adónde correrse desde el puesto `here`: el más cerca de los que se puede llegar sin cruzarse con nadie y
+   * quedarse un rato (mejor con pelota). Si no hay ninguno, el de los cercanos donde más tarda en llegarle
+   * alguien. -1 si quedarse es lo mejor.
+   */
+  function refuge(here: number): number {
+    const tees = gk.tees;
+    const near: number[] = [];
+    for (let i = Math.max(0, here - 3); i <= Math.min(tees.spots.length - 1, here + 3); i++) if (i !== here) near.push(i);
+    let best = -1;
+    let bestScore = -Infinity;
+    for (const i of near) {
+      if (!pathSafe(here, i, 1.5)) continue;
+      const score = -Math.abs(i - here) + (tees.hasBall(i) ? 0.5 : 0);
+      if (score > bestScore) {
+        best = i;
+        bestScore = score;
+      }
+    }
+    if (best >= 0) return best;
+    // nada seguro: donde más tarde le llegue
+    let later = trampleAt(tees.spots[here].x, 3);
+    for (const i of near) {
+      if (incoming(tees.spots[i].x)) continue;
+      const t = trampleAt(tees.spots[i].x, 3, walkTime(Math.abs(i - here)));
+      if (t > later) {
+        best = i;
+        later = t;
+      }
     }
     return best;
   }
@@ -797,7 +989,7 @@ export function startBot(): BotStats {
         return;
       }
       pl.releaseSwing();
-      releasedAt = clock;
+      releasedAt = swingFrom = clock;
       shotsAtRelease = gk.shots;
       baitShot = p.mode === 'bait';
       stats.byClub[p.club.id] = (stats.byClub[p.club.id] ?? 0) + 1;
@@ -858,9 +1050,10 @@ export function startBot(): BotStats {
           if (!touched.some((h) => h.e === e)) continue;
           let v = 0;
           for (const h of touched) {
-            if (ghost) v += value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t, true), o);
-            // el silencio abre al del escudo, el blindado, el chamán y el que conjura
-            else if (hush) v += (h.e.hasShield || h.e.armorLevel > 0 || h.e.auraKind || h.e.casting || h.e.size > 1 ? 4 : 0.4) * w(h.e);
+            if (ghost) v += value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t, true), o, h.t);
+            // el silencio abre al del escudo, el blindado, el chamán y el que conjura; y al que se cura y ya
+            // se empezó, le para la cura
+            else if (hush) v += (h.e.hasShield || h.e.armorLevel > 0 || h.e.auraKind || h.e.casting || h.e.size > 1 || (h.e.mods?.regen && h.e.hp < h.e.maxHp) ? 4 : 0.4) * w(h.e);
             else v += (a.element === 'fire' || a.element === 'lightning' ? 1.2 : 1) * w(h.e);
           }
           // y de paso le gasta la esquiva a los que estén cerca de la línea
@@ -913,7 +1106,7 @@ export function startBot(): BotStats {
             // cuando pasa por su x (el carrito va a CART.speed), ¿está a esa altura?
             const t = CAST_LAG + (Math.abs(x.position.x - (o.x <= 0 ? -1 : 1) * 21)) / CART.speed;
             const p = predict(x, t);
-            if (Math.abs(p.z - z) < CART.width + x.radius) v += value(x, Math.min(dmg, x.hp), o) / Math.max(1, x.hp);
+            if (Math.abs(p.z - z) < CART.width + x.radius) v += value(x, Math.min(dmg, x.hp), o, t) / Math.max(1, x.hp);
           }
           if (!best || v > best.value) best = { slot, x: o.x, z, value: v };
         }
@@ -994,9 +1187,14 @@ export function startBot(): BotStats {
     return false;
   }
 
-  /** Lo que cae del cielo en su puesto (los hechizos marcan el piso): adónde no estar. */
+  /**
+   * Lo que cae del cielo en el puesto de `x`: los hechizos (marcan el piso) y las pelotas que devolvió un
+   * escudo (la marca roja, quieta donde estaba el caballero cuando rebotó). Adónde no estar.
+   */
   function incoming(x: number): boolean {
-    return (gk.horde.flying ?? []).some((f: any) => f.marker && Math.abs(f.marker.position.x - x) < RANGED.radius + 0.7 && Math.abs(f.marker.position.z - gk.player.anchor.z) < RANGED.radius + 1);
+    const z = gk.player.anchor.z;
+    if ((gk.horde.flying ?? []).some((f: any) => f.marker && Math.abs(f.marker.position.x - x) < RANGED.radius + 0.7 && Math.abs(f.marker.position.z - z) < RANGED.radius + 1)) return true;
+    return (gk.balls.list as any[]).some((b) => b.ricochet && !b.done && Math.abs(b.ricochet.to.x - x) < RICOCHET.radius + 0.7 && Math.abs(b.ricochet.to.z - z) < RICOCHET.radius + 1);
   }
 
   /** Va al puesto `to` (A sube de puesto, D baja). */
@@ -1020,34 +1218,36 @@ export function startBot(): BotStats {
     escaping = false;
     const tees = gk.tees;
     const here = tees.nearest(pl.anchor.x);
-    // un hechizo le va a caer en el puesto: al de al lado, del lado que no cae
-    if (skill.evade && incoming(pl.anchor.x)) {
-      const up = here + 1 < tees.spots.length && !incoming(tees.spots[here + 1].x);
-      const down = here - 1 >= 0 && !incoming(tees.spots[here - 1].x);
-      if (up || down) {
+    // un hechizo o un rebote le va a caer en el puesto: al más seguro de los de al lado
+    if (skill.evade && pl.atSpot && incoming(pl.anchor.x)) {
+      const to = refuge(here);
+      if (to >= 0) {
         stats.evades++;
-        key(up ? 'KeyA' : 'KeyD');
+        goTo(to, here);
         return;
       }
     }
-    // Nadie lo persigue, pero el que le pasa por encima lo atropella. Si uno viene derecho hacia su puesto:
-    // palazo si está listo (lo manda 15 m atrás); si no, se corre dos puestos.
-    const shoveSlot = gk.abilities.slots.findIndex((s: any) => s?.id === 'shove');
-    const shoveReady = shoveSlot >= 0 && gk.abilities.cooldowns[shoveSlot] <= 0;
-    const threat = gk.horde.enemies.find((e: Enemy) => e.alive && !e.passed && e.state === 'walk' && (e.behavior === 'melee' || e.behavior === 'kamikaze')
-      && e.position.z > p.z - 0.5 && e.position.z - p.z < 4.5 + e.radius && Math.abs(e.position.x - p.x) < 1.2 + e.radius);
-    if (threat && pl.atSpot && performance.now() - dodgedAt > 500) {
-      dodgedAt = performance.now();
-      if (shoveReady && threat.behavior === 'melee' && dist(threat) < 3.2) {
+    // Nadie lo persigue, pero el que le pasa por encima lo atropella (el élite, de una). Si uno le va a pasar
+    // por encima enseguida: palazo si está listo y lo tiene encima (lo manda 15 m atrás; al élite no, que
+    // si falla es la partida); si no, al puesto más seguro
+    const soon = trampleAt(pl.anchor.x, 1.2);
+    if (soon < 1.2 && pl.atSpot && clock - dodgedAt > 0.3) {
+      dodgedAt = clock;
+      const shoveSlot = gk.abilities.slots.findIndex((s: any) => s?.id === 'shove');
+      const shoveReady = shoveSlot >= 0 && gk.abilities.cooldowns[shoveSlot] <= 0;
+      const threat = alive().filter(tramples).sort((a, b) => dist(a) - dist(b))[0];
+      if (shoveReady && threat && threat.size <= 1 && threat.behavior === 'melee' && dist(threat) < 3.2) {
         aim(threat.position.x, threat.position.z);
         setTimeout(() => key(SLOT_KEYS[shoveSlot]), 40);
         stats.melee++;
         return;
       }
-      stats.dodges++;
-      const up = here + 2 < tees.spots.length && (here - 2 < 0 || threat.position.x < p.x);
-      for (let n = 0; n < 2; n++) key(up ? 'KeyA' : 'KeyD');
-      return;
+      const to = refuge(here);
+      if (to >= 0) {
+        stats.dodges++;
+        goTo(to, here);
+        return;
+      }
     }
     if (!pl.atSpot || clock < busyUntil) return;
     if (!alive().length) {
@@ -1067,7 +1267,7 @@ export function startBot(): BotStats {
     if (!next) {
       if (!tees.hasBall(here)) {
         const to = tees.nearestBall(here);
-        if (to >= 0) goTo(to, here);
+        if (to >= 0 && (!skill.evade || pathSafe(here, to, 1))) goTo(to, here);
       }
       return;
     }
@@ -1138,10 +1338,12 @@ export function startBot(): BotStats {
       flying.splice(i, 1);
     }
     if (pl.mode === 'charging') {
-      // un hechizo le cae encima: suelta la carga y se corre
-      if (skill.evade && incoming(pl.anchor.x) && plan && plan.mode !== 'bait') {
+      // un hechizo o un rebote le cae encima, o alguien le va a pasar por encima antes de que termine el
+      // golpe: suelta la carga y se corre
+      if (skill.evade && plan && plan.mode !== 'bait' && !safeFor(pl.anchor.x, busyFor(plan, pl.meter.elapsed ?? 0))) {
         key('KeyX');
-        plan = null;
+        stats.aborts++;
+        plan = combo = null;
         nextThink = 0;
         return;
       }
@@ -1153,6 +1355,11 @@ export function startBot(): BotStats {
       if (plan && releasedAt >= 0) aimPlan(plan, Math.max(0, delay - (clock - releasedAt)));
       return;
     }
+    // terminó el gesto: cuánto tardó desde que soltó
+    if (swingFrom >= 0) {
+      swingTail += (Math.min(1.2, clock - swingFrom) - swingTail) * 0.3;
+      swingFrom = -1;
+    }
     if (pl.mode !== 'free') return;
     plan = null;
     if (clock < nextThink) return;
@@ -1162,8 +1369,8 @@ export function startBot(): BotStats {
   requestAnimationFrame(frame);
   // para revisar sus decisiones desde la consola o las pruebas
   (window as any).__botDebug = {
-    choose, bestFrom, planFor, alignShift, headShot, abilityPlan, predict, intercept, scanLine, weight, urgency, tee,
-    get plan() { return plan; }, get delay() { return delay; }, get off() { return off; }, set off(v: boolean) { off = v; },
+    choose, bestFrom, planFor, alignShift, headShot, abilityPlan, predict, intercept, scanLine, weight, urgency, value, regenWindow, finishTime, trampleAt, refuge, incoming, chargeTime, skill, tee,
+    get plan() { return plan; }, get delay() { return delay; }, get swingTail() { return swingTail; }, get off() { return off; }, set off(v: boolean) { off = v; },
   };
   return stats;
 }
