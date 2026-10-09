@@ -15,7 +15,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   en la app de Windows. `b583947` `57f2cb4`
 - **La marca de Abe entra siempre**: la pelota que toca a un marcado le saca 1 aparte, aunque rebote en
   el escudo, aunque esté blindado, sea invencible o un fantasma. Antes sumaba al golpe y se la comían las
-  mismas defensas. `2a38978`
+  mismas defensas. También en la app de Windows. `2a38978` `8d59c81`
 - **Abe, con pantalla nueva**: sus hechizos son tarjetas como las de los palos, pegadas al borde, con
   íconos nuevos. Las explicaciones salen antes de empezar y en la pausa, no jugando. La cámara ya no se
   mueve al hacer click: encuadra sola toda la cancha con el caballero en una punta. Arriba hay botones
