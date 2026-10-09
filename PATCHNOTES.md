@@ -20,7 +20,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   íconos nuevos. Las explicaciones salen antes de empezar y en la pausa, no jugando. La cámara ya no se
   mueve al hacer click: encuadra sola toda la cancha con el caballero en una punta. Arriba hay botones
   para girarla de a 90°, cambiar la altura y elegir dónde van los botones (para probar cuál queda mejor
-  en el celular y en la compu). `2a38978`
+  en el celular y en la compu). `2a38978` En una pantalla acostada, la cámara arranca de costado. `234c245`
+- **Para los que prueban** (la versión con contraseña): el bot juega solo y espera a que entre Abe. Al
+  terminar empieza otra partida, así se puede probar de Abe sin otra persona. `234c245`
 
 **Los palos**
 - Las tarjetas de los palos dicen **cuánto pegan** en vez de hasta dónde llegan: lo de cada golpe (1·2·3)
