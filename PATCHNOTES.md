@@ -7,6 +7,12 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 9 de octubre
+
+**De a dos**
+- **Abe entra aunque sus redes no dejen conectarse directo** (algunos routers, el celular con datos):
+  ahora la partida pasa por un servidor intermedio. Antes se encontraban, pero no conectaban. `b583947`
+
 ## 8 de octubre
 
 **Dónde se juega**
