@@ -23,6 +23,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   en el celular y en la compu). `2a38978` En una pantalla acostada, la cámara arranca de costado. `234c245`
 - **Para los que prueban** (la versión con contraseña): el bot juega solo y espera a que entre Abe. Al
   terminar empieza otra partida, así se puede probar de Abe sin otra persona. `234c245`
+  Y ahora juega bien: apunta adonde va a estar el enemigo y carga el golpe justo para matarlo. Contra el
+  que esquiva, primero tira uno corto para gastarle la esquiva. Contra el escudo de frente usa el wedge,
+  y se corre para alinear enemigos. Tiene tres niveles: perfecto, bueno y flojo. `07449a8`
 
 **Los palos**
 - Las tarjetas de los palos dicen **cuánto pegan** en vez de hasta dónde llegan: lo de cada golpe (1·2·3)
