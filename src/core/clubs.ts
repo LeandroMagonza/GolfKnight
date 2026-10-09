@@ -204,6 +204,33 @@ function fromTable(table: number[][], meters: number, quality: number): number {
 }
 
 /**
+ * Lo que dice la tarjeta del palo, abajo (9/10, pedido de Leandro; antes decía hasta dónde llega): `hits`,
+ * lo que pega cada golpe (el 1, el 2, el 3 y el 4 si está el talento) a distancia corta, con «✕» para la
+ * pifia que no sale; y `more`, lo que cambia: lejos pega más (el driver), también abre área (el hierro),
+ * o todo es de área (el wedge). Solo cuentan las distancias a las que llega el palo: el putter rueda 20 m,
+ * así que la tabla de lejos no es suya.
+ */
+export function clubDamage(club: Club): { hits: string; more: string } {
+  const levels = Array.from({ length: topQuality() }, (_, i) => i + 1);
+  const at = (meters: number) => levels.map((q) => damageFor(club, meters, q));
+  const near = at(0);
+  const hits = near.map((n) => (n > 0 ? String(n) : '✕')).join('·');
+  // la primera banda más lejos que pegue distinto, si pega lo mismo de más en todos los golpes
+  for (let b = 1; b <= bandOf(club.maxRange); b++) {
+    const from = BAND_LIMITS[b - 1];
+    const diff = at(from + 1).map((n, i) => n - near[i]);
+    if (diff[0] !== 0 && diff.every((d) => d === diff[0])) {
+      const d = `${diff[0] > 0 ? '+' : ''}${diff[0]}`;
+      return { hits, more: L(`${d} a más de ${from} m`, `${d} past ${from} m`) };
+    }
+  }
+  // el que pega y además abre área (el hierro), o el que solo hace área (el wedge)
+  if (club.areaDamage) return { hits, more: L('+ área', '+ area') };
+  if (hasArea(club)) return { hits, more: L('en área', 'area') };
+  return { hits, more: '' };
+}
+
+/**
  * Daño del área donde cae. Pega menos que el impacto en el palo que hace las dos cosas: el área agarra
  * a varios y no hay que apuntarle a nadie. En los que solo hacen área, es su tabla de siempre.
  */

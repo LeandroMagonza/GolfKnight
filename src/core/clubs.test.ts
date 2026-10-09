@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
-  areaDamageFor, bandOf, BAND_LIMITS, CHARGE, CLUB_KEYS, CLUB_ORDER, CLUBS, damageFor, FOURTH, fourthFrom, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
+  areaDamageFor, bandOf, BAND_LIMITS, CHARGE, CLUB_KEYS, CLUB_ORDER, CLUBS, clubDamage, damageFor, FOURTH, fourthFrom, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
   isLob, QUALITY_FROM, QUALITY_LEVELS, qualityMarks, qualityOf, topQuality,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM, SwingMeter } from './swing';
@@ -216,6 +216,22 @@ describe('reglas de los palos', () => {
     for (const id of CLUB_ORDER) {
       expect(CLUBS[id], id).not.toHaveProperty('effectSpread');
       expect(CLUBS[id], id).not.toHaveProperty('icon');
+    }
+  });
+
+  it('la tarjeta de cada palo dice cuánto pega (9/10): cada golpe, y lo que cambia', () => {
+    expect(clubDamage(CLUBS.driver)).toEqual({ hits: '1·2·3', more: '+1 a más de 40 m' });
+    expect(clubDamage(CLUBS.iron)).toEqual({ hits: '1·2·3', more: '+ área' });
+    expect(clubDamage(CLUBS.wedge)).toEqual({ hits: '✕·1·2', more: 'en área' });
+    // el putter rueda 20 m: su tabla de lejos no cuenta
+    expect(clubDamage(CLUBS.putter)).toEqual({ hits: '2·3·4', more: '' });
+    // con el golpe 4, un número más
+    FOURTH.on = true;
+    try {
+      expect(clubDamage(CLUBS.driver).hits).toBe('1·2·3·4');
+      expect(clubDamage(CLUBS.wedge).hits).toBe('✕·1·2·3');
+    } finally {
+      FOURTH.on = false;
     }
   });
 });

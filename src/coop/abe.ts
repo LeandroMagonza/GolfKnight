@@ -1,7 +1,7 @@
 // Abe, el mago que te invocó: el segundo jugador (ver docs/multijugador.md). Es el primero que entra a mirar
 // tu partida. Mira la cancha desde arriba y juega táctico: tocar el piso tira la **chispa**, su ataque
-// básico (recarga rápido y marca a los que agarra: el próximo golpe del caballero les pega 1 más; en
-// pantalla se llama «marca»). Además tiene hasta cuatro hechizos
+// básico (recarga rápido y marca a los que agarra: la pelota del caballero que los toca les pega 1 aparte,
+// que entra siempre; en pantalla se llama «marca»). Además tiene hasta cuatro hechizos
 // (ver coop/spells): elige uno y el próximo toque lo tira ahí; después vuelve a la chispa. Aparece la marca
 // (un círculo, o la línea desde el caballero), se llena, y al llenarse el hechizo hace lo suyo. La trampa,
 // en cambio, queda armada hasta que alguien la pisa. Ninguno pega: Abe prepara, el que mata es el caballero.

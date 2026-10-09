@@ -59,9 +59,11 @@ export const ABE_SPELLS = {
  * El ataque básico de Abe (5/10, pedido de Leandro): la chispa, que en pantalla se llama **marca**. Es lo
  * que sale al tocar el piso sin hechizo elegido, así Abe siempre tiene algo para hacer. Recarga `cooldown`
  * s, cae a los `delay` s en un círculo de `radius` m (unos dos enemigos de ancho), y **marca** a los que
- * agarra durante `seconds` s (6/10; antes los dejaba clavados medio segundo). El próximo golpe del
- * caballero que le entra a un marcado detona la marca: pega `bonus` más, y la marca se gasta. Al jefe
- * también. Abe no pega: el que cobra es el caballero.
+ * agarra durante `seconds` s (6/10; antes los dejaba clavados medio segundo). La pelota del caballero que
+ * toca a un marcado detona la marca, y la marca se gasta: desde el 9/10 es un golpe aparte de `bonus`, que
+ * entra siempre, como el golpe fantasma (aunque rebote en el escudo, aunque esté blindado, inmune o sea
+ * etéreo; ver Horde.detonate). Antes sumaba al golpe y se lo comían las defensas. Al jefe también. Abe no
+ * pega: el que cobra es el caballero.
  *
  * Con un segundo es frenético a propósito: Abe mira la línea del caballero y marca justo antes de que
  * llegue la pelota (en el driver, mientras carga; en los globos, donde va a caer mientras vuela). Para algo
@@ -73,8 +75,8 @@ export const BOLT_INFO = { name: L('Marca', 'Mark'), icon: '✨', color: 0xe6b3f
 /** Qué hace la marca, para el panel. */
 export function boltHint(): string {
   return L(
-    `Marca a los que agarra ${n(ABE_BOLT.seconds)} s: el próximo golpe del caballero la detona y pega ${ABE_BOLT.bonus} más`,
-    `Marks whoever it catches for ${n(ABE_BOLT.seconds)} s: the knight's next hit sets it off for ${ABE_BOLT.bonus} extra`,
+    `Marca a los que agarra ${n(ABE_BOLT.seconds)} s: la pelota del caballero que los toca la detona, y eso pega ${ABE_BOLT.bonus} aparte que entra siempre (escudo, blindaje, inmunes)`,
+    `Marks whoever it catches for ${n(ABE_BOLT.seconds)} s: when the knight's ball touches them it goes off for ${ABE_BOLT.bonus} extra that always lands (shields, armor, immune)`,
   );
 }
 

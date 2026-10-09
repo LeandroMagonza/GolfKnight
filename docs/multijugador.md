@@ -363,3 +363,35 @@ por él; cuando sale, no lo usa.
   hora (estimado, sin medir). Los 20 GB darían para unas 100 horas por mes de partidas que no puedan ir directo.
 - Probado con `logs/check-conexion.mjs`: con `?soloturn` (sin conexión directa, todo por el TURN) se
   encuentran en 3 s y las fotos siguen llegando.
+
+## Hecho: el HUD y la cámara de Abe, nuevos, y la marca que entra siempre (9/10/2026)
+
+Pedidos de Leandro:
+
+- **El HUD, como el del caballero.** Antes era un recuadro al medio de abajo con «Sos Abe» siempre a la
+  vista, la explicación del hechizo elegido y cómo mover la cámara: ocupaba mucho alto. Ahora los botones
+  son tarjetas oscuras pegadas al borde, como las de los palos, con su ícono dibujado (`coop/icons.ts`;
+  los emoji se veían de celular) y el nivel en mayúsculas («NV 2»). Jugando no hay nada más. La ayuda
+  («Sos Abe», qué hace la marca, las teclas) sale antes de empezar y en la pausa (`#abehelp`). Las cartas
+  de hechizo nuevo van arriba (`#abeoffer`), así se ven los botones de abajo cuando hay que elegir dónde va.
+- **La cámara ya no se mueve con el mouse ni con el dedo** (`net/fieldcam.ts`). Hacer click para tirar la
+  arrastraba sin querer, e ir adelante y atrás no servía. Encuadra sola toda la cancha, del caballero al
+  fondo, en lo que dejan libre la barra de arriba y los botones: el caballero queda contra el borde de su
+  lado y lo demás centrado (con `setViewOffset`, que corre la imagen sin girarla). Con el mouse, el
+  hechizo sale al apretar; con el dedo, al soltar.
+- **Girar de a 90° y tres alturas.** Tres botones en la barra de arriba (solo el que mira):
+  - ↻ gira la cámara: 0° desde atrás del caballero (él abajo, los enemigos vienen de arriba: el celular
+    parado), 90° de costado (él a la izquierda: la compu y el celular acostado), 180° y 270°;
+  - ⛰ la altura: alta (72°), media (55°) o baja (40°);
+  - ▦ dónde van los botones (para probar cuál queda): **fila** (los cinco al medio), **hueco** (la fila
+    partida al medio), **esquinas** (contra las dos esquinas de abajo) y **costados** (en columna a cada
+    lado; en el celular parado van encima de la cancha, si no quedaba muy angosta).
+  Se guarda aparte para la pantalla parada y la acostada (`gk.abeView`). De fábrica: parada, 0°;
+  acostada, 90°; las dos en media y en fila. Las flechas suben y bajan la altura. Para las fotos:
+  `?abecam=90,alta&abehud=costados` y `?tactil`. Fotos de todas: `node logs/abe-fotos.mjs`.
+- **La marca es un golpe aparte, fantasma** (`Horde.detonate`). Antes sumaba 1 al golpe del caballero, y
+  se lo comían las mismas defensas: al fantasma no le servía (ningún golpe le saca más de 1), y al
+  blindado o al del escudo, tampoco. Ahora la pelota que toca a un marcado la detona y eso pega 1 que entra
+  siempre: aunque rebote en el escudo o en el muro, aunque lo proteja el aura de invencible o la burbuja
+  (que no se gasta), aunque esté blindado. No empuja ni recarga la esquiva o la burbuja. El fuego y el rayo
+  siguen sin detonarla. Probado con `logs/check-marca-fantasma.mjs`.

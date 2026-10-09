@@ -1,6 +1,6 @@
 // El que mira (ver docs/multijugador.md). No simula nada: arma los mismos enemigos que el que juega, los
 // pone donde dicen las fotos (suavizando entre una y otra), y repite los efectos, sonidos y carteles a su
-// hora. La cámara es suya (ver fieldcam.ts): adelante y atrás por la cancha, el ángulo y el zoom.
+// hora. La cámara es suya (ver fieldcam.ts): encuadra sola la cancha, y se elige de qué lado y qué tan alta.
 import * as THREE from 'three';
 import { BALL_RADIUS } from '../core/ballistics';
 import { heightAt, mounds, type Mound } from '../core/terrain';
@@ -11,7 +11,6 @@ import { ENEMIES, type EnemyKind, type EnemyMods } from '../core/waves';
 import type { Abilities } from '../game/abilities';
 import type { Enemy, Horde } from '../game/enemies';
 import type { Player } from '../game/player';
-import { FIELD_HALF_WIDTH } from '../game/world';
 import { L } from '../i18n';
 import type { Link } from './link';
 import { MIRRORED } from './host';
@@ -101,9 +100,11 @@ export interface AbeStatus {
   gone?: boolean;
   /** Por qué no se puede ninguno, si no es la recarga (pausa, carta, no empezó). */
   why: string | null;
+  /** Lo mismo, como dato: para mostrar la ayuda en la pausa y antes de empezar (no jugando). */
+  stop: 'start' | 'tutorial' | 'pause' | 'card' | 'end' | null;
 }
 
-const NO_ABE: AbeStatus = { abe: false, selected: BOLT_SLOT, bolt: { ready: false, left: 0, total: 1 }, slots: [], offer: null, picks: 0, why: null };
+const NO_ABE: AbeStatus = { abe: false, selected: BOLT_SLOT, bolt: { ready: false, left: 0, total: 1 }, slots: [], offer: null, picks: 0, why: null, stop: null };
 
 interface RemoteBall {
   mesh: THREE.Mesh;
@@ -164,27 +165,18 @@ export class NetSpectator {
     this.attach(link);
     d.note(L('Conectando con la partida…', 'Connecting to the game…'));
 
-    // arranca alta, desde atrás del golfista, mirando toda la cancha
+    // toda la cancha en cuadro, desde el lado que elija (ver fieldcam.ts)
     const cam = d.camera;
-    cam.far = 500;
+    cam.far = 600;
     cam.updateProjectionMatrix();
-    // lo bastante lejos para que entre todo el ancho de la cancha: en un celular parado, bastante más
-    const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect);
-    const dist = Math.max(68, Math.min(130, (FIELD_HALF_WIDTH + 3) / Math.tan(halfFov)));
-    this.cam = new FieldCamera(cam, d.dom, dist);
+    this.cam = new FieldCamera(cam, d.dom);
     // un toque en el piso: lo que esté elegido (la chispa, o el hechizo)
     this.cam.onTap = (x, y) => {
       const at = d.groundAt(x, y);
       if (at) this.cast(at.x, at.z);
     };
-    // la niebla, más lejos: desde arriba se ve todo el campo
-    const fog = d.scene.fog as THREE.Fog | null;
-    if (fog) {
-      fog.near = 140;
-      fog.far = 320;
-    }
 
-    // Abe: un toque en el piso tira el hechizo elegido; arrastrar sigue siendo girar la cámara
+    // Abe: un toque en el piso tira el hechizo elegido
     this.preview = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
     this.preview.rotation.x = -Math.PI / 2;
     this.preview.visible = false;
@@ -355,6 +347,12 @@ export class NetSpectator {
 
   update(dt: number): void {
     this.cam.update(dt);
+    // la niebla, más allá de la cancha: la cámara se aleja más o menos según la pantalla (ver fieldcam)
+    const fog = this.d.scene.fog as THREE.Fog | null;
+    if (fog) {
+      fog.near = this.cam.distance + 45;
+      fog.far = this.cam.distance + 240;
+    }
     const now = performance.now();
     if (!this.everHost && now - this.born > LOST_MS) {
       this.everHost = true;
@@ -447,6 +445,7 @@ export class NetSpectator {
         'The knight is in the tutorial: pick your spells, you can cast once the game starts',
       )
         : g.pa ? L('En pausa', 'Paused') : g.cd ? L('Está eligiendo una carta', `He's picking a card`) : g.en ? L('Terminó la partida', 'Game over') : null;
+    const stop = !g.st ? 'start' : g.tu ? 'tutorial' : g.pa ? 'pause' : g.cd ? 'card' : g.en ? 'end' : null;
     const a = g.abe;
     this.sizes = a.s.map(([, , , , size]) => size);
     if (this.selected >= a.s.length) this.selected = BOLT_SLOT;
@@ -459,6 +458,7 @@ export class NetSpectator {
       offer: a.o,
       picks: a.p,
       why,
+      stop,
     };
     this.d.showAbe(this.abeState);
     const bolt = this.selected === BOLT_SLOT;

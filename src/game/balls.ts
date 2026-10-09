@@ -253,6 +253,14 @@ export class Balls {
     return shot;
   }
 
+  /** La pelota no le pega pero lo tocó: solo detona la marca de Abe, si tiene (ver Horde.detonate). */
+  private detonateOnly(ball: Ball, enemy: Enemy): void {
+    const shot = this.markShot(ball);
+    this.horde.detonate(enemy);
+    this.horde.shot = null;
+    this.countKills(ball, shot.kills);
+  }
+
   /** Suma las bajas a la pelota y las avisa de a una, en el acto. */
   private countKills(ball: Ball, n: number): void {
     for (let i = 0; i < n; i++) {
@@ -522,6 +530,8 @@ export class Balls {
         // lo que pasa del escudo entra, con su elemento; si el escudo se come todo, el elemento tampoco
         // sale (la regla del toque)
         const leaked = !e.warded && !e.shieldWall && this.directHit(ball, e, false, e.shieldLevel);
+        // la marca de Abe entra igual, aunque el aura o el muro no dejen pasar nada (ver Horde.detonate)
+        if (e.warded || e.shieldWall) this.detonateOnly(ball, e);
         ball.hitIds.add(e.id);
         this.effects.spark(new THREE.Vector3(s.pos.x, s.pos.y, s.pos.z), e.warded ? 0xb26bff : 0xcccccc);
         if (!leaked) this.onEvent?.({ type: 'blocked', enemy: e, warded: e.warded || e.shieldWall });

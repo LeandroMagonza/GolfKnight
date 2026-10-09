@@ -215,6 +215,8 @@ export class World {
   /** Las rayas de distancia: una tira por raya, que sigue el piso vértice por vértice. */
   private readonly marks: { mesh: THREE.Mesh; z: number }[] = [];
   private readonly labels: THREE.Sprite[] = [];
+  /** Los nombres de las bandas de distancia (corta, media, larga): son del caballero, Abe no los ve. */
+  readonly bandNames: THREE.Sprite[] = [];
 
   /**
    * Las marcas de distancia se miden **desde la línea de los puestos**, que es desde donde se pega: la
@@ -255,6 +257,7 @@ export class World {
       const label = labelSprite(name, '#ffd66b');
       label.scale.set(3.6, 1.8, 1);
       label.position.set(x, heightAt(x, z) + 1.4, z);
+      this.bandNames.push(label);
       scene.add(label);
     }
   }

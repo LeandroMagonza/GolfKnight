@@ -1,7 +1,7 @@
 // HUD en DOM: vida de la puerta y del golfista, oleada, palos, medidor de potencia, carteles y
 // números de daño flotantes.
 import { ABILITIES, ABILITY_KEYS, SLOTS, type AbilityId } from './core/abilities';
-import { CLUB_KEYS, CLUB_ORDER, CLUBS, type Club, type ClubId } from './core/clubs';
+import { CLUB_KEYS, CLUB_ORDER, CLUBS, clubDamage, type Club, type ClubId } from './core/clubs';
 import { arcAngle, type ArcLayout } from './core/swing';
 import { EndScreen, type EndInfo } from './endscreen';
 import { L } from './i18n';
@@ -88,13 +88,14 @@ export class Hud {
       this.onSkinClick?.();
     });
     this.cardEl.addEventListener('click', () => this.onCardDismiss?.());
-    // los palos: la distancia y la trayectoria. Uno por tecla, 1 a 4
+    // los palos: la trayectoria y cuánto pega (ver `refreshClubDamage`). Uno por tecla, 1 a 4
     // los cuatro comparten color: lo que los distingue es el ícono del palo y la tecla
     this.clubsEl.innerHTML = CLUB_ORDER.map((id, i) => {
       const c = CLUBS[id];
       const color = '#' + c.color.toString(16).padStart(6, '0');
-      return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band">${L(`hasta ${c.maxRange} m`, `up to ${c.maxRange} m`)}</div></div>`;
+      return `<div class="club locked" data-club="${id}" style="--c:${color}"><img class="clubicon" src="${import.meta.env.BASE_URL}clubs/${id}.png" alt="" /><span class="key">${CLUB_KEYS[i]}</span><div class="name">${c.name}</div><div class="title">${c.title}</div><div class="band"></div></div>`;
     }).join('');
+    this.refreshClubDamage();
     // los cuatro lugares de habilidad, que se llenan eligiendo cartas
     this.enchantsEl.innerHTML = Array.from({ length: SLOTS }, (_, i) =>
       `<div class="club locked" data-ench="slot${i}" style="--c:#ffffff"><div class="cd"></div><span class="key">${ABILITY_KEYS[i]}</span><div class="name"></div><div class="title"></div><span class="cdlabel"></span><div class="cdnum"></div></div>`,
@@ -103,6 +104,19 @@ export class Hud {
       const card = (e.target as HTMLElement).closest('.choice') as HTMLElement | null;
       if (card) this.onPick?.(Number(card.dataset.i));
     });
+  }
+
+  /**
+   * Lo que pega cada palo, en su tarjeta (ver core/clubs `clubDamage`): «1·2·3» y lo que cambia («+1 a más
+   * de 40 m», «+ área»). Hay que llamarlo si cambia el golpe 4 (un número más).
+   */
+  refreshClubDamage(): void {
+    for (const el of Array.from(this.clubsEl.children) as HTMLElement[]) {
+      const id = el.dataset.club as ClubId | undefined;
+      if (!id) continue;
+      const d = clubDamage(CLUBS[id]);
+      (el.querySelector('.band') as HTMLElement).innerHTML = `<b class="dmg">${d.hits}</b>${d.more ? ` <span class="more">${d.more}</span>` : ''}`;
+    }
   }
 
   private choiceEl = $('choice');

@@ -36,7 +36,7 @@ export type EnemyState = 'walk' | 'attack' | 'dying' | 'gone';
 
 export type HordeEvent =
   /** `crit`: rompió un congelado y pegó `ELEMENTS.breakBonus` más. */
-  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean }
+  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean; mark?: boolean }
   /** El escudo divino se comió el golpe. */
   | { type: 'divine'; enemy: Enemy }
   /** Un golpe del caballero detonó la marca de Abe (ver ABE_BOLT). */
@@ -2068,6 +2068,12 @@ export class Horde {
     this.lastStopped = false;
     this.lastArmored = false;
     if (!enemy.alive || enemy.passed) return false;
+    // la marca de Abe: el golpe del caballero (una pelota, no el fuego ni el rayo) la detona, y eso es un
+    // golpe aparte, antes que este (ver `detonate`). Si lo mata, este ya no pega
+    if (!dot && this.detonate(enemy)) {
+      this.lastDealt = ABE_BOLT.bonus;
+      return true;
+    }
     const ghost = this.shot?.ghost ?? 0;
     // el aura de invencible para todo, menos el golpe fantasma
     if (enemy.warded && !ghost) {
@@ -2086,14 +2092,8 @@ export class Horde {
     // congelado se rompe: ese golpe pega `breakBonus` más, como la lupa, también al fantasma (hasta el
     // 4/10 pegaba el doble, y al fantasma no le servía: igual le entraba 1)
     const crit = enemy.frozen && !dot;
-    // la marca de Abe: el golpe del caballero (una pelota, no el fuego ni el rayo) la detona y pega más
-    const detonate = enemy.markTimer > 0 && !dot && !!this.shot;
-    const raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0) + (crit ? ELEMENTS.breakBonus : 0) + (detonate ? ABE_BOLT.bonus : 0);
+    const raw = amount + (enemy.vulnerable && !dot ? VULNERABLE.bonus : 0) + (crit ? ELEMENTS.breakBonus : 0);
     if (crit) enemy.frozenTimer = 0;
-    if (detonate) {
-      enemy.markTimer = 0;
-      this.emit({ type: 'detonate', enemy });
-    }
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
@@ -2136,28 +2136,58 @@ export class Horde {
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });
-    if (killed) {
-      if (this.shot) this.shot.kills++;
-      enemy.powderTimer = 0;
-      enemy.burnTimer = 0;
-      // la pólvora: el marcado explota al morir, y si los de al lado también están marcados, siguen
-      if (hadPowder) {
-        const pos = enemy.position.clone();
-        this.emit({ type: 'powder', pos, radius: POWDER.blast });
-        this.blast(pos, POWDER.blast, this.powderDamage, 6, enemy);
-      }
-      // la maestría del fuego (7/10; antes contagiaba, y casi no se veía): el que muere prendido, de lo
-      // que sea, explota. Si a alguno de al lado lo mata prendido, explota también
-      if (wasBurning && this.mastery.fire) {
-        const pos = enemy.position.clone();
-        this.emit({ type: 'fireBlast', pos, radius: ELEMENTS.blastRadius });
-        this.blast(pos, ELEMENTS.blastRadius, ELEMENTS.blastDamage, 4, enemy);
-      }
-    }
+    if (killed) this.died(enemy, hadPowder, wasBurning);
     // la explosión de la pólvora pasa por acá con otros enemigos: lo que se lee después es de este golpe
     this.lastDealt = dealt;
     this.lastStopped = false;
     this.lastArmored = armored;
+    return killed;
+  }
+
+  /** Lo que pasa cuando un golpe lo mata: la baja del tiro, y la pólvora o el fuego que explotan. */
+  private died(enemy: Enemy, hadPowder: boolean, wasBurning: boolean): void {
+    if (this.shot) this.shot.kills++;
+    enemy.powderTimer = 0;
+    enemy.burnTimer = 0;
+    // la pólvora: el marcado explota al morir, y si los de al lado también están marcados, siguen
+    if (hadPowder) {
+      const pos = enemy.position.clone();
+      this.emit({ type: 'powder', pos, radius: POWDER.blast });
+      this.blast(pos, POWDER.blast, this.powderDamage, 6, enemy);
+    }
+    // la maestría del fuego (7/10; antes contagiaba, y casi no se veía): el que muere prendido, de lo
+    // que sea, explota. Si a alguno de al lado lo mata prendido, explota también
+    if (wasBurning && this.mastery.fire) {
+      const pos = enemy.position.clone();
+      this.emit({ type: 'fireBlast', pos, radius: ELEMENTS.blastRadius });
+      this.blast(pos, ELEMENTS.blastRadius, ELEMENTS.blastDamage, 4, enemy);
+    }
+  }
+
+  /**
+   * La marca de Abe: el pelotazo del caballero que toca a un marcado la detona. Desde el 9/10 (pedido de
+   * Leandro) es un **golpe aparte, fantasma**: `ABE_BOLT.bonus` que entra siempre, pase lo que pase con el
+   * golpe: aunque la pelota rebote en el escudo o en el muro, aunque lo proteja el aura de invencible o la
+   * burbuja (que no se gasta), aunque esté blindado o sea etéreo (al etéreo, uno más que el 1 de siempre).
+   * No empuja ni lo hace trastabillar, ni le recarga la esquiva o la burbuja. Antes sumaba al golpe, y se lo
+   * comían las mismas defensas. Devuelve true si lo mató. Solo con un tiro del caballero en curso (`shot`).
+   */
+  detonate(enemy: Enemy): boolean {
+    if (!this.shot || enemy.markTimer <= 0 || !enemy.alive || enemy.passed) return false;
+    enemy.markTimer = 0;
+    this.emit({ type: 'detonate', enemy });
+    let dealt = ABE_BOLT.bonus;
+    // el tutorial: con un tiro que no es el que se está enseñando, no lo mata
+    if (this.mayKill && dealt >= enemy.hp && !this.mayKill(enemy, this.shot)) {
+      dealt = Math.max(0, enemy.hp - 1);
+      this.emit({ type: 'spared', enemy });
+    }
+    if (dealt <= 0) return false;
+    const hadPowder = enemy.powderTimer > 0;
+    const wasBurning = enemy.burning;
+    const killed = enemy.damage(dealt, null, 0, 0, true);
+    this.emit({ type: 'damage', enemy, amount: dealt, killed, crit: false, mark: true });
+    if (killed) this.died(enemy, hadPowder, wasBurning);
     return killed;
   }
 
@@ -2200,6 +2230,8 @@ export class Horde {
    */
   touch(enemy: Enemy, guard = 0, hush = false): boolean {
     if (!enemy.alive || enemy.passed) return false;
+    // la marca de Abe: el toque también la detona, y eso sí pega (ver `detonate`)
+    if (this.detonate(enemy)) return false;
     // el silencio (`hush`) no lo para la burbuja: la apaga (ver Enemy.silence)
     if (hush && !enemy.warded) return true;
     if (enemy.warded) {

@@ -45,48 +45,106 @@
       #netnote { position: absolute; top: calc(var(--head) + 50px); left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #e4e9f0; font-size: 15px; white-space: nowrap; }
       #netnote[hidden], #netsound[hidden], #watchers[hidden] { display: none; }
       #netsound { position: absolute; top: calc(var(--head) + 92px); left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 6px 12px; border-radius: 8px; background: rgba(10, 14, 20, 0.7); color: #cfd6e0; font-size: 14px; }
-      /* Abe, el que mira y tira los hechizos: sus cuatro botones abajo al centro, grandes para el dedo */
-      #abe { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: rgba(10, 14, 20, 0.75); border: 1px solid rgba(159, 227, 255, 0.35); width: max-content; max-width: calc(100vw - 24px); box-sizing: border-box; text-align: center; pointer-events: auto; }
-      #abe[hidden] { display: none; }
-      #abe .who { font-weight: 800; font-size: 15px; color: #dff6ff; }
-      #abe .spells { display: grid; grid-template-columns: repeat(5, minmax(58px, 88px)); gap: 6px; }
-      /* la chispa, el ataque básico: lo que sale si no hay hechizo elegido */
-      #abe .spell.bolt { border-style: dashed; }
-      #abe .spell.bolt .lv { text-transform: uppercase; letter-spacing: 0.5px; }
-      #abe .spell { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; padding: 6px 4px; border-radius: 10px; border: 2px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: #cfd6e0; font: inherit; cursor: pointer; touch-action: manipulation; }
-      #abe .spell .icon { font-size: 24px; line-height: 1.1; filter: grayscale(0.7); opacity: 0.6; }
-      #abe .spell .name { font-size: 12px; font-weight: 700; }
-      #abe .spell kbd { position: absolute; top: 3px; left: 5px; font-size: 10px; opacity: 0.5; }
+      /* Abe (9/10, pedido de Leandro): sus hechizos son tarjetas como las de los palos del caballero, pegadas
+         al borde. Dónde van (data-layout) se elige arriba; la cámara encuadra la cancha en lo que queda libre
+         (ver net/fieldcam). Jugando no hay nada más: la ayuda sale antes de empezar y en la pausa */
+      #abe { position: absolute; inset: 0; pointer-events: none; }
+      #abe[hidden], #abe .grp:empty, #abe .who:empty { display: none; }
+      #abe .grp { position: absolute; display: flex; gap: 6px; pointer-events: auto; }
+      #abe[data-layout="fila"] .grp.a { bottom: 4px; left: 50%; transform: translateX(-50%); }
+      #abe[data-layout="hueco"] .grp { bottom: 4px; }
+      #abe[data-layout="hueco"] .grp.a { right: calc(50% + 60px); }
+      #abe[data-layout="hueco"] .grp.b { left: calc(50% + 60px); }
+      #abe[data-layout="esquinas"] .grp { bottom: 4px; }
+      #abe[data-layout="esquinas"] .grp.a { left: 4px; }
+      #abe[data-layout="esquinas"] .grp.b { right: 4px; }
+      #abe[data-layout="costados"] .grp { bottom: 4px; flex-direction: column-reverse; }
+      #abe[data-layout="costados"] .grp.a { left: 4px; }
+      #abe[data-layout="costados"] .grp.b { right: 4px; }
+      #abe .spell { position: relative; overflow: hidden; width: 124px; box-sizing: border-box; padding: 6px 8px 6px 42px; text-align: left; border-radius: 8px; border: 2px solid transparent; background: rgba(0, 0, 0, 0.55); color: #fff; font: inherit; cursor: pointer; touch-action: manipulation; opacity: 0.75; }
+      #abe .spell.ready { opacity: 1; }
+      #abe .spell.on { opacity: 1; border-color: var(--c); box-shadow: 0 0 12px var(--c); }
+      #abe .spell .ic { position: absolute; left: 8px; top: 50%; width: 28px; height: 28px; margin-top: -14px; color: var(--c); opacity: 0.55; }
+      #abe .spell.ready .ic, #abe .spell.on .ic { opacity: 1; }
+      #abe .spell .ic svg, #abeoffer .card .ic svg, #abenew svg, #abehelp svg { display: block; width: 100%; height: 100%; }
+      #abe .spell .name { display: block; font-size: 15px; font-weight: 700; white-space: nowrap; }
+      #abe .spell .lv { display: block; min-height: 1.2em; font-size: 12px; color: var(--c); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+      #abe .spell kbd { position: absolute; right: 7px; bottom: 6px; font-family: inherit; font-size: 11px; color: #9aa4b2; }
+      #abe .spell .cd { position: absolute; left: 0; right: 0; top: 0; height: 0; background: rgba(0, 0, 0, 0.55); pointer-events: none; }
+      #abe .spell .cdnum { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; color: #fff; text-shadow: 0 2px 6px #000; pointer-events: none; }
+      #abe .spell.empty { opacity: 0.35; cursor: default; }
+      #abe .spell.empty .name { font-weight: 400; color: #9aa4b2; }
+      /* la marca, el ataque básico: lo que sale si no hay hechizo elegido */
+      #abe .spell.bolt:not(.on) { border-color: rgba(255, 255, 255, 0.12); border-style: dashed; }
+      #abe.swap .spell:not(.empty):not(.bolt) { animation: abeswap 0.8s ease-in-out infinite alternate; }
+      @keyframes abeswap { from { border-color: rgba(255, 255, 255, 0.2); } to { border-color: #ffd66b; box-shadow: 0 0 10px #ffd66b; } }
+      /* el que mira sin ser Abe: solo quién es */
+      #abe .who { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); padding: 4px 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.55); font-size: 13px; color: #9aa4b2; white-space: nowrap; }
+      #abe.other .grp { display: none; }
       /* en el celular no hay teclado */
       @media (pointer: coarse) { #abe .spell kbd { display: none; } }
-      #abe .spell .cd { position: absolute; left: 0; right: 0; top: 0; height: 0; background: rgba(0, 0, 0, 0.55); pointer-events: none; }
-      #abe .spell.ready { color: #fff; }
-      #abe .spell.ready .icon { filter: none; opacity: 1; }
-      #abe .spell.on { border-color: var(--c); box-shadow: 0 0 10px var(--c); background: rgba(255, 255, 255, 0.12); }
-      #abe .help { font-size: 13px; color: #dfe5ec; max-width: 420px; }
-      #abe .cam { font-size: 11px; color: #8a94a3; }
-      #abe .spell .lv { font-size: 10px; color: #9aa4b2; }
-      #abe .spell.empty { cursor: default; opacity: 0.45; }
-      #abe.swap .spell:not(.empty) { animation: abeswap 0.8s ease-in-out infinite alternate; }
-      @keyframes abeswap { from { border-color: rgba(255, 255, 255, 0.2); } to { border-color: #ffd66b; box-shadow: 0 0 10px #ffd66b; } }
-      /* las cartas de hechizo nuevo, arriba de los botones */
-      #abe .offer { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-      #abe .offer[hidden], #abe .newspell[hidden], #abe .offer [hidden] { display: none; }
-      #abe .offer .title { font-size: 13px; font-weight: 700; color: #ffd66b; max-width: 400px; }
-      #abe .offer .cards { display: grid; grid-template-columns: repeat(3, minmax(90px, 128px)); gap: 6px; }
-      #abe .card { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 5px; border-radius: 10px; border: 2px solid var(--c); background: rgba(255, 255, 255, 0.07); color: #e4e9f0; font: inherit; cursor: pointer; touch-action: manipulation; }
-      #abe .card.on { background: rgba(255, 214, 107, 0.18); border-color: #ffd66b; }
-      #abe .card .icon { font-size: 26px; line-height: 1.1; }
-      #abe .card .name { font-size: 13px; font-weight: 800; }
-      #abe .card .name small { font-weight: 400; color: #9aa4b2; }
-      #abe .card .shape { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aa4b2; }
-      #abe .card .hint { font-size: 11px; color: #cfd6e0; line-height: 1.25; }
-      #abe .offer .actions { display: flex; gap: 6px; }
-      #abe .offer .actions button, #abe .newspell { font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 0, 0, 0.4); color: #e4e9f0; cursor: pointer; touch-action: manipulation; }
-      #abe .newspell { border-color: #ffd66b; color: #ffd66b; }
-      #abe.other { pointer-events: none; }
-      #abe.other .spells, #abe.other .help, #abe.other .cam, #abe.other .offer, #abe.other .newspell { display: none; }
-      #abe.other .who { font-weight: 400; font-size: 13px; color: #9aa4b2; }
+      body.tactil #abe .spell kbd { display: none; }
+      /* el celular parado: las tarjetas angostas, con el ícono arriba */
+      @media (max-width: 600px) {
+        #abe .spell { width: 70px; padding: 5px 2px 4px; text-align: center; }
+        #abe .spell .ic { position: static; display: block; width: 24px; height: 24px; margin: 0 auto 2px; }
+        #abe .spell .name { font-size: 12px; }
+        #abe .spell .lv { font-size: 10px; letter-spacing: 0.5px; }
+        #abe .grp { gap: 4px; }
+        #abe[data-layout="hueco"] .grp.a { right: calc(50% + 34px); }
+        #abe[data-layout="hueco"] .grp.b { left: calc(50% + 34px); }
+      }
+      /* el celular acostado: lo mismo, pero más bajas */
+      @media (max-height: 480px) and (min-width: 601px) {
+        #abe .spell { width: 104px; padding: 4px 6px 4px 38px; }
+        #abe .spell .ic { left: 7px; width: 24px; height: 24px; margin-top: -12px; }
+        #abe .spell .name { font-size: 13px; }
+        #abe .spell .lv { font-size: 11px; }
+      }
+      /* las cartas de hechizo nuevo: arriba, debajo de la barra, para que se vean los botones de abajo */
+      #abeoffer { position: absolute; top: calc(var(--head) + 10px); left: 50%; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 10px 12px; border-radius: 12px; background: rgba(8, 12, 18, 0.9); border: 1px solid rgba(255, 214, 107, 0.35); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); text-align: center; pointer-events: auto; }
+      #abeoffer[hidden], #abeoffer [hidden], #abenew[hidden], #abehelp[hidden] { display: none; }
+      #abeoffer .title { font-size: 14px; font-weight: 700; color: #ffd66b; max-width: 480px; }
+      #abeoffer .cards { display: grid; grid-template-columns: repeat(3, 150px); gap: 8px; }
+      #abeoffer .card { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 8px 10px; border-radius: 10px; border: 2px solid var(--c); background: rgba(10, 16, 24, 0.95); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); color: #e4e9f0; font: inherit; cursor: pointer; touch-action: manipulation; transition: transform 0.12s; }
+      #abeoffer .card:hover { transform: translateY(-3px); }
+      #abeoffer .card.on { background: rgba(255, 214, 107, 0.16); border-color: #ffd66b; }
+      #abeoffer .card .ic { width: 30px; height: 30px; color: var(--c); }
+      #abeoffer .card .name { font-size: 16px; font-weight: 800; color: #fff; }
+      #abeoffer .card .lv { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--c); }
+      #abeoffer .card .shape { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aa4b2; }
+      #abeoffer .card .hint { margin-top: 3px; font-size: 12px; line-height: 1.3; color: #cfd6e0; }
+      #abeoffer .actions { display: flex; gap: 6px; }
+      #abeoffer .actions button, #abenew { font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 0, 0, 0.5); color: #e4e9f0; cursor: pointer; touch-action: manipulation; }
+      @media (max-width: 600px) {
+        #abeoffer { padding: 8px; }
+        #abeoffer .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+        #abeoffer .card { padding: 7px 4px 8px; }
+        #abeoffer .card .name { font-size: 13px; }
+        #abeoffer .card .hint { font-size: 11px; }
+      }
+      /* el celular acostado: las cartas más bajas, que la pantalla es poca */
+      @media (max-height: 480px) {
+        #abeoffer { top: calc(var(--head) + 4px); gap: 5px; padding: 6px 10px; }
+        #abeoffer .title { font-size: 13px; max-width: 600px; }
+        #abeoffer .cards { grid-template-columns: repeat(3, 170px); gap: 6px; }
+        #abeoffer .card { display: grid; grid-template-columns: 24px 1fr; column-gap: 6px; align-items: center; text-align: left; padding: 5px 8px 6px; }
+        #abeoffer .card .ic { width: 22px; height: 22px; grid-row: span 2; }
+        #abeoffer .card .name { font-size: 14px; }
+        #abeoffer .card .shape { display: none; }
+        #abeoffer .card .hint { grid-column: 1 / -1; font-size: 11px; }
+        #abeoffer .actions button { padding: 3px 10px; }
+      }
+      /* con las cartas guardadas («Después»): el botón para volver a verlas */
+      #abenew { position: absolute; top: calc(var(--head) + 10px); left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 6px; border-color: #ffd66b; color: #ffd66b; pointer-events: auto; }
+      #abenew svg { width: 16px; height: 16px; }
+      /* cómo se juega de Abe: antes de empezar y en la pausa, no jugando */
+      #abehelp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: max-content; max-width: min(440px, calc(100vw - 32px)); box-sizing: border-box; padding: 12px 16px; border-radius: 12px; background: rgba(8, 12, 18, 0.86); border: 1px solid rgba(159, 227, 255, 0.3); color: #dfe5ec; font-size: 14px; line-height: 1.45; }
+      #abehelp .title { font-weight: 800; color: #ffd66b; margin-bottom: 4px; }
+      #abehelp p { margin: 4px 0 0; }
+      #abehelp .k { color: #9aa4b2; font-size: 13px; }
+      #abehelp .who { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #dff6ff; }
+      #abehelp .who svg { width: 22px; height: 22px; flex: none; color: #e6b3ff; }
       #watchers { position: absolute; top: calc(var(--head) + 10px); left: 14px; font-size: 14px; color: #cfd6e0; text-shadow: 0 1px 3px #000; }
       body.watching #meter, body.watching #bottom, body.watching #perks, body.watching #skin, body.watching #balancebtn,
       body.watching #balance, body.watching #card, body.watching #choice, body.watching #tutorial, body.watching #pause,
@@ -451,6 +509,7 @@
       .float.kill { color: #ffd66b; font-size: 22px; }
       .float.hurt { color: #ff6b6b; }
       .float.heal { color: #7df29a; }
+      .float.mark { color: #e6b3ff; }
       @keyframes rise { 0% { opacity: 1; margin-top: 0; } 100% { opacity: 0; margin-top: -46px; } }
 
       /* de abajo hacia arriba: las fichas pegadas al borde, la barra de carga, y el texto. La cámara encuadra la línea de los puestos justo arriba de todo esto */
@@ -470,7 +529,9 @@
       #enchants { position: relative; padding-left: 22px; }
       #enchants::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; background: rgba(255,255,255,0.18); border-radius: 1px; }
       #clubs .club { padding-left: 40px; }
-      #clubs .club .band { font-size: 10px; color: #9aa4b2; margin-top: 2px; }
+      /* lo que pega cada golpe (1·2·3) y lo que cambia (lejos, área): ver clubDamage en core/clubs */
+      #clubs .club .band { font-size: 10px; color: #9aa4b2; margin-top: 2px; white-space: nowrap; }
+      #clubs .club .band .dmg { font-size: 12px; color: #e8ecf1; letter-spacing: 0.5px; }
       /* el ícono del palo, a la izquierda de la tarjeta: es lo que distingue a uno de otro */
       .club .clubicon { position: absolute; left: 6px; top: 50%; width: 30px; height: 30px; margin-top: -15px; opacity: 0.55; transition: opacity 0.15s; }
       .club.active .clubicon { opacity: 1; filter: drop-shadow(0 0 5px var(--c)); }
@@ -691,18 +752,14 @@
       <div id="watchers" hidden></div>
       <div id="netnote" hidden></div>
       <div id="netsound" hidden data-en="🔈 Click to turn on the sound">🔈 Click para activar el sonido</div>
-      <div id="abe" hidden>
-        <div class="who"></div>
-        <div class="offer" hidden>
-          <div class="title"></div>
-          <div class="cards"></div>
-          <div class="actions"><button type="button" class="keep" data-en="Keep mine">Quedarme con los míos</button><button type="button" class="later" data-en="Later">Después</button></div>
-        </div>
-        <button type="button" class="newspell" hidden></button>
-        <div class="spells"></div>
-        <div class="help"></div>
-        <div class="cam" data-en="Drag to move forward and back · wheel or pinch: zoom · right button or two fingers up and down: angle">Arrastrá para ir adelante y atrás · rueda o pellizcar: acercar · botón derecho o dos dedos arriba y abajo: el ángulo</div>
+      <div id="abe" hidden><div class="grp a"></div><div class="grp b"></div><div class="who"></div></div>
+      <div id="abeoffer" hidden>
+        <div class="title"></div>
+        <div class="cards"></div>
+        <div class="actions"><button type="button" class="keep" data-en="Keep mine">Quedarme con los míos</button><button type="button" class="later" data-en="Later">Después</button></div>
       </div>
+      <button id="abenew" type="button" hidden></button>
+      <div id="abehelp" hidden></div>
       <div id="balance" hidden></div>
       <div id="tutorial" hidden><div class="title"></div><div class="text"></div><div class="note" hidden></div></div>
       <div id="banner"><div class="big"></div><div class="small"></div></div>
