@@ -395,3 +395,19 @@ Pedidos de Leandro:
   siempre: aunque rebote en el escudo o en el muro, aunque lo proteja el aura de invencible o la burbuja
   (que no se gasta), aunque esté blindado. No empuja ni recarga la esquiva o la burbuja. El fuego y el rayo
   siguen sin detonarla. Probado con `logs/check-marca-fantasma.mjs`.
+
+## Hecho: el bot, para probar de Abe sin un amigo (9/10/2026)
+
+Pedido de Leandro: dejar el juego jugando solo en una compu y entrar de Abe desde otra pantalla. El bot ya
+existía (`src/bot.ts`, `?bot`: juega como una persona, mueve el mouse, aprieta las teclas y carga los
+tiros; elige palo por la distancia, tira las habilidades al grupo más cercano, elige cartas al azar y
+suelta en el golpe 2). Viene solo con las herramientas de prueba: en la completa de GitHub Pages (la de la
+contraseña) sí, en la que se vende no.
+
+Con `?bot&transmitir=CÓDIGO` (en la carpeta de la completa) ahora:
+- abre la sala con ese código y **espera a que entre Abe** (sin tutorial, aunque nunca se haya hecho);
+- arranca solo cuando entra, y **al terminar empieza otra** a los 12 s, con Abe adentro.
+
+Abe entra con `abe/p1/?mirar=CÓDIGO`. La ventana del bot tiene que quedar a la vista: el navegador frena
+las pestañas escondidas o minimizadas (lo mejor, Abe en el celular). Probado con
+`logs/check-bot-abe.mjs`.

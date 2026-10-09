@@ -288,7 +288,8 @@ function tutorialDone(): boolean {
     return false;
   }
 }
-const tutorialFirst = params.has('tutorial') || (!tutorialDone() && !navigator.webdriver);
+// el bot no hace el tutorial (ver `botAutostart`)
+const tutorialFirst = !BOT && (params.has('tutorial') || (!tutorialDone() && !navigator.webdriver));
 /** Trucos del panel de balance: el golfista o la puerta no reciben daño. */
 const godMode = { godPlayer: false, godGate: false };
 /** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
@@ -704,6 +705,10 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   if (result === 'defeat') player.fall();
   // y si ganó, festeja: se da vuelta hacia la ciudad con los brazos en alto
   else player.celebrate();
+  // el bot, transmitiendo, empieza otra partida solo: Abe se queda (ver `botAutostart`)
+  if (BOT && params.get('transmitir')) setTimeout(() => {
+    if (ended && !difficultyMenu.open) playAgain();
+  }, 12000);
   // ganar con todos los puntos de dificultad puestos desbloquea un nivel más (el bot no: juega para probar)
   const level = used(progress.picks);
   const earned = result === 'victory' && !BOT && !DEMO && earnPoint(progress);
@@ -2129,6 +2134,18 @@ function playAgain(): void {
   } catch { /* sin sessionStorage: vuelve a la pantalla de inicio */ }
   location.reload();
 }
+/**
+ * Con ?bot (9/10, pedido de Leandro: para probar de Abe sin pedirle a un amigo) la partida arranca sola,
+ * sin tutorial. Si transmite (?transmitir=CÓDIGO), espera a que entre Abe, y al terminar empieza otra
+ * (ver endGame): se deja andando en una compu y se juega de Abe desde otra pantalla. El bot viene solo con
+ * las herramientas de prueba (la completa de GitHub Pages, con contraseña): la que se vende no lo trae.
+ */
+async function botAutostart(): Promise<void> {
+  if (params.get('transmitir')) {
+    while (!netHost?.hasAbe && !started) await new Promise((r) => setTimeout(r, 500));
+  }
+  void startGame(false, true);
+}
 document.getElementById('again')?.addEventListener('click', (e) => {
   (e.currentTarget as HTMLElement).blur();
   if (ended && !difficultyMenu.open) playAgain();
@@ -2173,7 +2190,7 @@ loadModels().then(() => {
   if (!WATCH && !ABE_ONLY && sessionStorage.getItem(AUTOSTART_KEY)) {
     sessionStorage.removeItem(AUTOSTART_KEY);
     void startGame(false, true);
-  }
+  } else if (BOT && !WATCH) void botAutostart();
   paintDifficulty();
   // las partidas que no salieron la vez pasada (sin red, o dejadas por la mitad)
   if (RECORD) void flushRuns();
@@ -2318,8 +2335,9 @@ function abeViewFor(portrait: boolean): AbeView {
     /* sin almacenamiento: los de fábrica */
   }
   const [turn, height] = (params.get('abecam') ?? '').split(',');
-  if (TURNS.includes(Number(turn) as Turn)) v.turn = Number(turn) as Turn;
-  if (height in HEIGHTS) v.height = height as Height;
+  // (sin ?abecam, `turn` es '' y Number('') da 0: no cuenta)
+  if (turn && TURNS.includes(Number(turn) as Turn)) v.turn = Number(turn) as Turn;
+  if (height && height in HEIGHTS) v.height = height as Height;
   const layout = params.get('abehud');
   if (layout && layout in ABE_LAYOUTS) v.layout = layout as AbeLayout;
   return v;

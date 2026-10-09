@@ -1,5 +1,6 @@
 // Bot que juega solo, para chequear el balance y para mirarlo jugar. Se activa con ?bot en la URL
-// (http://localhost:5173/?bot) y lo usa tools/botplay.mjs. Maneja el juego como una persona: mueve el
+// (http://localhost:5173/?bot) y lo usa tools/botplay.mjs. Con ?bot&transmitir=CÓDIGO espera a Abe y
+// juega una partida tras otra, para probar de Abe sin un amigo (ver `botAutostart` en main). Maneja el juego como una persona: mueve el
 // mouse, aprieta teclas y carga los tiros en tiempo real.
 //
 // Juega con el reparto nuevo: elige **palo** por la distancia a la que está el blanco (el driver cobra
