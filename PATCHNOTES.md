@@ -26,6 +26,11 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   Y ahora juega bien: apunta adonde va a estar el enemigo y carga el golpe justo para matarlo. Contra el
   que esquiva, primero tira uno corto para gastarle la esquiva. Contra el escudo de frente usa el wedge,
   y se corre para alinear enemigos. Tiene tres niveles: perfecto, bueno y flojo. `07449a8`
+  Y mejor todavía: elige desde qué puesto tirar y nunca le tira a un escudo de frente. Al del escudo le
+  pega con el hierro a la cabeza, con el wedge detrás o al costado, o carga el golpe fuerte y le tira el
+  silenciador justo antes. Contra el intocable, clava la carga y suelta cuando se abre. Usa bien las
+  habilidades. Ganó partidas enteras contra cada poder. Para probar, `?poderes=` elige los poderes de la
+  partida. `f21e524`
 
 **Los palos**
 - Las tarjetas de los palos dicen **cuánto pegan** en vez de hasta dónde llegan: lo de cada golpe (1·2·3)
