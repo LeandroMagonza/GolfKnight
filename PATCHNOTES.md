@@ -13,6 +13,18 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **Abe entra aunque sus redes no dejen conectarse directo** (algunos routers, el celular con datos):
   ahora la partida pasa por un servidor intermedio. Antes se encontraban, pero no conectaban. También
   en la app de Windows. `b583947` `57f2cb4`
+- **La marca de Abe entra siempre**: la pelota que toca a un marcado le saca 1 aparte, aunque rebote en
+  el escudo, aunque esté blindado, sea invencible o un fantasma. Antes sumaba al golpe y se la comían las
+  mismas defensas. `2a38978`
+- **Abe, con pantalla nueva**: sus hechizos son tarjetas como las de los palos, pegadas al borde, con
+  íconos nuevos. Las explicaciones salen antes de empezar y en la pausa, no jugando. La cámara ya no se
+  mueve al hacer click: encuadra sola toda la cancha con el caballero en una punta. Arriba hay botones
+  para girarla de a 90°, cambiar la altura y elegir dónde van los botones (para probar cuál queda mejor
+  en el celular y en la compu). `2a38978`
+
+**Los palos**
+- Las tarjetas de los palos dicen **cuánto pegan** en vez de hasta dónde llegan: lo de cada golpe (1·2·3)
+  y lo que cambia (el driver, +1 a más de 40 m; el hierro, + área; el wedge, todo en área). `2a38978`
 
 ## 8 de octubre
 
