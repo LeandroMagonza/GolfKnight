@@ -484,3 +484,16 @@ pegaba igual. Ahora el bot no suelta hasta que la mira del juego apunta adonde a
 Antes, 23 de cada 49 golpes a los que esquivan les llegaban sin que hubieran saltado; ahora ninguno
 (`logs/dbg-esquiva.mjs`). Un jugador podría hacer lo mismo a mano: soltar apuntando a otro lado y mover
 la mira mientras baja el palo.
+
+**A quién primero, y la pelota tapada** (10/10, Leandro: dejaba venir a los fantasmas cercanos por tirarle
+a los recién salidos; y esperaba a que pasaran los monstruos en vez de ir a una pelota libre del otro
+lado):
+- **La urgencia es el margen**: cuándo llega, menos lo que tarda en bajarlo a tiros (`finishTime`). Antes
+  era solo cuándo llega, y un fantasma de 6 de vida (6 tiros, unos 6 s) a 23 m pesaba 1.7 contra 1 de uno
+  común recién salido, con el tiro que lo mata entero: valía menos. Ahora pesa 5.
+- **Cruzar un puesto no es pararse a tirar**: el margen del cuerpo al lado de la pelota (1.5 m) va solo
+  donde tira; pasando o parado sin tirar, el de la pelota. Con el grande, uno que cruzaba entre dos
+  puestos le cortaba el paso por los dos.
+- **Sin un tiro que valga**, va a la pelota más cerca **a la que llega sin cruzarse con nadie**, no a la
+  más cerca: si esa está tapada, a otra, aunque sea del otro lado.
+Probado con `logs/dbg-fantasma.mjs` y `logs/dbg-camino.mjs`.
