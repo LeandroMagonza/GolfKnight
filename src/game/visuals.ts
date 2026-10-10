@@ -8,6 +8,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { FOURTH_ARCS, type FourthArc } from '../core/swing';
 
 export const TONES = ['ninguno', 'ACES', 'AgX', 'neutro'] as const;
 export type Tone = (typeof TONES)[number];
@@ -69,6 +70,8 @@ export type MeterSpot = (typeof METER_SPOTS)[number];
 
 export const VISUAL = {
   meterAt: 'adelante' as MeterSpot,
+  /** El arco con el golpe 4 (10/10, ver `fourthArc` en core/swing): si no se abre, el 3 no se ve. */
+  fourthArc: 'lupa' as FourthArc,
   /** La vida de la puerta como una puerta por punto, en el medio de la izquierda de la barra (8/10, Leandro). */
   gateIcons: false,
   /** Versión del lugar del arco: un guardado de antes de que el de fábrica fuera «adelante» no lo pisa. */
@@ -164,6 +167,7 @@ export function loadVisual(params: URLSearchParams): void {
   if (!TONES.includes(VISUAL.tone)) VISUAL.tone = DEFAULTS.tone;
   if (!LIGHTS.includes(VISUAL.light)) VISUAL.light = DEFAULTS.light;
   if (!SHADOW_SIZES.includes(VISUAL.shadowSize)) VISUAL.shadowSize = DEFAULTS.shadowSize;
+  if (!FOURTH_ARCS.includes(VISUAL.fourthArc)) VISUAL.fourthArc = DEFAULTS.fourthArc;
 }
 
 export function saveVisual(): void {

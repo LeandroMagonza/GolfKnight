@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHARGE, qualityMarks, qualityOf, QUALITY_FROM } from './clubs';
-import { arcAngle, arcLayout, MIN_POWER, NO_MODS, SwingMeter, timingWith, type ChargeTimes } from './swing';
+import { arcAngle, arcLayout, FOURTH_ARC, fourthArc, MIN_POWER, NO_MODS, SwingMeter, timingWith, type ChargeTimes } from './swing';
 import { PERK_NUMBERS, PERKS } from './cards';
 
 const T: ChargeTimes = { weak: 0.6, mid: 0.2, strong: 0.1, rebound: 0.3 };
@@ -192,5 +192,32 @@ describe('el arco a velocidad pareja', () => {
     expect(wrist.mid).toBeCloseTo(base.mid, 9);
     expect(wrist.strong).toBeCloseTo(base.strong, 9);
     expect(wrist.span).toBeLessThan(base.span);
+  });
+});
+
+describe('el arco con el golpe 4', () => {
+  const base = arcLayout(CHARGE, CHARGE);
+
+  it('medio: el de siempre', () => {
+    expect(fourthArc(base, 'medio')).toEqual({ layout: base, widen: 1 });
+  });
+
+  it('extendido: tres cuartos de vuelta, todo en proporción', () => {
+    const { layout, widen } = fourthArc(base, 'extendido');
+    expect(widen).toBeCloseTo(FOURTH_ARC.span / 90, 9);
+    expect(layout.span).toBeCloseTo(FOURTH_ARC.span, 9);
+    expect(layout.strong / layout.mid).toBeCloseTo(base.strong / base.mid, 9);
+  });
+
+  it('lupa: el rojo agrandado, el resto se reparte lo que queda', () => {
+    const { layout } = fourthArc(base, 'lupa');
+    expect(layout.span).toBeCloseTo(FOURTH_ARC.span, 9);
+    expect(layout.strong).toBe(FOURTH_ARC.strong);
+    expect(layout.weak + layout.mid + layout.strong).toBeCloseTo(layout.span, 9);
+    expect(layout.weak / layout.mid).toBeCloseTo(base.weak / base.mid, 9);
+    // la aguja: el 3 empieza donde empieza el rojo, y el tope está arriba
+    const marks = qualityMarks();
+    expect(arcAngle(QUALITY_FROM[2], marks, layout)).toBeCloseTo(layout.weak + layout.mid, 9);
+    expect(arcAngle(1, marks, layout)).toBeCloseTo(layout.span, 9);
   });
 });

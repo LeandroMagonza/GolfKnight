@@ -379,7 +379,7 @@ aunque solo se mande cuando corresponde.
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
 | Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
 | Recarga lenta | las habilidades del caballero tardan en recargar 1: un 50 % más; 2: el doble. La carta dice la recarga que va a tener |
-| Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +4 (2, al doble) y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga) |
+| Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +4 (2, al doble) y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga). Cada 3 dura 15 ms, y a velocidad pareja no entraba en el arco: con el talento el arco se abre a tres cuartos de vuelta con el rojo agrandado («lupa», `fourthArc` en `src/core/swing.ts`; panel B, Visual, para comparar con el medio círculo y con el extendido a velocidad pareja) |
 
 Con todo puesto es la partida de antes del 3/10, más rápida, con menos descanso y las habilidades más
 lentas, y con dos olas especiales que dejan marca en vez de tres. Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas

@@ -9,6 +9,8 @@ import { flameHtml } from './threat';
 
 /** Hasta dónde se abre el arco de carga, de arriba a cada borde: con las mejoras puede pasar de 90°. */
 const ARC_MAX = 105;
+/** Lo alto del recuadro del arco (#meter) por cada 100 de su dibujo: 78 px los 100 de medio círculo. */
+const METER_PX = 78;
 
 /** Un corazón de las vidas del caballero (24 × 24), con su brillo. */
 const HEART_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
@@ -68,6 +70,8 @@ export class Hud {
   private layout: ArcLayout = { weak: 60, mid: 20, strong: 10, span: 90 };
   private marks: readonly [number, number] = [0.55, 0.92];
   private marksKey = '';
+  /** De arriba a cada borde del arco, en grados (ver `setMarks`). */
+  private arcEdge = 90;
   private range = $('range');
   private hint = $('hint');
   private clubsEl = $('clubs');
@@ -157,21 +161,27 @@ export class Hud {
    * `fourth`: con el golpe 4 (ver FOURTH en core/clubs), qué parte del fuerte es el 4. El rojo se parte:
    * el 4 en el medio, en rojo, y el 3 a los costados, en naranja (con la pifia, todo un color más abajo).
    * El número de arriba es el del 4; el del 3 va solo si su tramo es ancho como para que se lea.
+   *
+   * `widen`: el arco abierto más de medio círculo (ver `fourthArc` en core/swing), cuánto más que 90° de
+   * cada lado. Pasa por debajo del centro: el recuadro crece para abajo y el centro queda donde estaba.
    */
-  setMarks(layout: ArcLayout, marks: readonly [number, number], duff = false, damage: readonly number[] = [], fourth = 0): void {
+  setMarks(layout: ArcLayout, marks: readonly [number, number], duff = false, damage: readonly number[] = [], fourth = 0, widen = 1): void {
     this.layout = layout;
     this.marks = marks;
     // se llama en cada cuadro (las mejoras, el palo y la distancia cambian): solo se rearma si cambió algo
-    const key = `${layout.weak.toFixed(2)}/${layout.mid.toFixed(2)}/${layout.strong.toFixed(2)}/${duff}/${damage.join()}/${fourth}`;
+    const key = `${layout.weak.toFixed(2)}/${layout.mid.toFixed(2)}/${layout.strong.toFixed(2)}/${duff}/${damage.join()}/${fourth}/${widen}`;
     if (key === this.marksKey) return;
     this.marksKey = key;
     const R = 66;
     const r = 44;
     const at = (rad: number, a: number) => `${(rad * Math.sin((a * Math.PI) / 180)).toFixed(2)} ${(-rad * Math.cos((a * Math.PI) / 180)).toFixed(2)}`;
+    // pasando de media vuelta, el arco de SVG va por el lado largo
+    const big = (a1: number, a2: number) => (a2 - a1 > 180 ? 1 : 0);
     const sector = (a1: number, a2: number, color: string) =>
-      `<path class="zone" fill="${color}" d="M ${at(R, a1)} A ${R} ${R} 0 0 1 ${at(R, a2)} L ${at(r, a2)} A ${r} ${r} 0 0 0 ${at(r, a1)} Z" />`;
+      `<path class="zone" fill="${color}" d="M ${at(R, a1)} A ${R} ${R} 0 ${big(a1, a2)} 1 ${at(R, a2)} L ${at(r, a2)} A ${r} ${r} 0 ${big(a1, a2)} 0 ${at(r, a1)} Z" />`;
     // de dónde a dónde va cada tramo, en grados desde arriba: cada uno ocupa lo que dura (ver `arcLayout`)
-    const edge = Math.min(ARC_MAX, layout.span);
+    const edge = Math.min(ARC_MAX * widen, layout.span);
+    this.arcEdge = edge;
     const g = Math.min(edge, layout.mid + layout.strong);
     const y = Math.min(g, layout.strong);
     // con el golpe 4, dónde termina el 3 y empieza el 4 (desde arriba)
@@ -208,8 +218,11 @@ export class Hud {
       + thirdLabel + topLabel();
     // un fondo oscuro un poco más grande, como tenía la barra: sobre el pasto el verde se perdía
     const b = edge + 2;
-    const back = `<path fill="rgba(0,0,0,0.6)" d="M ${at(R + 4, -b)} A ${R + 4} ${R + 4} 0 0 1 ${at(R + 4, b)} L ${at(r - 4, b)} A ${r - 4} ${r - 4} 0 0 0 ${at(r - 4, -b)} Z" />`;
-    this.meter.innerHTML = `<svg viewBox="-72 -86 144 100">` + back
+    const back = `<path fill="rgba(0,0,0,0.6)" d="M ${at(R + 4, -b)} A ${R + 4} ${R + 4} 0 ${big(-b, b)} 1 ${at(R + 4, b)} L ${at(r - 4, b)} A ${r - 4} ${r - 4} 0 ${big(-b, b)} 0 ${at(r - 4, -b)} Z" />`;
+    // lo de abajo del centro: el punto de la aguja, o el arco si pasa de 90°
+    const below = Math.max(14, Math.ceil(-(R + 4) * Math.cos((b * Math.PI) / 180)) + 6);
+    this.meter.style.height = `${((METER_PX * (86 + below)) / 100).toFixed(0)}px`;
+    this.meter.innerHTML = `<svg viewBox="-72 -86 144 ${86 + below}">` + back
       + sector(-edge, -g, low) + sector(-g, -y, mid)
       + (f ? sector(-y, -f, third) + sector(-f, f, top) + sector(f, y, third) : sector(-y, y, top))
       + sector(y, g, mid) + sector(g, edge, low)
@@ -513,7 +526,7 @@ export class Hud {
     this.meter.classList.toggle('on', charging);
     this.meter.classList.toggle('locked', charging && locked);
     // velocidad pareja: la aguja va a la par del tiempo, y cada tramo ocupa lo que dura
-    const edge = Math.min(ARC_MAX, this.layout.span);
+    const edge = this.arcEdge;
     const angle = charging ? side * Math.max(0, edge - arcAngle(power, this.marks, this.layout)) : -edge;
     this.needle?.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
     this.range.textContent = charging ? label : '';

@@ -94,6 +94,32 @@ export function arcLayout(times: ChargeTimes, base: ChargeTimes): ArcLayout {
 }
 
 /**
+ * **El arco con el golpe 4** (10/10, Leandro: con el talento el 3 no se veía). El fuerte se parte en tres
+ * (3, 4, 3) y cada 3 dura 15 ms, menos que un cuadro: a velocidad pareja ocupa 1.6°, y el borde de los
+ * tramos lo tapa. Tres formas, a elegir en el panel B (Visual):
+ * - `medio`: medio círculo a velocidad pareja, como sin el talento;
+ * - `extendido`: tres cuartos de vuelta (`span` de cada lado, en vez de 90°), a velocidad pareja: todo una
+ *   vez y media más grande, pero el 3 sigue sin verse (2.4°);
+ * - `lupa`: tres cuartos de vuelta, y el fuerte agrandado a `strong` de cada lado; el verde y el amarillo
+ *   se reparten lo que queda, en proporción. La aguja cruza el rojo más rápido: el tramo es más grande,
+ *   no dura más.
+ */
+export const FOURTH_ARCS = ['medio', 'extendido', 'lupa'] as const;
+export type FourthArc = (typeof FOURTH_ARCS)[number];
+export const FOURTH_ARC = { span: 135, strong: 20 };
+
+/** El arco de `layout` en la forma `mode` (ver FOURTH_ARCS), y cuánto se agranda su tope (90° → `span`). */
+export function fourthArc(layout: ArcLayout, mode: FourthArc): { layout: ArcLayout; widen: number } {
+  if (mode === 'medio') return { layout, widen: 1 };
+  const widen = FOURTH_ARC.span / 90;
+  const wide = { weak: layout.weak * widen, mid: layout.mid * widen, strong: layout.strong * widen, span: layout.span * widen };
+  if (mode === 'extendido' || wide.strong >= FOURTH_ARC.strong) return { layout: wide, widen };
+  const rest = wide.span - FOURTH_ARC.strong;
+  const low = wide.weak + wide.mid;
+  return { layout: { weak: (wide.weak * rest) / low, mid: (wide.mid * rest) / low, strong: FOURTH_ARC.strong, span: wide.span }, widen };
+}
+
+/**
  * Dónde va la aguja para una potencia, en grados desde el borde del arco: la potencia de cada tramo se
  * reparte en lo que ocupa ese tramo. `marks` son los umbrales de potencia del medio y del fuerte.
  */

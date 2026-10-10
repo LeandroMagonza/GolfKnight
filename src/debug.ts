@@ -22,6 +22,7 @@ import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId 
 import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
+import { FOURTH_ARCS, type FourthArc } from './core/swing';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
 export interface DebugFlags {
@@ -1220,6 +1221,11 @@ export class DebugPanel {
       cabeza: 'Al costado de la cabeza del golfista',
       pelota: 'Al costado de la pelota, del lado del golfista',
     }), note('Solo se ve mientras cargás. Va siempre del lado del golfista, para no tapar la pelota ni la línea de tiro.'));
+    el.append(choice('con golpe 4', FOURTH_ARCS, () => VISUAL.fourthArc, (v: FourthArc) => { VISUAL.fourthArc = v; }, {
+      medio: 'Medio círculo a velocidad pareja, como sin el talento: el 3 casi no se ve',
+      extendido: 'Tres cuartos de vuelta a velocidad pareja: todo más grande, el 3 sigue chico',
+      lupa: 'Tres cuartos de vuelta y el rojo agrandado (el de fábrica): la aguja lo cruza más rápido',
+    }), note('Con el talento Golpe 4 el rojo se parte en 3, 4 y 3, y cada 3 dura 15 ms: a velocidad pareja no entra en el arco.'));
 
     el.append(heading('Sombras'), this.row(toggle('Sombras del sol', 'shadows')), choice('resolución', SHADOW_SIZES, () => VISUAL.shadowSize, (v) => { VISUAL.shadowSize = v; }), note(
       'El sol proyecta sombra de verdad: los personajes quedan parados en el piso y las lomas se leen solas. Con sombras se apaga el círculo oscuro de abajo de cada enemigo. '

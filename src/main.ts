@@ -12,7 +12,7 @@ import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH
 import { buildRun, ENEMIES, RANGED, SCENARIO_POWERS, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower } from './core/waves';
 import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
-import { arcLayout, timingWith } from './core/swing';
+import { arcLayout, fourthArc, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
 import { Balls, RICOCHET_COLOR } from './game/balls';
 import { RICOCHET } from './core/shield';
@@ -565,7 +565,9 @@ function updatePreview(): void {
   // mientras carga, los tiempos con los que arrancó la carga; si no, los de ahora
   if (!tennis) {
     const levels = Array.from({ length: topQuality() }, (_, i) => i + 1);
-    hud.setMarks(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), qualityMarks(), duff, levels.map((q) => plus(damageFor(club, hitAt, q))), FOURTH.on ? FOURTH.share : 0);
+    // con el golpe 4 el arco se abre (ver fourthArc): si no, el 3 no se ve
+    const arc = fourthArc(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), FOURTH.on ? VISUAL.fourthArc : 'medio');
+    hud.setMarks(arc.layout, qualityMarks(), duff, levels.map((q) => plus(damageFor(club, hitAt, q))), FOURTH.on ? FOURTH.share : 0, arc.widen);
   }
   // en el tenis, el arco es el del timing (arriba)
   if (!tennis) {
