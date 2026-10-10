@@ -10,6 +10,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 10 de octubre
 
 **La carga**
+- **El tiro sale hacia donde apuntabas al soltar.** Mientras baja el palo, la línea de tiro queda quieta
+  aunque muevas el mouse. Antes salía hacia donde estaba el mouse en el impacto: soltando apuntado a otro
+  lado y moviendo el mouse al final, el que esquiva no saltaba y la pelota le pegaba igual. `95136aa`
 - Con el talento **Golpe 4**, el arco de carga se abre a tres cuartos de vuelta y el rojo se ve más
   grande: ahora se distinguen el 3 (naranja, a los costados) y el 4 (rojo, en el medio). Antes el 3
   quedaba tan finito que no se veía. `191dad7`
