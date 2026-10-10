@@ -20,6 +20,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   quedaba tan finito que no se veía. `191dad7`
 
 **Para los que prueban**
+- El bot se deja pisar mucho menos: mira el camino entero cuando va de un puesto a otro y dónde se para
+  el cuerpo para tirar, y al caballero esqueleto (que lo mata de un golpe) no le da el palazo, que casi no
+  lo mueve: se corre. `b2d49b2`
 - El bot se puede **apagar** desde el panel de balance (B), pestaña Pruebas: la partida sigue y la jugás
   vos. Prendido de nuevo, sigue desde donde esté. `b0627da`
 - El bot juega bien **con relieve**: ya no le tira con el driver a una loma, ni al que está en un pozo
