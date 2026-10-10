@@ -1604,11 +1604,22 @@ async function startGame(withTutorial = false, quiet = false): Promise<void> {
   if (!TENNIS_ON) saveTutorialDone();
   // con ?palos, para probar: arranca eligiendo una carta
   if (ALL_CLUBS) offerChoice();
-  if (BOT) {
-    const { startBot } = await import('./bot');
-    startBot();
-    hud.feedback(L('Juega el bot', 'Bot playing'), 'neutral');
-  }
+  if (BOT) await startBotNow();
+}
+
+/** El bot ya está andando (con ?bot, o prendido desde el panel). */
+let botStarted = false;
+
+/**
+ * Arranca el bot (src/bot.ts), una sola vez: con ?bot al empezar la partida, o desde el panel de balance
+ * (pestaña Pruebas, «Juega el bot») en cualquier momento, sin ?bot.
+ */
+async function startBotNow(): Promise<void> {
+  if (botStarted) return;
+  botStarted = true;
+  const { startBot } = await import('./bot');
+  startBot();
+  hud.feedback(L('Juega el bot', 'Bot playing'), 'neutral');
 }
 
 /**
@@ -1621,6 +1632,7 @@ if (!DEV_TOOLS) document.getElementById('balancebtn')?.remove();
 function makeDebugPanel(): DebugPanel {
   return new DebugPanel({
     director,
+    bot: { running: () => botStarted, start: () => { void startBotNow(); } },
     difficultyPoints: {
       get: () => progress.points,
       set(points) {

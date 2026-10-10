@@ -513,10 +513,11 @@ piso plano. Ahora:
 En las tres canchas con lomas, 60 s cada una contra comunes: antes erraba el 24 % de los tiros y bajaba 93;
 ahora el 11 % y 127 (`logs/check-bot-relieve.mjs`).
 
-**Apagarlo** (10/10): panel B, pestaña Pruebas, «Juega el bot». Apagado no toca el mouse, ni las teclas, ni
-las cartas (si estaba cargando, suelta la carga), y al terminar no arranca otra sola: la partida es de la
-persona. Prendido, sigue desde donde esté. No se guarda: con `?bot` arranca jugando
-(`logs/check-bot-apagar.mjs`).
+**Apagarlo y prenderlo** (10/10): panel B, pestaña Pruebas, «Juega el bot». Apagado no toca el mouse, ni
+las teclas, ni las cartas (si estaba cargando, suelta la carga), y al terminar no arranca otra sola: la
+partida es de la persona. Prendido, sigue desde donde esté. El botón dice si está jugando de verdad: sin
+`?bot` el bot no está cargado (se ve apagado), y tocarlo lo arranca ahí mismo (`startBotNow` en main). No
+se guarda: con `?bot` arranca jugando (`logs/check-bot-apagar.mjs`).
 
 **Las pisadas, otra vuelta** (10/10, Leandro: «lo vi morirse por cabecear a un caballero»; el caballero
 esqueleto pega 3, la vida entera). Con `logs/dbg-caballero.mjs` (caballeros caminando a los puestos, en

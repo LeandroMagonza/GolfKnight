@@ -76,6 +76,8 @@ export interface DebugHooks {
   goToWave(index: number): void;
   /** Tipos de enemigo apagados: no aparecen más en las oleadas. */
   disabled: Set<EnemyKind>;
+  /** El bot (src/bot.ts): si ya está andando, y arrancarlo (sin ?bot, desde la pestaña Pruebas). */
+  bot?: { running(): boolean; start(): void };
   /** Cambia de campo. Recarga la página: la malla del terreno se arma una sola vez. */
   setCourse(index: number | null): void;
   /** Qué campo está en juego, para marcarlo. */
@@ -1271,8 +1273,16 @@ export class DebugPanel {
     for (let i = 0; i < list.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), list[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
     el.append(heading('Bot'));
-    el.append(this.row(this.toggleButton('Juega el bot', () => BOT_PREFS.playing, (v) => { BOT_PREFS.playing = v; })),
-      note('Apagado, la partida sigue y la jugás vos: el bot no toca el mouse, ni las teclas, ni las cartas, y al terminar no arranca otra sola. Prendido, sigue desde donde esté. Al recargar vuelve a jugar.'));
+    // prendido es que está andando de verdad: sin ?bot no está cargado, y tocarlo lo arranca
+    const bot = this.hooks.bot;
+    const botOn = () => !!bot?.running() && BOT_PREFS.playing;
+    const botBtn = this.toggleButton('Juega el bot', botOn, (v) => {
+      BOT_PREFS.playing = v;
+      if (v && bot && !bot.running()) bot.start();
+    });
+    this.onOpen.push(() => botBtn.classList.toggle('on', botOn()));
+    el.append(this.row(botBtn),
+      note('Prendido, el bot juega desde donde esté la partida (aunque no hayas entrado con ?bot). Apagado, la jugás vos: no toca el mouse, ni las teclas, ni las cartas, y al terminar no arranca otra sola. Con ?bot, al recargar vuelve a jugar.'));
     el.append(this.row(this.toggleButton('Habilidades y mejoras', () => BOT_PREFS.abilities, (v) => { BOT_PREFS.abilities = v; saveBotPrefs(); })),
       note('Para el bot que juega solo (?bot). Apagado no tira Q W E R, ni el silenciador, ni el palazo, y las cartas las cierra sin elegir ninguna. Vale en el acto y queda guardado en este navegador.'));
     el.append(heading('Modo'));

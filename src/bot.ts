@@ -1527,7 +1527,7 @@ export function startBot(): BotStats {
       // sin enemigos: que lo encuentre la próxima oleada parado en una pelota
       if (!tees.hasBall(here)) {
         const to = tees.nearestBall(here);
-        if (to >= 0) goTo(to, here, 'sin enemigos');
+        if (to >= 0) goTo(to, here, 'sin enemigos'); // i18n-ok: el registro de las pruebas
       }
       return;
     }
@@ -1542,7 +1542,7 @@ export function startBot(): BotStats {
       // cruzarse con nadie (si la más cerca está tapada por los que pasan, otra, aunque sea del otro lado)
       if (!tees.hasBall(here)) {
         const to = nearestReachableBall(here);
-        if (to >= 0) goTo(to, here, 'sin tiro');
+        if (to >= 0) goTo(to, here, 'sin tiro'); // i18n-ok: el registro de las pruebas
       }
       return;
     }
