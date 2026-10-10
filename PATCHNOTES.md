@@ -20,6 +20,11 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   quedaba tan finito que no se veía. `191dad7`
 
 **Para los que prueban**
+- El bot se puede **apagar** desde el panel de balance (B), pestaña Pruebas: la partida sigue y la jugás
+  vos. Prendido de nuevo, sigue desde donde esté. `b0627da`
+- El bot juega bien **con relieve**: ya no le tira con el driver a una loma, ni al que está en un pozo
+  (la pelota le pasaba por arriba). Para esos usa el hierro o el wedge, que pasan por arriba de las
+  lomas. Erra la mitad que antes. `e220c6c`
 - En el panel de balance (B), pestaña Pruebas, el bot se puede dejar **sin habilidades**: no tira
   ninguna, y en las cartas elige mejoras o curas. Para ver si pasa el juego sin ellas. `c07d7ea` Ahora
   tampoco toma mejoras: cierra las cartas sin elegir. `c92165e`
