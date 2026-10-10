@@ -26,6 +26,10 @@
 //   el escudo), donde agarre a más; o el combo: **carga un tiro fuerte y en el momento justo tira el
 //   silenciador**, contando lo que tarda en llegar cada pelota, para que el fuerte le llegue con el escudo
 //   bajo (al élite el silencio le dura la mitad: hay que clavarlo).
+// - **Con relieve** (10/10, Leandro: le pegaba con el driver a las lomas, o le pasaba por arriba al que
+//   estaba en un pozo): simula el vuelo de verdad del driver y el putter sobre el terreno (`terrainPath`),
+//   y solo cuenta a los que la pelota toca de verdad (llega, y no les pasa por arriba de la cabeza). Y
+//   suma el hierro y el wedge contra cualquiera: caen donde se apunta, por arriba de las lomas.
 // - **Clava la carga y espera** (la barra espaciadora): contra el intocable carga, clava el golpe y suelta
 //   justo para que la pelota llegue cuando se le abre la ventana.
 // - **El que esquiva y la burbuja**: un tiro corto de cebo (la esquiva salta al soltar, la burbuja se come
@@ -50,11 +54,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as THREE from 'three';
-import { BALL_RADIUS, GRAVITY, launch, launchSpeed, stepBall, type BounceParams } from './core/ballistics';
+import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, stepBall, type BounceParams } from './core/ballistics';
 import { areaDamageFor, CLUBS, damageFor, fourthFrom, qualityMarks, qualityOf, rollFrictionFor, SHIFT, spreadFor, topQuality, type Club, type ClubId } from './core/clubs';
 import { ABILITIES, CART, ELEMENTS, FLAG, LENS, POWDER, shotQuality } from './core/abilities';
 import { behindShield, RICOCHET, SHIELD_FRONT, SHIELD_TOP, shieldFaces } from './core/shield';
-import { heightAt } from './core/terrain';
+import { heightAt, mounds, terrainOn } from './core/terrain';
 import { DODGE, RANGED, SHIELD_WALL } from './core/waves';
 import type { ChargeTimes } from './core/swing';
 import { BOT_PREFS } from './botPrefs';
@@ -212,6 +216,96 @@ function travel(club: Club, q: number): number {
   return f[f.length - 1];
 }
 
+// ---- el vuelo sobre el relieve ----
+
+/** Un tiro rasante sobre el relieve, cada 1/120 s: el tiempo, dónde va, a qué altura, y lo que avanzó. */
+interface Path {
+  t: number[];
+  x: number[];
+  y: number[];
+  z: number[];
+  along: number[];
+}
+
+/** Los vuelos ya simulados (por palo, golpe, puesto y dirección), mientras las lomas no cambien. */
+const paths = new Map<string, Path>();
+let pathsGround = '';
+const PATH_DT = 1 / 120;
+
+/** Las lomas que levantan los geomantes cambian el terreno: con otras, los vuelos se vuelven a simular. */
+function groundChanged(): void {
+  const sig = mounds.map((m) => `${m.x.toFixed(1)},${m.z.toFixed(1)},${m.height.toFixed(1)}`).join(';');
+  if (sig === pathsGround) return;
+  pathsGround = sig;
+  paths.clear();
+}
+
+/**
+ * El vuelo de verdad del driver o el putter desde `o` hacia (ux, uz), sobre el relieve: sale como en el
+ * juego (`shotLift` y `Balls.fire`), desde la altura del puesto y sin acomodarse a las lomas, y rebota y
+ * rueda con el terreno. La dirección se redondea a medio grado.
+ */
+function terrainPath(club: Club, q: number, o: THREE.Vector3, ux: number, uz: number): Path {
+  const deg = Math.round(THREE.MathUtils.radToDeg(Math.atan2(ux, uz)) * 2) / 2;
+  const id = `${club.id}:${q}:${o.x.toFixed(1)}:${o.z.toFixed(1)}:${deg}`;
+  const known = paths.get(id);
+  if (known) return known;
+  const a = THREE.MathUtils.degToRad(deg);
+  const dx = Math.sin(a);
+  const dz = Math.cos(a);
+  const loft = THREE.MathUtils.degToRad(club.loftDeg);
+  const range = club.fixedRange > 0 ? THREE.MathUtils.clamp(club.fixedRange, club.minRange, club.maxRange) : club.maxRange;
+  const bounce: BounceParams = { restitution: club.restitution, bounceKeep: club.bounceKeep, gravity: club.gravity, rollFriction: rollFrictionFor(club, q) };
+  const s = loft > 0.001
+    ? launchWith({ x: o.x, y: heightAt(o.x, o.z) + BALL_RADIUS, z: o.z }, dx, dz, launchSpeed(range, loft, club.gravity), loft)
+    : launch({ x: o.x, y: BALL_RADIUS, z: o.z }, dx, dz, range, loft, club.gravity, bounce.rollFriction);
+  const p: Path = { t: [0], x: [o.x], y: [s.pos.y], z: [o.z], along: [0] };
+  for (let i = 1; i <= 4 / PATH_DT && !s.resting; i++) {
+    stepBall(s, PATH_DT, bounce, heightAt);
+    p.t.push(i * PATH_DT);
+    p.x.push(s.pos.x);
+    p.y.push(s.pos.y);
+    p.z.push(s.pos.z);
+    p.along.push((s.pos.x - o.x) * dx + (s.pos.z - o.z) * dz);
+  }
+  paths.set(id, p);
+  return p;
+}
+
+/** El primer punto del vuelo que llega a `along` m, o -1 si no llega (se frena antes, o la para una loma). */
+function pathIndex(p: Path, along: number): number {
+  for (let i = 0; i < p.along.length; i++) if (p.along[i] >= along) return i;
+  return -1;
+}
+
+/**
+ * Lo que tarda un globo (hierro, wedge) en caer en (x, z) desde `o`, con relieve, calculado como el juego
+ * (`shotLift`): apuntado para caer ahí aunque esté más alto o más bajo, y más empinado si con su ángulo se
+ * estrellaría contra una loma antes (de a 3°, hasta 72°).
+ */
+function lobOverTerrain(club: Club, o: THREE.Vector3, x: number, z: number): number {
+  const d = Math.hypot(x - o.x, z - o.z);
+  if (d < 0.5) return 0.1;
+  const ux = (x - o.x) / d;
+  const uz = (z - o.z) / d;
+  const g = club.gravity ?? GRAVITY;
+  const teeH = heightAt(o.x, o.z);
+  const rise = heightAt(x, z) - teeH;
+  const top = THREE.MathUtils.degToRad(72);
+  const step = THREE.MathUtils.degToRad(3);
+  let angle = THREE.MathUtils.degToRad(club.loftDeg);
+  let speed = launchSpeed(d, angle, g, rise);
+  for (; angle <= top; angle += step) {
+    speed = launchSpeed(d, angle, g, rise);
+    const tan = Math.tan(angle);
+    const k = g / (2 * speed * speed * Math.cos(angle) * Math.cos(angle));
+    let clear = true;
+    for (let s = 1; s < d - 0.4 && clear; s += 1) if (teeH + BALL_RADIUS + s * tan - k * s * s - heightAt(o.x + ux * s, o.z + uz * s) < 0.15) clear = false;
+    if (clear || angle + step > top) break;
+  }
+  return d / (speed * Math.cos(angle));
+}
+
 /** Cuánto tarda la barra en llegar al golpe `q` (el 1 es soltar enseguida). */
 function chargeTime(q: number, t: ChargeTimes): number {
   if (q <= 1) return 0.02;
@@ -293,7 +387,7 @@ export function startBot(): BotStats {
   };
   const holdAim = () => {
     // apagado (las pruebas) no toca el mouse
-    if (!off) dispatchEvent(new MouseEvent('mousemove', { clientX: aimX, clientY: aimY }));
+    if (!off && BOT_PREFS.playing) dispatchEvent(new MouseEvent('mousemove', { clientX: aimX, clientY: aimY }));
     requestAnimationFrame(holdAim);
   };
   holdAim();
@@ -321,6 +415,8 @@ export function startBot(): BotStats {
   let castAt = -10;
   let dodgedAt = -10;
   let cardSince = 0;
+  /** Venía jugando (para soltar la carga al apagarlo desde el panel). */
+  let playing = true;
   let escaping = false;
   let last = performance.now();
 
@@ -561,14 +657,28 @@ export function startBot(): BotStats {
     let t = lead + 0.3;
     let p = predict(e, t);
     for (let i = 0; i < 4; i++) {
-      const d = Math.hypot(p.x - o.x, p.z - o.z);
-      const ft = flightTime(club, q, d);
+      const ft = flightTo(club, q, o, p.x, p.z);
       if (!Number.isFinite(ft)) return null;
       t = lead + ft;
       p = predict(e, t);
     }
     const d = Math.hypot(p.x - o.x, p.z - o.z);
-    return Number.isFinite(flightTime(club, q, d)) ? { ...p, d, t } : null;
+    return Number.isFinite(flightTo(club, q, o, p.x, p.z)) ? { ...p, d, t } : null;
+  }
+
+  /**
+   * Cuánto tarda la pelota de `o` a (x, z), o Infinity si no llega. Con relieve, el vuelo de verdad: el
+   * rasante puede estrellarse contra una loma antes (ver `terrainPath`); el globo sale como lo calcula el
+   * juego para caer ahí (`lobOverTerrain`).
+   */
+  function flightTo(club: Club, q: number, o: THREE.Vector3, x: number, z: number): number {
+    const d = Math.hypot(x - o.x, z - o.z);
+    if (!terrainOn() || d < 0.5) return flightTime(club, q, d);
+    if (club.id === 'wedge' || club.id === 'iron') return d > club.maxRange ? Infinity : lobOverTerrain(club, o, x, z);
+    if (club.id === 'putter' && d > PUTTER_REACH) return Infinity;
+    const path = terrainPath(club, q, o, (x - o.x) / d, (z - o.z) / d);
+    const i = pathIndex(path, d);
+    return i < 0 ? Infinity : path.t[i];
   }
 
   /**
@@ -582,6 +692,8 @@ export function startBot(): BotStats {
     const ux = (x - o.x) / len;
     const uz = (z - o.z) / len;
     const reach = travel(club, q);
+    // con relieve, el vuelo de verdad en esa dirección (el driver y el putter; los globos no pasan por acá)
+    const path = terrainOn() && (club.id === 'driver' || club.id === 'putter') ? terrainPath(club, q, o, ux, uz) : null;
     const out: { e: Enemy; along: number; t: number }[] = [];
     for (const e of gk.horde.enemies) {
       if (!e.alive || e.passed) continue;
@@ -589,6 +701,21 @@ export function startBot(): BotStats {
       if (along0 < 0.5 || along0 > reach + 2) continue;
       // la esquiva salta con cualquier tiro que pase cerca (menos el fantasma, que no lo ve venir)
       if (!ghost && e.canDodge && Math.abs((e.position.x - o.x) * uz - (e.position.z - o.z) * ux) < DODGE.aimWidth + e.radius) continue;
+      if (path) {
+        // con relieve, el vuelo de verdad: cuándo pasa por ahí, si llega, y si no le pasa por arriba
+        let i = pathIndex(path, along0);
+        if (i < 0) continue;
+        const p = predict(e, lead + path.t[i]);
+        const along = (p.x - o.x) * ux + (p.z - o.z) * uz;
+        i = pathIndex(path, along - e.radius);
+        if (i < 0) continue;
+        const near = Math.hypot(path.x[i] - p.x, path.z[i] - p.z);
+        const lateral = Math.abs((p.x - path.x[i]) * uz - (p.z - path.z[i]) * ux);
+        if (lateral > e.radius + BALL_RADIUS || near > e.radius * 2 + 1) continue;
+        if (path.y[i] - heightAt(p.x, p.z) > e.height + BALL_RADIUS) continue;
+        out.push({ e, along, t: lead + path.t[i] });
+        continue;
+      }
       // dónde está cuando la pelota pasa por ahí
       const ft = flightTime(club, q, along0);
       if (!Number.isFinite(ft)) continue;
@@ -673,6 +800,29 @@ export function startBot(): BotStats {
         const total = scan.hits.reduce((n, h) => n + value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t), 0);
         if (total <= 0) continue;
         consider(make(club, q, 'lead', total / (lead + AFTER_SHOT)));
+      }
+    }
+    // Con relieve, los globos contra cualquiera: el hierro (le pega al que toca y revienta ahí) y el wedge
+    // (revienta donde cae), apuntados a él. Pasan por arriba de las lomas que frenan al driver, y le llegan
+    // al que está en un pozo
+    if (terrainOn()) {
+      for (const id of ['iron', 'wedge'] as ClubId[]) {
+        if (!has(id)) continue;
+        const club = CLUBS[id];
+        for (const q of tops) {
+          // el wedge con el golpe 1 pifia
+          if (id === 'wedge' && q < 2) continue;
+          const lead = chargeTime(q, times) + delay + walk;
+          const hit = intercept(e, club, q, o, lead);
+          if (!hit) continue;
+          // el escudo de frente le devuelve el hierro (para eso va el tiro a la cabeza)
+          if (id === 'iron' && shieldUpAt(e, hit.t) && faces(e, o, hit.x, hit.z)) continue;
+          const v = areaValue(hit.x, hit.z, spreadFor(club, q) || 1, areaDamageFor(club, hit.d, q), hit.t, o, e);
+          if (v <= 0) continue;
+          const p = make(club, q, 'area', v / (lead + AFTER_SHOT));
+          p.offset = { x: 0, z: 0 };
+          consider(p);
+        }
       }
     }
     // Que la pelota llegue a una hora justa (`arrive` s desde ahora): carga, clava el golpe y suelta a
@@ -1356,6 +1506,15 @@ export function startBot(): BotStats {
     const now = performance.now();
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    // Apagado desde el panel (pestaña Pruebas): juega la persona. Si estaba cargando, suelta la carga
+    if (!BOT_PREFS.playing) {
+      if (playing && gk.player?.mode === 'charging') key('KeyX');
+      playing = false;
+      plan = combo = null;
+      cardSince = 0;
+      return;
+    }
+    playing = true;
     // cartas entre oleadas (y el cartel de palo nuevo): las deja un par de segundos, para que quien mira
     // las pueda leer, y se queda con una al azar
     if (gk.cardOpen) {
@@ -1379,6 +1538,7 @@ export function startBot(): BotStats {
     }
     const clock: number = gk.clock;
     finishMemo.clear();
+    groundChanged();
     observe(clock);
     if (off) return;
     // salió la pelota: cuánto tardó desde que soltó (lo que baja el palo)
