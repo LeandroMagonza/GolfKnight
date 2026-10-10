@@ -7,6 +7,12 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 10 de octubre
+
+**Para los que prueban**
+- En el panel de balance (B), pestaña Pruebas, el bot se puede dejar **sin habilidades**: no tira
+  ninguna, y en las cartas elige mejoras o curas. Para ver si pasa el juego sin ellas. `c07d7ea`
+
 ## 9 de octubre
 
 **De a dos**
