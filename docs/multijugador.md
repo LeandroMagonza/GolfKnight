@@ -517,3 +517,21 @@ ahora el 11 % y 127 (`logs/check-bot-relieve.mjs`).
 las cartas (si estaba cargando, suelta la carga), y al terminar no arranca otra sola: la partida es de la
 persona. Prendido, sigue desde donde esté. No se guarda: con `?bot` arranca jugando
 (`logs/check-bot-apagar.mjs`).
+
+**Las pisadas, otra vuelta** (10/10, Leandro: «lo vi morirse por cabecear a un caballero»; el caballero
+esqueleto pega 3, la vida entera). Con `logs/dbg-caballero.mjs` (caballeros caminando a los puestos, en
+cancha con lomas, y lo que hacía el bot cada vez que lo pisan, con `__botDebug.moves`: por qué se movió):
+- **El camino entero**: yendo de un puesto a otro se mira cada 75 cm, a la hora en que pasaría por ahí
+  (`walkDanger`). Antes solo los puestos que cruza: un caballero que cruzaba entre dos no lo frenaba. Y
+  al escaparse sin un puesto del todo seguro, el que más tarde le llega alguien **contando el camino**
+  (antes solo el de llegada: cruzó por donde pasaba el caballero).
+- **Dónde está el cuerpo**: parado en un puesto, también quieto, el cuerpo se acomoda al costado de la
+  pelota; se mira el cuerpo, no la pelota. Antes de cargar, dónde lo va a parar el juego para ese tiro
+  (`stanceAt`, con `Player.stancePosition`): antes era un círculo fijo, y cargaba, veía peligro, soltaba
+  y volvía a cargar (33 veces en 90 s).
+- **El empujado vuelve**: recién empujado por un pelotazo se lo ve yendo para atrás; además de la
+  velocidad medida se mira la de caminar derecho a la puerta, y vale la más peligrosa.
+- **Al pesado no le da el palazo**: al caballero esqueleto lo corre 2 m y no lo aturde, y mientras lo da
+  no se puede correr.
+En más de 20 minutos de caballeros, élites y comunes caminando a los puestos, una sola pisada (de un
+caballero, antes del último cambio).

@@ -415,6 +415,8 @@ export function startBot(): BotStats {
   let castAt = -10;
   let dodgedAt = -10;
   let cardSince = 0;
+  /** Los últimos movimientos de puesto, con el motivo (para las pruebas). */
+  const moveLog: string[] = [];
   /** Venía jugando (para soltar la carga al apagarlo desde el panel). */
   let playing = true;
   let escaping = false;
@@ -1010,7 +1012,7 @@ export function startBot(): BotStats {
       if (!tees.hasBall(i)) continue;
       const p = bestFrom(i, walkTime(Math.abs(i - here)), times);
       // ¿llega sin cruzarse con nadie, y termina el golpe antes de que le caiga algo o le pasen por encima?
-      if (p && skill.evade && !pathSafe(here, i, busyFor(p, 0))) continue;
+      if (p && skill.evade && !pathSafe(here, i, busyFor(p, 0), true, aimOf(p, i))) continue;
       if (p && (!best || p.score > best.score)) best = p;
     }
     return best;
@@ -1022,27 +1024,74 @@ export function startBot(): BotStats {
     return Math.max(chargeTime(p.q, gk.player.timing) - elapsed, wait, 0) + swingTail;
   }
 
-  /** ¿Se puede estar en el puesto de `x` los próximos `busy` s, sin que le caiga nada ni lo atropellen? */
-  function safeFor(x: number, busy: number): boolean {
-    return !incoming(x) && trampleAt(x, busy + 0.25) === Infinity;
+  /**
+   * ¿Se puede estar en el puesto de `x` los próximos `busy` s, sin que le caiga nada ni lo atropellen?
+   * Con `aim`, tirando hacia ahí: el cuerpo se para donde lo pone el juego para ese tiro.
+   */
+  function safeFor(x: number, busy: number, aim?: { x: number; z: number }): boolean {
+    return !incoming(x) && trampleAt(x, busy + 0.25, 0, true, aim ? stanceAt(x, aim) : undefined) === Infinity;
+  }
+
+  /** Hacia dónde va el tiro `p` desde el puesto `spot`: adonde está ahora su blanco. */
+  function aimOf(p: Plan, spot: number): { x: number; z: number } | undefined {
+    const e = (gk.horde.enemies as Enemy[]).find((x) => x.id === p.target);
+    if (!e) return undefined;
+    return { x: e.position.x + (p.offset?.x ?? 0), z: e.position.z + (p.offset?.z ?? 0) };
+  }
+
+  /**
+   * Dónde se para el cuerpo para tirar desde el puesto de `x` hacia `aim`: lo calcula el juego
+   * (`Player.stancePosition`, al costado de la pelota según adónde apunta, hasta 1.5 m). Se le pide con la
+   * mira y el puesto prestados un instante, y se le devuelven.
+   */
+  function stanceAt(x: number, aim: { x: number; z: number }): { x: number; z: number } {
+    const pl = gk.player;
+    const dx = aim.x - x;
+    const dz = aim.z - pl.anchor.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.5 || typeof pl.stancePosition !== 'function') return { x, z: pl.anchor.z };
+    const keepDir = pl.aimDir.clone();
+    const keepX = pl.anchor.x;
+    pl.aimDir.set(dx / len, 0, dz / len);
+    pl.anchor.x = x;
+    const out = pl.stancePosition(new THREE.Vector3());
+    pl.aimDir.copy(keepDir);
+    pl.anchor.x = keepX;
+    return { x: out.x, z: out.z };
   }
 
   /**
    * ¿Puede ir del puesto `here` al `to` y quedarse ahí `stay` s (tirando, si `shoots`)? Que no le caiga
-   * nada en el de llegada, y que nadie le pase por encima en los puestos que cruza (cuando pasa por cada
-   * uno) ni en el de llegada.
+   * nada en el de llegada, y que nadie le pase por encima en el camino ni en el de llegada (ver
+   * `walkDanger`).
    */
-  function pathSafe(here: number, to: number, stay: number, shoots = true): boolean {
+  function pathSafe(here: number, to: number, stay: number, shoots = true, aim?: { x: number; z: number }): boolean {
     const spots = gk.tees.spots;
-    if (to === here) return safeFor(spots[here].x, stay);
+    if (to === here) return safeFor(spots[here].x, stay, shoots ? aim : undefined);
     if (incoming(spots[to].x)) return false;
-    const step = Math.sign(to - here);
-    for (let k = here + step; ; k += step) {
-      const at = walkTime(Math.abs(k - here));
-      const until = k === to ? at + stay + 0.25 : at + 0.3;
-      if (trampleAt(spots[k].x, until, Math.max(0, at - 0.45), k === to && shoots) !== Infinity) return false;
-      if (k === to) return true;
+    return walkDanger(here, to, stay, shoots, aim) === Infinity;
+  }
+
+  /**
+   * Cuándo le pasa alguien por encima yendo del puesto `here` al `to`, y quedándose ahí `stay` s (Infinity
+   * si nadie). El camino se mira entero, cada 75 cm, a la hora en que pasaría por cada punto (con margen:
+   * arranca y frena suave). Hasta el 10/10 se miraban solo los puestos que cruza, y un caballero que
+   * cruzaba entre dos puestos no lo frenaba: lo pisó yendo de uno a otro.
+   */
+  function walkDanger(here: number, to: number, stay: number, shoots: boolean, aim?: { x: number; z: number }): number {
+    const spots = gk.tees.spots;
+    const x0 = spots[here].x;
+    const x1 = spots[to].x;
+    const total = walkTime(Math.abs(to - here));
+    const n = Math.max(1, Math.ceil(Math.abs(x1 - x0) / 0.75));
+    let first = Infinity;
+    for (let i = 1; i < n; i++) {
+      const t = (total * i) / n;
+      first = Math.min(first, trampleAt(x0 + ((x1 - x0) * i) / n, t + 0.3, Math.max(0, t - 0.35), false));
     }
+    // ahí: llega a la pelota, y si va a tirar, se para donde lo pone el tiro
+    first = Math.min(first, trampleAt(x1, total + 0.6, Math.max(0, total - 0.35), false));
+    return Math.min(first, trampleAt(x1, total + stay + 0.25, Math.max(0, total - 0.35), shoots, shoots && aim ? stanceAt(x1, aim) : undefined));
   }
 
   /** Los que atropellan si le pasan por encima (ver `Enemy.update`): van a la puerta y no frenan por él. */
@@ -1059,24 +1108,32 @@ export function startBot(): BotStats {
    * para tirar se va a parar al lado de la pelota, hasta 1.5 m según adónde apunte (en `STANCE_PAD` de
    * margen). `stance` en false: solo pasa o se queda parado sin tirar, en la pelota (`WALK_PAD`).
    */
-  function trampleAt(x: number, until: number, from = 0, stance = true): number {
+  function trampleAt(x: number, until: number, from = 0, stance = true, body?: { x: number; z: number }): number {
     const pl = gk.player;
-    const set = pl.mode !== 'free' && Math.abs(x - pl.anchor.x) < 0.5;
-    const bx = set ? pl.position.x : x;
-    const bz = set ? pl.position.z : pl.anchor.z;
-    const pad = set || !stance ? WALK_PAD : STANCE_PAD;
+    // parado en ese puesto, el cuerpo está donde está: cargando, bajando el palo, y también quieto (se
+    // acomoda al costado de la pelota al rato de llegar)
+    const set = pl.atSpot && Math.abs(x - pl.anchor.x) < 0.5;
+    const bx = body ? body.x : set ? pl.position.x : x;
+    const bz = body ? body.z : set ? pl.position.z : pl.anchor.z;
+    const pad = body || set || !stance ? WALK_PAD : STANCE_PAD;
     let first = Infinity;
     for (const e of alive()) {
       if (!tramples(e)) continue;
       const tr = tracks.get(e.id);
-      const vx = tr && !tr.fresh ? tr.vx : 0;
-      const vz = tr && !tr.fresh ? tr.vz : -(e.walkSpeed ?? 0);
+      // Con la velocidad que se le midió, y también con la de caminar derecho a la puerta: recién empujado
+      // por un pelotazo se lo ve yendo para atrás, y enseguida vuelve a venir (así lo pisaba el élite: lo
+      // veía alejarse, cargaba, y se le venía encima)
+      const speed = e.walkSpeed ?? 0;
+      const ways: [number, number][] = [[0, -speed]];
+      if (tr && !tr.fresh) ways.push([tr.vx, tr.vz]);
       // al élite, más margen: si lo pisa es la partida
       const reach = e.radius + TRAMPLE_REACH + pad + (e.size > 1 ? 0.4 : 0);
-      for (let t = from; t <= Math.min(until, first); t += 0.05) {
-        if (Math.hypot(e.position.x + vx * t - bx, e.position.z + vz * t - bz) < reach) {
-          first = t;
-          break;
+      for (const [vx, vz] of ways) {
+        for (let t = from; t <= Math.min(until, first); t += 0.05) {
+          if (Math.hypot(e.position.x + vx * t - bx, e.position.z + vz * t - bz) < reach) {
+            first = t;
+            break;
+          }
         }
       }
     }
@@ -1111,11 +1168,11 @@ export function startBot(): BotStats {
       }
     }
     if (best >= 0) return best;
-    // nada seguro: donde más tarde le llegue
+    // nada seguro: donde más tarde le llegue alguien, contando el camino (si quedarse es lo mejor, se queda)
     let later = trampleAt(tees.spots[here].x, 3, 0, false);
     for (const i of near) {
       if (incoming(tees.spots[i].x)) continue;
-      const t = trampleAt(tees.spots[i].x, 3, walkTime(Math.abs(i - here)), false);
+      const t = walkDanger(here, i, 3, false);
       if (t > later) {
         best = i;
         later = t;
@@ -1410,9 +1467,12 @@ export function startBot(): BotStats {
   }
 
   /** Va al puesto `to` (A sube de puesto, D baja). */
-  function goTo(to: number, here: number): void {
+  function goTo(to: number, here: number, why: string): void {
     if (to === here) return;
     stats.moves++;
+    // para revisar después por qué se movió (las pruebas lo leen en __botDebug.moves)
+    moveLog.push(`${gk.clock.toFixed(2)} ${here}→${to} ${why}`);
+    if (moveLog.length > 20) moveLog.shift();
     for (let i = 0; i < Math.abs(to - here); i++) key(to > here ? 'KeyA' : 'KeyD');
   }
 
@@ -1435,20 +1495,21 @@ export function startBot(): BotStats {
       const to = refuge(here);
       if (to >= 0) {
         stats.evades++;
-        goTo(to, here);
+        goTo(to, here, 'le cae algo');
         return;
       }
     }
     // Nadie lo persigue, pero el que le pasa por encima lo atropella (el élite, de una). Si uno le va a pasar
     // por encima enseguida: palazo si está listo y lo tiene encima (lo manda 15 m atrás; al élite no, que
-    // si falla es la partida); si no, al puesto más seguro
+    // si falla es la partida; al pesado tampoco, el caballero esqueleto: lo corre apenas 2 m y no lo
+    // aturde, y mientras da el palazo no se puede correr); si no, al puesto más seguro
     const soon = trampleAt(pl.anchor.x, 1.2, 0, false);
     if (soon < 1.2 && pl.atSpot && clock - dodgedAt > 0.3) {
       dodgedAt = clock;
       const shoveSlot = gk.abilities.slots.findIndex((s: any) => s?.id === 'shove');
       const shoveReady = BOT_PREFS.abilities && shoveSlot >= 0 && gk.abilities.cooldowns[shoveSlot] <= 0;
       const threat = alive().filter(tramples).sort((a, b) => dist(a) - dist(b))[0];
-      if (shoveReady && threat && threat.size <= 1 && threat.behavior === 'melee' && dist(threat) < 3.2) {
+      if (shoveReady && threat && threat.size <= 1 && !threat.stats?.heavy && threat.behavior === 'melee' && dist(threat) < 3.2) {
         aim(threat.position.x, threat.position.z);
         setTimeout(() => key(SLOT_KEYS[shoveSlot]), 40);
         stats.melee++;
@@ -1457,7 +1518,7 @@ export function startBot(): BotStats {
       const to = refuge(here);
       if (to >= 0) {
         stats.dodges++;
-        goTo(to, here);
+        goTo(to, here, `lo pisan en ${soon.toFixed(2)} s`);
         return;
       }
     }
@@ -1466,7 +1527,7 @@ export function startBot(): BotStats {
       // sin enemigos: que lo encuentre la próxima oleada parado en una pelota
       if (!tees.hasBall(here)) {
         const to = tees.nearestBall(here);
-        if (to >= 0) goTo(to, here);
+        if (to >= 0) goTo(to, here, 'sin enemigos');
       }
       return;
     }
@@ -1481,13 +1542,13 @@ export function startBot(): BotStats {
       // cruzarse con nadie (si la más cerca está tapada por los que pasan, otra, aunque sea del otro lado)
       if (!tees.hasBall(here)) {
         const to = nearestReachableBall(here);
-        if (to >= 0) goTo(to, here);
+        if (to >= 0) goTo(to, here, 'sin tiro');
       }
       return;
     }
     // el mejor tiro es desde otro puesto: va, y al llegar lo vuelve a pensar
     if (next.spot !== here) {
-      goTo(next.spot, here);
+      goTo(next.spot, here, `tiro ${next.club.id}${next.q}`);
       return;
     }
     if (next.target < 0) return;
@@ -1597,6 +1658,7 @@ export function startBot(): BotStats {
   // para revisar sus decisiones desde la consola o las pruebas
   (window as any).__botDebug = {
     choose, bestFrom, planFor, alignShift, headShot, abilityPlan, predict, intercept, scanLine, weight, urgency, value, regenWindow, finishTime, trampleAt, refuge, incoming, chargeTime, skill, tee,
+    moves: moveLog, pathSafe,
     get plan() { return plan; }, get delay() { return delay; }, get swingTail() { return swingTail; }, get off() { return off; }, set off(v: boolean) { off = v; },
   };
   return stats;
