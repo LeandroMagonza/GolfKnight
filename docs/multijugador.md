@@ -474,3 +474,12 @@ Pruebas, sección Bot, «Usa habilidades» (o `?bot&sinhabilidades`). Apagado no
 silenciador del combo, ni el palazo; y en las cartas elige una mejora o una cura cuando hay. Vale en el
 acto y queda guardado en el navegador (`src/botPrefs.ts`, aparte del bot para que el panel no lo cargue).
 Probado con `logs/check-bot-sinhab.mjs`.
+
+**El cebo que no hacía saltar** (10/10, Leandro: «les pega a los que esquivan sin que esquiven»): el
+juego lee la mira del mouse en su cuadro, la esquiva salta con la mira **del momento de soltar**, y la
+pelota sale con la mira **del impacto** (0.2 a 0.5 s después). El cebo es un golpe 1, que sale al toque:
+el bot soltaba antes de que el juego tuviera la mira nueva, así que saltaba otro o nadie, y la pelota le
+pegaba igual. Ahora el bot no suelta hasta que la mira del juego apunta adonde apuntó (`aimSettled`).
+Antes, 23 de cada 49 golpes a los que esquivan les llegaban sin que hubieran saltado; ahora ninguno
+(`logs/dbg-esquiva.mjs`). Un jugador podría hacer lo mismo a mano: soltar apuntando a otro lado y mover
+la mira mientras baja el palo.

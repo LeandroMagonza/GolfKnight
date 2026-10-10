@@ -272,10 +272,16 @@ export function startBot(): BotStats {
   // su última posición en cada cuadro.
   let aimX = innerWidth / 2;
   let aimY = innerHeight / 3;
+  /** Adónde apuntó, en el piso: para saber si el juego ya tiene la mira ahí (ver `aimSettled`). */
+  const aimAt = { x: 0, z: 0, since: 0 };
   const aim = (x: number, z: number) => {
     const s = gk.screenOf(x, z);
+    if (Math.hypot(x - aimAt.x, z - aimAt.z) > 0.5) aimAt.since = gk.clock ?? 0;
+    aimAt.x = x;
+    aimAt.z = z;
     aimX = s.x;
     aimY = s.y;
+    dispatchEvent(new MouseEvent('mousemove', { clientX: aimX, clientY: aimY }));
   };
   const holdAim = () => {
     dispatchEvent(new MouseEvent('mousemove', { clientX: aimX, clientY: aimY }));
@@ -962,6 +968,18 @@ export function startBot(): BotStats {
     return true;
   }
 
+  /** ¿La mira del juego ya apunta adonde apuntó el bot? (Medio grado; si tarda más de 0.25 s, sí igual.) */
+  function aimSettled(clock: number): boolean {
+    if (clock - aimAt.since > 0.25) return true;
+    gk.player.teePosition(tee);
+    const dx = aimAt.x - tee.x;
+    const dz = aimAt.z - tee.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.5) return true;
+    const d = gk.player.aimDir;
+    return (dx * d.x + dz * d.z) / len > Math.cos(THREE.MathUtils.degToRad(0.5));
+  }
+
   /** Cargando: corrige la puntería, se corre si hay que alinear, y suelta en el golpe buscado. */
   function charge(dt: number, clock: number): void {
     const pl = gk.player;
@@ -984,6 +1002,10 @@ export function startBot(): BotStats {
       if (Math.abs(diff) > 0.02) pl.shiftStance(Math.sign(diff) * Math.min(Math.abs(diff), SHIFT.speed * dt));
     }
     if (qualityOf(pl.meter.power) >= p.q) {
+      // que el juego ya tenga la mira donde apuntó: la lee del mouse en su cuadro, y la esquiva salta con
+      // la mira del momento de soltar. Soltando antes (el cebo, que sale al toque) saltaba para otro lado,
+      // o nadie, y la pelota, que sale con la mira del impacto, le pegaba igual
+      if (!aimSettled(clock)) return;
       // hay que esperar: clava el golpe (la barra espaciadora) y suelta a su hora
       if (wait > 0) {
         if (!pl.meter.locked) {
