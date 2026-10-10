@@ -9,6 +9,11 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 10 de octubre
 
+**La carga**
+- Con el talento **Golpe 4**, el arco de carga se abre a tres cuartos de vuelta y el rojo se ve más
+  grande: ahora se distinguen el 3 (naranja, a los costados) y el 4 (rojo, en el medio). Antes el 3
+  quedaba tan finito que no se veía. `191dad7`
+
 **Para los que prueban**
 - En el panel de balance (B), pestaña Pruebas, el bot se puede dejar **sin habilidades**: no tira
   ninguna, y en las cartas elige mejoras o curas. Para ver si pasa el juego sin ellas. `c07d7ea`
