@@ -17,6 +17,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **Para los que prueban**
 - En el panel de balance (B), pestaña Pruebas, el bot se puede dejar **sin habilidades**: no tira
   ninguna, y en las cartas elige mejoras o curas. Para ver si pasa el juego sin ellas. `c07d7ea`
+- El bot ya no le pega al que esquiva sin hacerlo saltar: el tiro corto que le gasta la esquiva salía
+  antes de apuntar del todo, y el enemigo no saltaba. `3446604`
 
 ## 9 de octubre
 
