@@ -23,6 +23,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - En el panel de balance (B), pestaña Pruebas, el bot se puede dejar **sin habilidades**: no tira
   ninguna, y en las cartas elige mejoras o curas. Para ver si pasa el juego sin ellas. `c07d7ea` Ahora
   tampoco toma mejoras: cierra las cartas sin elegir. `c92165e`
+- El bot le tira primero al que menos margen le deja (lo que falta para que llegue, menos los tiros que
+  le hacen falta): ya no deja venir a los fantasmas cercanos por tirarle a los recién salidos. Y si los
+  que pasan le tapan una pelota, va a otra libre en vez de esperar. `27db3bb`
 - El bot ya no le pega al que esquiva sin hacerlo saltar: el tiro corto que le gasta la esquiva salía
   antes de apuntar del todo, y el enemigo no saltaba. `3446604`
 
