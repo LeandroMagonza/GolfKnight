@@ -10,19 +10,26 @@ export interface BotPrefs {
    * (en el sorteo solo salen habilidades y mejoras).
    */
   abilities: boolean;
+  /**
+   * Juega (10/10, Leandro: poder sacarlo desde el panel y seguir la partida a mano). Apagado no toca nada:
+   * ni el mouse, ni las teclas, ni las cartas, y al terminar no arranca otra sola. No se guarda: con ?bot
+   * arranca jugando.
+   */
+  playing: boolean;
 }
 
 const KEY = 'gk.botPrefs';
 
-export const BOT_PREFS: BotPrefs = { abilities: true };
+export const BOT_PREFS: BotPrefs = { abilities: true, playing: true };
 
 try {
-  Object.assign(BOT_PREFS, JSON.parse(localStorage.getItem(KEY) ?? '{}'));
+  const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+  if (typeof saved.abilities === 'boolean') BOT_PREFS.abilities = saved.abilities;
 } catch { /* sin localStorage, lo de siempre */ }
 if (new URLSearchParams(location.search).has('sinhabilidades')) BOT_PREFS.abilities = false;
 
 export function saveBotPrefs(): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(BOT_PREFS));
+    localStorage.setItem(KEY, JSON.stringify({ abilities: BOT_PREFS.abilities }));
   } catch { /* queda para esta partida */ }
 }

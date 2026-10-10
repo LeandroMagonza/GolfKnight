@@ -1271,6 +1271,8 @@ export class DebugPanel {
     for (let i = 0; i < list.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), list[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
     el.append(heading('Bot'));
+    el.append(this.row(this.toggleButton('Juega el bot', () => BOT_PREFS.playing, (v) => { BOT_PREFS.playing = v; })),
+      note('Apagado, la partida sigue y la jugás vos: el bot no toca el mouse, ni las teclas, ni las cartas, y al terminar no arranca otra sola. Prendido, sigue desde donde esté. Al recargar vuelve a jugar.'));
     el.append(this.row(this.toggleButton('Habilidades y mejoras', () => BOT_PREFS.abilities, (v) => { BOT_PREFS.abilities = v; saveBotPrefs(); })),
       note('Para el bot que juega solo (?bot). Apagado no tira Q W E R, ni el silenciador, ni el palazo, y las cartas las cierra sin elegir ninguna. Vale en el acto y queda guardado en este navegador.'));
     el.append(heading('Modo'));

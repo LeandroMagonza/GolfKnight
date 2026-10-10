@@ -497,3 +497,23 @@ lado):
 - **Sin un tiro que valga**, va a la pelota más cerca **a la que llega sin cruzarse con nadie**, no a la
   más cerca: si esa está tapada, a otra, aunque sea del otro lado.
 Probado con `logs/dbg-fantasma.mjs` y `logs/dbg-camino.mjs`.
+
+**Con relieve** (10/10, Leandro, con el terreno irregular: le pegaba con el driver a las lomas, o le
+pasaba por arriba al que estaba más bajo). El driver sale casi rasante (3.5°, menos de 1 m sobre el piso
+en el medio del vuelo) desde la altura del puesto, y con relieve no se acomoda a las lomas: se estrella
+contra la que se cruce, y al que está en un pozo le pasa por arriba de la cabeza. El bot simulaba sobre
+piso plano. Ahora:
+- **El vuelo de verdad** (`terrainPath`): el driver y el putter con la misma física y el mismo arranque
+  que el juego (`shotLift`), rebotando y rodando con el terreno; guardado por puesto y dirección (medio
+  grado) hasta que un geomante cambie las lomas. En la línea solo cuentan los que la pelota toca de
+  verdad: que llegue hasta ahí, y que no le pase por arriba.
+- **Los globos contra cualquiera**: con relieve, el hierro (le pega al que toca y revienta ahí) y el wedge
+  (revienta donde cae), apuntados al enemigo, calculados como los calcula el juego (`lobOverTerrain`: para
+  caer ahí, más empinados si una loma los frenaría). Pasan por arriba de lo que frena al driver.
+En las tres canchas con lomas, 60 s cada una contra comunes: antes erraba el 24 % de los tiros y bajaba 93;
+ahora el 11 % y 127 (`logs/check-bot-relieve.mjs`).
+
+**Apagarlo** (10/10): panel B, pestaña Pruebas, «Juega el bot». Apagado no toca el mouse, ni las teclas, ni
+las cartas (si estaba cargando, suelta la carga), y al terminar no arranca otra sola: la partida es de la
+persona. Prendido, sigue desde donde esté. No se guarda: con `?bot` arranca jugando
+(`logs/check-bot-apagar.mjs`).

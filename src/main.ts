@@ -29,6 +29,7 @@ import { FIELD_HALF_WIDTH, GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } 
 import { loadVisual, VISUAL, Visuals } from './game/visuals';
 import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
 import { DebugPanel, loadBalance, type SavedExtras } from './debug';
+import { BOT_PREFS } from './botPrefs';
 import { Hud, type PerkChip } from './hud';
 import { Input, type InputEvents } from './input';
 import { Intro } from './intro';
@@ -714,7 +715,8 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   // y si ganó, festeja: se da vuelta hacia la ciudad con los brazos en alto
   else player.celebrate();
   // el bot, transmitiendo, empieza otra partida solo: Abe se queda (ver `botAutostart`)
-  if (BOT && params.get('transmitir')) setTimeout(() => {
+  // (si se lo apagó desde el panel, la partida es de la persona: no arranca otra sola)
+  if (BOT && BOT_PREFS.playing && params.get('transmitir')) setTimeout(() => {
     if (ended && !difficultyMenu.open) playAgain();
   }, 12000);
   // ganar con todos los puntos de dificultad puestos desbloquea un nivel más (el bot no: juega para probar)
