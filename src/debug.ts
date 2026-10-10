@@ -21,6 +21,7 @@ import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
+import { BOT_PREFS, saveBotPrefs } from './botPrefs';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
 export interface DebugFlags {
@@ -1263,6 +1264,9 @@ export class DebugPanel {
     const list = this.hooks.director.list;
     for (let i = 0; i < list.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), list[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
+    el.append(heading('Bot'));
+    el.append(this.row(this.toggleButton('Usa habilidades', () => BOT_PREFS.abilities, (v) => { BOT_PREFS.abilities = v; saveBotPrefs(); })),
+      note('Para el bot que juega solo (?bot). Apagado no tira Q W E R, ni el silenciador, ni el palazo, y en las cartas elige una mejora o una cura cuando hay. Vale en el acto y queda guardado en este navegador.'));
     el.append(heading('Modo'));
     el.append(this.row(this.button(this.hooks.tennis ? 'Volver al golf' : 'Modo tenis (prototipo)', () => this.hooks.switchMode())),
       note('El modo tenis es un prototipo: no tiene botón en la pantalla de inicio. También se entra con ?tenis en la dirección. Recarga la página.'));

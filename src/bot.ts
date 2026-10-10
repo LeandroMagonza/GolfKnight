@@ -43,6 +43,9 @@
 //   alguien pasa antes de que termine el golpe, suelta la carga si se le viene uno, y al que lo tiene
 //   encima le da un palazo si lo tiene listo.
 // - Las cartas, al azar.
+// - **Sin habilidades** (10/10, en el panel de balance, pestaña Pruebas, o `?sinhabilidades`; ver
+//   botPrefs): no tira Q W E R, ni el silenciador del combo, ni el palazo, y en las cartas se queda con una
+//   mejora o una cura cuando hay. Para ver si pasa el juego sin ellas.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as THREE from 'three';
@@ -53,6 +56,7 @@ import { behindShield, RICOCHET, SHIELD_FRONT, SHIELD_TOP, shieldFaces } from '.
 import { heightAt } from './core/terrain';
 import { DODGE, RANGED, SHIELD_WALL } from './core/waves';
 import type { ChargeTimes } from './core/swing';
+import { BOT_PREFS } from './botPrefs';
 import { TRAMPLE_REACH } from './game/enemies';
 
 type Gk = any;
@@ -723,7 +727,7 @@ export function startBot(): BotStats {
       // El combo: un tiro fuerte derecho, y mientras carga (o mientras baja el palo) el silenciador, para
       // que llegue justo antes: el escudo está bajo cuando llega el fuerte. Al élite el silencio le dura la
       // mitad, así que la pelota fuerte tiene que llegar dentro de esa ventana
-      const hushSlot = (gk.abilities.slots as any[]).findIndex((s, i) => s && String(s.id).endsWith('-silence') && gk.abilities.cooldowns[i] <= 0);
+      const hushSlot = !BOT_PREFS.abilities ? -1 : (gk.abilities.slots as any[]).findIndex((s, i) => s && String(s.id).endsWith('-silence') && gk.abilities.cooldowns[i] <= 0);
       if (hushSlot >= 0) {
         const s = gk.abilities.slots[hushSlot];
         const hushClub = CLUBS[ABILITIES[s.id].club as ClubId];
@@ -1234,7 +1238,7 @@ export function startBot(): BotStats {
     if (soon < 1.2 && pl.atSpot && clock - dodgedAt > 0.3) {
       dodgedAt = clock;
       const shoveSlot = gk.abilities.slots.findIndex((s: any) => s?.id === 'shove');
-      const shoveReady = shoveSlot >= 0 && gk.abilities.cooldowns[shoveSlot] <= 0;
+      const shoveReady = BOT_PREFS.abilities && shoveSlot >= 0 && gk.abilities.cooldowns[shoveSlot] <= 0;
       const threat = alive().filter(tramples).sort((a, b) => dist(a) - dist(b))[0];
       if (shoveReady && threat && threat.size <= 1 && threat.behavior === 'melee' && dist(threat) < 3.2) {
         aim(threat.position.x, threat.position.z);
@@ -1261,7 +1265,7 @@ export function startBot(): BotStats {
 
     // Las habilidades salen en el acto y no gastan la pelota del puesto, así que van antes del tiro.
     // Una por vuelta
-    if (clock - castAt > 0.6 && useAbility(clock)) return;
+    if (BOT_PREFS.abilities && clock - castAt > 0.6 && useAbility(clock)) return;
 
     const next = choose(pl.timing);
     if (!next) {
@@ -1299,8 +1303,13 @@ export function startBot(): BotStats {
       if (!cardSince) cardSince = now;
       if (now - cardSince > 2500) {
         cardSince = 0;
-        if (gk.choice) gk.pickCard(Math.floor(Math.random() * gk.choice.length));
-        else gk.dismissCard();
+        if (gk.choice) {
+          // sin habilidades, una mejora o una cura si hay: una habilidad nueva no la usaría
+          const all = (gk.choice as any[]).map((c, i) => ({ c, i }));
+          const useful = BOT_PREFS.abilities ? all : all.filter(({ c }) => c.kind !== 'ability');
+          const from = useful.length ? useful : all;
+          gk.pickCard(from[Math.floor(Math.random() * from.length)].i);
+        } else gk.dismissCard();
       }
       return;
     }
@@ -1321,6 +1330,7 @@ export function startBot(): BotStats {
       if (ball && !baitShot) flying.push(ball);
     }
     // el silenciador del combo, a su hora: la puntería sigue en el blanco del tiro fuerte
+    if (combo && !BOT_PREFS.abilities) combo = null;
     if (combo && clock >= combo.at) {
       const id: string = gk.abilities.slots[combo.slot]?.id;
       if (id && gk.abilities.cooldowns[combo.slot] <= 0) {

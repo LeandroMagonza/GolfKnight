@@ -520,7 +520,8 @@ directamente no se compila:
 
 - **la completa** (`dist/`; en el sitio, la carpeta de la contraseña): todo, y mientras se desarrolla
   también las herramientas de prueba (panel B, `__gk`, `?bot`, `?palos`, `?poderes=shield,dodge,phase`
-  para elegir los poderes de los tres escenarios).
+  para elegir los poderes de los tres escenarios). El bot sin habilidades: en el panel B, pestaña
+  Pruebas, o `?bot&sinhabilidades`.
 - **la demo** (`dist/demo/`, en itch, en el navegador): sin los talentos de dificultad (se ven con
   candado), sin las herramientas de prueba, y sin algunos poderes: los enemigos traen solo escudo,
   esquiva, fantasma e intocable (tres de esos cuatro por partida), y el caballero no tiene los tiros

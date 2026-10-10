@@ -468,3 +468,9 @@ la cura, o le pegaba y se iba con otro y volvía tarde; y perdió contra el jefe
   arco sale de la altura 0 del puesto). Con lomas de hasta 1 m rebotan 4 de cada 29 (en plano, 1 de 32), y
   de esos se corre.
 Probado con `logs/check-bot-2.mjs` (`curan`, `pisa`, `loma`).
+
+**Sin habilidades** (10/10, Leandro: ver si pasa el juego sin ellas): en el panel de balance, pestaña
+Pruebas, sección Bot, «Usa habilidades» (o `?bot&sinhabilidades`). Apagado no tira Q W E R, ni el
+silenciador del combo, ni el palazo; y en las cartas elige una mejora o una cura cuando hay. Vale en el
+acto y queda guardado en el navegador (`src/botPrefs.ts`, aparte del bot para que el panel no lo cargue).
+Probado con `logs/check-bot-sinhab.mjs`.
