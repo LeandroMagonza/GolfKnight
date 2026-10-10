@@ -5,9 +5,9 @@
 
 export interface BotPrefs {
   /**
-   * Usa las habilidades (10/10, pedido de Leandro: ver si pasa el juego sin ellas). Apagado no tira Q W E
-   * R, ni el silenciador del combo, ni el palazo; y en las cartas se queda con una mejora o una cura
-   * cuando hay.
+   * Usa las habilidades y toma mejoras (10/10, pedido de Leandro: ver si pasa el juego sin ellas). Apagado
+   * no tira Q W E R, ni el silenciador del combo, ni el palazo, y las cartas las cierra sin elegir ninguna
+   * (en el sorteo solo salen habilidades y mejoras).
    */
   abilities: boolean;
 }

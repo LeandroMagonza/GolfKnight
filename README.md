@@ -138,7 +138,8 @@ clases:
   Botiquín (mientras no esté al tope).
 
 Cada habilidad tira **su propia pelota**: no gasta la del puesto. Sale en el acto hacia el mouse, aun con
-un tiro cargando.
+un tiro cargando, y también mientras baja el palo: la línea del tiro queda quieta, pero la habilidad apunta
+con el mouse del momento y como se apunta la suya (los globos, sobre el piso plano).
 
 **Palo y elemento** (23): cualquier palo con hielo, fuego, rayo, fantasma o silencio, y el driver, el
 hierro y el wedge con viento. Es una pelota de ese palo, instantánea y gratis, que vuela como ese palo
@@ -521,8 +522,8 @@ directamente no se compila:
 
 - **la completa** (`dist/`; en el sitio, la carpeta de la contraseña): todo, y mientras se desarrolla
   también las herramientas de prueba (panel B, `__gk`, `?bot`, `?palos`, `?poderes=shield,dodge,phase`
-  para elegir los poderes de los tres escenarios). El bot sin habilidades: en el panel B, pestaña
-  Pruebas, o `?bot&sinhabilidades`.
+  para elegir los poderes de los tres escenarios). El bot sin habilidades ni mejoras: en el panel B,
+  pestaña Pruebas, o `?bot&sinhabilidades`.
 - **la demo** (`dist/demo/`, en itch, en el navegador): sin los talentos de dificultad (se ven con
   candado), sin las herramientas de prueba, y sin algunos poderes: los enemigos traen solo escudo,
   esquiva, fantasma e intocable (tres de esos cuatro por partida), y el caballero no tiene los tiros

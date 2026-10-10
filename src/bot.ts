@@ -44,9 +44,9 @@
 //   alguien pasa antes de que termine el golpe, suelta la carga si se le viene uno, y al que lo tiene
 //   encima le da un palazo si lo tiene listo.
 // - Las cartas, al azar.
-// - **Sin habilidades** (10/10, en el panel de balance, pestaña Pruebas, o `?sinhabilidades`; ver
-//   botPrefs): no tira Q W E R, ni el silenciador del combo, ni el palazo, y en las cartas se queda con una
-//   mejora o una cura cuando hay. Para ver si pasa el juego sin ellas.
+// - **Sin habilidades ni mejoras** (10/10, en el panel de balance, pestaña Pruebas, o `?sinhabilidades`;
+//   ver botPrefs): no tira Q W E R, ni el silenciador del combo, ni el palazo, y las cartas las cierra sin
+//   elegir ninguna. Para ver si pasa el juego sin ellas.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as THREE from 'three';
@@ -1328,11 +1328,10 @@ export function startBot(): BotStats {
       if (now - cardSince > 2500) {
         cardSince = 0;
         if (gk.choice) {
-          // sin habilidades, una mejora o una cura si hay: una habilidad nueva no la usaría
           const all = (gk.choice as any[]).map((c, i) => ({ c, i }));
-          const useful = BOT_PREFS.abilities ? all : all.filter(({ c }) => c.kind !== 'ability');
-          const from = useful.length ? useful : all;
-          gk.pickCard(from[Math.floor(Math.random() * from.length)].i);
+          // sin habilidades ni mejoras no elige ninguna (las cartas que salen son solo eso)
+          if (BOT_PREFS.abilities) gk.pickCard(all[Math.floor(Math.random() * all.length)].i);
+          else gk.skipChoice();
         } else gk.dismissCard();
       }
       return;

@@ -362,7 +362,8 @@ function aimOnGround(out: THREE.Vector3): boolean {
   return !!out.set(o.x + d.x * hi, 0, o.z + d.z * hi);
 }
 
-function updateAim(): void {
+/** `lob`: se apunta un globo (sobre el piso plano, ver abajo). Por defecto, lo que diga el palo en la mano. */
+function updateAim(lob = isLob(player.club)): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
   raycaster.setFromCamera(new THREE.Vector2(input.pointer.x, input.pointer.y), camera);
@@ -371,7 +372,7 @@ function updateAim(): void {
   // tapa su espalda desde la cámara: al subir el mouse por la loma el punto trepaba bien, pero al pasar
   // la cima saltaba para adelante (a la cara de la loma) en vez de seguir hacia atrás. La marca de caída
   // igual se dibuja sobre el terreno, y el globo se calcula para caer ahí.
-  const flat = !terrainOn() || isLob(player.club);
+  const flat = !terrainOn() || lob;
   const hit = flat
     ? raycaster.ray.intersectPlane(groundPlane, scratchAim)
     : (aimOnGround(scratchAim) ? scratchAim : null);
@@ -1046,6 +1047,12 @@ function selectClub(index: number): void {
   player.setClub(CLUBS[id]);
 }
 
+/** ¿La habilidad `id` se apunta como un globo? La pólvora y la lupa, y los tiros de hierro y de wedge. */
+function lobbed(id: AbilityId): boolean {
+  const a = ABILITIES[id];
+  return a.kind === 'powder' || a.kind === 'lens' || (a.kind === 'shot' && !!a.club && isLob(CLUBS[a.club]));
+}
+
 /**
  * Q, W, E y R tiran la habilidad de ese lugar **en el acto**, hacia donde está el mouse, con su propia
  * pelota: no gastan la del puesto ni cortan el tiro que se esté cargando. Se puede tirar corriendo entre
@@ -1060,12 +1067,22 @@ function castAbility(index: number): void {
   if (!started || paused || ended || cardOpen || !player || index < 0 || index >= SLOTS) return;
   // congelado por el alma en pena, tampoco
   if (!player.alive || player.stunned || player.grabbedBy) return;
+  const slot = abilities.slots[index];
+  // La habilidad apunta siempre adonde está el mouse al apretarla (10/10, Leandro), aunque esté bajando
+  // el palo con la línea de tiro quieta (ver el cuadro), y como se apunta la suya, que puede ser de otro
+  // palo: los globos (la pólvora, la lupa, el hierro y el wedge) sobre el piso plano. Después, la línea
+  // vuelve a ser la del tiro que está por salir
+  const keep = player.shotPending ? { point: aimPoint.clone(), dir: player.aimDir.clone() } : null;
+  if (slot) updateAim(lobbed(slot.id));
   player.teePosition(tee);
   const result = abilities.cast(index, tee, player.aimDir, aimPoint);
-  const slot = abilities.slots[index];
   // la esquiva salta también ni bien tirás una habilidad que se apunta (las que no tienen alcance, no).
   // Al golpe fantasma no lo ve venir (4/10)
   if (result === 'ok' && ABILITIES[slot.id].range > 0 && ABILITIES[slot.id].element !== 'ghost') horde.dodgeAim(tee, player.aimDir);
+  if (keep) {
+    aimPoint.copy(keep.point);
+    player.aimDir.copy(keep.dir);
+  }
   if (result === 'ok') recorder?.ability();
   // el lugar vacío no dice nada: no hay nada que tirar
   if (result === 'cooling') {
@@ -3200,6 +3217,13 @@ if (DEV_TOOLS) (window as any).__gk = {
   get cardOpen() { return cardOpen; },
   offerChoice,
   pickCard,
+  /** Cierra las cartas sin elegir ninguna: para el bot sin habilidades ni mejoras (ver botPrefs). */
+  skipChoice() {
+    if (!choice) return;
+    choice = null;
+    cardOpen = false;
+    hud.hideChoice();
+  },
   /** Las cartas en pantalla, y las mejoras tomadas. */
   get choice() { return choice; },
   get perks() { return perks; },
