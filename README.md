@@ -51,7 +51,8 @@ decir una sola cosa:
   moverse. Sin pelota no se puede ni empezar a cargar (la línea de tiro queda gris).
 - Mantener click carga el swing y soltar pega. Click derecho (o `X`) cancela. Si llegás a un puesto
   con el botón ya apretado, la carga arranca sola. `Espacio` *clava* la calidad donde esté la barra, y
-  el tiro sale cuando soltás el click.
+  el tiro sale cuando soltás el click. **El tiro sale hacia donde apuntabas al soltar** (desde el 10/10):
+  mientras baja el palo la línea de tiro queda quieta aunque muevas el mouse.
 - **La calidad va por niveles: 1, 2 y 3.** La barra se define por **tiempos**, iguales para los cuatro
   palos: tarda 0.63 s en cruzar el tramo débil y 0.185 s el medio, así que el fuerte abre a los 0.815 s
   de apretar, y dura 0.06 s en cada pasada. Después del tope rebota por todo el rango y vuelve a pasar

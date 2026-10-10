@@ -10,7 +10,8 @@
 // - **Apunta adonde va a estar el enemigo.** Simula el vuelo de la pelota con la misma física del juego
 //   (core/ballistics, con los números de cada palo) y mide la velocidad de cada enemigo mirándolo caminar
 //   (va en diagonal, frena, lo enfría el hielo): el blanco es dónde van a coincidir los dos. Mientras carga
-//   sigue corrigiendo, y también mientras baja el palo, hasta que sale la pelota.
+//   sigue corrigiendo, contando lo que tarda en bajar el palo: desde el 10/10 el tiro sale hacia donde
+//   apuntaba al soltar, y no suelta hasta que la mira del juego está ahí.
 // - **Carga lo justo.** De cada palo y cada golpe sabe cuánto pega (con el blindaje, el tope del fantasma,
 //   la lupa y la marca de Abe) y cuánto tarda la barra en llegar.
 // - **Elige el tiro y el puesto.** Prueba los tiros que tiene desde cada puesto con pelota (contando lo
@@ -270,6 +271,8 @@ export function startBot(): BotStats {
 
   // El bot apunta moviendo el mouse. Para que el mouse de quien mira no le corra la puntería, repite
   // su última posición en cada cuadro.
+  /** Para las pruebas: mira (sigue midiendo a los enemigos) pero no toca nada, ni el mouse. */
+  let off = false;
   let aimX = innerWidth / 2;
   let aimY = innerHeight / 3;
   /** Adónde apuntó, en el piso: para saber si el juego ya tiene la mira ahí (ver `aimSettled`). */
@@ -284,7 +287,8 @@ export function startBot(): BotStats {
     dispatchEvent(new MouseEvent('mousemove', { clientX: aimX, clientY: aimY }));
   };
   const holdAim = () => {
-    dispatchEvent(new MouseEvent('mousemove', { clientX: aimX, clientY: aimY }));
+    // apagado (las pruebas) no toca el mouse
+    if (!off) dispatchEvent(new MouseEvent('mousemove', { clientX: aimX, clientY: aimY }));
     requestAnimationFrame(holdAim);
   };
   holdAim();
@@ -312,8 +316,6 @@ export function startBot(): BotStats {
   let cardSince = 0;
   let escaping = false;
   let last = performance.now();
-  /** Para las pruebas: mira (sigue midiendo a los enemigos) pero no toca nada. */
-  let off = false;
 
   const alive = (): Enemy[] => gk.horde.enemies.filter((e: Enemy) => e.alive && !e.passed);
   const has = (id: ClubId) => gk.player.unlocked?.has?.(id) ?? true;
@@ -1382,11 +1384,8 @@ export function startBot(): BotStats {
       if (plan) charge(dt, clock);
       return;
     }
-    // bajando el palo: sigue corrigiendo hasta que sale la pelota
-    if (pl.mode === 'swinging') {
-      if (plan && releasedAt >= 0) aimPlan(plan, Math.max(0, delay - (clock - releasedAt)));
-      return;
-    }
+    // bajando el palo: el tiro ya está decidido (sale hacia donde apuntaba al soltar)
+    if (pl.mode === 'swinging') return;
     // terminó el gesto: cuánto tardó desde que soltó
     if (swingFrom >= 0) {
       swingTail += (Math.min(1.2, clock - swingFrom) - swingTail) * 0.3;

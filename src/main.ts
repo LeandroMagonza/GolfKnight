@@ -3066,8 +3066,12 @@ function playFrame(dt: number, nowMs: number): void {
         if (CURVE.reset === 'soltar' && !right) player.curve = 0;
       }
     }
-    // terminada la partida (o tirado en el piso) el golfista ya no sigue al mouse
-    if (!ended && player.alive) updateAim();
+    // Terminada la partida (o tirado en el piso) el golfista ya no sigue al mouse. Y desde que soltás hasta
+    // que sale la pelota, la línea de tiro queda quieta (10/10, Leandro): el tiro sale hacia donde
+    // apuntabas al soltar, que es con lo que salta la esquiva. Antes salía con la mira del impacto, y
+    // soltando apuntado a otro lado y moviendo el mouse mientras bajaba el palo, el que esquiva no saltaba
+    // y la pelota le pegaba igual. En el tenis no: ahí el impacto lo decide la pelota que llega
+    if (!ended && player.alive && (tennis || !player.shotPending)) updateAim();
     const active = started && !ended;
     // (en el tenis no: mantener apretado sacaría sin querer)
     if (!tennis && active && input.swingHeld && player.mode !== 'charging' && player.atSpot && hasBallHere()) player.startSwing();

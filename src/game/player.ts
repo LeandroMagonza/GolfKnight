@@ -445,6 +445,14 @@ export class Player {
     }
   }
 
+  /**
+   * Soltó y el palo está bajando: la pelota todavía no salió. El tiro sale hacia donde apuntaba al soltar
+   * (ver `updateAim` en main): mientras tanto la línea de tiro no sigue al mouse.
+   */
+  get shotPending(): boolean {
+    return this.mode === 'swinging' && this.swingShot !== null;
+  }
+
   /** Ya llegó al puesto al que iba. */
   get atSpot(): boolean {
     if (this.freeMove) return true;
