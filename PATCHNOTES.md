@@ -24,7 +24,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   el cuerpo para tirar, y al caballero esqueleto (que lo mata de un golpe) no le da el palazo, que casi no
   lo mueve: se corre. `b2d49b2`
 - El bot se puede **apagar** desde el panel de balance (B), pestaña Pruebas: la partida sigue y la jugás
-  vos. Prendido de nuevo, sigue desde donde esté. `b0627da`
+  vos. Prendido de nuevo, sigue desde donde esté. `b0627da` El botón ahora dice si el bot está jugando de verdad, y si
+  entraste sin el bot, tocarlo lo arranca. `f073c03`
 - El bot juega bien **con relieve**: ya no le tira con el driver a una loma, ni al que está en un pozo
   (la pelota le pasaba por arriba). Para esos usa el hierro o el wedge, que pasan por arriba de las
   lomas. Erra la mitad que antes. `e220c6c`
