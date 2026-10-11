@@ -161,6 +161,13 @@ export interface RunInfo {
   specials: string[];
   mode: 'golf' | 'tenis';
   course: number;
+  /**
+   * Los tiempos de la carga con que se jugó, en s (11/10: se pueden cambiar en el panel B o con el
+   * simulador): lo que tarda el golpe 1, el 2 y cada pasada por el 3; con el golpe 4, qué parte del 3 es.
+   */
+  charge?: { weak: number; mid: number; strong: number; fourth?: number };
+  /** Lo que estaba tocado en el panel B (lo guardado en el navegador), si algo: la partida no es de fábrica. */
+  tuned?: string[];
 }
 
 /** Junta lo que pasa en la partida y al final la deja en la cola. */

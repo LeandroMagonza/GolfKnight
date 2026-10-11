@@ -37,6 +37,7 @@ import { DifficultyMenu } from './difficultyMenu';
 import { paintThreat } from './threat';
 import { flushRuns, RunRecorder } from './telemetry';
 import { Tutorial } from './tutorial';
+import { BALANCE_KEY } from './balanceStore';
 import { applyTennis, POCKET_RAIN, switchMode, TENNIS_ON } from './tennis/mode';
 import { TENNIS, timingQuality } from './tennis/bounce';
 import { gaugePower, gaugeTimes, TennisPlay } from './tennis/play';
@@ -255,6 +256,17 @@ function cardKey(card: Card): string {
 /** El rebote del escudo le pega al golfista sin enemigo: así el registro lo distingue del hechizo. */
 let ricochetHit = false;
 /** Cómo quedó el golfista, para el final del registro. */
+/** Qué estaba tocado en el panel B (lo que guardó en el navegador), para el registro: sin nada, de fábrica. */
+function tunedForLog(): string[] | undefined {
+  if (!DEV_TOOLS) return undefined;
+  try {
+    const saved = JSON.parse(localStorage.getItem(BALANCE_KEY) ?? '{}') as Record<string, unknown> & { configs?: Record<string, unknown> };
+    const names = [...Object.keys(saved).filter((k) => k !== 'version' && k !== 'configs'), ...Object.keys(saved.configs ?? {})];
+    return names.length ? names : undefined;
+  } catch {
+    return undefined;
+  }
+}
 function buildForLog(): unknown {
   return { abilities: abilities.slots.map((s) => [s.id, s.level]), perks };
 }
@@ -3098,6 +3110,8 @@ function updateWaves(dt: number): void {
             version: DEMO ? `${__BUILD__} demo` : __BUILD__, level: currentLevel(), picks: currentPicks(), points: progress.unlocked,
             ladder: testPicks ? undefined : LADDER.slice(0, progress.level).map((options, i) => { const o = options[choiceAt(progress, i)]; return o.add === undefined ? o.id : `${o.id}+${o.add}`; }),
             powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
+            charge: { weak: CHARGE.weak, mid: CHARGE.mid, strong: CHARGE.strong, ...(FOURTH.on ? { fourth: FOURTH.share } : {}) },
+            tuned: tunedForLog(),
           }, RECORD);
         }
         recorder?.wave(e.index + 1, e.wave.title, e.wave.mod);
