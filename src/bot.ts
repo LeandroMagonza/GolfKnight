@@ -431,6 +431,13 @@ interface Scan {
 
 export function startBot(): BotStats {
   const gk: Gk = (window as any).__gk;
+  /**
+   * Aprieta una habilidad un momento después (lo que tarda en apuntar), si la partida sigue: terminada o en
+   * pausa, la R es «Jugar de nuevo» y recarga la página (11/10: a 12× pasaba en las tandas).
+   */
+  const castLater = (code: string, ms: number) => setTimeout(() => {
+    if (!gk.ended && !gk.paused) key(code);
+  }, ms);
   const name = new URLSearchParams(location.search).get('bot') || 'perfecto';
   const skill = skillFrom(name, new URLSearchParams(location.search));
   const stats: BotStats = { skill: BOT_SKILLS[name] ? name : 'perfecto', byClub: {}, casts: {}, melee: 0, moves: 0, dodges: 0, grabs: 0, jumps: 0, baits: 0, evades: 0, aborts: 0, aligned: 0, heads: 0, combos: 0, holds: 0, hit: 0, miss: 0 };
@@ -1502,7 +1509,7 @@ export function startBot(): BotStats {
     aim(c.x, c.z);
     const id: string = ab.slots[c.slot].id;
     stats.casts[id] = (stats.casts[id] ?? 0) + 1;
-    setTimeout(() => key(SLOT_KEYS[c.slot]), 80);
+    castLater(SLOT_KEYS[c.slot], 80);
     return true;
   }
 
@@ -1529,7 +1536,7 @@ export function startBot(): BotStats {
       busyUntil = clock + 0.15;
       aim(x, z);
       stats.casts[id] = (stats.casts[id] ?? 0) + 1;
-      setTimeout(() => key(SLOT_KEYS[i]), 80);
+      castLater(SLOT_KEYS[i], 80);
       return true;
     }
     return false;
@@ -1590,7 +1597,7 @@ export function startBot(): BotStats {
       const threat = alive().filter(tramples).sort((a, b) => dist(a) - dist(b))[0];
       if (shoveReady && threat && threat.size <= 1 && !threat.stats?.heavy && threat.behavior === 'melee' && dist(threat) < 3.2) {
         aim(threat.position.x, threat.position.z);
-        setTimeout(() => key(SLOT_KEYS[shoveSlot]), 40);
+        castLater(SLOT_KEYS[shoveSlot], 40);
         stats.melee++;
         return;
       }
