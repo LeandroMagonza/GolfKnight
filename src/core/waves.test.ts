@@ -273,7 +273,7 @@ describe('waves', () => {
         for (const o of spawnOrder(w, seeded(r * 31 + i))) {
           if (ENEMIES[o.kind].boss) continue;
           // todos más lentos (el élite, además, el suyo)
-          expect(o.mods?.speed, o.kind).toBeCloseTo(DIFFICULTY.speed[0] * (o.mods?.size ? ELITE.speed : 1));
+          expect(o.mods?.speed, o.kind).toBeCloseTo(DIFFICULTY.speedBase * (o.mods?.size ? ELITE.speed : 1));
           if (!hasPower(o.mods) || o.mods?.size) continue;
           // solo el poder del escenario, más flojo; y en la del jefe, ninguno
           expect(w.focus, `${w.title}: ${o.kind}`).toBeDefined();
@@ -587,9 +587,9 @@ describe('los hechiceros (11/10: un talento aparte)', () => {
   });
 
   it('se suman desde la segunda oleada, aparte: tiran hechizos y no cuentan para terminar la oleada', () => {
-    const run = buildRun(Math.random, rulesFor({ casters: 1 }));
+    const run = buildRun(Math.random, rulesFor({ casters: 0.1 }));
     expect(run.waves[0].casters).toBeUndefined();
-    for (const w of run.waves.slice(1)) expect(w.casters, w.title).toBe(DIFFICULTY.casters[1]);
+    for (const w of run.waves.slice(1)) expect(w.casters, w.title).toBe(0.1);
     const plain = spawnOrder({ ...run.waves[1], casters: undefined });
     const order = spawnOrder(run.waves[1]);
     const casters = order.filter((s) => s.mods?.apart);

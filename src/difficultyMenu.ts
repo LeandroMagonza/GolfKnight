@@ -28,6 +28,8 @@ export class DifficultyMenu {
   onChange: (() => void) | null = null;
   /** Avisa al cerrar (si se prendió o se apagó el terreno irregular, se cambia el campo). */
   onClose: (() => void) | null = null;
+  /** La tarjeta recién elegida («escalón:opción»): salta un poco al dibujarse. */
+  private popped = '';
 
   /** @param locked la demo: la escalera se ve, para saber qué trae la completa, pero no se toca */
   constructor(readonly progress: Progress, private readonly locked = false) {
@@ -46,7 +48,10 @@ export class DifficultyMenu {
       const o = Number(button.dataset.o);
       // la elegida del escalón de más arriba, otra vez: se saca ese escalón (baja un nivel)
       if (i === p.level - 1 && choiceAt(p, i) === o) this.changed(setLevel(p, i));
-      else this.changed(choose(p, i, o));
+      else if (choose(p, i, o)) {
+        this.popped = `${i}:${o}`;
+        this.changed(true);
+      }
       this.tell(i, o);
     });
     // lo que hace cada opción, abajo: la que tiene el mouse encima (o el foco, con el teclado)
@@ -92,7 +97,7 @@ export class DifficultyMenu {
 
   /** Abajo, lo que hace la opción `o` del escalón `i`. */
   private tell(i: number, o: number): void {
-    const { name, line } = optionText(this.progress, i, o);
+    const { name, line } = optionText(i, o);
     this.detail.innerHTML = `<b>${i + 1} · ${name}</b>: ${line}`;
   }
 
@@ -117,12 +122,16 @@ export class DifficultyMenu {
     this.list.innerHTML = LADDER.map((options, i) => {
       const status = i < p.level ? 'on' : i < p.unlocked && !this.locked ? 'open' : 'shut';
       const opts = options.map((_, o) => {
-        const { name, line } = optionText(p, i, o);
+        const { name, line } = optionText(i, o);
         const picked = choiceAt(p, i) === o;
-        return `<button type="button" class="opt${picked ? ' picked' : ''}" data-i="${i}" data-o="${o}" title="${line}" ${status === 'shut' ? 'disabled' : ''}><b>${name}</b><span>${line}</span></button>`;
+        const pop = picked && this.popped === `${i}:${o}` ? ' pop' : '';
+        // el número del escalón, chiquito arriba de cada tarjeta (con candado, si falta desbloquearlo)
+        return `<button type="button" class="opt${picked ? ' picked' : ''}${pop}" data-i="${i}" data-o="${o}" title="${line}" ${status === 'shut' ? 'disabled' : ''}>`
+          + `<i class="n">${status === 'shut' ? '🔒 ' : ''}${i + 1}</i><b>${name}</b><span>${line}</span></button>`;
       }).join('');
-      return `<div class="rung ${status}"><span class="num">${status === 'shut' ? '🔒' : i + 1}</span><div class="opts">${opts}</div></div>`;
+      return `<div class="rung ${status}"><div class="opts">${opts}</div></div>`;
     }).join('');
+    this.popped = '';
     // abajo, de entrada, lo del escalón de más arriba que está puesto (o el primero)
     const top = Math.max(0, p.level - 1);
     this.tell(top, choiceAt(p, top));

@@ -371,21 +371,30 @@ elegido un talento que se tenía puesto.
 
 | Escalón | Opciones (se elige una) |
 | --- | --- |
-| 1 | Sin respiro · Élites más duros · Escolta del jefe |
-| 2 | Más rápidos |
-| 3 | Olas especiales · Recarga lenta |
-| 4 | Más con poder |
-| 5 | Poderes más duros |
-| 6 | Apoyos · Hechiceros |
-| 7 | Terreno irregular · Más rápidos |
-| 8 | Olas especiales · Apoyos · Hechiceros |
-| 9 | Poderes acumulados · Más rápidos |
-| 10 | Golpe 4 |
+| 1 | Sin respiro · **Élites más duros** · Escolta del jefe |
+| 2 | **Más rápidos** (+10 %) |
+| 3 | **Ola especial** · Recarga lenta (+35 %) |
+| 4 | **Más con poder** |
+| 5 | **Poderes más duros** |
+| 6 | **Apoyos** · Hechiceros (10 %) |
+| 7 | Terreno irregular · **Más rápidos** (+15 %) · Recarga lenta (+65 %) |
+| 8 | Ola especial · **Apoyos** · Hechiceros (15 %) |
+| 9 | **Poderes acumulados** · Más rápidos (+20 %) |
+| 10 | **Golpe 4** |
 
-Cada opción **suma un paso** a su talento: «Más rápidos» está en tres escalones y con los tres es la
-velocidad más alta; la opción dice el paso que daría (el segundo «Más rápidos» que se elige se llama
-«Más rápidos II»). El orden es provisorio: lo van a ordenar las tandas del bot (`tools/bot-tanda.mjs`),
-midiendo cuánto pesa cada talento solo y combinado.
+De entrada está elegida la del medio (en negrita; con dos, la de arriba). **Cada opción es independiente**
+(11/10, Leandro): dice lo que hace y eso hace, se haya elegido lo que se haya elegido en los otros
+escalones. Las que se repiten traen cada una su número, más alto cuanto más arriba, y se suman: «Más
+rápidos» es un porcentaje de la velocidad del nivel 0 (con +10 % y +15 %, ×1.25); «Recarga lenta», de la
+recarga de tus habilidades; los hechiceros, de cada oleada. Las demás cuentan una vez cada una (las olas
+especiales y los apoyos, hasta dos). Los números se tocan en el panel B (Enemigos, Dificultad). El orden es
+provisorio: lo van a ordenar las tandas del bot (`tools/bot-tanda.mjs`), midiendo cuánto pesa cada talento
+solo y combinado.
+
+**La pantalla** (`src/difficultyMenu.ts`): a pantalla completa sobre la cancha, un escalón por columna de
+izquierda a derecha (en el celular parado, una fila por escalón), con el número chiquito arriba de cada
+tarjeta. Las columnas tienen el alto de tres tarjetas y las tarjetas van centradas, así una línea dorada
+une las elegidas por el medio. Al pasar el mouse se agrandan; la elegida queda grande y brilla.
 
 **El cartel del final** (`src/endscreen.ts`): el título entra de golpe, el puntaje cuenta hacia arriba
 con el récord del navegador al lado, y aparecen de a uno, cada uno con su nota, los números de la
@@ -397,17 +406,17 @@ aunque solo se mande cuando corresponde.
 | Talento | Niveles |
 | --- | --- |
 | Poderes acumulados | los poderes de los escenarios anteriores siguen viniendo |
-| Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
+| Ola especial | cada una: una oleada especial que deja su marca en el resto (la primera, la segunda oleada de la partida; la otra, la segunda del segundo o el tercer escenario) |
 | Apoyos | curanderos, inmunes o abanderados. 1: en el último escenario; 2: desde el segundo |
-| Hechiceros | desde el 11/10 (antes eran un apoyo más): se plantan lejos y te tiran hechizos. Se suman a los de la oleada (1: un 10 %; 2: un 20 %; al menos uno), desde la segunda oleada, y **no cuentan para terminar la oleada** (no van a la puerta): se quedan hasta que los matás, aunque empiece la siguiente. Uno solo se esquiva para siempre; el problema es cuando se juntan (`CASTERS` en `src/core/waves.ts`) |
+| Hechiceros | desde el 11/10 (antes eran un apoyo más): se plantan lejos y te tiran hechizos. Se suman a los de la oleada (cada opción, su parte: un 10 % y un 15 %; al menos uno), desde la segunda oleada, y **no cuentan para terminar la oleada** (no van a la puerta): se quedan hasta que los matás, aunque empiece la siguiente. Uno solo se esquiva para siempre; el problema es cuando se juntan (`CASTERS` en `src/core/waves.ts`) |
 | Poderes más duros | toca a todos los poderes de escenario (desde el 7/10; ver docs/tiempos-poderes.md): escudos de hasta 3 (sin el punto, hasta 2); el blindaje sigue hasta 2, pero casi siempre de 2 (el mayor de dos sorteos); el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6); el que se cura, con el margen de siempre (sin el punto, ×2.5: tarda más en curarse); el intocable, invulnerable ×1.3 y la ventana de siempre (sin el punto, ventana ×1.6); el fantasma, 1 de vida más (el élite, 4: 2 al doble) |
-| Más rápidos | sin puntos los enemigos van a ×0.76; 1: ×0.88; 2: a su velocidad; 3: ×1.12 |
+| Más rápidos | en el nivel 0 los enemigos van a ×0.76 de su velocidad; cada opción suma su porcentaje de eso (+10 %, +15 %, +20 %: con las tres, ×1.10) |
 | Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). Cambiarlo en la pantalla de inicio cambia el campo en el acto |
 | Más con poder | 1: un tercio en vez de un cuarto; 2: la mitad |
 | Élites más duros | +4 de vida (sin el punto, el élite trae 4 menos: 2, al doble como toda su vida) |
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
 | Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
-| Recarga lenta | las habilidades del caballero tardan en recargar 1: un 50 % más; 2: el doble. La carta dice la recarga que va a tener |
+| Recarga lenta | las habilidades del caballero tardan en recargar lo que suman sus opciones (+35 %, +65 %: con las dos, el doble). La carta dice la recarga que va a tener |
 | Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +4 (2, al doble) y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga). Cada 3 dura 15 ms, y a velocidad pareja no entraba en el arco: con el talento el arco se abre a tres cuartos de vuelta con el rojo agrandado («lupa», `fourthArc` en `src/core/swing.ts`; panel B, Visual, para comparar con el medio círculo y con el extendido a velocidad pareja) |
 
 Con todo puesto es la partida de antes del 3/10, más rápida, con menos descanso y las habilidades más
@@ -415,7 +424,8 @@ lentas, y con dos olas especiales que dejan marca en vez de tres (con la escaler
 Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas
 en `MARKS` (`src/core/waves.ts`); los dos se tocan en el panel B, pestaña Enemigos, donde también se
 pueden poner los niveles desbloqueados para probar cualquiera. Para las pruebas, `?escalera=0,1,0` juega el
-nivel 3 con esas opciones, y `?talentos=speed:2,powers:1` con esos talentos, sin la escalera.
+nivel 3 con esas opciones (`-`, la de entrada), y `?talentos=speed:0.25,powers:1` con esos talentos, sin la
+escalera (en los que se suman, la suma; en los demás, cuántas opciones).
 
 ### Las partidas se mandan solas
 
@@ -622,7 +632,7 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
     antes (un 2) y a veces se pasa (rebota: un 2 o un 1). Se ajusta desde la dirección:
     `&pausa=0.5&error=0.4&suelta=0.04&tarde=0.01&piensa=0.3&golpe=2`.
   - `bot-tanda.mjs`: muchas partidas del bot seguidas, en las dificultades que se le pidan (`base`,
-    `speed:2,powers:1`, o `escalera:0,1,0`), y un resumen por dificultad: ganadas, oleada, puerta y vida
+    `speed:0.25,powers:1`, o `escalera:0,1,0`), y un resumen por dificultad: ganadas, oleada, puerta y vida
     perdidas, puntería, tiros por minuto y golpes. Anota cada partida en `logs/tandas/`. Juegan con
     **`?liviano`**: sin dibujar nada (ni el 3D ni la página) y a pasos fijos de 1/60 s, `&velocidad=N` veces
     por cuadro. Dibujar era casi todo el costo: una partida dibujando con la placa de video ocupaba 2/3 de

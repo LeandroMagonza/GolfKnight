@@ -20,7 +20,7 @@ import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
-import { DIFFICULTY, MAX_LEVEL as TOP_DIFFICULTY } from './core/difficulty';
+import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
 import { playerId } from './telemetry';
 import { FOURTH_ARCS, type FourthArc } from './core/swing';
@@ -1076,10 +1076,7 @@ export class DebugPanel {
     const d = DIFFICULTY;
     const levels = this.numbers([
       ['niveles desbloqueados', () => this.hooks.difficultyPoints.get(), (v) => this.hooks.difficultyPoints.set(Math.max(0, Math.min(TOP_DIFFICULTY, Math.round(v)))), 1, `de ${TOP_DIFFICULTY}`],
-      ['velocidad de base', () => d.speed[0], (v) => { d.speed[0] = Math.max(0.3, v); }, 0.05, '×'],
-      ['velocidad con 1', () => d.speed[1], (v) => { d.speed[1] = Math.max(0.3, v); }, 0.05, '×'],
-      ['velocidad con 2', () => d.speed[2], (v) => { d.speed[2] = Math.max(0.3, v); }, 0.05, '×'],
-      ['velocidad con 3', () => d.speed[3], (v) => { d.speed[3] = Math.max(0.3, v); }, 0.05, '×'],
+      ['velocidad en el nivel 0', () => d.speedBase, (v) => { d.speedBase = Math.max(0.3, v); }, 0.05, '× (cada «Más rápidos» le suma su parte)'],
       ['con poder, de base', () => d.share[0], (v) => { d.share[0] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
       ['con poder, con 1', () => d.share[1], (v) => { d.share[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
       ['con poder, con 2', () => d.share[2], (v) => { d.share[2] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
@@ -1090,18 +1087,20 @@ export class DebugPanel {
       ['intocable invulnerable, con el punto', () => d.shut[1], (v) => { d.shut[1] = Math.max(0.5, v); }, 0.1, '×'],
       ['fantasma: vida de más con el punto', () => d.ghostHp[1], (v) => { d.ghostHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
       ['fantasma élite: vida de más con el punto', () => d.ghostEliteHp[1], (v) => { d.ghostEliteHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
-      ['recarga de tus habilidades, «recarga lenta» 1', () => d.cooldown[1], (v) => { d.cooldown[1] = Math.max(1, v); }, 0.1, '×'],
-      ['recarga de tus habilidades, «recarga lenta» 2', () => d.cooldown[2], (v) => { d.cooldown[2] = Math.max(1, v); }, 0.1, '×'],
+
       ['vida de menos del élite, sin el punto', () => d.eliteHpLess[0], (v) => { d.eliteHpLess[0] = Math.max(0, Math.round(v)); }, 1, ''],
       ['descanso con «sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's'],
-      ['hechiceros, con 1', () => d.casters[1], (v) => { d.casters[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada, aparte'],
-      ['hechiceros, con 2', () => d.casters[2], (v) => { d.casters[2] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada, aparte'],
+
       ['golpe 4: vida de más de los comunes', () => d.fourthHp, (v) => { d.fourthHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['golpe 4: de los élites', () => d.fourthEliteHp, (v) => { d.fourthEliteHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['golpe 4: del jefe', () => d.fourthBossHp, (v) => { d.fourthBossHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['estampida: chicos de más por oleada', () => MARKS.stampede, (v) => { MARKS.stampede = Math.max(0, Math.round(v)); }, 1, ''],
       ['gigantes: por oleada', () => MARKS.giants, (v) => { MARKS.giants = Math.max(0, Math.round(v)); }, 1, ''],
       ['todos con poder: con los que no salieron', () => MARKS.foreign, (v) => { MARKS.foreign = Math.max(0, Math.round(v)); }, 1, ''],
+      // lo que suma cada opción que se suma (más rápidos, recarga lenta, hechiceros), escalón por escalón
+      ...LADDER.flatMap((options, i) => options.filter((o) => o.add !== undefined).map((o): [string, () => number, (v: number) => void, number, string] =>
+        [`escalón ${i + 1}: ${talent(o.id).name.toLowerCase()}`, () => o.add ?? 0, (v) => { o.add = Math.max(0, Math.min(3, v)); }, 0.05, o.id === 'casters' ? 'de cada oleada, aparte' : 'más']))
+        .map(([label, get, set, step, unit]) => [label, () => Math.round(get() * 100) / 100, set, step, unit] as [string, () => number, (v: number) => void, number, string]),
     ]);
     el.append(levels.table, note('El nivel y lo de cada escalón se eligen en el menú de dificultad, en la pantalla de inicio (R desde la pausa). Lo demás vale desde la próxima partida: la de ahora ya está armada.'));
 

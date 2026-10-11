@@ -5,7 +5,7 @@
 //   node tools/bot-tanda.mjs [opciones] [dificultad ...]
 //
 // Cada dificultad es lo que va en ?talentos= (ver `talentos` en src/main.ts): «base» es sin nada, y si no,
-// los talentos con su nivel, como `speed:2,powers:1`. Con `escalera:` adelante, las opciones elegidas en
+// los talentos (en los que se suman, la suma; en los demás, cuántas opciones), como `speed:0.25,powers:1`. Con `escalera:` adelante, las opciones elegidas en
 // cada escalón (`escalera:0,1,0` es el nivel 3). Sin ninguna, juega en «base».
 //   --juegos=N       partidas por dificultad y nivel del bot (3)
 //   --paralelo=K     cuántas a la vez (2)
@@ -17,10 +17,12 @@
 //   --prioridad=normal   sin esto va con prioridad baja: Windows le da el procesador a lo demás primero
 //   --url=a&b        más cosas para la URL (por ejemplo sinhabilidades, o campo=2)
 //   --salida=x.jsonl dónde anota cada partida (logs/tandas/<fecha>.jsonl)
+//   --vivo           sobre el código de ahora (sin esto compila una copia y juega sobre ella: se puede seguir
+//                    cambiando el código mientras corre)
 //
 // Anota cada partida apenas termina (una línea de JSON), y al final un resumen por dificultad: cuántas
 // ganó, hasta qué oleada llegó, cuánta puerta y vida perdió.
-import { createServer } from 'vite';
+import { build, createServer, preview } from 'vite';
 import { chromium } from 'playwright';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import os from 'node:os';
@@ -48,8 +50,21 @@ if (opt('prioridad', 'baja') !== 'normal') {
   }
 }
 
-const server = await createServer({ root: process.cwd(), server: { port: 5207, strictPort: true }, logLevel: 'error' });
-await server.listen();
+// Juegan sobre una copia compilada del juego, no sobre el código vivo: así se puede seguir trabajando
+// mientras corre (con el servidor de desarrollo, cada archivo que se guardaba les cambiaba el juego en el
+// medio de la tanda). Con --vivo, el código de ahora mismo, sin compilar
+let server;
+if (args.includes('--vivo')) {
+  server = await createServer({ root: process.cwd(), server: { port: 5207, strictPort: true }, logLevel: 'error' });
+  await server.listen();
+} else {
+  const outDir = `logs/tanda-build/${stamp}`;
+  process.env.GK_OUT = outDir;
+  process.env.GK_EDITION = 'full';
+  await build({ root: process.cwd(), logLevel: 'error', build: { outDir, emptyOutDir: true } });
+  server = await preview({ root: process.cwd(), logLevel: 'error', build: { outDir }, preview: { port: 5207, strictPort: true } });
+  console.log(`compilado en ${outDir}`);
+}
 // render por software (sin la placa de video): no dibuja, y así no le compite a la pantalla de quien usa la compu
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--mute-audio'] });
 
@@ -151,4 +166,4 @@ for (const [k, list] of groups) {
 }
 console.log(`\n${((Date.now() - t0) / 60000).toFixed(1)} minutos · ${out}`);
 await browser.close();
-await server.close();
+await (server.close ? server.close() : server.httpServer?.close());

@@ -75,7 +75,8 @@ const params = new URLSearchParams(location.search);
 const progress: Progress = DEMO || ABE_ONLY ? { unlocked: 0, level: 0, choices: [] }
   : DEV_TOOLS && params.has('escalera') ? ladderFrom(params.get('escalera') ?? '') : loadProgress();
 /**
- * Para las tandas del bot (tools/bot-tanda.mjs): `?talentos=speed:2,powers:1` juega con esos talentos, sin
+ * Para las tandas del bot (tools/bot-tanda.mjs): `?talentos=speed:0.25,powers:1` juega con esos talentos (en los
+ * que se suman, la suma; en los demás, cuántas opciones), sin
  * la escalera (vacío, el nivel 0). Para medir cuánto pesa cada uno solo.
  */
 const testPicks: Picks | null = DEV_TOOLS && params.has('talentos')
@@ -88,7 +89,7 @@ function currentPicks(): Picks {
 }
 /** El nivel de la partida: los escalones puestos (con ?talentos, los pasos de los talentos). */
 function currentLevel(): number {
-  return testPicks ? Object.values(testPicks).reduce((n, v) => n + (v ?? 0), 0) : progress.level;
+  return testPicks ? Object.keys(testPicks).length : progress.level;
 }
 /** Los campos con lomas son un talento: sin él se juega en el liso. Es lo que está armado ahora. */
 let builtHills = hillsOn(currentPicks());
@@ -3030,7 +3031,7 @@ function updateWaves(dt: number): void {
         if (!WATCH && !recorder && e.index === 0) {
           recorder = new RunRecorder({
             version: DEMO ? `${__BUILD__} demo` : __BUILD__, level: currentLevel(), picks: currentPicks(), points: progress.unlocked,
-            ladder: testPicks ? undefined : LADDER.slice(0, progress.level).map((options, i) => options[choiceAt(progress, i)]),
+            ladder: testPicks ? undefined : LADDER.slice(0, progress.level).map((options, i) => { const o = options[choiceAt(progress, i)]; return o.add === undefined ? o.id : `${o.id}+${o.add}`; }),
             powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
           }, RECORD);
         }

@@ -83,14 +83,14 @@ function texts({ abilities, cards, clubs, difficulty, terrain, waves, spells }: 
   }
   for (const [kind, e] of Object.entries(waves.ENEMIES)) add(`enemy.${kind}`, e.name);
   for (const [mod, title] of Object.entries(waves.MOD_TITLES)) add(`mod.${mod}`, title);
-  const all = Object.fromEntries(difficulty.TALENTS.map((t) => [t.id, t.levels.length]));
+  const all = Object.fromEntries(difficulty.TALENTS.map((t) => [t.id, t.adds ? 0.3 : t.max]));
   const rules = [waves.HARDEST, difficulty.rulesFor({}), difficulty.rulesFor({ special: 1, support: 1 }), difficulty.rulesFor(all)];
   for (let seed = 1; seed <= 40; seed++) {
     rules.forEach((r, i) => waves.buildRun(seeded(seed), r).waves.forEach((w, k) => add(`wave.${seed}.${i}.${k}`, w.title)));
   }
   for (const t of difficulty.TALENTS) {
     add(`talent.${t.id}`, t.name);
-    t.levels.forEach((text, i) => add(`talent.${t.id}.${i + 1}`, text()));
+    add(`talent.${t.id}.text`, t.text(0.15));
   }
   for (const c of Object.values(clubs.CLUBS)) {
     add(`club.${c.id}.name`, c.name);
@@ -185,8 +185,9 @@ describe('el juego en inglés', () => {
 
   it('las frases que se arman con pedazos quedan bien', () => {
     const powered = en.difficulty.TALENTS.find((t) => t.id === 'powered')!;
-    expect(powered.levels[0]()).toBe('A third of the enemies have a power, instead of a quarter');
-    expect(powered.levels[1]()).toBe('Half of the enemies have a power');
+    expect(powered.text(0)).toBe('A third of the enemies have a power, instead of a quarter');
+    expect(en.difficulty.TALENTS.find((t) => t.id === 'speed')!.text(0.15)).toBe('Enemies walk 15% faster');
+    expect(en.difficulty.TALENTS.find((t) => t.id === 'casters')!.text(0.1)).toMatch(/^10% more sorcerers join/);
     expect(en.cards.cooldownNote('shove', 2)?.text).toMatch(/^Cooldown: 12 s → [\d.]+ s · slower$/);
     expect(en.cards.describe({ kind: 'ability', id: 'cart', level: 2 }).tag).toBe('ABILITY · LEVEL 2');
     expect(en.abilities.upgradeNote('wedge-lightning', 2)).toBe('Area: 4.2 → 5 m');
