@@ -219,40 +219,64 @@
       #overlay #langpick button:hover { color: #ffd66b; }
       #overlay #langpick button.on { background: rgba(228, 233, 240, 0.16); color: #e4e9f0; cursor: default; }
       /* la libreta abierta: hoja rayada con margen rojo y espiral arriba; todo va en renglones de 30 px */
-      /* la dificultad (src/difficultyMenu.ts): los puntos ganados y dónde ponerlos, entre partidas */
-      #difficulty { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.7); pointer-events: auto; }
+      /*
+       * la dificultad (src/difficultyMenu.ts): la escalera, a pantalla completa sobre la cancha (11/10). Un
+       * escalón por columna, de izquierda a derecha, con sus opciones en tarjetas del mismo tamaño; una línea
+       * dorada une las elegidas. En el celular parado, un escalón por fila, de arriba hacia abajo
+       */
+      #difficulty { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; padding: 18px 24px 16px; background: rgba(5, 8, 12, 0.94); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: #e4e9f0; pointer-events: auto; }
       #difficulty[hidden] { display: none; }
-      #difficulty .box { width: min(700px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px 22px; border-radius: 10px; border: 1px solid #3a4452; background: #111923; color: #e4e9f0; }
+      #difficulty .dhead { display: flex; align-items: center; gap: 12px 22px; flex-wrap: wrap; }
       #difficulty h2 { margin: 0; font-size: 30px; color: #ffd66b; display: flex; align-items: center; gap: 10px; }
       #difficulty h2 .flame { --fs: 40px; margin: -8px 0 -4px; }
-      #difficulty .summary { margin: 0; font-size: 15px; color: #cfd6e0; }
-      /* la escalera (11/10): el nivel con − y +, y un escalón por fila con sus opciones */
+      #difficulty .summary { margin: 0; flex: 1 1 260px; font-size: 15px; color: #cfd6e0; }
       #difficulty .levelbar { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #cfd6e0; }
-      #difficulty .levelbar b { min-width: 76px; text-align: center; font-size: 17px; color: #ffd66b; }
-      #difficulty .levelbar button { width: 32px; height: 30px; padding: 0; font-size: 20px; line-height: 1; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      #difficulty .levelbar[hidden] { display: none; }
+      #difficulty .levelbar b { min-width: 76px; text-align: center; font-size: 18px; color: #ffd66b; }
+      #difficulty .levelbar button { width: 34px; height: 32px; padding: 0; font-size: 20px; line-height: 1; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
       #difficulty .levelbar button:hover:not(:disabled) { border-color: #ffd66b; }
       #difficulty .levelbar button:disabled { opacity: 0.3; cursor: default; }
-      #difficulty .list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; scrollbar-width: thin; }
-      #difficulty .rung { display: flex; gap: 10px; align-items: center; }
-      #difficulty .rung .num { flex: 0 0 auto; width: 30px; height: 30px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #4a5666; color: #8d97a5; font-weight: 700; font-size: 15px; }
+      #difficulty .track { position: relative; flex: 1; min-height: 0; overflow: auto; display: flex; scrollbar-width: thin; }
+      #difficulty .track .path { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+      #difficulty .track .path .on { fill: none; stroke: #ffd66b; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 6px rgba(255, 196, 64, 0.85)); }
+      #difficulty .track .path .later { fill: none; stroke: rgba(255, 214, 107, 0.35); stroke-width: 2; stroke-dasharray: 5 7; stroke-linecap: round; }
+      #difficulty .track .path circle { fill: #ffd66b; filter: drop-shadow(0 0 6px rgba(255, 196, 64, 0.9)); }
+      #difficulty .list { position: relative; margin: auto; width: 100%; max-width: 1560px; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 10px; align-items: start; }
+      #difficulty .rung { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+      #difficulty .rung .num { flex: 0 0 auto; width: 32px; height: 32px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #4a5666; background: #111923; color: #8d97a5; font-weight: 700; font-size: 15px; }
       #difficulty .rung.on .num { border-color: #ffd66b; background: #ffd66b; color: #1a1305; }
       #difficulty .rung.open .num { border-color: #ffd66b; color: #ffd66b; }
       #difficulty .rung.shut .num { font-size: 13px; }
-      #difficulty .opts { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; }
-      #difficulty .opt { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 7px 10px; border-radius: 8px; border: 1px solid #263140; background: #19222e; color: #cfd6e0; font: inherit; cursor: pointer; }
-      #difficulty .opt b { font-size: 15px; color: #e4e9f0; }
-      #difficulty .opt span { font-size: 13px; line-height: 1.35; color: #8d97a5; }
-      #difficulty .opt:hover:not(:disabled) { border-color: #ffd66b; }
+      #difficulty .opts { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+      #difficulty .opt { position: relative; z-index: 1; height: 118px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 8px 9px; border-radius: 8px; border: 1px solid #2c3746; background: #151e29; color: #cfd6e0; font: inherit; cursor: pointer; overflow: hidden; }
+      #difficulty .opt b { font-size: 14px; line-height: 1.2; color: #e4e9f0; }
+      #difficulty .opt span { font-size: 12px; line-height: 1.32; color: #8d97a5; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+      #difficulty .opt:hover:not(:disabled), #difficulty .opt:focus-visible { border-color: #ffd66b; outline: none; }
       #difficulty .opt:disabled { cursor: default; }
-      #difficulty .rung.on .opt.picked { border-color: #ffd66b; background: #2a2414; }
+      #difficulty .rung.on .opt.picked { border: 2px solid #ffd66b; padding: 7px 8px; background: #2a2414; box-shadow: 0 0 14px rgba(255, 196, 64, 0.35); }
       #difficulty .rung.on .opt.picked b { color: #ffd66b; }
-      #difficulty .rung.on .opt:not(.picked) { opacity: 0.55; }
+      #difficulty .rung.on .opt:not(.picked) { opacity: 0.5; }
       #difficulty .rung.open .opt.picked { border-color: #7a5a1e; }
-      #difficulty .rung.shut .opt { opacity: 0.45; }
+      #difficulty .rung.open .opt:not(.picked) { opacity: 0.75; }
+      #difficulty .rung.shut .opt { opacity: 0.4; }
       /* la demo: se ve, sin poder tocar */
       #difficulty.locked .levelbar button { display: none; }
+      #difficulty .detail { margin: 0; min-height: 2.6em; font-size: 15px; line-height: 1.3; color: #cfd6e0; text-align: center; }
+      #difficulty .detail b { color: #ffd66b; }
+      #difficulty .dfoot { display: flex; align-items: center; justify-content: center; gap: 12px 24px; flex-wrap: wrap; }
       #difficulty .foot { margin: 0; font-size: 13px; color: #9aa4b2; }
-      #difficulty .done { align-self: center; font-size: 17px; padding: 8px 28px; border-radius: 8px; border: 0; background: #5be07a; color: #102; font-weight: 600; cursor: pointer; }
+      #difficulty .done { font-size: 17px; padding: 8px 28px; border-radius: 8px; border: 0; background: #5be07a; color: #102; font-weight: 600; cursor: pointer; }
+      /* parado (el celular): un escalón por fila, las opciones al lado, y la línea de arriba hacia abajo */
+      @media (max-aspect-ratio: 1/1) {
+        #difficulty { padding: 14px 16px 12px; gap: 10px; }
+        #difficulty h2 { font-size: 24px; }
+        #difficulty .list { grid-template-columns: 1fr; margin: 0 auto; }
+        #difficulty .rung { flex-direction: row; align-items: center; }
+        #difficulty .opts { flex-direction: row; }
+        #difficulty .opt { flex: 1 1 0; min-width: 0; height: 100px; }
+        #difficulty .opt span { -webkit-line-clamp: 4; }
+        #difficulty .detail { min-height: 3.9em; font-size: 14px; }
+      }
       #end .earned[hidden] { display: none; }
       /* la marca de la dificultad (src/threat.ts): una llama con el nivel adentro. Cuanto más alto, más roja,
          más brillo y más nerviosa; con todos los puntos, infernal. --fs es el ancho: el resto se mide con él */
@@ -735,11 +759,14 @@
       </div>
     </div>
     <div id="difficulty" hidden>
-      <div class="box">
+      <div class="dhead">
         <h2><span class="heatslot"></span><span data-en="Difficulty">Dificultad</span></h2>
-        <p class="summary"></p>
         <div class="levelbar"></div>
-        <div class="list"></div>
+        <p class="summary"></p>
+      </div>
+      <div class="track"><svg class="path" aria-hidden="true"></svg><div class="list"></div></div>
+      <p class="detail"></p>
+      <div class="dfoot">
         <p class="foot" data-en="Each level adds a step: pick one of its options. Win at your highest level to unlock the next one. Changes apply from the next game.">Cada nivel suma un escalón: elegí una de sus opciones. Ganá en tu nivel más alto y desbloqueás el siguiente. Lo que cambies vale desde la próxima partida.</p>
         <button type="button" class="done" data-en="Done">Listo</button>
       </div>

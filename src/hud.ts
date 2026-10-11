@@ -165,11 +165,11 @@ export class Hud {
    * `widen`: el arco abierto más de medio círculo (ver `fourthArc` en core/swing), cuánto más que 90° de
    * cada lado. Pasa por debajo del centro: el recuadro crece para abajo y el centro queda donde estaba.
    */
-  setMarks(layout: ArcLayout, marks: readonly [number, number], duff = false, damage: readonly number[] = [], fourth = 0, widen = 1): void {
+  setMarks(layout: ArcLayout, marks: readonly [number, number], duff = false, damage: readonly number[] = [], fourth = 0, widen = 1, crown = false): void {
     this.layout = layout;
     this.marks = marks;
     // se llama en cada cuadro (las mejoras, el palo y la distancia cambian): solo se rearma si cambió algo
-    const key = `${layout.weak.toFixed(2)}/${layout.mid.toFixed(2)}/${layout.strong.toFixed(2)}/${duff}/${damage.join()}/${fourth}/${widen}`;
+    const key = `${layout.weak.toFixed(2)}/${layout.mid.toFixed(2)}/${layout.strong.toFixed(2)}/${duff}/${damage.join()}/${fourth}/${widen}/${crown}`;
     if (key === this.marksKey) return;
     this.marksKey = key;
     const R = 66;
@@ -177,8 +177,9 @@ export class Hud {
     const at = (rad: number, a: number) => `${(rad * Math.sin((a * Math.PI) / 180)).toFixed(2)} ${(-rad * Math.cos((a * Math.PI) / 180)).toFixed(2)}`;
     // pasando de media vuelta, el arco de SVG va por el lado largo
     const big = (a1: number, a2: number) => (a2 - a1 > 180 ? 1 : 0);
-    const sector = (a1: number, a2: number, color: string) =>
-      `<path class="zone" fill="${color}" d="M ${at(R, a1)} A ${R} ${R} 0 ${big(a1, a2)} 1 ${at(R, a2)} L ${at(r, a2)} A ${r} ${r} 0 ${big(a1, a2)} 0 ${at(r, a1)} Z" />`;
+    const band = (a1: number, a2: number, color: string, outer: number, inner: number, cls: string) =>
+      `<path class="${cls}" fill="${color}" d="M ${at(outer, a1)} A ${outer} ${outer} 0 ${big(a1, a2)} 1 ${at(outer, a2)} L ${at(inner, a2)} A ${inner} ${inner} 0 ${big(a1, a2)} 0 ${at(inner, a1)} Z" />`;
+    const sector = (a1: number, a2: number, color: string) => band(a1, a2, color, R, r, 'zone');
     // de dónde a dónde va cada tramo, en grados desde arriba: cada uno ocupa lo que dura (ver `arcLayout`)
     const edge = Math.min(ARC_MAX * widen, layout.span);
     this.arcEdge = edge;
@@ -206,10 +207,13 @@ export class Hud {
     // el fuerte suele ser angosto: su número va encima del tramo aunque sobresalga a los costados, con
     // borde oscuro para que se lea sobre los tramos de al lado
     const topN = f ? damage[3] : damage[2];
+    // la corona (ver fourthArc): el 3 y el 4 sin borde, más altos que el arco, y una rayita en cada borde
+    const crowned = crown && f > 0 && !duff;
     const topLabel = () => {
       if (topN === undefined) return '';
       if (duff && !f) return label(0, topN, dark);
-      return `<text x="0" y="${-(R + r) / 2}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="#ffffff" stroke="#0b0f14" stroke-width="3" paint-order="stroke">${topN}</text>`;
+      // con la corona, el número va adentro del arco: encima tapaba el 4 y el 3
+      return `<text x="0" y="${crowned ? -(r - 9) : -(R + r) / 2}" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="#ffffff" stroke="#0b0f14" stroke-width="3" paint-order="stroke">${topN}</text>`;
     };
     // el 3 con el golpe 4: solo si su tramo da para un número sin pisar los de al lado
     const thirdLabel = f && y - f >= 9 ? label(-(y + f) / 2, damage[2], dark) + label((y + f) / 2, damage[2], dark) : '';
@@ -222,10 +226,14 @@ export class Hud {
     // lo de abajo del centro: el punto de la aguja, o el arco si pasa de 90°
     const below = Math.max(14, Math.ceil(-(R + 4) * Math.cos((b * Math.PI) / 180)) + 6);
     this.meter.style.height = `${((METER_PX * (86 + below)) / 100).toFixed(0)}px`;
+    const strong = crowned
+      ? band(-y, -f, third, R + 8, r, 'crown') + band(-f, f, top, R + 12, r, 'crown') + band(f, y, third, R + 8, r, 'crown')
+        + [-y, -f, f, y].map((a) => { const [x1, y1] = at(r - 3, a).split(' '); const [x2, y2] = at(R + 14, a).split(' '); return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#ffffff" stroke-width="0.9" />`; }).join('')
+      : f ? sector(-y, -f, third) + sector(-f, f, top) + sector(f, y, third) : sector(-y, y, top);
     this.meter.innerHTML = `<svg viewBox="-72 -86 144 ${86 + below}">` + back
       + sector(-edge, -g, low) + sector(-g, -y, mid)
-      + (f ? sector(-y, -f, third) + sector(-f, f, top) + sector(f, y, third) : sector(-y, y, top))
       + sector(y, g, mid) + sector(g, edge, low)
+      + strong
       + (duff ? warn(-(edge + g) / 2) + warn((edge + g) / 2) : '') + numbers
       + `<g class="needle"><line x1="0" y1="-30" x2="0" y2="-72" stroke="#0b0f14" stroke-width="6" stroke-linecap="round" />`
       + `<line x1="0" y1="-30" x2="0" y2="-72" stroke="#ffffff" stroke-width="3" stroke-linecap="round" /></g>`

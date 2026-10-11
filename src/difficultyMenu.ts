@@ -1,5 +1,8 @@
-// El menú de dificultad, entre partidas: la escalera de niveles (ver LADDER en core/difficulty.ts). Arriba el
-// nivel con que se juega, con − y +; abajo un escalón por fila, con sus opciones, y se elige una en cada uno.
+// El menú de dificultad, entre partidas: la escalera de niveles (ver LADDER en core/difficulty.ts). Desde el
+// 11/10 va a pantalla completa sobre la cancha (pedido de Leandro): arriba el nivel con − y +; abajo un
+// escalón por columna, de izquierda a derecha, con sus opciones en tarjetas del mismo tamaño, y una línea
+// dorada que une las elegidas de los escalones puestos (punteada, la de los que se recuerdan sin poner). En
+// el celular parado, de arriba hacia abajo. Abajo, lo que hace la opción que se señala.
 // Se abre desde la pantalla de inicio y desde el cartel del final. Lo que se cambia vale para la próxima
 // partida, y queda guardado en el navegador. En la demo (ver src/edition.ts) se ve, pero con candado.
 
@@ -7,11 +10,16 @@ import { choiceAt, choose, LADDER, MAX_LEVEL, optionText, saveProgress, setLevel
 import { L } from './i18n';
 import { flameHtml } from './threat';
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
 export class DifficultyMenu {
   private readonly el = document.getElementById('difficulty')!;
   private readonly list = this.el.querySelector('.list') as HTMLElement;
+  private readonly track = this.el.querySelector('.track') as HTMLElement;
+  private readonly path = this.el.querySelector('.track .path') as SVGSVGElement;
   private readonly summary = this.el.querySelector('.summary') as HTMLElement;
   private readonly bar = this.el.querySelector('.levelbar') as HTMLElement;
+  private readonly detail = this.el.querySelector('.detail') as HTMLElement;
   /** La llama del nivel, en el título: crece con cada escalón que se pone. */
   private readonly heat = this.el.querySelector('.heatslot') as HTMLElement;
   /** Se cambió algo desde que se armó la partida. */
@@ -24,7 +32,7 @@ export class DifficultyMenu {
   /** @param locked la demo: la escalera se ve, para saber qué trae la completa, pero no se toca */
   constructor(readonly progress: Progress, private readonly locked = false) {
     this.el.querySelector('.done')?.addEventListener('click', () => this.hide());
-    // un click afuera de la caja también cierra
+    // un click en el fondo, fuera de todo, también cierra
     this.el.addEventListener('click', (e) => { if (e.target === this.el) this.hide(); });
     this.bar.addEventListener('click', (e) => {
       const button = (e.target as HTMLElement).closest('button[data-step]') as HTMLButtonElement | null;
@@ -39,7 +47,18 @@ export class DifficultyMenu {
       // la elegida del escalón de más arriba, otra vez: se saca ese escalón (baja un nivel)
       if (i === p.level - 1 && choiceAt(p, i) === o) this.changed(setLevel(p, i));
       else this.changed(choose(p, i, o));
+      this.tell(i, o);
     });
+    // lo que hace cada opción, abajo: la que tiene el mouse encima (o el foco, con el teclado)
+    const point = (e: Event) => {
+      const button = (e.target as HTMLElement).closest('button[data-i]') as HTMLButtonElement | null;
+      if (button) this.tell(Number(button.dataset.i), Number(button.dataset.o));
+    };
+    this.list.addEventListener('pointerover', point);
+    this.list.addEventListener('focusin', point);
+    // la línea va por el medio de las tarjetas: si cambia el tamaño, se vuelve a trazar
+    new ResizeObserver(() => { if (this.open) this.drawPath(); }).observe(this.track);
+    this.track.addEventListener('scroll', () => this.drawPath());
   }
 
   private changed(did: boolean): void {
@@ -55,8 +74,8 @@ export class DifficultyMenu {
   }
 
   show(): void {
-    this.render();
     this.el.hidden = false;
+    this.render();
   }
 
   hide(): void {
@@ -69,6 +88,12 @@ export class DifficultyMenu {
   refresh(): void {
     if (this.open) this.render();
     this.onChange?.();
+  }
+
+  /** Abajo, lo que hace la opción `o` del escalón `i`. */
+  private tell(i: number, o: number): void {
+    const { name, line } = optionText(this.progress, i, o);
+    this.detail.innerHTML = `<b>${i + 1} · ${name}</b>: ${line}`;
   }
 
   private render(): void {
@@ -93,10 +118,50 @@ export class DifficultyMenu {
       const status = i < p.level ? 'on' : i < p.unlocked && !this.locked ? 'open' : 'shut';
       const opts = options.map((_, o) => {
         const { name, line } = optionText(p, i, o);
-        const picked = options.length > 1 && choiceAt(p, i) === o;
-        return `<button type="button" class="opt${picked || options.length === 1 ? ' picked' : ''}" data-i="${i}" data-o="${o}" ${status === 'shut' ? 'disabled' : ''}><b>${name}</b><span>${line}</span></button>`;
+        const picked = choiceAt(p, i) === o;
+        return `<button type="button" class="opt${picked ? ' picked' : ''}" data-i="${i}" data-o="${o}" title="${line}" ${status === 'shut' ? 'disabled' : ''}><b>${name}</b><span>${line}</span></button>`;
       }).join('');
       return `<div class="rung ${status}"><span class="num">${status === 'shut' ? '🔒' : i + 1}</span><div class="opts">${opts}</div></div>`;
     }).join('');
+    // abajo, de entrada, lo del escalón de más arriba que está puesto (o el primero)
+    const top = Math.max(0, p.level - 1);
+    this.tell(top, choiceAt(p, top));
+    this.drawPath();
+  }
+
+  /**
+   * La línea dorada: por el medio de las tarjetas elegidas, de un escalón al siguiente. Llena hasta el nivel
+   * con que se juega; punteada y tenue por los desbloqueados que se recuerdan sin poner.
+   */
+  private drawPath(): void {
+    const box = this.track.getBoundingClientRect();
+    this.path.setAttribute('width', String(this.track.scrollWidth));
+    this.path.setAttribute('height', String(this.track.scrollHeight));
+    this.path.replaceChildren();
+    const center = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return [r.left - box.left + this.track.scrollLeft + r.width / 2, r.top - box.top + this.track.scrollTop + r.height / 2];
+    };
+    const points = (selector: string) => [...this.list.querySelectorAll(selector)].map(center);
+    const on = points('.rung.on .opt.picked');
+    const later = points('.rung.open .opt.picked');
+    const line = (pts: number[][], cls: string) => {
+      if (pts.length < 2) return;
+      const el = document.createElementNS(SVG_NS, 'polyline');
+      el.setAttribute('points', pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' '));
+      el.setAttribute('class', cls);
+      this.path.append(el);
+    };
+    // la punteada sale de la última puesta
+    line([...on.slice(-1), ...later], 'later');
+    line(on, 'on');
+    // y si hay uno solo puesto, un punto en el medio de su tarjeta
+    if (on.length === 1) {
+      const dot = document.createElementNS(SVG_NS, 'circle');
+      dot.setAttribute('cx', on[0][0].toFixed(1));
+      dot.setAttribute('cy', on[0][1].toFixed(1));
+      dot.setAttribute('r', '5');
+      this.path.append(dot);
+    }
   }
 }

@@ -1229,7 +1229,8 @@ export class DebugPanel {
     el.append(choice('con golpe 4', FOURTH_ARCS, () => VISUAL.fourthArc, (v: FourthArc) => { VISUAL.fourthArc = v; }, {
       medio: 'Medio círculo a velocidad pareja, como sin el talento: el 3 casi no se ve',
       extendido: 'Tres cuartos de vuelta a velocidad pareja: todo más grande, el 3 sigue chico',
-      lupa: 'Tres cuartos de vuelta y el rojo agrandado (el de fábrica): la aguja lo cruza más rápido',
+      lupa: 'Tres cuartos de vuelta y el rojo agrandado: la aguja lo cruza más rápido',
+      corona: 'Tres cuartos de vuelta a velocidad pareja, con el 3 y el 4 sobresaliendo y una rayita en cada borde (el de fábrica)',
     }), note('Con el talento Golpe 4 el rojo se parte en 3, 4 y 3, y cada 3 dura 15 ms: a velocidad pareja no entra en el arco.'));
 
     el.append(heading('Sombras'), this.row(toggle('Sombras del sol', 'shadows')), choice('resolución', SHADOW_SIZES, () => VISUAL.shadowSize, (v) => { VISUAL.shadowSize = v; }), note(

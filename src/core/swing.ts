@@ -102,17 +102,25 @@ export function arcLayout(times: ChargeTimes, base: ChargeTimes): ArcLayout {
  *   vez y media más grande, pero el 3 sigue sin verse (2.4°);
  * - `lupa`: tres cuartos de vuelta, y el fuerte agrandado a `strong` de cada lado; el verde y el amarillo
  *   se reparten lo que queda, en proporción. La aguja cruza el rojo más rápido: el tramo es más grande,
- *   no dura más.
+ *   no dura más (11/10, Leandro: ese cambio de velocidad lo hace más difícil);
+ * - `corona` (11/10): tres cuartos de vuelta a velocidad pareja, como el extendido, pero el 3 y el 4 se
+ *   dibujan sin borde (el borde oscuro de cada tramo era más ancho que el 3, y lo tapaba), sobresaliendo
+ *   del arco hacia afuera, con una rayita blanca en cada borde. Son igual de angostos: se ven por el color
+ *   y las rayitas, y la aguja va siempre igual.
  */
-export const FOURTH_ARCS = ['medio', 'extendido', 'lupa'] as const;
+export const FOURTH_ARCS = ['medio', 'extendido', 'lupa', 'corona'] as const;
 export type FourthArc = (typeof FOURTH_ARCS)[number];
 export const FOURTH_ARC = { span: 135, strong: 20 };
 
-/** El arco de `layout` en la forma `mode` (ver FOURTH_ARCS), y cuánto se agranda su tope (90° → `span`). */
-export function fourthArc(layout: ArcLayout, mode: FourthArc): { layout: ArcLayout; widen: number } {
+/**
+ * El arco de `layout` en la forma `mode` (ver FOURTH_ARCS), cuánto se agranda su tope (90° → `span`), y si
+ * el fuerte va en corona.
+ */
+export function fourthArc(layout: ArcLayout, mode: FourthArc): { layout: ArcLayout; widen: number; crown?: boolean } {
   if (mode === 'medio') return { layout, widen: 1 };
   const widen = FOURTH_ARC.span / 90;
   const wide = { weak: layout.weak * widen, mid: layout.mid * widen, strong: layout.strong * widen, span: layout.span * widen };
+  if (mode === 'corona') return { layout: wide, widen, crown: true };
   if (mode === 'extendido' || wide.strong >= FOURTH_ARC.strong) return { layout: wide, widen };
   const rest = wide.span - FOURTH_ARC.strong;
   const low = wide.weak + wide.mid;

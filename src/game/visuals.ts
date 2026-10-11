@@ -70,8 +70,11 @@ export type MeterSpot = (typeof METER_SPOTS)[number];
 
 export const VISUAL = {
   meterAt: 'adelante' as MeterSpot,
-  /** El arco con el golpe 4 (10/10, ver `fourthArc` en core/swing): si no se abre, el 3 no se ve. */
-  fourthArc: 'lupa' as FourthArc,
+  /**
+   * El arco con el golpe 4 (10/10, ver `fourthArc` en core/swing): si no se abre, el 3 no se ve. Desde el
+   * 11/10 la corona: la lupa cambiaba la velocidad de la aguja en el rojo, y eso lo hacía más difícil.
+   */
+  fourthArc: 'corona' as FourthArc,
   /** La vida de la puerta como una puerta por punto, en el medio de la izquierda de la barra (8/10, Leandro). */
   gateIcons: false,
   /** Versión del lugar del arco: un guardado de antes de que el de fábrica fuera «adelante» no lo pisa. */
