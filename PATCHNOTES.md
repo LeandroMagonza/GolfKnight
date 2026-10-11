@@ -28,6 +28,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   `6a64925` Todo esto, también en la app de Windows. `79f7bf2`
 
 **La carga**
+- Para los que prueban: un **simulador de la carga** (`arco.html`, al lado del juego). Ponés cuánto dura
+  cada golpe y el arco se reparte en proporción, con la aguja siempre a la misma velocidad; cargás con
+  espacio o el mouse y te dice qué golpe sacaste y a cuántos milisegundos del tope. «Usar en el juego»
+  deja esos tiempos para el juego en tu navegador. `bce7aa1`
 - Con el golpe 4, el arco de carga ya no acelera la aguja en el rojo: va siempre a la misma velocidad, y
   el 3 y el 4 sobresalen del arco, con una rayita en cada borde, para que se vean. `210d12b`
 - **La dificultad ahora es una escalera de 10 niveles.** En cada nivel se suma un escalón, y en casi todos
