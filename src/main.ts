@@ -10,7 +10,7 @@ import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, el
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, SCENARIO_POWERS, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower } from './core/waves';
-import { earnPoint, hillsOn, loadProgress, MAX_POINTS, rulesFor, saveProgress, setLevel, TALENTS, used, type Progress } from './core/difficulty';
+import { choiceAt, earnLevel, hillsOn, LADDER, ladderFrom, loadProgress, MAX_LEVEL, picksOf, rulesFor, saveProgress, setLevel, TALENTS, type Picks, type Progress, type TalentId } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, fourthArc, timingWith } from './core/swing';
 import { Abilities } from './game/abilities';
@@ -67,13 +67,31 @@ const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 30
 // que decidirse antes de armar el mundo, porque la malla del terreno se construye una sola vez.
 const params = new URLSearchParams(location.search);
 /**
- * La dificultad: los puntos ganados y dónde están puestos (ver core/difficulty.ts). Se eligen en un menú
- * entre partidas, desde la pantalla de inicio o el cartel del final.
+ * La dificultad: los niveles desbloqueados y lo elegido en cada escalón (ver core/difficulty.ts). Se elige
+ * en un menú entre partidas, desde la pantalla de inicio o el cartel del final. Para las pruebas,
+ * `?escalera=0,1,0` juega el nivel 3 con esas opciones.
  */
-// la demo no tiene los talentos (ver src/edition.ts): siempre la partida de base, y no se guarda nada
-const progress: Progress = DEMO || ABE_ONLY ? { points: 0, picks: {} } : loadProgress();
+// la demo no tiene la dificultad (ver src/edition.ts): siempre la partida de base, y no se guarda nada
+const progress: Progress = DEMO || ABE_ONLY ? { unlocked: 0, level: 0, choices: [] }
+  : DEV_TOOLS && params.has('escalera') ? ladderFrom(params.get('escalera') ?? '') : loadProgress();
+/**
+ * Para las tandas del bot (tools/bot-tanda.mjs): `?talentos=speed:2,powers:1` juega con esos talentos, sin
+ * la escalera (vacío, el nivel 0). Para medir cuánto pesa cada uno solo.
+ */
+const testPicks: Picks | null = DEV_TOOLS && params.has('talentos')
+  ? Object.fromEntries((params.get('talentos') ?? '').split(',').filter((s) => TALENTS.some((t) => t.id === s.split(':')[0]))
+    .map((s) => [s.split(':')[0] as TalentId, Number(s.split(':')[1] ?? 1) || 1]))
+  : null;
+/** Los niveles de cada talento con que se juega. */
+function currentPicks(): Picks {
+  return testPicks ?? picksOf(progress);
+}
+/** El nivel de la partida: los escalones puestos (con ?talentos, los pasos de los talentos). */
+function currentLevel(): number {
+  return testPicks ? Object.values(testPicks).reduce((n, v) => n + (v ?? 0), 0) : progress.level;
+}
 /** Los campos con lomas son un talento: sin él se juega en el liso. Es lo que está armado ahora. */
-let builtHills = hillsOn(progress.picks);
+let builtHills = hillsOn(currentPicks());
 // el tenis se juega en cancha lisa: la pelota que rebota no sabe de lomas. ?campo=N y ?plano mandan
 // sobre la dificultad (las pruebas y el que mira usan el campo del que juega)
 let gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.get('campo') ?? (builtHills ? null : 'plano'));
@@ -165,7 +183,7 @@ showRun();
  * Con las herramientas de prueba, `?poderes=shield,dodge,phase` elige los de los tres escenarios.
  */
 function runRules(): RunRules {
-  const r = rulesFor(progress.picks);
+  const r = rulesFor(currentPicks());
   const order = DEV_TOOLS ? (params.get('poderes') ?? '').split(',').filter((p): p is ScenarioPower => (SCENARIO_POWERS as readonly string[]).includes(p)) : [];
   if (order.length >= 3) return { ...r, order };
   return DEMO ? { ...r, pool: SCENARIO_POWERS.filter((p) => !DEMO_LOCKS.powers.includes(p)) } : r;
@@ -190,14 +208,14 @@ function rebuildRun(): void {
 const diffButtons = [document.getElementById('diffbtn'), document.getElementById('enddiff')].filter((x): x is HTMLElement => !!x);
 function paintDifficulty(): void {
   // en la demo se ve siempre, con candado: es lo que trae la completa
-  const on = (DEMO || progress.points > 0) && !params.has('mirar');
-  const state = { level: used(progress.picks), points: progress.points, max: MAX_POINTS, locked: DEMO };
+  const on = (DEMO || progress.unlocked > 0) && !params.has('mirar');
+  const state = { level: currentLevel(), points: progress.unlocked, max: MAX_LEVEL, locked: DEMO };
   for (const b of diffButtons) {
     b.hidden = !on;
     if (on) paintThreat(b, state);
   }
   // el que mira ve la del que juega (llega con la foto)
-  if (!params.has('mirar')) hud.setHeat(state.level, MAX_POINTS);
+  if (!params.has('mirar')) hud.setHeat(state.level, MAX_LEVEL);
 }
 for (const b of diffButtons) {
   b.addEventListener('click', (e) => {
@@ -209,8 +227,8 @@ difficultyMenu.onChange = paintDifficulty;
 // si antes de empezar se prendió o se apagó el terreno irregular, el campo se cambia en el acto (en el
 // cartel del final no hace falta: la R arma la partida nueva). ?plano y ?campo mandan sobre la dificultad
 difficultyMenu.onClose = () => {
-  if (started || hillsOn(progress.picks) === builtHills || params.has('plano') || params.has('campo') || TENNIS_ON) return;
-  builtHills = hillsOn(progress.picks);
+  if (started || hillsOn(currentPicks()) === builtHills || params.has('plano') || params.has('campo') || TENNIS_ON) return;
+  builtHills = hillsOn(currentPicks());
   gameCourse = pickCourse(builtHills ? null : 'plano');
   world.rebuildField();
   // la marca de caída, como al armarla: con relieve se dibuja por encima del piso
@@ -251,6 +269,10 @@ let shots = 0;
 let started = false;
 let paused = false;
 let ended: 'victory' | 'defeat' | null = null;
+/** Por qué terminó, como en el registro. */
+let endCause = '';
+/** A cuántos s del tope de la barra se soltó el último tiro (ver SwingMeter.offPeak). */
+let releaseOff = 0;
 let shake = 0;
 let frameTimes: number[] = [];
 let lastEvent = '';
@@ -265,6 +287,21 @@ let gameClock = 0;
 const ALL_CLUBS = DEV_TOOLS && params.has('palos');
 /** Con ?bot en la URL juega solo (src/bot.ts), para mirarlo o para chequear el balance. */
 const BOT = DEV_TOOLS && params.has('bot');
+/**
+ * Para las tandas del bot (11/10, Leandro: que no le frene la compu mientras la usa): con ?liviano no se
+ * dibuja nada (dibujar es casi todo lo que cuesta) y la partida avanza a pasos fijos de 1/60 s.
+ * `&velocidad=N` da N pasos por cuadro: 0.5 va a la mitad (la mitad de trabajo), 4 a cuatro veces.
+ */
+const LIGHT = DEV_TOOLS && params.has('liviano');
+const LIGHT_SPEED = Math.max(0.1, Math.min(20, Number(params.get('velocidad')) || 1));
+const LIGHT_STEP = 1 / 60;
+// y la página tampoco se pinta: sin esto el navegador igual compone el HUD (las llamas, los carteles) en
+// cada cuadro, y sin placa de video eso lo hace el procesador
+if (LIGHT) document.body.style.display = 'none';
+/** Los pasos que se deben (con velocidades que no son enteras). */
+let lightDebt = 0;
+/** Lo que corre antes de cada paso de la partida liviana: el bot (ver `onStep` en __gk). */
+const stepHooks: ((dt: number) => void)[] = [];
 /**
  * El espectador (src/net): con ?mirar=CÓDIGO no se juega, se mira la partida de otro con cámara propia.
  * ?transmitir=CÓDIGO es el que juega, transmitiendo (lo pone el botón de invitar). Con &local van entre
@@ -684,8 +721,8 @@ function endInfo(result: 'victory' | 'defeat', title: string, detail: string, le
   ];
   return {
     result, title, detail, score, best: Math.max(before, record ? score : 0), record, stats, earned,
-    level: progress.points > 0
-      ? L(`Dificultad: jugaste en el nivel ${level} · tenés ${progress.points} de ${MAX_POINTS} desbloqueados`, `Difficulty: you played level ${level} · ${progress.points} of ${MAX_POINTS} unlocked`)
+    level: progress.unlocked > 0
+      ? L(`Dificultad: jugaste en el nivel ${level} · tenés ${progress.unlocked} de ${MAX_LEVEL} desbloqueados`, `Difficulty: you played level ${level} · ${progress.unlocked} of ${MAX_LEVEL} unlocked`)
       : '',
   };
 }
@@ -705,6 +742,7 @@ function demoTeaser(): string {
  * el registro: siempre en español (el `detail` de siempre), así se comparan las partidas de los dos idiomas.
  */
 function endGame(result: 'victory' | 'defeat', title: string, detail: string, cause: string): void {
+  endCause = cause;
   if (ended) return;
   ended = result;
   player.cancelSwing();
@@ -719,14 +757,14 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   if (BOT && BOT_PREFS.playing && params.get('transmitir')) setTimeout(() => {
     if (ended && !difficultyMenu.open) playAgain();
   }, 12000);
-  // ganar con todos los puntos de dificultad puestos desbloquea un nivel más (el bot no: juega para probar)
-  const level = used(progress.picks);
-  const earned = result === 'victory' && !BOT && !DEMO && earnPoint(progress);
+  // ganar en el nivel más alto que se tiene desbloquea el siguiente (el bot no: juega para probar)
+  const level = currentLevel();
+  const earned = result === 'victory' && !BOT && !DEMO && !testPicks && earnLevel(progress);
   if (earned) saveProgress(progress);
   paintDifficulty();
   const info = endInfo(result, title, detail, level, DEMO && result === 'victory' ? demoTeaser() : '');
   // el nivel nuevo revienta al final del cartel (ver src/endscreen.ts)
-  if (earned) info.unlock = { level: progress.points, max: MAX_POINTS };
+  if (earned) info.unlock = { level: progress.unlocked, max: MAX_LEVEL };
   // al ganar, el cartel espera a que se vea el festejo: tapa la cancha con un velo oscuro
   if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(info); }, VICTORY_CARD_DELAY_MS);
   else hud.showEnd(info);
@@ -1634,13 +1672,11 @@ function makeDebugPanel(): DebugPanel {
     director,
     bot: { running: () => botStarted, start: () => { void startBotNow(); } },
     difficultyPoints: {
-      get: () => progress.points,
-      set(points) {
-        progress.points = points;
-        // si ya no alcanzan, se sacan de los últimos talentos
-        const keep = { ...progress.picks };
-        progress.picks = {};
-        for (const t of TALENTS) setLevel(progress, t.id, keep[t.id] ?? 0);
+      get: () => progress.unlocked,
+      set(n) {
+        progress.unlocked = n;
+        // si se bajó, el nivel no puede pasar de lo desbloqueado
+        setLevel(progress, progress.level);
         saveProgress(progress);
         difficultyMenu.refresh();
       },
@@ -2001,6 +2037,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     // con un tiro cualquiera y pegándole con el que importa antes de que recargue. Al tiro fantasma (el
     // guante fantasma) no lo ve venir
     p.onRelease = () => {
+      // a cuánto del tope soltó, para el registro (se anota con el tiro, si sale)
+      releaseOff = p.meter.offPeak;
       if (tennis || glove?.element === 'ghost') return;
       p.teePosition(tee);
       horde.dodgeAim(tee, p.aimDir);
@@ -2015,7 +2053,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
       if (t) shot = { ...shot, quality: t.quality };
       shots++;
       // el perfecto es el golpe más alto que hay: el 3, o el 4 con su talento
-      recorder?.shot(shot.quality >= QUALITY_LEVELS);
+      recorder?.shot(shot.quality >= QUALITY_LEVELS, shot.quality, tennis ? undefined : releaseOff);
       audio.tock(shot.quality >= topQuality());
       if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? L('¡Golpe 4!', 'Hit 4!') : L('¡Golpe perfecto!', 'Perfect hit!'), 'good');
       const range = shotRange(shot.club);
@@ -2619,7 +2657,7 @@ async function startHosting(code: string): Promise<string> {
         score,
         kills,
         pk: pocket ? [pocket.count, pocket.max] : undefined,
-        ht: used(progress.picks),
+        ht: currentLevel(),
         abe: abe.status,
         tu: !!tutorial,
         // adónde apunta: lo mismo que se le dibuja a él (la línea de tiro y la marca de caída)
@@ -2776,7 +2814,7 @@ async function startWatching(code: string): Promise<void> {
       hud.setScenario(g.sc);
       hud.setScore(g.score, g.kills);
       if (g.pk) hud.setPocket(g.pk[0], g.pk[1]);
-      hud.setHeat(g.ht ?? 0, MAX_POINTS);
+      hud.setHeat(g.ht ?? 0, MAX_LEVEL);
       // el cartel del final sigue a la foto: sin esto, si el que juega reiniciaba, al que mira le quedaba
       // «La puerta cayó» arriba de la partida nueva. Y el que entró con la partida ya terminada lo ve igual
       // El cartel animado llega como evento (al ganar, después del festejo): el simple sale solo si no
@@ -2990,7 +3028,8 @@ function updateWaves(dt: number): void {
         // se anota siempre (los números del cartel del final salen de acá), pero solo se manda con RECORD
         if (!WATCH && !recorder && e.index === 0) {
           recorder = new RunRecorder({
-            version: DEMO ? `${__BUILD__} demo` : __BUILD__, level: used(progress.picks), picks: { ...progress.picks }, points: progress.points,
+            version: DEMO ? `${__BUILD__} demo` : __BUILD__, level: currentLevel(), picks: currentPicks(), points: progress.unlocked,
+            ladder: testPicks ? undefined : LADDER.slice(0, progress.level).map((options, i) => options[choiceAt(progress, i)]),
             powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
           }, RECORD);
         }
@@ -3036,6 +3075,10 @@ function updateWaves(dt: number): void {
 
 function frame(): void {
   timer.update();
+  if (LIGHT) {
+    lightFrame();
+    return;
+  }
   const dt = Math.min(timer.getDelta(), 0.05);
   const nowMs = performance.now();
   frameTimes.push(nowMs);
@@ -3043,6 +3086,22 @@ function frame(): void {
   // la versión de Abe es siempre el que mira: lo del que juega ni se compila (ver src/edition.ts)
   if (WATCH || ABE_ONLY) watchFrame(dt);
   else playFrame(dt, nowMs);
+}
+
+/**
+ * La partida liviana (?liviano): los pasos que tocan en este cuadro, sin dibujar. Los cuadros por segundo
+ * que da `fps` son pasos por segundo (60 es a velocidad normal).
+ */
+function lightFrame(): void {
+  const nowMs = performance.now();
+  lightDebt = Math.min(lightDebt + LIGHT_SPEED, 40);
+  while (lightDebt >= 1) {
+    lightDebt--;
+    for (const hook of stepHooks) hook(LIGHT_STEP);
+    frameTimes.push(nowMs);
+    playFrame(LIGHT_STEP, nowMs);
+  }
+  if (frameTimes.length > 2400) frameTimes = frameTimes.filter((t) => nowMs - t < 1000);
 }
 
 /** El que mira no simula nada: pone todo donde dicen las fotos del que juega, y dibuja. */
@@ -3149,7 +3208,9 @@ function playFrame(dt: number, nowMs: number): void {
     scuffs.update(dt);
   }
   visuals.updateDay(dt);
-  visuals.render();
+  // sin dibujar, la cámara no se pone al día sola: la mira sale de ella (el mouse sobre el piso)
+  if (LIGHT) camera.updateMatrixWorld();
+  else visuals.render();
 }
 renderer.setAnimationLoop(frame);
 
@@ -3185,6 +3246,13 @@ if (DEV_TOOLS) (window as any).__gk = {
   finish(result: 'victory' | 'defeat') { endGame(result, result, '', 'prueba'); }, // i18n-ok: solo para las pruebas
   get score() { return score; },
   get kills() { return kills; },
+  get started() { return started; },
+  /** El registro de la partida (oleadas, con quién sacó vida y los golpes de cada tiro). */
+  get runLog() { return recorder?.log ?? null; },
+  /** El nivel de dificultad de la partida. */
+  get difficultyLevel() { return currentLevel(); },
+  /** Por qué terminó (lo del registro). */
+  get endCause() { return endCause; },
   get shots() { return shots; },
   get ended() { return ended; },
   get tutorial() { return tutorial; },
@@ -3203,6 +3271,10 @@ if (DEV_TOOLS) (window as any).__gk = {
   get measured() { return measured; },
   get aim() { return [aimPoint.x, aimPoint.z].map((v) => +v.toFixed(2)); },
   get fps() { const t = performance.now(); return frameTimes.filter((x) => t - x < 1000).length; },
+  /** La partida liviana (?liviano): sin dibujar, a pasos fijos. */
+  get light() { return LIGHT; },
+  /** Lo corre antes de cada paso de la partida liviana (el bot juega así, en vez de por cuadro). */
+  onStep(fn: (dt: number) => void) { stepHooks.push(fn); },
   /** Píxel de pantalla que corresponde a un punto del piso, para apuntar con el mouse en los tests. */
   /** Lo visual del panel B (sombras, luz, dónde va el arco de carga). */
   get visual() { return VISUAL; },

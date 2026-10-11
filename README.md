@@ -353,13 +353,39 @@ no siempre es el mismo bicho el que viene con el mismo poder.
   `node --experimental-transform-types tools/oleadas.mts` mide qué tan difícil es cada oleada,
   promediando muchas partidas.
 
-### La dificultad: talentos al revés
+### La dificultad: una escalera de talentos
 
-Cada partida ganada **con todos los puntos puestos** da un punto de dificultad, y cada punto puesto hace
-la partida más difícil. Se reparten como uno quiera en un menú entre partidas (en la pantalla de inicio,
-con el primer punto, y en el cartel del final), y se pueden mover cuando se quiera: vale para la próxima
-partida. Se guarda en el navegador. Son 16 puntos en 11 talentos. En el juego, ganar un punto se anuncia
-como «¡Desbloqueaste el nivel N de dificultad!».
+Los talentos (la tabla de abajo) hacen la partida más difícil. Desde el 11/10 se ponen por una
+**escalera de 10 escalones** (`LADDER` en `src/core/difficulty.ts`): jugar en el nivel N es tener puestos
+los primeros N, y en cada escalón se elige **una** de sus opciones (las del mismo escalón no van juntas);
+algunos traen una sola. Ganar en el nivel más alto que se tiene desbloquea el siguiente. El nivel se
+baja y se sube con − y + en el menú (en la pantalla de inicio, desde el primer nivel, y en el cartel del
+final), y lo elegido en cada escalón se puede cambiar cuando se quiera: vale para la próxima partida. Se
+guarda en el navegador. En el juego, desbloquear se anuncia como «¡Nivel N desbloqueado!».
+
+Antes (del 3/10 al 11/10) eran 18 puntos para poner donde uno quisiera. Abrumaba, se podía saltar de golpe
+a lo más duro, y con todo puesto era casi imposible para una persona (Leandro, con suerte, pasaba la
+segunda oleada). La escalera tiene 10 de los 18 pasos, en orden, con elección en casi todos. Lo guardado
+con puntos se pasó en la misma proporción (9 de 18 puntos: 5 de 10 niveles), y en cada escalón quedó
+elegido un talento que se tenía puesto.
+
+| Escalón | Opciones (se elige una) |
+| --- | --- |
+| 1 | Sin respiro · Élites más duros |
+| 2 | Más rápidos |
+| 3 | Olas especiales · Recarga lenta |
+| 4 | Más con poder · Apoyos |
+| 5 | Poderes más duros |
+| 6 | Terreno irregular · Golpe 4 · Escolta del jefe |
+| 7 | Más rápidos · Recarga lenta |
+| 8 | Olas especiales · Más con poder · Apoyos |
+| 9 | Poderes acumulados |
+| 10 | Más rápidos |
+
+Cada opción **suma un paso** a su talento: «Más rápidos» está en tres escalones y con los tres es la
+velocidad más alta; la opción dice el paso que daría (el segundo «Más rápidos» que se elige se llama
+«Más rápidos II»). El orden es provisorio: lo van a ordenar las tandas del bot (`tools/bot-tanda.mjs`),
+midiendo cuánto pesa cada talento solo y combinado.
 
 **El cartel del final** (`src/endscreen.ts`): el título entra de golpe, el puntaje cuenta hacia arriba
 con el récord del navegador al lado, y aparecen de a uno, cada uno con su nota, los números de la
@@ -384,17 +410,27 @@ aunque solo se mande cuando corresponde.
 | Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +4 (2, al doble) y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga). Cada 3 dura 15 ms, y a velocidad pareja no entraba en el arco: con el talento el arco se abre a tres cuartos de vuelta con el rojo agrandado («lupa», `fourthArc` en `src/core/swing.ts`; panel B, Visual, para comparar con el medio círculo y con el extendido a velocidad pareja) |
 
 Con todo puesto es la partida de antes del 3/10, más rápida, con menos descanso y las habilidades más
-lentas, y con dos olas especiales que dejan marca en vez de tres. Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas
+lentas, y con dos olas especiales que dejan marca en vez de tres (con la escalera ya no se llega a todo).
+Los números están en `DIFFICULTY` (`src/core/difficulty.ts`) y las marcas
 en `MARKS` (`src/core/waves.ts`); los dos se tocan en el panel B, pestaña Enemigos, donde también se
-pueden poner los puntos ganados para probar cualquier nivel.
+pueden poner los niveles desbloqueados para probar cualquiera. Para las pruebas, `?escalera=0,1,0` juega el
+nivel 3 con esas opciones, y `?talentos=speed:2,powers:1` con esos talentos, sin la escalera.
 
 ### Las partidas se mandan solas
 
 Al terminar (o al dejarla por la mitad), la partida se manda a Supabase, al proyecto del ManaMod, tabla
 `golf_runs` (`src/telemetry.ts`): nivel y talentos, resultado y oleada, y por oleada tiros, aciertos,
 perfectos, bajas, daño, habilidades, y la vida y la puerta que se perdieron con quién las sacó; las cartas
-ofrecidas y elegidas. Sin datos personales: un id al azar por navegador. Lo que no sale queda en una cola
-y se manda la próxima vez. No mandan el bot, el espectador ni las pruebas automáticas. La tabla se crea
+ofrecidas y elegidas; desde el 11/10, también con qué golpe (1 a 4) salió cada tiro, a cuántos ms del
+tope de la barra se soltó (negativo, antes; positivo, pasado: `SwingMeter.offPeak`), y lo elegido en cada
+escalón. Sin datos personales: un id al azar por navegador. Lo que no sale queda en una cola
+y se manda la próxima vez.
+
+Además, las últimas 20 partidas quedan **resumidas en el navegador** (`myRuns` en `src/telemetry.ts`):
+tiros, cuántos pegan, los golpes, cuándo se soltó cada uno, habilidades y la vida perdida. El botón
+«Copiar mis números» (panel B, pestaña Pruebas) las copia con un resumen (tiros por minuto, puntería, qué
+parte sale con cada golpe, qué parte se suelta antes del fuerte, en el fuerte y pasado, y el desvío
+alrededor del tope), para ajustar al bot humano a cómo juega una persona. No mandan el bot, el espectador ni las pruebas automáticas. La tabla se crea
 una vez con `docs/telemetria.sql`, que trae también consultas para mirar.
 
 ## El campo: tres mapas, uno por partida
@@ -570,6 +606,21 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
     Desde el 9/10 tiene niveles (`--nivel=perfecto`, `bueno` o `flojo`; en el navegador, `?bot=bueno`):
     el perfecto apunta adonde va a estar el enemigo, carga lo justo, le gasta la esquiva con un cebo y se
     corre para alinear; el flojo es más o menos el de antes. Con `--ver` abre una ventana para mirarlo.
+    Desde el 11/10, `humano`: piensa cada 0.25 s, se toma un rato al azar antes de cada tiro (0.3 s, a
+    veces el doble, a veces la mitad) y suelta apuntando al medio del tramo que busca (al tope, para el 3)
+    con un error de mano (40 ms), así el golpe que sale es el que da la barra. Los números son para
+    empezar: se ajustan con los de una persona («Copiar mis números»). Buscando el 3, a veces suelta
+    antes (un 2) y a veces se pasa (rebota: un 2 o un 1). Se ajusta desde la dirección:
+    `&pausa=0.5&error=0.4&suelta=0.04&tarde=0.01&piensa=0.3&golpe=2`.
+  - `bot-tanda.mjs`: muchas partidas del bot seguidas, en las dificultades que se le pidan (`base`,
+    `speed:2,powers:1`, o `escalera:0,1,0`), y un resumen por dificultad: ganadas, oleada, puerta y vida
+    perdidas, puntería, tiros por minuto y golpes. Anota cada partida en `logs/tandas/`. Juegan con
+    **`?liviano`**: sin dibujar nada (ni el 3D ni la página) y a pasos fijos de 1/60 s, `&velocidad=N` veces
+    por cuadro. Dibujar era casi todo el costo: una partida dibujando con la placa de video ocupaba 2/3 de
+    núcleo más la placa, y varias a la vez frenaban la compu; liviana, un 20 % de núcleo a 1×, un 30 % a 4×
+    y un 60 % a 12× (una partida entera, menos de 2 minutos). Además corre con prioridad baja: Windows le
+    da el procesador a lo demás primero. Por defecto, 2 a la vez a 4×; para dejarla corriendo,
+    `--paralelo=6 --velocidad=12`.
   - `swingshot.mjs`: capturas de cerca de cada fase del swing, y distancia cabeza-pelota en el impacto.
   - `visual.mjs`: capturas de la misma escena con la capa visual apagada y en cada hora del día
     (`logs/visual-*.png`). Usa la GPU, no el render por software. Las pruebas automáticas arrancan con

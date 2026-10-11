@@ -142,6 +142,8 @@ export class SwingMeter {
   private lockedPower: number | null = null;
   /** De qué lado quedó la aguja al clavar. */
   private lockedSide = -1;
+  /** Cuándo se clavó (s de carga), o null. */
+  private lockedAt: number | null = null;
 
   /**
    * @param times los segundos de cada tramo, ya con las mejoras
@@ -150,6 +152,7 @@ export class SwingMeter {
   start(times: ChargeTimes, marks: [number, number] = [0.55, PERFECT_FROM]): void {
     this.charging = true;
     this.lockedPower = null;
+    this.lockedAt = null;
     this.elapsed = 0;
     this.times = {
       weak: Math.max(MIN_SEGMENT, times.weak),
@@ -223,7 +226,18 @@ export class SwingMeter {
     if (!this.charging || this.lockedPower !== null) return false;
     this.lockedSide = this.side;
     this.lockedPower = Math.max(MIN_POWER, this.power);
+    this.lockedAt = this.elapsed;
     return true;
+  }
+
+  /**
+   * A cuántos s del tope de la primera pasada por el fuerte se soltó (o se clavó): negativo, antes; positivo,
+   * después. Hasta la mitad del fuerte de cada lado es el 3 (y el medio de eso, el 4); más allá, del lado de
+   * después, ya rebota. Es para el registro (11/10): cuánto le erra una persona al tope, y si se pasa.
+   */
+  get offPeak(): number {
+    const { weak, mid, strong } = this.times;
+    return (this.lockedAt ?? this.elapsed) - (weak + mid + strong / 2);
   }
 
   /** Lleva el medidor a una potencia exacta (en la subida). Para pruebas automáticas. */

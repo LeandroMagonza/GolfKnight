@@ -114,6 +114,28 @@ describe('SwingMeter por tiempos', () => {
   });
 });
 
+describe('a cuánto del tope se suelta (11/10, para el registro)', () => {
+  it('cero en el tope de la primera pasada; antes, negativo; clavada, cuenta cuándo se clavó', () => {
+    const m = new SwingMeter();
+    m.start(T, MARKS);
+    m.update(T.weak + T.mid + T.strong / 2);
+    expect(m.offPeak).toBeCloseTo(0);
+    m.update(0.04);
+    expect(m.offPeak).toBeCloseTo(0.04);
+    const early = new SwingMeter();
+    early.start(T, MARKS);
+    early.update(T.weak);
+    expect(early.offPeak).toBeCloseTo(-(T.mid + T.strong / 2));
+    // clavó en el tope y soltó mucho después: cuenta el tope
+    const held = new SwingMeter();
+    held.start(T, MARKS);
+    held.update(T.weak + T.mid + T.strong / 2);
+    held.lock();
+    held.update(1);
+    expect(held.offPeak).toBeCloseTo(0);
+  });
+});
+
 describe('las mejoras sobre los tiempos', () => {
   it('sin mejoras, los tiempos son los base', () => {
     expect(timingWith(T, NO_MODS)).toEqual(T);

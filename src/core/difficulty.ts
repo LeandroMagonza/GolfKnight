@@ -1,11 +1,12 @@
-// La dificultad (3/10, pedido de Leandro): un árbol de talentos al revés. Cada partida ganada da un punto,
-// y cada punto puesto en un talento hace la partida más difícil. Se reparten como uno quiera y se pueden
-// mover entre partidas; lo lógico es poner primero lo que a uno le resulta más fácil.
+// La dificultad (3/10, pedido de Leandro): talentos que hacen la partida más difícil. Desde el 11/10 se
+// ponen por una escalera (ver LADDER): cada partida ganada en el nivel más alto que se tiene desbloquea el
+// escalón siguiente, y en cada escalón se elige una de sus opciones. Antes eran 18 puntos para poner como
+// uno quisiera.
 //
-// Sin puntos, la partida es la más simple: en el campo liso, un solo poder por oleada (el de su
+// En el nivel 0, la partida es la más simple: en el campo liso, un solo poder por oleada (el de su
 // escenario), sin olas especiales ni apoyos, enemigos más lentos, menos con poder y más flojos, el élite
-// con menos vida y el jefe con enemigos comunes. Con todos los puntos puestos es más difícil que la de
-// antes del 3/10.
+// con menos vida y el jefe con enemigos comunes. Con todos los talentos al máximo (ya no se puede: la
+// escalera tiene diez de los dieciocho pasos) era más difícil que la de antes del 3/10.
 
 import { L } from '../i18n';
 import { FOURTH } from './clubs';
@@ -73,7 +74,7 @@ export const TALENTS: Talent[] = [
   ] },
   { id: 'support', name: L('Apoyos', 'Supports'), levels: [
     () => L('En el último escenario vienen curanderos, inmunes, abanderados o hechiceros', 'Healers, warders, standard-bearers or sorcerers join the last stage'),
-    () => L('Desde el segundo escenario', 'From the second stage on'),
+    () => L('Los apoyos vienen desde el segundo escenario', 'Supports join from the second stage on'),
   ] },
   { id: 'powers', name: L('Poderes más duros', 'Tougher Powers'), levels: [
     () => L(
@@ -84,7 +85,9 @@ export const TALENTS: Talent[] = [
     ),
   ] },
   { id: 'speed', name: L('Más rápidos', 'Faster Enemies'), levels: [
-    () => L('Los enemigos caminan más rápido', 'Enemies walk faster'), () => L('Más rápido', 'Faster'), () => L('Todavía más rápido', 'Even faster'),
+    () => L('Los enemigos caminan más rápido', 'Enemies walk faster'),
+    () => L('Los enemigos caminan más rápido todavía', 'Enemies walk even faster'),
+    () => L('Los enemigos caminan más rápido que nunca', 'Enemies walk faster than ever'),
   ] },
   { id: 'terrain', name: L('Terreno irregular', 'Rough Terrain'), levels: [() => L('Se juega en campos con lomas', 'Played on hilly courses')] },
   { id: 'powered', name: L('Más con poder', 'More Powered'), levels: [
@@ -92,7 +95,7 @@ export const TALENTS: Talent[] = [
       `${part(DIFFICULTY.share[1])} de los enemigos trae poder, en vez de ${part(DIFFICULTY.share[0])}`,
       `${part(DIFFICULTY.share[1])} of the enemies have a power, instead of ${part(DIFFICULTY.share[0])}`,
     )),
-    () => upper(L(`${part(DIFFICULTY.share[2])} trae poder`, `${part(DIFFICULTY.share[2])} of them have a power`)),
+    () => upper(L(`${part(DIFFICULTY.share[2])} de los enemigos trae poder`, `${part(DIFFICULTY.share[2])} of the enemies have a power`)),
   ] },
   { id: 'elite', name: L('Élites más duros', 'Tougher Elites'), levels: [
     () => L(
@@ -108,8 +111,8 @@ export const TALENTS: Talent[] = [
       `Your abilities take ${Math.round((DIFFICULTY.cooldown[1] - 1) * 100)}% longer to recharge`,
     ),
     () => (DIFFICULTY.cooldown[2] === 2
-      ? L('Tardan el doble', 'They take twice as long')
-      : L(`Tardan un ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)} % más`, `They take ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)}% longer`)),
+      ? L('Tus habilidades tardan el doble en recargar', 'Your abilities take twice as long to recharge')
+      : L(`Tus habilidades tardan un ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)} % más en recargar`, `Your abilities take ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)}% longer to recharge`)),
   ] },
   { id: 'fourth', name: L('Golpe 4', 'Hit 4'), levels: [
     () => L(
@@ -122,26 +125,89 @@ export const TALENTS: Talent[] = [
 ];
 const BY_ID = Object.fromEntries(TALENTS.map((t) => [t.id, t])) as Record<TalentId, Talent>;
 
-/** Los puntos puestos en cada talento. */
-export type Picks = Partial<Record<TalentId, number>>;
-
-/** Lo que se guarda: los puntos ganados y dónde están puestos. */
-export interface Progress {
-  points: number;
-  picks: Picks;
+/** El talento por su id (el nombre y lo que hace cada nivel). */
+export function talent(id: TalentId): Talent {
+  return BY_ID[id];
 }
 
-/** Todos los puntos que se pueden poner: uno por nivel de cada talento. */
-export const MAX_POINTS = TALENTS.reduce((n, t) => n + t.levels.length, 0);
+/**
+ * La escalera (11/10, pedido de Leandro): los niveles de dificultad, en orden. En cada escalón se elige una
+ * de sus opciones (las del mismo escalón no van juntas), y algunos traen una sola. Jugar en el nivel N es
+ * tener puestos los primeros N escalones. Antes eran 18 puntos para poner donde uno quisiera: abrumaba, y
+ * se podía saltar de golpe a lo más duro.
+ *
+ * Una opción suma un nivel a su talento: «Más rápidos» está en tres escalones, y cada uno que se elige lo
+ * sube un paso. Ningún talento aparece más veces que sus niveles.
+ *
+ * El orden es el que mide el bot (tools/bot-tanda.mjs): primero lo que menos pesa.
+ */
+export const LADDER: TalentId[][] = [
+  ['rest', 'elite'],
+  ['speed'],
+  ['special', 'cooldown'],
+  ['powered', 'support'],
+  ['powers'],
+  // los que cambian cómo se juega, o el jefe con escolta
+  ['terrain', 'fourth', 'escort'],
+  ['speed', 'cooldown'],
+  ['special', 'powered', 'support'],
+  ['stack'],
+  ['speed'],
+];
+
+/** El nivel más alto: todos los escalones puestos. */
+export const MAX_LEVEL = LADDER.length;
+
+/** Los niveles de cada talento. */
+export type Picks = Partial<Record<TalentId, number>>;
+
+/** Lo que se guarda. */
+export interface Progress {
+  /** Los escalones desbloqueados: se gana uno al ganar jugando en el más alto que se tiene. */
+  unlocked: number;
+  /** El nivel con que se juega: los primeros `level` escalones (hasta `unlocked`). */
+  level: number;
+  /** La opción elegida en cada escalón, también en los que no están puestos (se recuerda). */
+  choices: number[];
+}
+
+/** La opción elegida en el escalón `i` (la primera, si no se eligió). */
+export function choiceAt(p: Progress, i: number): number {
+  const c = Math.floor(p.choices[i] ?? 0);
+  return c >= 0 && c < LADDER[i].length ? c : 0;
+}
+
+/** Los niveles de cada talento que dan los escalones puestos: cada opción elegida suma uno. */
+export function picksOf(p: Progress): Picks {
+  const picks: Picks = {};
+  for (let i = 0; i < Math.min(p.level, MAX_LEVEL); i++) {
+    const id = LADDER[i][choiceAt(p, i)];
+    picks[id] = (picks[id] ?? 0) + 1;
+  }
+  return picks;
+}
+
+/**
+ * Qué paso de su talento da la opción `o` del escalón `i`, si se la elige: el 1, o uno más por cada
+ * escalón puesto de antes que tiene elegido el mismo talento. Es la línea que la describe.
+ */
+export function stepOf(p: Progress, i: number, o: number): number {
+  const id = LADDER[i][o];
+  let n = 1;
+  for (let j = 0; j < Math.min(i, p.level); j++) if (LADDER[j][choiceAt(p, j)] === id) n++;
+  return Math.min(n, BY_ID[id].levels.length);
+}
+
+/** El nombre de la opción (con el paso, desde el segundo: «Más rápidos II») y lo que hace. */
+export function optionText(p: Progress, i: number, o: number): { name: string; line: string } {
+  const t = BY_ID[LADDER[i][o]];
+  const step = stepOf(p, i, o);
+  return { name: step > 1 ? `${t.name} ${'I'.repeat(step)}` : t.name, line: t.levels[step - 1]() };
+}
 
 /** El nivel de un talento, sin pasar de su máximo. */
 export function levelOf(picks: Picks, id: TalentId): number {
   return Math.max(0, Math.min(BY_ID[id].levels.length, Math.floor(picks[id] ?? 0)));
-}
-
-/** Cuántos puntos hay puestos: es el nivel de dificultad de la partida. */
-export function used(picks: Picks): number {
-  return TALENTS.reduce((n, t) => n + levelOf(picks, t.id), 0);
 }
 
 /** El número de `table` para este nivel (el último, si se pasa). */
@@ -184,38 +250,72 @@ export function hillsOn(picks: Picks): boolean {
   return levelOf(picks, 'terrain') >= 1;
 }
 
-/** Sube o baja un talento, si se puede: sin pasar de su máximo ni de los puntos que hay. */
-export function setLevel(p: Progress, id: TalentId, level: number): boolean {
-  const now = levelOf(p.picks, id);
-  const to = Math.max(0, Math.min(BY_ID[id].levels.length, level));
-  if (to === now || used(p.picks) - now + to > p.points) return false;
-  p.picks = { ...p.picks, [id]: to };
+/**
+ * Elige la opción `o` del escalón `i`, si está desbloqueado. Si el escalón no estaba puesto, se ponen él
+ * y los de antes (con lo que tenían elegido): el nivel sube hasta ahí.
+ */
+export function choose(p: Progress, i: number, o: number): boolean {
+  if (i < 0 || i >= Math.min(p.unlocked, MAX_LEVEL) || o < 0 || o >= LADDER[i].length) return false;
+  if (choiceAt(p, i) === o && i < p.level) return false;
+  const choices = LADDER.map((_, j) => choiceAt(p, j));
+  choices[i] = o;
+  p.choices = choices;
+  p.level = Math.max(p.level, i + 1);
+  return true;
+}
+
+/** Juega en el nivel `n` (sin pasar de lo desbloqueado): los escalones de más quedan elegidos, pero sin poner. */
+export function setLevel(p: Progress, n: number): boolean {
+  const to = Math.max(0, Math.min(p.unlocked, MAX_LEVEL, Math.round(n)));
+  if (to === p.level) return false;
+  p.level = to;
   return true;
 }
 
 /**
- * Se ganó una partida: si se jugó con todos los puntos puestos, se gana uno más. Ganar con puntos sin
- * poner no da: el punto nuevo es por animarse a lo más difícil que se tiene. Devuelve si se ganó.
+ * Se ganó una partida: si se jugó en el nivel más alto que se tiene, se desbloquea el siguiente. Ganar
+ * más abajo no da: el escalón nuevo es por animarse a lo más difícil. Devuelve si se desbloqueó.
  */
-export function earnPoint(p: Progress): boolean {
-  if (used(p.picks) < p.points || p.points >= MAX_POINTS) return false;
-  p.points++;
+export function earnLevel(p: Progress): boolean {
+  if (p.level < p.unlocked || p.unlocked >= MAX_LEVEL) return false;
+  p.unlocked++;
   return true;
 }
 
 const KEY = 'gk.dificultad';
+/** Los puntos que había antes de la escalera (12 talentos, 18 puntos): para pasar lo guardado. */
+const OLD_POINTS = 18;
+
+/**
+ * Lo guardado antes de la escalera (puntos ganados y dónde estaban puestos): lo desbloqueado, en la misma
+ * proporción, y en cada escalón la opción de un talento que se tenía puesto, si hay.
+ */
+function fromPoints(points: number, picks: Picks): Progress {
+  const share = (n: number) => Math.max(0, Math.min(MAX_LEVEL, Math.round((n * MAX_LEVEL) / OLD_POINTS)));
+  const usedOld = (Object.keys(picks) as TalentId[]).reduce((n, id) => n + (BY_ID[id] ? levelOf(picks, id) : 0), 0);
+  const left: Picks = { ...picks };
+  const choices = LADDER.map((options) => {
+    const o = options.findIndex((id) => (left[id] ?? 0) > 0);
+    if (o < 0) return 0;
+    left[options[o]] = (left[options[o]] ?? 0) - 1;
+    return o;
+  });
+  const unlocked = share(points);
+  return { unlocked, level: Math.min(unlocked, share(usedOld)), choices };
+}
 
 /** Lo guardado en este navegador, o empezar de cero. */
 export function loadProgress(): Progress {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Progress>;
-    const points = Math.max(0, Math.min(MAX_POINTS, Math.floor(Number(raw.points) || 0)));
-    const p: Progress = { points, picks: {} };
-    // lo puesto, talento por talento, mientras alcancen los puntos
-    for (const t of TALENTS) setLevel(p, t.id, Number(raw.picks?.[t.id]) || 0);
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Progress> & { points?: number; picks?: Picks };
+    if (!Array.isArray(raw.choices)) return fromPoints(Math.floor(Number(raw.points) || 0), raw.picks ?? {});
+    const unlocked = Math.max(0, Math.min(MAX_LEVEL, Math.floor(Number(raw.unlocked) || 0)));
+    const p: Progress = { unlocked, level: 0, choices: raw.choices.map((c) => Math.floor(Number(c) || 0)) };
+    p.choices = LADDER.map((_, i) => choiceAt(p, i));
+    p.level = Math.max(0, Math.min(unlocked, Math.floor(Number(raw.level) || 0)));
     return p;
   } catch {
-    return { points: 0, picks: {} };
+    return { unlocked: 0, level: 0, choices: LADDER.map(() => 0) };
   }
 }
 
@@ -223,4 +323,15 @@ export function saveProgress(p: Progress): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(p));
   } catch { /* sin localStorage: vale para esta partida nomás */ }
+}
+
+/**
+ * Para las pruebas (?escalera=0,1,0 en la URL): el nivel 3, con la primera opción en el primer escalón, la
+ * segunda en el segundo y la primera en el tercero. Todo desbloqueado.
+ */
+export function ladderFrom(text: string): Progress {
+  const choices = text.split(',').filter((s) => s.trim() !== '').map((s) => Math.floor(Number(s) || 0));
+  const p: Progress = { unlocked: MAX_LEVEL, level: Math.min(MAX_LEVEL, choices.length), choices };
+  p.choices = LADDER.map((_, i) => choiceAt(p, i));
+  return p;
 }

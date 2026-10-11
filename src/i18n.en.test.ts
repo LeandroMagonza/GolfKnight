@@ -186,7 +186,7 @@ describe('el juego en inglés', () => {
   it('las frases que se arman con pedazos quedan bien', () => {
     const powered = en.difficulty.TALENTS.find((t) => t.id === 'powered')!;
     expect(powered.levels[0]()).toBe('A third of the enemies have a power, instead of a quarter');
-    expect(powered.levels[1]()).toBe('Half of them have a power');
+    expect(powered.levels[1]()).toBe('Half of the enemies have a power');
     expect(en.cards.cooldownNote('shove', 2)?.text).toMatch(/^Cooldown: 12 s → [\d.]+ s · slower$/);
     expect(en.cards.describe({ kind: 'ability', id: 'cart', level: 2 }).tag).toBe('ABILITY · LEVEL 2');
     expect(en.abilities.upgradeNote('wedge-lightning', 2)).toBe('Area: 4.2 → 5 m');

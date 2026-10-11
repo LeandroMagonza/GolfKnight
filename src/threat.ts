@@ -50,19 +50,19 @@ export function flameHtml(level: number, max: number, locked = false): string {
 
 /** Lo que dice el botón de la dificultad. */
 export interface ThreatState {
-  /** Los puntos puestos: el nivel de la partida. */
+  /** El nivel de la partida: los escalones puestos. */
   level: number;
-  /** Los puntos ganados. */
+  /** Los niveles desbloqueados. */
   points: number;
-  /** Todos los que hay (MAX_POINTS). */
+  /** Todos los que hay (MAX_LEVEL). */
   max: number;
   /** La demo: se ve, con candado. */
   locked: boolean;
 }
 
 /**
- * El botón de la dificultad (entrada y cartel del final): la llama, el nivel, una rayita por punto
- * (puesta, ganada sin poner, o todavía no ganada) y una línea que dice qué falta.
+ * El botón de la dificultad (entrada y cartel del final): la llama, el nivel, una rayita por escalón
+ * (puesto, desbloqueado sin poner, o todavía no desbloqueado) y una línea que dice qué falta.
  */
 export function paintThreat(button: HTMLElement, s: ThreatState): void {
   const free = Math.max(0, s.points - s.level);
@@ -72,9 +72,9 @@ export function paintThreat(button: HTMLElement, s: ThreatState): void {
   const note = s.locked
     ? L('Cada partida ganada desbloquea un nivel', 'Every win unlocks a level')
     : free > 0
-    ? L(`¡${free === 1 ? 'Te queda 1 punto' : `Te quedan ${free} puntos`} para poner!`, `${free} point${free === 1 ? '' : 's'} left to spend!`)
+    ? L(`¡Podés subir hasta el nivel ${s.points}!`, `You can go up to level ${s.points}!`)
     : atMax
-    ? L('Todo puesto. Que los dioses te amparen', 'Everything on. May the gods have mercy')
+    ? L('El nivel más alto. Que los dioses te amparen', 'The highest level. May the gods have mercy')
     : L(`Ganá así y desbloqueás el nivel ${s.points + 1}`, `Win like this to unlock level ${s.points + 1}`);
   button.className = `threat ${s.locked ? 'locked' : heatTier(s.level, s.max)}${free > 0 ? ' due' : ''}`;
   button.innerHTML = `${flameHtml(s.level, s.max, s.locked)}<span class="txt">`

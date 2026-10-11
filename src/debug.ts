@@ -20,8 +20,9 @@ import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
-import { DIFFICULTY, MAX_POINTS } from './core/difficulty';
+import { DIFFICULTY, MAX_LEVEL as TOP_DIFFICULTY } from './core/difficulty';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
+import { myRuns, summarizeRuns } from './telemetry';
 import { FOURTH_ARCS, type FourthArc } from './core/swing';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
@@ -50,7 +51,7 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
 };
 
 export interface DebugHooks {
-  /** Los puntos de dificultad ganados: para probar cualquier nivel sin ganar las partidas. */
+  /** Los niveles de dificultad desbloqueados: para probar cualquiera sin ganar las partidas. */
   difficultyPoints: { get(): number; set(points: number): void };
   /** Saca tres cartas ya, como al terminar una oleada. */
   offerChoice(): void;
@@ -1074,15 +1075,15 @@ export class DebugPanel {
     el.append(heading('Dificultad'));
     const d = DIFFICULTY;
     const levels = this.numbers([
-      ['puntos ganados', () => this.hooks.difficultyPoints.get(), (v) => this.hooks.difficultyPoints.set(Math.max(0, Math.min(MAX_POINTS, Math.round(v)))), 1, `de ${MAX_POINTS}`],
-      ['velocidad sin puntos', () => d.speed[0], (v) => { d.speed[0] = Math.max(0.3, v); }, 0.05, '×'],
+      ['niveles desbloqueados', () => this.hooks.difficultyPoints.get(), (v) => this.hooks.difficultyPoints.set(Math.max(0, Math.min(TOP_DIFFICULTY, Math.round(v)))), 1, `de ${TOP_DIFFICULTY}`],
+      ['velocidad de base', () => d.speed[0], (v) => { d.speed[0] = Math.max(0.3, v); }, 0.05, '×'],
       ['velocidad con 1', () => d.speed[1], (v) => { d.speed[1] = Math.max(0.3, v); }, 0.05, '×'],
       ['velocidad con 2', () => d.speed[2], (v) => { d.speed[2] = Math.max(0.3, v); }, 0.05, '×'],
       ['velocidad con 3', () => d.speed[3], (v) => { d.speed[3] = Math.max(0.3, v); }, 0.05, '×'],
-      ['con poder, sin puntos', () => d.share[0], (v) => { d.share[0] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
+      ['con poder, de base', () => d.share[0], (v) => { d.share[0] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
       ['con poder, con 1', () => d.share[1], (v) => { d.share[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
       ['con poder, con 2', () => d.share[2], (v) => { d.share[2] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
-      ['escudo hasta, sin puntos', () => d.cap[0], (v) => { d.cap[0] = Math.max(1, Math.min(3, Math.round(v))); }, 1, ''],
+      ['escudo hasta, de base', () => d.cap[0], (v) => { d.cap[0] = Math.max(1, Math.min(3, Math.round(v))); }, 1, ''],
       ['blindaje: sorteos con «poderes más duros»', () => d.armorRolls[1], (v) => { d.armorRolls[1] = Math.max(1, Math.round(v)); }, 1, 'se queda con el mayor'],
       ['recarga del escurridizo y el bendito, sin el punto', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×'],
       ['margen del que se cura, sin el punto', () => d.regen[0], (v) => { d.regen[0] = Math.max(0.5, v); }, 0.1, '×'],
@@ -1100,7 +1101,7 @@ export class DebugPanel {
       ['gigantes: por oleada', () => MARKS.giants, (v) => { MARKS.giants = Math.max(0, Math.round(v)); }, 1, ''],
       ['todos con poder: con los que no salieron', () => MARKS.foreign, (v) => { MARKS.foreign = Math.max(0, Math.round(v)); }, 1, ''],
     ]);
-    el.append(levels.table, note('Los puntos se ponen en el menú de dificultad, en la pantalla de inicio (R desde la pausa). Lo demás vale desde la próxima partida: la de ahora ya está armada.'));
+    el.append(levels.table, note('El nivel y lo de cada escalón se eligen en el menú de dificultad, en la pantalla de inicio (R desde la pausa). Lo demás vale desde la próxima partida: la de ahora ya está armada.'));
 
     el.append(heading('Rebote del escudo'));
     const ricochet = this.numbers([
@@ -1285,6 +1286,24 @@ export class DebugPanel {
       note('Prendido, el bot juega desde donde esté la partida (aunque no hayas entrado con ?bot). Apagado, la jugás vos: no toca el mouse, ni las teclas, ni las cartas, y al terminar no arranca otra sola. Con ?bot, al recargar vuelve a jugar.'));
     el.append(this.row(this.toggleButton('Habilidades y mejoras', () => BOT_PREFS.abilities, (v) => { BOT_PREFS.abilities = v; saveBotPrefs(); })),
       note('Para el bot que juega solo (?bot). Apagado no tira Q W E R, ni el silenciador, ni el palazo, y las cartas las cierra sin elegir ninguna. Vale en el acto y queda guardado en este navegador.'));
+    // tus números, para que el bot «humano» juegue como vos (ver BOT_SKILLS en src/bot.ts)
+    const mine = document.createElement('span');
+    const copyMine = this.button('Copiar mis números', async () => {
+      const runs = myRuns();
+      const text = JSON.stringify({ resumen: summarizeRuns(runs), partidas: runs });
+      try {
+        await navigator.clipboard.writeText(text);
+        mine.textContent = runs.length ? `copiadas ${runs.length} partidas` : 'todavía no hay partidas tuyas anotadas';
+        mine.className = 'done';
+      } catch {
+        console.log(text);
+        mine.textContent = 'está en la consola';
+        mine.className = 'note';
+      }
+      setTimeout(() => { mine.textContent = ''; }, 3000);
+    });
+    el.append(this.row(copyMine, mine),
+      note('Tus últimas partidas en este navegador (hasta 20, desde el 11/10): tiros por minuto, cuántos pegan, con qué golpe sale cada uno, habilidades y la vida que perdiste. Pegáselas a Claude para que el bot juegue como vos. Las del bot y las de las pruebas no se anotan.'));
     el.append(heading('Modo'));
     el.append(this.row(this.button(this.hooks.tennis ? 'Volver al golf' : 'Modo tenis (prototipo)', () => this.hooks.switchMode())),
       note('El modo tenis es un prototipo: no tiene botón en la pantalla de inicio. También se entra con ?tenis en la dirección. Recarga la página.'));

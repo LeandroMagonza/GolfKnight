@@ -121,6 +121,25 @@ export interface BotSkill {
   abilities: boolean;
   /** Sabe del que se cura: no le pega lo que no llega a terminar, espera la cura y termina lo que empezó. */
   regen: boolean;
+  /**
+   * Antes de cada tiro se queda un rato al azar (s: la mediana; a veces el doble, a veces la mitad), como
+   * una persona que mira, elige y recién ahí carga.
+   */
+  pause?: number;
+  /**
+   * Suelta como una mano (s: el desvío típico): apunta al medio del tramo que busca (al tope, para el 3 y
+   * el 4) y le erra por este tanto. El golpe que sale es el que da la barra en ese momento. Sin esto suelta
+   * apenas entra en el tramo (y `timing` decide si le sale).
+   */
+  release?: number;
+  /** Si en promedio suelta tarde (s; negativo, temprano): la mano que se pasa del tope. */
+  late?: number;
+  /**
+   * El golpe más bajo que busca (salvo el cebo, que sale enseguida). Sin esto, el que alcanza: al que tiene
+   * 1 de vida le suelta enseguida. Cargando siempre hasta el 3 (11/10), el humano tiraba la mitad y en el
+   * nivel 0 perdía en la segunda oleada.
+   */
+  minQ?: number;
 }
 
 export const BOT_SKILLS: Record<string, BotSkill> = {
@@ -128,7 +147,30 @@ export const BOT_SKILLS: Record<string, BotSkill> = {
   bueno: { think: 0.3, aimError: 0.35, timing: 0.85, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: true },
   // más o menos el de antes: suelta en el 2 y no sabe nada de los poderes
   flojo: { think: 0.6, aimError: 0.8, timing: 1, fixedQuality: 2, align: false, posts: false, bait: false, evade: false, shields: false, abilities: false, regen: false },
+  // como una persona (11/10, Leandro: para medir la dificultad con alguien que no es perfecto): tarda en
+  // decidir, se toma un rato antes de cada tiro y suelta con error de mano. Sabe lo que sabe quien ya jugó
+  // (los poderes, los puestos, correrse de los hechizos), pero no alinea al driver ni cuenta las curas. Los
+  // números son para empezar: se ajustan con los de Leandro («Copiar mis números», en el panel)
+  humano: { think: 0.25, aimError: 0.45, timing: 1, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: false, pause: 0.3, release: 0.04 },
 };
+
+/**
+ * El nivel del bot, con lo que diga la dirección encima (para ajustar el humano sin tocar el código):
+ * `&pausa=0.5` (s antes de cada tiro), `&error=0.4` (m de puntería), `&suelta=0.04` (s de error al soltar),
+ * `&piensa=0.3` (s entre decisiones), `&golpe=2` (el golpe más bajo que busca), `&tarde=0.01` (s que en
+ * promedio se pasa al soltar; negativo, que se adelanta).
+ */
+function skillFrom(name: string, params: URLSearchParams): BotSkill {
+  const skill = { ...(BOT_SKILLS[name] ?? BOT_SKILLS.perfecto) };
+  const num = (key: string) => (params.has(key) && Number.isFinite(Number(params.get(key))) ? Math.max(0, Number(params.get(key))) : null);
+  skill.pause = num('pausa') ?? skill.pause;
+  skill.aimError = num('error') ?? skill.aimError;
+  skill.release = num('suelta') ?? skill.release;
+  if (params.has('tarde') && Number.isFinite(Number(params.get('tarde')))) skill.late = Number(params.get('tarde'));
+  skill.think = num('piensa') ?? skill.think;
+  skill.minQ = num('golpe') ?? skill.minQ;
+  return skill;
+}
 
 /** Cada palo tiene su tecla: Digit1 a Digit4, en este orden. */
 const CLUB_ORDER: ClubId[] = ['driver', 'iron', 'wedge', 'putter'];
@@ -315,6 +357,16 @@ function chargeTime(q: number, t: ChargeTimes): number {
   return t.weak + t.mid + ((fourthFrom() - b) / (1 - b)) * (t.strong / 2);
 }
 
+/**
+ * Adónde apunta soltar una mano que busca el golpe `q`: el medio de su tramo. El 3 y el 4, al tope de la
+ * primera pasada por el fuerte (con el golpe 4, el 4 es el medio del rojo y el 3 sus costados).
+ */
+function handTime(q: number, t: ChargeTimes): number {
+  if (q <= 1) return 0.02;
+  if (q === 2) return t.weak + t.mid / 2;
+  return t.weak + t.mid + t.strong / 2;
+}
+
 /** Lo que tarda en ir de un puesto a otro (`n` puestos): uno, unos 0.4 s. */
 function walkTime(n: number): number {
   return n === 0 ? 0 : 0.3 + 0.13 * n;
@@ -350,6 +402,8 @@ interface Plan {
   combo?: { slot: number; flight: number };
   /** Clavar la carga y soltar recién a esta hora del juego (para que llegue cuando se abre el intocable). */
   releaseAt?: number;
+  /** El que suelta como una mano (`release`): a cuántos s de carga suelta (o clava), con su error. */
+  handAt?: number;
   /** El error de puntería de este tiro (fijo para todo el tiro, como el pulso de una persona). */
   nx: number;
   nz: number;
@@ -364,7 +418,7 @@ interface Scan {
 export function startBot(): BotStats {
   const gk: Gk = (window as any).__gk;
   const name = new URLSearchParams(location.search).get('bot') || 'perfecto';
-  const skill = BOT_SKILLS[name] ?? BOT_SKILLS.perfecto;
+  const skill = skillFrom(name, new URLSearchParams(location.search));
   const stats: BotStats = { skill: BOT_SKILLS[name] ? name : 'perfecto', byClub: {}, casts: {}, melee: 0, moves: 0, dodges: 0, grabs: 0, jumps: 0, baits: 0, evades: 0, aborts: 0, aligned: 0, heads: 0, combos: 0, holds: 0, hit: 0, miss: 0 };
   (window as any).__bot = stats;
 
@@ -420,7 +474,11 @@ export function startBot(): BotStats {
   /** Venía jugando (para soltar la carga al apagarlo desde el panel). */
   let playing = true;
   let escaping = false;
+  /** Hasta cuándo se toma su rato antes del próximo tiro (`pause`); -1, sin empezar. */
+  let pauseUntil = -1;
   let last = performance.now();
+  /** Su reloj, en ms: el de la página, o en la partida liviana el de los pasos (ver `tick`). */
+  let ms = 0;
 
   const alive = (): Enemy[] => gk.horde.enemies.filter((e: Enemy) => e.alive && !e.passed);
   const has = (id: ClubId) => gk.player.unlocked?.has?.(id) ?? true;
@@ -555,8 +613,15 @@ export function startBot(): BotStats {
     return t;
   }
 
+  /** Los golpes que busca: del 1 al más alto (el humano, desde `minQ`). */
+  function qualities(): number[] {
+    const top = topQuality();
+    const from = Math.min(Math.max(1, Math.round(skill.minQ ?? 1)), top);
+    return Array.from({ length: top - from + 1 }, (_, i) => from + i);
+  }
+
   function finishTimeOf(e: Enemy, rest: number, d: number): number {
-    const tops = Array.from({ length: topQuality() }, (_, i) => i + 1);
+    const tops = qualities();
     const hit = (q: number) => Math.max(...(['driver', 'putter'] as ClubId[])
       .filter((id) => has(id) && (id !== 'putter' || d <= PUTTER_REACH))
       .map((id) => Math.max(0, Math.max(1, damageFor(CLUBS[id], d, q)) - e.armor)), 0);
@@ -773,7 +838,7 @@ export function startBot(): BotStats {
     const noise = () => (skill.aimError ? gauss() * skill.aimError : 0);
     const make = (club: Club, q: number, mode: Plan['mode'], score: number): Plan => ({ target: e.id, club, q, spot, shift: null, mode, score, nx: noise(), nz: noise() });
     const near = Math.hypot(e.position.x - o.x, e.position.z - o.z);
-    const tops = Array.from({ length: topQuality() }, (_, i) => i + 1);
+    const tops = qualities();
     // el de antes: driver o putter en el golpe fijo, a lo que esté
     if (skill.fixedQuality) {
       const club = near <= 12 && has('putter') ? CLUBS.putter : CLUBS.driver;
@@ -1244,7 +1309,8 @@ export function startBot(): BotStats {
       const diff = p.shift - pl.shift;
       if (Math.abs(diff) > 0.02) pl.shiftStance(Math.sign(diff) * Math.min(Math.abs(diff), SHIFT.speed * dt));
     }
-    if (qualityOf(pl.meter.power) >= p.q) {
+    const due = p.handAt !== undefined ? (pl.meter.elapsed ?? 0) >= p.handAt : qualityOf(pl.meter.power) >= p.q;
+    if (due) {
       // que el juego ya tenga la mira donde apuntó: la lee del mouse en su cuadro, y la esquiva salta con
       // la mira del momento de soltar. Soltando antes (el cebo, que sale al toque) saltaba para otro lado,
       // o nadie, y la pelota, que sale con la mira del impacto, le pegaba igual
@@ -1552,8 +1618,16 @@ export function startBot(): BotStats {
       return;
     }
     if (next.target < 0) return;
+    // se toma su rato antes de cargar (el humano): sigue pensando, y si al final del rato hay tiro, va
+    if (skill.pause) {
+      if (pauseUntil < 0) pauseUntil = clock + skill.pause * Math.exp(0.5 * gauss());
+      if (clock < pauseUntil) return;
+      pauseUntil = -1;
+    }
     // a veces no le sale el golpe que buscaba (los niveles que no son perfectos)
-    if (next.mode !== 'bait' && next.q > 1 && Math.random() > skill.timing) next.q--;
+    if (skill.release === undefined && next.mode !== 'bait' && next.q > 1 && Math.random() > skill.timing) next.q--;
+    // el que suelta como una mano: al medio del tramo, con su error
+    if (skill.release !== undefined) next.handAt = handTime(next.q, pl.timing) + (next.mode === 'bait' ? 0 : (skill.late ?? 0) + gauss() * skill.release);
     plan = next;
     combo = next.combo ? { slot: next.combo.slot, at: Infinity } : null;
     if (pl.club.id !== next.club.id) key(`Digit${CLUB_ORDER.indexOf(next.club.id) + 1}`);
@@ -1562,11 +1636,19 @@ export function startBot(): BotStats {
     if (pl.mode !== 'charging') plan = combo = null;
   }
 
+  /** Por cuadro, en la partida normal. */
   function frame(): void {
     requestAnimationFrame(frame);
     const now = performance.now();
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    tick(dt);
+  }
+
+  /** Lo que hace en cada paso de `dt` s: en la partida liviana (?liviano) lo llama el juego antes de cada uno. */
+  function tick(dt: number): void {
+    ms += dt * 1000;
+    const now = ms;
     // Apagado desde el panel (pestaña Pruebas): juega la persona. Si estaba cargando, suelta la carga
     if (!BOT_PREFS.playing) {
       if (playing && gk.player?.mode === 'charging') key('KeyX');
@@ -1654,7 +1736,8 @@ export function startBot(): BotStats {
     nextThink = clock + skill.think;
     decide(clock);
   }
-  requestAnimationFrame(frame);
+  if (gk.light) gk.onStep(tick);
+  else requestAnimationFrame(frame);
   // para revisar sus decisiones desde la consola o las pruebas
   (window as any).__botDebug = {
     choose, bestFrom, planFor, alignShift, headShot, abilityPlan, predict, intercept, scanLine, weight, urgency, value, regenWindow, finishTime, trampleAt, refuge, incoming, chargeTime, skill, tee,

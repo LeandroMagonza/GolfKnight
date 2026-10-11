@@ -222,26 +222,35 @@
       /* la dificultad (src/difficultyMenu.ts): los puntos ganados y dónde ponerlos, entre partidas */
       #difficulty { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(4, 7, 11, 0.7); pointer-events: auto; }
       #difficulty[hidden] { display: none; }
-      #difficulty .box { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px 22px; border-radius: 10px; border: 1px solid #3a4452; background: #111923; color: #e4e9f0; }
+      #difficulty .box { width: min(700px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px 22px; border-radius: 10px; border: 1px solid #3a4452; background: #111923; color: #e4e9f0; }
       #difficulty h2 { margin: 0; font-size: 30px; color: #ffd66b; display: flex; align-items: center; gap: 10px; }
       #difficulty h2 .flame { --fs: 40px; margin: -8px 0 -4px; }
       #difficulty .summary { margin: 0; font-size: 15px; color: #cfd6e0; }
+      /* la escalera (11/10): el nivel con − y +, y un escalón por fila con sus opciones */
+      #difficulty .levelbar { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #cfd6e0; }
+      #difficulty .levelbar b { min-width: 76px; text-align: center; font-size: 17px; color: #ffd66b; }
+      #difficulty .levelbar button { width: 32px; height: 30px; padding: 0; font-size: 20px; line-height: 1; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      #difficulty .levelbar button:hover:not(:disabled) { border-color: #ffd66b; }
+      #difficulty .levelbar button:disabled { opacity: 0.3; cursor: default; }
       #difficulty .list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; scrollbar-width: thin; }
-      #difficulty .talent { padding: 8px 10px; border-radius: 8px; background: #19222e; border: 1px solid #263140; }
-      #difficulty .talent.taken { border-color: #7a5a1e; background: #211e18; }
-      /* la demo: se ven, sin botones */
-      #difficulty.locked .head button { display: none; }
-      #difficulty.locked .talent { opacity: 0.75; }
-      #difficulty .head { display: flex; align-items: center; gap: 8px; }
-      #difficulty .head b { flex: 1; font-size: 16px; }
-      #difficulty .pips { display: flex; gap: 4px; }
-      #difficulty .pips i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #ffd66b; box-sizing: border-box; }
-      #difficulty .pips i.on { background: #ffd66b; }
-      #difficulty .head button { width: 32px; height: 30px; padding: 0; font-size: 20px; line-height: 1; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
-      #difficulty .head button:hover:not(:disabled) { border-color: #ffd66b; }
-      #difficulty .head button:disabled { opacity: 0.3; cursor: default; }
-      #difficulty .lines { margin: 4px 0 0 26px; font-size: 14px; line-height: 1.45; color: #8d97a5; }
-      #difficulty .lines .got { color: #ffd66b; }
+      #difficulty .rung { display: flex; gap: 10px; align-items: center; }
+      #difficulty .rung .num { flex: 0 0 auto; width: 30px; height: 30px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #4a5666; color: #8d97a5; font-weight: 700; font-size: 15px; }
+      #difficulty .rung.on .num { border-color: #ffd66b; background: #ffd66b; color: #1a1305; }
+      #difficulty .rung.open .num { border-color: #ffd66b; color: #ffd66b; }
+      #difficulty .rung.shut .num { font-size: 13px; }
+      #difficulty .opts { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; }
+      #difficulty .opt { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 7px 10px; border-radius: 8px; border: 1px solid #263140; background: #19222e; color: #cfd6e0; font: inherit; cursor: pointer; }
+      #difficulty .opt b { font-size: 15px; color: #e4e9f0; }
+      #difficulty .opt span { font-size: 13px; line-height: 1.35; color: #8d97a5; }
+      #difficulty .opt:hover:not(:disabled) { border-color: #ffd66b; }
+      #difficulty .opt:disabled { cursor: default; }
+      #difficulty .rung.on .opt.picked { border-color: #ffd66b; background: #2a2414; }
+      #difficulty .rung.on .opt.picked b { color: #ffd66b; }
+      #difficulty .rung.on .opt:not(.picked) { opacity: 0.55; }
+      #difficulty .rung.open .opt.picked { border-color: #7a5a1e; }
+      #difficulty .rung.shut .opt { opacity: 0.45; }
+      /* la demo: se ve, sin poder tocar */
+      #difficulty.locked .levelbar button { display: none; }
       #difficulty .foot { margin: 0; font-size: 13px; color: #9aa4b2; }
       #difficulty .done { align-self: center; font-size: 17px; padding: 8px 28px; border-radius: 8px; border: 0; background: #5be07a; color: #102; font-weight: 600; cursor: pointer; }
       #end .earned[hidden] { display: none; }
@@ -729,8 +738,9 @@
       <div class="box">
         <h2><span class="heatslot"></span><span data-en="Difficulty">Dificultad</span></h2>
         <p class="summary"></p>
+        <div class="levelbar"></div>
         <div class="list"></div>
-        <p class="foot" data-en="Each point makes the game harder. Win with all your points in and you earn one more. Changes apply from the next game.">Cada punto hace la partida más difícil. Ganá con todos tus puntos puestos y sumás uno más. Lo que cambies vale desde la próxima partida.</p>
+        <p class="foot" data-en="Each level adds a step: pick one of its options. Win at your highest level to unlock the next one. Changes apply from the next game.">Cada nivel suma un escalón: elegí una de sus opciones. Ganá en tu nivel más alto y desbloqueás el siguiente. Lo que cambies vale desde la próxima partida.</p>
         <button type="button" class="done" data-en="Done">Listo</button>
       </div>
     </div>
