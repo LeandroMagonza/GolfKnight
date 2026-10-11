@@ -29,7 +29,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - El bot tiene un nivel **humano** (`?bot=humano`): tarda en decidir, se toma un rato antes de cada tiro
   y suelta con error de mano, así a veces busca el 3 y le sale un 2, o se pasa. Y las pruebas del bot se
   pueden correr **sin dibujar** (`?liviano&velocidad=12`): una partida entera en menos de 2 minutos, sin
-  frenar la compu. `86177ce`
+  frenar la compu. `86177ce` El humano quedó ajustado con una partida de verdad: en las mismas condiciones
+  llega a la misma oleada, pega lo mismo y suelta igual. `192255d`
 
 ## 10 de octubre
 
