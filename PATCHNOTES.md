@@ -85,6 +85,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Cada partida anota también **lo de cada habilidad**: cuántas veces la tiraste, cuánto daño y cuántas
   bajas hizo (o los tiros que armó: la potencia, el guante, el eco...), y a cuántos alcanzó. Para
   balancearlas. `9371ec6`
+- Cada partida anota también **con qué tiempos de carga se jugó** y qué estaba tocado en el panel B. Y un
+  análisis de **daño por segundo** (`docs/dps.md`): cuánto te ocupa cada enemigo y cada poder. `6c2e4c7`
 - El bot ya no aprieta habilidades con la partida terminada o en pausa: a veces caía una R justo después
   del final, que ahí es «Jugar de nuevo», y en las tandas rápidas se perdía la partida. `5190947`
 
