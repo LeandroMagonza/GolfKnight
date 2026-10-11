@@ -75,6 +75,8 @@ export const VISUAL = {
    * 11/10 la corona: la lupa cambiaba la velocidad de la aguja en el rojo, y eso lo hacía más difícil.
    */
   fourthArc: 'corona' as FourthArc,
+  /** El borde oscuro de cada tramo del arco de carga (11/10: lo deja el simulador de la carga, arco.html). */
+  zoneBorder: 1.5,
   /** La vida de la puerta como una puerta por punto, en el medio de la izquierda de la barra (8/10, Leandro). */
   gateIcons: false,
   /** Versión del lugar del arco: un guardado de antes de que el de fábrica fuera «adelante» no lo pisa. */

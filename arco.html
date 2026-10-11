@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Knight · Simulador de la carga</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; min-height: 100%; background: #0c1219; color: #e4e9f0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      body { display: flex; justify-content: center; }
+      main { width: min(1100px, 100%); box-sizing: border-box; padding: 20px 16px 32px; display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 24px; align-items: start; }
+      h1 { grid-column: 1 / -1; margin: 0; font-size: 26px; color: #ffd66b; }
+      h1 small { display: block; margin-top: 4px; font-size: 14px; font-weight: 400; color: #9aa4b2; }
+      .panel { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #111923; border: 1px solid #263140; }
+      .panel h2 { margin: 6px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: #8d97a5; }
+      label.row { display: grid; grid-template-columns: 1fr 86px 22px; align-items: center; gap: 8px; font-size: 14px; }
+      label.row i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+      label.row input { width: 100%; box-sizing: border-box; padding: 5px 6px; border-radius: 6px; border: 1px solid #3a4452; background: #0c1219; color: #e4e9f0; font: inherit; text-align: right; }
+      label.row span.u { color: #8d97a5; font-size: 12px; }
+      label.check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+      .hidden { display: none !important; }
+      .note { margin: 0; font-size: 12.5px; line-height: 1.4; color: #8d97a5; }
+      .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+      button { font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 7px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      button:hover { border-color: #ffd66b; }
+      button.go { background: #5be07a; border: 0; color: #102; font-weight: 600; }
+      .stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      #pad { position: relative; width: 100%; min-height: 380px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: radial-gradient(circle at 50% 45%, #3f8f3a, #23561f 70%); cursor: pointer; user-select: none; touch-action: none; overflow: hidden; }
+      /* el medidor, como en el juego (index.html, #meter) */
+      #meter { position: relative; width: calc(112px * var(--zoom, 2.4)); }
+      #meter svg { display: block; width: 100%; height: auto; overflow: visible; }
+      #meter .zone { stroke: rgba(0, 0, 0, 0.75); stroke-width: 1.5; }
+      #pad.charging #meter svg { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)); }
+      #result { min-height: 1.6em; font-size: 22px; font-weight: 800; text-align: center; }
+      #result small { display: block; font-size: 14px; font-weight: 500; color: #cfd6e0; }
+      #result.q1 { color: #5be07a; } #result.q2 { color: #ffd66b; } #result.q3 { color: #ff9a2e; } #result.q4 { color: #ff2d3c; }
+      #result.pop { animation: pop 0.25s ease; }
+      @keyframes pop { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
+      table { border-collapse: collapse; font-size: 14px; }
+      th, td { padding: 4px 12px; text-align: right; border-bottom: 1px solid #263140; }
+      th { color: #8d97a5; font-weight: 600; }
+      td:first-child, th:first-child { text-align: left; }
+      #said { font-size: 13px; color: #5be07a; }
+      @media (max-width: 760px) { main { grid-template-columns: 1fr; } #pad { min-height: 300px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Simulador de la carga<small>Ponés cuánto dura cada golpe, y el arco se reparte en proporción, a velocidad pareja (sin lupa).</small></h1>
+      <section class="panel">
+        <label class="check"><input type="checkbox" id="fourth" /> Con golpe 4</label>
+        <h2>Cuánto dura cada golpe</h2>
+        <label class="row"><span><i style="background:#5be07a"></i>Golpe 1</span><input type="number" id="t1" min="10" step="10" /><span class="u">ms</span></label>
+        <label class="row"><span><i style="background:#ffd66b"></i>Golpe 2</span><input type="number" id="t2" min="5" step="5" /><span class="u">ms</span></label>
+        <label class="row"><span><i style="background:#ff9a2e" class="c3"></i><span id="l3">Golpe 3</span></span><input type="number" id="t3" min="1" step="1" /><span class="u">ms</span></label>
+        <label class="row" id="r4"><span><i style="background:#ff2d3c"></i>Golpe 4</span><input type="number" id="t4" min="1" step="1" /><span class="u">ms</span></label>
+        <label class="row"><span>Rebote</span><input type="number" id="tr" min="20" step="10" /><span class="u">ms</span></label>
+        <p class="note" id="explain"></p>
+        <h2>El arco</h2>
+        <label class="row"><span>De cada lado</span><input type="number" id="span" min="45" max="180" step="5" /><span class="u">°</span></label>
+        <p class="note">90° es medio círculo (como el juego sin el golpe 4), 135° tres cuartos, 180° la vuelta entera. La aguja va siempre a la misma velocidad: cada golpe ocupa lo que dura.</p>
+        <label class="row"><span>Borde de los tramos</span><input type="number" id="border" min="0" max="3" step="0.25" /><span class="u"></span></label>
+        <label class="row"><span>Tamaño en pantalla</span><input type="number" id="zoom" min="1" max="5" step="0.2" /><span class="u">×</span></label>
+        <div class="buttons">
+          <button type="button" id="defaults">Los del juego</button>
+          <button type="button" class="go" id="use">Usar en el juego</button>
+          <button type="button" id="copy">Copiar</button>
+        </div>
+        <span id="said"></span>
+        <p class="note">«Usar en el juego» deja estos tiempos (y el arco) en este navegador, como si los tocaras en el panel B: valen al recargar el juego. «Restaurar» en el panel vuelve a los del código.</p>
+      </section>
+      <section class="stage">
+        <div id="pad"><div id="meter"></div></div>
+        <div id="result">Mantené apretado (espacio o el mouse) y soltá</div>
+        <table>
+          <thead><tr><th>Golpe</th><th>Veces</th><th>%</th></tr></thead>
+          <tbody id="stats"></tbody>
+        </table>
+        <p class="note" id="offs"></p>
+        <div class="buttons"><button type="button" id="reset">Empezar de cero</button></div>
+      </section>
+    </main>
+    <script type="module" src="/src/arco.ts"></script>
+  </body>
+</html>

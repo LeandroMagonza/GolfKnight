@@ -21,9 +21,10 @@ import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
+import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
 import { playerId } from './telemetry';
-import { FOURTH_ARCS, type FourthArc } from './core/swing';
+import { FOURTH_ARC, FOURTH_ARCS, type FourthArc } from './core/swing';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
 export interface DebugFlags {
@@ -42,6 +43,8 @@ const SPELL_KEYS: Record<SpellId, string> = { hail: 'granizo', whirl: 'remolino'
 const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
   carga: CHARGE as unknown as Record<string, number>,
+  // el golpe 4 (qué parte del fuerte es el 4, y cuánto pega de más) y su arco: los deja también el simulador de la carga (arco.html)
+  'golpe 4': FOURTH as unknown as Record<string, number>, 'arco golpe 4': FOURTH_ARC,
   curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, intocable: PHASE, divino: DIVINE,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
   // los hechizos de Abe, uno por tabla (ver coop/spells)
@@ -98,22 +101,13 @@ export interface DebugHooks {
   switchMode(): void;
 }
 
+const STORE_KEY = BALANCE_KEY;
 /**
- * El balance ajustado se guarda en el navegador y vuelve al recargar. Hace falta porque cambiar de
- * campo recarga la página: sin esto, tocar diez números y probarlos en otro campo era imposible. El
- * botón «Restaurar» lo borra y devuelve los valores del código.
+ * La versión de lo guardado (ver BALANCE_VERSION en src/balanceStore.ts). Cada versión dice qué redefinió,
+ * y solo eso se descarta de un guardado anterior a ella: así lo que se ajustó *después* de una
+ * redefinición no se pierde en la siguiente.
  */
-const STORE_KEY = 'gk.balance';
-/**
- * Sube cuando el juego **redefine** un valor que el panel guarda. Un guardado viejo lo trae con el
- * número de antes y pisa la decisión nueva sin que nadie se entere: pasó con el mínimo de distancia,
- * que ahora es 0 en los cuatro palos, y con la carga del putter, que se emparejó con la de los demás.
- * Al subir la versión esos vuelven al valor del código y el resto de lo tocado se conserva.
- *
- * Cada versión dice qué redefinió, y solo eso se descarta de un guardado anterior a ella: así lo que
- * se ajustó *después* de una redefinición no se pierde en la siguiente.
- */
-const VERSION = 19;
+const VERSION = BALANCE_VERSION;
 const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   // el mínimo de distancia pasó a 0 y la carga del putter se emparejó con la de los demás
   2: ['minRange', 'chargeTime'],

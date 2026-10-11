@@ -607,7 +607,7 @@ function updatePreview(): void {
     const levels = Array.from({ length: topQuality() }, (_, i) => i + 1);
     // con el golpe 4 el arco se abre (ver fourthArc): si no, el 3 no se ve
     const arc = fourthArc(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), FOURTH.on ? VISUAL.fourthArc : 'medio');
-    hud.setMarks(arc.layout, qualityMarks(), duff, levels.map((q) => plus(damageFor(club, hitAt, q))), FOURTH.on ? FOURTH.share : 0, arc.widen, !!arc.crown);
+    hud.setMarks(arc.layout, qualityMarks(), duff, levels.map((q) => plus(damageFor(club, hitAt, q))), FOURTH.on ? FOURTH.share : 0, arc.widen, !!arc.crown, VISUAL.zoneBorder);
   }
   // en el tenis, el arco es el del timing (arriba)
   if (!tennis) {

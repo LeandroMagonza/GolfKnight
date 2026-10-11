@@ -7,8 +7,11 @@ import { looksSpanish, scanCode, scanHtml } from './i18n.scan';
 // esto falla, el texto que aparece está en español y afuera de un L(...): envolverlo, o, si el jugador
 // no lo ve nunca (un id, un registro), marcar la línea con un comentario i18n-ok.
 
-/** Lo que el jugador no ve: el panel de balance (B) es una herramienta para quien balancea. */
-const SKIP = new Set(['./debug.ts', './i18n.ts', './i18n.scan.ts']);
+/**
+ * Lo que el jugador no ve: el panel de balance (B) y el simulador de la carga (arco.html) son herramientas
+ * para quien balancea, solo en español.
+ */
+const SKIP = new Set(['./debug.ts', './arco.ts', './i18n.ts', './i18n.scan.ts']);
 
 const sources = import.meta.glob<string>(['./**/*.ts', '!./**/*.test.ts'], { query: '?raw', import: 'default', eager: true });
 
