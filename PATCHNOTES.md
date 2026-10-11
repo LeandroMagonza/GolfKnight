@@ -31,6 +31,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   pueden correr **sin dibujar** (`?liviano&velocidad=12`): una partida entera en menos de 2 minutos, sin
   frenar la compu. `86177ce` El humano quedó ajustado con una partida de verdad: en las mismas condiciones
   llega a la misma oleada, pega lo mismo y suelta igual. `192255d`
+- Cada partida anota también a cuántos enemigos tocó cada tiro, para comparar las tuyas con las del bot.
+  `f25e348`
 
 ## 10 de octubre
 
