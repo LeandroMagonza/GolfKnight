@@ -7,6 +7,26 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 11 de octubre
+
+**La dificultad**
+- **La dificultad ahora es una escalera de 10 niveles.** En cada nivel se suma un escalón, y en casi todos
+  elegís una de dos o tres opciones (las del mismo escalón no van juntas). Ganar en tu nivel más alto
+  desbloquea el siguiente. En el menú subís y bajás el nivel con − y +, y podés cambiar lo elegido en
+  cualquier escalón. Antes eran 18 puntos para poner donde quisieras: abrumaba, y con todo puesto era casi
+  imposible. Lo que tenías desbloqueado pasa en la misma proporción (9 de 18 puntos: 5 de 10 niveles), con
+  lo que tenías puesto ya elegido. El orden de los escalones es provisorio: lo vamos a ajustar midiendo
+  con el bot. `86177ce` También en la app de Windows. `311e528`
+
+**Para los que prueban**
+- **«Copiar mis números»** (panel B, pestaña Pruebas): tus últimas 20 partidas, con tiros por minuto,
+  puntería, con qué golpe salió cada tiro y a cuántos milisegundos del tope de la barra soltaste (antes o
+  pasado). Sirven para que el bot juegue como una persona. `86177ce`
+- El bot tiene un nivel **humano** (`?bot=humano`): tarda en decidir, se toma un rato antes de cada tiro
+  y suelta con error de mano, así a veces busca el 3 y le sale un 2, o se pasa. Y las pruebas del bot se
+  pueden correr **sin dibujar** (`?liviano&velocidad=12`): una partida entera en menos de 2 minutos, sin
+  frenar la compu. `86177ce`
+
 ## 10 de octubre
 
 **La carga**
