@@ -9,6 +9,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 11 de octubre
 
+**La puntería**
+- **La línea del tiro pasa justo por debajo del cursor**, apuntes donde apuntes. Apuntando al costado se
+  abría del cursor, sobre todo con el driver: la línea es un arco en el aire y el cursor marcaba el piso.
+  Ahora la pelota pasa por lo que tenés debajo del cursor. `9b5bbba` También en la app de Windows.
+  `29364a7`
+
 **Los enemigos**
 - **Los intocables, con ritmo**: ciclos mucho más cortos, para timear el golpe. Van en tres grupos que
   se turnan: en cada momento hay un grupo abierto y los otros dos cerrados (0.8 s abierto, 1.6 s
@@ -76,6 +82,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   enemigos más rápidos les erra más. `057427d`
 - Cada partida anota también a cuántos enemigos tocó cada tiro, para comparar las tuyas con las del bot.
   `f25e348`
+- Cada partida anota también **lo de cada habilidad**: cuántas veces la tiraste, cuánto daño y cuántas
+  bajas hizo (o los tiros que armó: la potencia, el guante, el eco...), y a cuántos alcanzó. Para
+  balancearlas. `9371ec6`
 - El bot ya no aprieta habilidades con la partida terminada o en pausa: a veces caía una R justo después
   del final, que ahí es «Jugar de nuevo», y en las tandas rápidas se perdía la partida. `5190947`
 
