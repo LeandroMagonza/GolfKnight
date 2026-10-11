@@ -342,6 +342,10 @@ const disabledKinds = new Set<EnemyKind>((savedBalance.disabled ?? []) as EnemyK
 // ---------- puntería ----------
 const raycaster = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+/** El plano a la altura del arco, para que la línea pase debajo del cursor (ver `aimUnderArc`). */
+const arcPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+/** Con las herramientas de prueba, `?mirapiso` apunta al piso como antes del 11/10, para comparar. */
+const AIM_FLOOR = DEV_TOOLS && params.has('mirapiso');
 const aimPoint = new THREE.Vector3(0, 0, 30);
 /** Vector de trabajo de la puntería: se reusa en cada cuadro en vez de crear uno nuevo. */
 const scratchAim = new THREE.Vector3();
@@ -401,8 +405,48 @@ function aimOnGround(out: THREE.Vector3): boolean {
   return !!out.set(o.x + d.x * hi, 0, o.z + d.z * hi);
 }
 
-/** `lob`: se apunta un globo (sobre el piso plano, ver abajo). Por defecto, lo que diga el palo en la mano. */
-function updateAim(lob = isLob(player.club)): void {
+/**
+ * A qué altura pasa el arco del tiro de `club` a `d` metros de la pelota, en la cancha plana: la altura
+ * del centro de la pelota, como los puntos de la línea (ver previewPath). Pasado donde cae, la de la
+ * pelota en el piso.
+ */
+function arcHeightAt(club: Club, d: number): number {
+  const range = club.fixedRange > 0 ? THREE.MathUtils.clamp(club.fixedRange, club.minRange, club.maxRange) : THREE.MathUtils.clamp(d, club.minRange, club.maxRange);
+  const loft = THREE.MathUtils.degToRad(club.loftDeg);
+  if (loft <= 0.001 || d >= range) return BALL_RADIUS;
+  const g = club.gravity ?? GRAVITY;
+  const v = launchSpeed(range, loft, g);
+  const t = d / (v * Math.cos(loft));
+  return Math.max(BALL_RADIUS, BALL_RADIUS + v * Math.sin(loft) * t - 0.5 * g * t * t);
+}
+
+/**
+ * **La línea del tiro pasa por debajo del cursor** (11/10, Leandro: apuntando al costado, la línea se
+ * abría del cursor). El mouse apunta al piso, pero la línea es un arco en el aire, y vista desde atrás y
+ * arriba un punto alto se ve corrido hacia afuera: apuntando derecho no se nota (se corre a lo largo de
+ * la línea), pero al costado sí, y cada vez más. Sobre todo con el driver, que llega siempre a 50 m y
+ * tiene el cursor en el medio del arco, donde va más alto. Ahora lo apuntado es el punto del arco que se
+ * ve debajo del cursor: se busca a qué distancia el rayo del mouse va a la altura del arco (unas vueltas,
+ * porque la altura depende de la distancia). Así la pelota pasa por lo que tenés debajo del cursor, a la
+ * altura a la que pasa. Solo en la cancha plana y sin efecto: con relieve el piso ya mueve todo, y la
+ * curva es otra cuenta.
+ */
+function aimUnderArc(club: Club): void {
+  if (terrainOn() || player.curving || TENNIS_ON) return;
+  for (let k = 0; k < 4; k++) {
+    const y = arcHeightAt(club, Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z));
+    arcPlane.constant = -y;
+    if (!raycaster.ray.intersectPlane(arcPlane, scratchAim)) return;
+    aimPoint.set(scratchAim.x, 0, scratchAim.z);
+  }
+}
+
+/**
+ * `lob`: se apunta un globo (sobre el piso plano, ver abajo). Por defecto, lo que diga el palo en la mano.
+ * `underArc`: que la línea del palo en la mano pase debajo del cursor (ver `aimUnderArc`); las habilidades
+ * apuntan al piso.
+ */
+function updateAim(lob = isLob(player.club), underArc = true): void {
   // con la cámara de depuración el mouse ya no corresponde al campo: la puntería queda como estaba
   if (closeup) return;
   raycaster.setFromCamera(new THREE.Vector2(input.pointer.x, input.pointer.y), camera);
@@ -417,6 +461,10 @@ function updateAim(lob = isLob(player.club)): void {
     : (aimOnGround(scratchAim) ? scratchAim : null);
   if (hit) {
     aimPoint.copy(hit);
+    if (underArc && !AIM_FLOOR) {
+      player.teePosition(tee);
+      aimUnderArc(player.club);
+    }
   }
   else {
     // el mouse está sobre el horizonte: apunta lejos en esa dirección
@@ -1120,7 +1168,7 @@ function castAbility(index: number): void {
   // palo: los globos (la pólvora, la lupa, el hierro y el wedge) sobre el piso plano. Después, la línea
   // vuelve a ser la del tiro que está por salir
   const keep = player.shotPending ? { point: aimPoint.clone(), dir: player.aimDir.clone() } : null;
-  if (slot) updateAim(lobbed(slot.id));
+  if (slot) updateAim(lobbed(slot.id), false);
   player.teePosition(tee);
   const result = abilities.cast(index, tee, player.aimDir, aimPoint);
   // la esquiva salta también ni bien tirás una habilidad que se apunta (las que no tienen alcance, no).
@@ -3359,6 +3407,16 @@ if (DEV_TOOLS) (window as any).__gk = {
   /** Qué campo salió esta partida, y el panel de balance. */
   get course() { return { index: relief.index, name: gameCourse.name, relieve: relief.on }; },
   get camera() { return { pitch: +cam.pitch.toFixed(1), rise: +cam.rise.toFixed(2), dist: cam.dist }; },
+  /** La línea del tiro en pantalla (en píxeles), para ver que pase por el cursor (logs/check-mira.mjs). */
+  get previewOnScreen() {
+    const pos = previewGeo.attributes.position as THREE.BufferAttribute;
+    const out: [number, number][] = [];
+    for (let i = 0; i < pos.count; i++) {
+      const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)).project(camera);
+      out.push([((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight]);
+    }
+    return out;
+  },
   get debug() { return debugPanel; },
   godMode,
   /** Aprende (o sube de nivel) una habilidad, sin carta. */
