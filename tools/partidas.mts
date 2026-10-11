@@ -4,9 +4,7 @@
 //
 //   npm run partidas -- [opciones]
 //
-// La conexión va en web/.supabase-lectura (una línea, no se sube a git), con el usuario que solo puede leer
-// esta tabla (ver docs/telemetria.sql):
-//   postgresql://golf_lector:CONTRASEÑA@db.kdwiuiciobekuedpmfpj.supabase.co:5432/postgres
+// La conexión a la base va en web/.supabase-db (ver tools/db.mjs).
 //
 //   --por=jugador    cómo juntarlas: jugador (y de dónde juega), nivel, version, host o resultado
 //   --jugador=3f2a   solo las de ese id (alcanza con el principio; está en el panel B, pestaña Pruebas)
@@ -16,21 +14,12 @@
 //   --todas          también las que jugó el bot un rato (prendido desde el panel)
 //   --filas          además, una línea por partida
 //   --json           los números en JSON, para pegarlos
-import { readFileSync } from 'node:fs';
-import pg from 'pg';
 import { summarize, type RunRow } from '../src/core/runStats.ts';
+import { connect } from './db.mjs';
 
 const args = process.argv.slice(2);
 const opt = (name: string) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const by = opt('por') ?? 'jugador';
-
-let url: string;
-try {
-  url = readFileSync(new URL('../.supabase-lectura', import.meta.url), 'utf8').trim();
-} catch {
-  console.log('Falta web/.supabase-lectura con la conexión de solo lectura (ver docs/telemetria.sql).');
-  process.exit(1);
-}
 
 const where: string[] = [];
 const values: unknown[] = [];
@@ -41,8 +30,7 @@ if (opt('host')) add(`data->>'host' ilike ?`, `%${opt('host')}%`);
 if (opt('version')) add('version ilike ?', `%${opt('version')}%`);
 if (!args.includes('--todas')) where.push(`coalesce((data->>'bot')::boolean, false) = false`);
 
-const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
-await client.connect();
+const client = await connect();
 const { rows } = await client.query<RunRow>(
   `select player_id, version, level, result, wave, seconds, created_at, data from golf_runs${where.length ? ` where ${where.join(' and ')}` : ''} order by created_at`,
   values,

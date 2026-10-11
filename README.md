@@ -435,9 +435,9 @@ y la app (`host` dice de dónde: el de la app es `golfknight`). La tabla se crea
 jugador (o por nivel, versión o sitio): tiros por minuto, puntería, qué parte sale con cada golpe, qué
 parte se suelta antes del fuerte, en el fuerte y pasado, el desvío alrededor del tope, habilidades y la
 vida y la puerta perdidas por minuto (las cuentas, en `src/core/runStats.ts`). Sirve para ajustar al bot
-humano a cómo juega una persona y para ver la dificultad con partidas de verdad. Se conecta con un usuario
-que solo puede leer esa tabla (`golf_lector`, se crea con el final de `docs/telemetria.sql`); la conexión
-va en `web/.supabase-lectura`, que no se sube. El id de cada uno está en el panel B, pestaña Pruebas
+humano a cómo juega una persona y para ver la dificultad con partidas de verdad. Se conecta a la base con
+`tools/db.mjs`, que lee la conexión (con la contraseña de la base) de `web/.supabase-db`, que no se sube;
+solo, corre SQL: `node tools/db.mjs "select count(*) from golf_runs"`. El id de cada uno está en el panel B, pestaña Pruebas
 («Tu id de jugador»), para filtrar las suyas con `--jugador=`.
 
 ## El campo: tres mapas, uno por partida
@@ -631,6 +631,9 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
   - `partidas.mts` (`npm run partidas`): lee las partidas de la gente desde Supabase y saca sus números
     (ver «Las partidas se mandan solas»). `--por=jugador|nivel|version|host`, `--jugador=`, `--desde=`,
     `--host=`, `--filas`, `--json`.
+  - `db.mjs`: la conexión a la base de Supabase (la lee de `web/.supabase-db`, que no se sube, y no la
+    muestra). Solo, corre SQL: `node tools/db.mjs "select …"` o `--archivo=x.sql`. El proyecto es también
+    el del ManaMod: desde acá solo se toca lo del Golf Knight.
   - `swingshot.mjs`: capturas de cerca de cada fase del swing, y distancia cabeza-pelota en el impacto.
   - `visual.mjs`: capturas de la misma escena con la capa visual apagada y en cada hora del día
     (`logs/visual-*.png`). Usa la GPU, no el render por software. Las pruebas automáticas arrancan con

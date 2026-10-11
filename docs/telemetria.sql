@@ -42,10 +42,10 @@ create index if not exists golf_runs_created on public.golf_runs (created_at des
 --   from golf_runs, jsonb_array_elements(data->'waves') w, jsonb_each_text(w->'by') as e(k, v)
 --   group by 1 order by 2 desc;
 
--- Para leer las partidas desde la compu (tools/partidas.mts, 11/10): un usuario que solo puede leer esta
--- tabla (no ve nada del ManaMod, ni puede cambiar o borrar). Se corre una vez, en el SQL Editor, cambiando
--- CONTRASEÑA por una larga (sin @ ni : ni /). La conexión queda en web/.supabase-lectura, que no se sube:
---   postgresql://golf_lector:CONTRASEÑA@db.kdwiuiciobekuedpmfpj.supabase.co:5432/postgres
+-- Desde la compu se entra con la contraseña de la base (tools/db.mjs; web/.supabase-db, que no se sube).
+-- Si alguna vez hace falta alguien que solo pueda leer esta tabla (no ve nada del ManaMod, ni puede cambiar
+-- o borrar), este usuario; se corre una vez cambiando CONTRASEÑA por una larga (sin @ ni : ni /), y se
+-- entra con postgresql://golf_lector:CONTRASEÑA@db.kdwiuiciobekuedpmfpj.supabase.co:5432/postgres
 create role golf_lector with login password 'CONTRASEÑA';
 grant usage on schema public to golf_lector;
 grant select on public.golf_runs to golf_lector;

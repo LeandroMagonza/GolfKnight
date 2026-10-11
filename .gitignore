@@ -11,5 +11,5 @@ voces-openai/
 dist-pages/
 # la contraseña de la versión para los que prueban (tools/deploy.mjs)
 .amigos
-# la conexión de solo lectura a Supabase (tools/partidas.mts): no se sube
-.supabase-lectura
+# la conexión a la base de Supabase (tools/db.mjs), con su contraseña: no se sube
+.supabase-db
