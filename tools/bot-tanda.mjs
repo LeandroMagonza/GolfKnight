@@ -6,7 +6,8 @@
 //
 // Cada dificultad es lo que va en ?talentos= (ver `talentos` en src/main.ts): «base» es sin nada, y si no,
 // los talentos (en los que se suman, la suma; en los demás, cuántas opciones), como `speed:0.25,powers:1`. Con `escalera:` adelante, las opciones elegidas en
-// cada escalón (`escalera:0,1,0` es el nivel 3). Sin ninguna, juega en «base».
+// cada escalón (`escalera:0,1,0` es el nivel 3). Sin ninguna, juega en «base». Lo que vaya después de un `&` va
+// tal cual a la URL de esa dificultad (por ejemplo `base&poderes=regen,regen,regen`).
 //   --juegos=N       partidas por dificultad y nivel del bot (3)
 //   --paralelo=K     cuántas a la vez (2)
 //   --velocidad=V    a qué velocidad juegan (4; 1 es tiempo real). Lo medido el 11/10, en la compu de
@@ -80,9 +81,11 @@ const t0 = Date.now();
 const maxMs = (35 * 60000) / speed;
 
 function urlFor({ config, skill }) {
+  const [difficulty, ...more] = config.split('&');
   const q = [`bot=${skill}`, 'liviano', `velocidad=${speed}`, 'sincine'];
-  if (config.startsWith('escalera:')) q.push(`escalera=${config.slice('escalera:'.length)}`);
-  else q.push(`talentos=${config === 'base' ? '' : config}`);
+  if (difficulty.startsWith('escalera:')) q.push(`escalera=${difficulty.slice('escalera:'.length)}`);
+  else q.push(`talentos=${difficulty === 'base' ? '' : difficulty}`);
+  q.push(...more);
   if (extra) q.push(extra);
   return `http://localhost:${port}/?${q.join('&')}`;
 }

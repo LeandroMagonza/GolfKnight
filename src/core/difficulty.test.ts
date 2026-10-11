@@ -51,13 +51,15 @@ describe('dificultad', () => {
     expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1, ghostEliteHp: 2 });
   });
 
-  it('el golpe 4: lo prende, y todos traen vida de más (los élites y el jefe, más)', () => {
+  it('el golpe 4: lo prende, y los comunes traen vida de más (los élites y el jefe no, desde el 11/10)', () => {
     const off = rulesFor({});
     const on = rulesFor({ fourth: 1 });
     expect(off).toMatchObject({ fourth: false, extraHp: 0, bossHp: 0 });
     expect(on).toMatchObject({ fourth: true, extraHp: DIFFICULTY.fourthHp, bossHp: DIFFICULTY.fourthBossHp });
     expect(on.eliteHp).toEqual(off.eliteHp.map((h) => h + DIFFICULTY.fourthEliteHp));
-    expect(DIFFICULTY.fourthEliteHp).toBeGreaterThan(DIFFICULTY.fourthHp);
+    expect(DIFFICULTY.fourthHp).toBeGreaterThan(0);
+    expect(DIFFICULTY.fourthEliteHp).toBe(0);
+    expect(DIFFICULTY.fourthBossHp).toBe(0);
   });
 
   it('sin el talento se juega en el campo liso', () => {

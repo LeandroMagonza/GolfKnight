@@ -45,6 +45,9 @@ export interface Talent {
  * - rest: segundos de descanso entre oleadas, sin y con «Sin respiro».
  * - fourthHp, fourthEliteHp, fourthBossHp: el golpe 4 (ver FOURTH en core/clubs), la vida de más que
  *   traen con el talento los comunes, los élites y el jefe. Es el único talento que también te da algo.
+ *   Desde el 11/10, los élites y el jefe sin vida de más (eran +2, al doble, y +8): en la tanda de la
+ *   noche, con el golpe 4 encima de todo lo demás el bot perdía 30 de 30 en el primer jefe, y con +25 %
+ *   de velocidad, 0 de 30 (Leandro: «saquémosle la vida extra a estos para probar»).
  */
 export const DIFFICULTY = {
   speedBase: 0.76,
@@ -61,8 +64,8 @@ export const DIFFICULTY = {
   eliteHpLess: [2, 0],
   rest: [INTERMISSION, 4],
   fourthHp: 1,
-  fourthEliteHp: 2,
-  fourthBossHp: 8,
+  fourthEliteHp: 0,
+  fourthBossHp: 0,
 };
 
 /** Una fracción como se dice: un cuarto, un tercio. */
@@ -133,14 +136,14 @@ const opt = (id: TalentId, add?: number): Option => (add === undefined ? { id } 
  */
 export const LADDER: Option[][] = [
   [opt('rest'), opt('elite'), opt('escort')],
-  [opt('speed', 0.1)],
+  [opt('speed', 0.08)],
   [opt('special'), opt('cooldown', 0.35)],
   [opt('powered')],
   [opt('powers')],
   [opt('support'), opt('casters', 0.1)],
-  [opt('terrain'), opt('speed', 0.15), opt('cooldown', 0.65)],
+  [opt('terrain'), opt('speed', 0.12), opt('cooldown', 0.65)],
   [opt('special'), opt('support'), opt('casters', 0.15)],
-  [opt('stack'), opt('speed', 0.2)],
+  [opt('stack'), opt('speed', 0.15)],
   [opt('fourth')],
 ];
 
