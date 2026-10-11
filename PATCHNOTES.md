@@ -19,9 +19,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   con el bot. `86177ce` También en la app de Windows. `311e528`
 
 **Para los que prueban**
-- **«Copiar mis números»** (panel B, pestaña Pruebas): tus últimas 20 partidas, con tiros por minuto,
-  puntería, con qué golpe salió cada tiro y a cuántos milisegundos del tope de la barra soltaste (antes o
-  pasado). Sirven para que el bot juegue como una persona. `86177ce`
+- Cada partida que se sube anota también con qué golpe salió cada tiro y a cuántos milisegundos del tope
+  de la barra soltaste (antes o pasado), para que el bot juegue como una persona. `86177ce` Se leen desde
+  Supabase (ya no quedan guardadas en el navegador), y el panel B, pestaña Pruebas, muestra tu id de
+  jugador para encontrar las tuyas. Si prendés el bot en medio de una partida, queda marcada. `f7a6066`
 - El bot tiene un nivel **humano** (`?bot=humano`): tarda en decidir, se toma un rato antes de cada tiro
   y suelta con error de mano, así a veces busca el 3 y le sale un 2, o se pasa. Y las pruebas del bot se
   pueden correr **sin dibujar** (`?liviano&velocidad=12`): una partida entera en menos de 2 minutos, sin
