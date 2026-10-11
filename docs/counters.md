@@ -210,7 +210,8 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
     (no se cura mientras dure), y todo lo que mete más daño en poco tiempo: fuerza, potencia, lupa,
     maldición de Abe, eco, clon.
   - **El intocable**: invulnerable salvo en su pulso; desde el 11/10 van en tres grupos que se turnan
-    (0.8 s abierto, 1.6 s cerrado; el élite igual), y llegan abiertos a la línea. Lo
+    (0.8 s abierto, 1.6 s cerrado; el élite igual; con poca dificultad, dos: 1.2 y 1.2), y llegan
+    abiertos a la línea. Lo
     resuelven el golpe fantasma (le entra siempre), el silencio (vulnerable mientras dure) y lo que mete
     mucho daño en la ventana: fuerza, potencia, lupa, eco, clon, y el driver, que llega rápido.
   - Los tiempos, en `tiempos-poderes.md`.

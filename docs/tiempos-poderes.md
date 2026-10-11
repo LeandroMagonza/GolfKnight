@@ -159,11 +159,13 @@ hit cuando está vulnerable»), que no dependa del tamaño, y los enemigos coord
 se prenda uno y se apague otro. Y que llegue a la línea vulnerable: se cerraba a unos metros y no quedaba
 más que dejarlo pasar.
 
-- **Tres grupos que se turnan**, con un reloj para todos (lo corre la horda): un pulso de 0.8 s abierto y
-  dos cerrados (1.6 s); en cada pulso hay exactamente un grupo abierto. La horda reparte los grupos en
-  orden a medida que aparecen. Élite, jefe y común, igual. Sin el punto de «Poderes más duros» el pulso
-  es ×1.6 (1.28 s abierto, 2.56 s cerrado). El `shut` de «Poderes más duros» (×1.3 invulnerable) se fue:
-  con el ritmo, lo cerrado son siempre dos pulsos.
+- **Tres grupos que se turnan**, con un reloj para todos (lo corre la horda): un ciclo de 2.4 s partido
+  en tres pulsos, uno abierto (0.8 s) y dos cerrados (1.6 s); en cada pulso hay exactamente un grupo
+  abierto. La horda reparte los grupos en orden a medida que aparecen. Élite, jefe y común, igual. El
+  `shut` de «Poderes más duros» (×1.3 invulnerable) se fue: lo cerrado son siempre los otros pulsos.
+- **Sin el punto de «Poderes más duros», dos tiempos** (Leandro, 11/10: «que en el ritmo bajo sean 2
+  tiempos nada más, pero que la duración del ciclo sea igual»): el mismo ciclo de 2.4 s partido en dos,
+  abierto 1.2 s y cerrado 1.2 s. Antes era el pulso ×1.6 (1.28 s abierto, 2.56 s cerrado).
 - **Llegando a la línea**: a un pulso o menos de cruzar la línea del golfista se abre, y si ya estaba
   abierto a un pulso y medio, no se cierra. Así cruza abierto, abierto desde antes entre uno y dos pulsos
   y medio (según dónde lo agarró el ritmo): no hay una franja fija en la cancha. Lo que le falta se

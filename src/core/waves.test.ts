@@ -529,8 +529,9 @@ describe('waves', () => {
     expect(POWERS.regen(0, () => 0, easy).regen!).toBeGreaterThan(POWERS.regen(0, () => 0, hard).regen! * 2);
     expect(POWERS.regen(0, () => 0, hard).regen).toBe(REGEN.margin);
     expect(elite(0, 'regen', 0, easy).mods!.regen!).toBeGreaterThan(REGEN.eliteMargin);
-    // el intocable: con el punto, el pulso (y la ventana) más corto
-    expect(POWERS.phase(0, () => 0, hard).phase!).toBeLessThan(POWERS.phase(0, () => 0, easy).phase!);
+    // el intocable: sin el punto, dos tiempos; con el punto, tres
+    expect(POWERS.phase(0, () => 0, easy).phase).toBe(2);
+    expect(POWERS.phase(0, () => 0, hard).phase).toBe(3);
     expect(elite(1, 'phase', 0, hard).mods!.phase).toBe(POWERS.phase(0, () => 0, hard).phase);
     // el fantasma: con el punto, 1 de vida más (el élite, 2, que con toda su vida al doble son 4)
     expect(POWERS.ethereal(0, () => 0, easy).hp).toBeUndefined();
@@ -559,28 +560,30 @@ describe('waves', () => {
     expect(REGEN.hp).toBeGreaterThan(0);
   });
 
-  it('el intocable: un pulso abierto y dos cerrados, el mismo para todos los tamaños (más largo con poca dificultad)', () => {
+  it('el intocable: tres tiempos, el mismo para todos los tamaños; con poca dificultad, dos', () => {
     expect(SCENARIO_POWERS).toContain('phase');
-    expect(POWERS.phase(0, () => 0).phase).toBe(PHASE.beat);
-    expect(POWERS.phase(0, () => 0, rulesFor({}).hard).phase).toBeCloseTo(PHASE.beat * DIFFICULTY.recharge[0]);
+    expect(POWERS.phase(0, () => 0).phase).toBe(3);
+    expect(POWERS.phase(0, () => 0, rulesFor({}).hard).phase).toBe(DIFFICULTY.timings[0]);
+    expect(DIFFICULTY.timings[0]).toBe(2);
     // el élite y el jefe: el mismo ritmo que los comunes
-    expect(elite(1, 'phase').mods!.phase).toBe(PHASE.beat);
-    expect(elite(3, 'phase').mods!.phase).toBe(PHASE.beat);
+    expect(elite(1, 'phase').mods!.phase).toBe(3);
+    expect(elite(3, 'phase').mods!.phase).toBe(3);
   });
 
-  it('el intocable: los tres grupos se turnan, uno abierto por vez', () => {
-    const b = PHASE.beat;
-    for (const clock of [0, 0.1, 0.79, 0.81, 1.7, 2.39, 2.41, 37.3]) {
-      const open = [0, 1, 2].filter((g) => phaseSlot(clock, b, g).opensIn === 0);
-      expect(open, `a los ${clock} s`).toHaveLength(1);
+  it('el intocable: los grupos se turnan, uno abierto por vez, en el mismo ciclo', () => {
+    for (const n of [3, 2]) {
+      const b = PHASE.cycle / n;
+      for (const clock of [0, 0.1, 0.79, 0.81, 1.19, 1.21, 1.7, 2.39, 2.41, 37.3]) {
+        const open = Array.from({ length: n }, (_, g) => g).filter((g) => phaseSlot(clock, b, g, n).opensIn === 0);
+        expect(open, `${n} tiempos, a los ${clock} s`).toHaveLength(1);
+      }
+      // el grupo 0 abre en el primer pulso, el 1 en el segundo...
+      expect(phaseSlot(0.2, b, 0, n)).toEqual({ opensIn: 0, openLeft: b - 0.2 });
+      expect(phaseSlot(0.2, b, 1, n).opensIn).toBeCloseTo(b - 0.2);
+      // y vuelve al ciclo: lo cerrado son los otros pulsos
+      expect(phaseSlot(b, b, 0, n).opensIn).toBeCloseTo((n - 1) * b);
+      expect(phaseSlot(PHASE.cycle + 0.1, b, 0, n).opensIn).toBe(0);
     }
-    // el grupo 0 abre en el primer pulso; el 1, en el segundo; el 2, en el tercero
-    expect(phaseSlot(0.2, b, 0)).toEqual({ opensIn: 0, openLeft: b - 0.2 });
-    expect(phaseSlot(0.2, b, 1).opensIn).toBeCloseTo(b - 0.2);
-    expect(phaseSlot(0.2, b, 2).opensIn).toBeCloseTo(2 * b - 0.2);
-    // y vuelve: lo cerrado son dos pulsos
-    expect(phaseSlot(b, b, 0).opensIn).toBeCloseTo(2 * b);
-    expect(phaseSlot(3 * b + 0.1, b, 0).opensIn).toBe(0);
   });
 
   it('el que se cura: la cura que tocaba justo antes de la línea cae justo después', () => {

@@ -68,8 +68,8 @@ export interface EnemyMods {
   /** Se cura entero cada tanto (ver REGEN): los segundos de margen que da su ciclo. */
   regen?: number;
   /**
-   * Intocable (ver PHASE): invulnerable salvo en su turno; los segundos que dura su ventana, que es el
-   * pulso del ritmo (con poca dificultad, más largo).
+   * Intocable (ver PHASE): invulnerable salvo en su turno; en cuántos tiempos va el ritmo (3, o 2 con poca
+   * dificultad): está abierto un pulso de cada tantos.
    */
   phase?: number;
   /** Vida de más o de menos sobre la del cuerpo. */
@@ -282,9 +282,10 @@ export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal
  * - `cap`: hasta qué nivel llega el escudo.
  * - `armorRolls`: el blindaje (que no pasa de ARMOR_MAX) sale con el mayor de tantos sorteos: con 2, el
  *   blindaje 1 sale mucho menos.
- * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar, y el
- *   pulso del intocable (su ventana, y con ella todo el ritmo).
+ * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar.
  * - `regen`: por cuánto se multiplica el margen del que se cura (más margen, más tarda en curarse).
+ * - `timings`: en cuántos tiempos va el ritmo de los intocables (3; con poca dificultad, 2: el mismo ciclo
+ *   partido en dos, abierto la mitad del tiempo).
  * - `ghostHp`: vida de más del fantasma (`ghostEliteHp`, la del élite).
  */
 export interface PowerHardness {
@@ -292,10 +293,11 @@ export interface PowerHardness {
   armorRolls: number;
   recharge: number;
   regen: number;
+  timings: number;
   ghostHp: number;
   ghostEliteHp: number;
 }
-export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1, ghostEliteHp: 2 };
+export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, timings: 3, ghostHp: 1, ghostEliteHp: 2 };
 
 /**
  * El blindaje no pasa de 2 (7/10, pedido de Leandro): con 3, al mejor golpe le entraba 1 y se terminaba
@@ -356,11 +358,12 @@ export function regenPace(eta: number, period: number, elapsed: number): number 
  * cuando se vacía queda **vulnerable** (la barra se pone dorada y se vacía), y vuelve a cerrarse.
  *
  * **Un ritmo para todos** (11/10, pedido de Leandro: ciclos mucho más cortos, que sea timear el golpe, y
- * que no dependa del tamaño). Los intocables van en `groups` (3) grupos que se turnan, a un pulso de
- * `beat` s: en cada pulso está abierto un grupo y los otros dos cerrados, así se prende uno y se apaga
- * otro. La ventana es un pulso y lo cerrado dos. El élite y el jefe, igual que los comunes. Con poca
- * dificultad el pulso es más largo (×la recarga). La horda reparte los grupos en orden, a medida que
- * aparecen.
+ * que no dependa del tamaño). Los intocables van en tres grupos que se turnan, en un ciclo de `cycle` s
+ * partido en tres pulsos: en cada pulso está abierto un grupo y los otros dos cerrados, así se prende uno
+ * y se apaga otro. La ventana es un pulso (0.8 s) y lo cerrado dos. El élite y el jefe, igual que los
+ * comunes. Con poca dificultad, **dos tiempos** (Leandro, 11/10): el mismo ciclo partido en dos, abierto
+ * 1.2 s y cerrado 1.2 s (ver `PowerHardness.timings`; hasta ahí era el pulso ×1.6). La horda reparte los
+ * grupos en orden, a medida que aparecen.
  *
  * **Llegando a la línea queda abierto** (11/10, pedido de Leandro: se cerraba a unos metros y no había más
  * que dejarlo pasar). Si le falta `line` pulsos o menos para cruzar la línea del golfista se abre, y si ya
@@ -369,14 +372,14 @@ export function regenPace(eta: number, period: number, elapsed: number): number 
  *
  * El golpe fantasma le entra siempre, y silenciado es vulnerable.
  */
-export const PHASE = { beat: 0.8, groups: 3, line: 1, hold: 0.5 };
+export const PHASE = { cycle: 2.4, line: 1, hold: 0.5 };
 
 /**
- * Dónde va el ritmo de los intocables para el grupo `group`, con el reloj de la horda en `clock` y un pulso
- * de `beat` s: cuánto le falta para abrirse (0 si está abierto) y cuánto le queda abierto (0 si está cerrado).
+ * Dónde va el ritmo de los intocables para el grupo `group` de `n` (los tiempos), con el reloj de la horda
+ * en `clock` y un pulso de `beat` s: cuánto le falta para abrirse (0 si está abierto) y cuánto le queda
+ * abierto (0 si está cerrado).
  */
-export function phaseSlot(clock: number, beat: number, group: number): { opensIn: number; openLeft: number } {
-  const n = PHASE.groups;
+export function phaseSlot(clock: number, beat: number, group: number, n: number): { opensIn: number; openLeft: number } {
   const k = Math.floor(clock / beat);
   const into = clock - k * beat;
   const turn = (((group - k) % n) + n) % n;
@@ -420,13 +423,13 @@ export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: 
   banner: () => ({ banner: true }),
   // con poca dificultad, más margen (tarda más en curarse), y vida de más
   regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.regen, hp: REGEN.hp }),
-  // con poca dificultad, el pulso (y con él la ventana) es más largo
+  // con poca dificultad, dos tiempos en vez de tres: el mismo ciclo, abierto la mitad
   phase: (_tier, _rand, hard = HARDEST_POWERS) => phaseMods(hard),
 };
 
-/** El intocable: su ventana, un pulso del ritmo, según la dificultad. El mismo para todos los tamaños. */
+/** El intocable: en cuántos tiempos va el ritmo, según la dificultad. El mismo para todos los tamaños. */
 function phaseMods(hard: PowerHardness): EnemyMods {
-  return { phase: PHASE.beat * hard.recharge };
+  return { phase: hard.timings };
 }
 
 /**

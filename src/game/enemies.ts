@@ -1184,9 +1184,19 @@ export class Enemy {
     this.regenTime = 0;
   }
 
-  /** El intocable: lo que dura su ventana, un pulso del ritmo (ver PHASE). */
+  /** El intocable: en cuántos tiempos va su ritmo (3, o 2 con poca dificultad; ver PHASE). */
+  get phaseTimings(): number {
+    return Math.max(2, Math.round(this.mods.phase ?? 3));
+  }
+
+  /** El intocable: lo que dura su ventana, un pulso del ritmo (el ciclo partido en sus tiempos). */
   get phaseBeat(): number {
-    return Math.max(0.1, this.mods.phase ?? PHASE.beat);
+    return Math.max(0.1, PHASE.cycle / this.phaseTimings);
+  }
+
+  /** Dónde va su turno en el ritmo, dentro de `t` s. */
+  private phaseSlotIn(t = 0): { opensIn: number; openLeft: number } {
+    return phaseSlot(phaseClock + t, this.phaseBeat, this.phaseGroup, this.phaseTimings);
   }
 
   /**
@@ -1197,21 +1207,21 @@ export class Enemy {
     const beat = this.phaseBeat;
     const eta = this.lineEta();
     if (eta > (PHASE.line + PHASE.hold) * beat) this.phaseHeld = false;
-    else if (eta <= PHASE.line * beat || phaseSlot(phaseClock, beat, this.phaseGroup).opensIn === 0) this.phaseHeld = true;
+    else if (eta <= PHASE.line * beat || this.phaseSlotIn().opensIn === 0) this.phaseHeld = true;
   }
 
   /** El intocable está cerrado (invulnerable): no es su turno y no va llegando a la línea. Silenciado, nunca. */
   get phaseShut(): boolean {
     if (!this.mods.phase || this.silenced) return false;
     if (this.remotePhase !== null) return this.remotePhase > 0;
-    return !this.phaseHeld && phaseSlot(phaseClock, this.phaseBeat, this.phaseGroup).opensIn > 0;
+    return !this.phaseHeld && this.phaseSlotIn().opensIn > 0;
   }
 
   /** El intocable: en cuánto se abre (0 si está abierto): en su turno, o al llegar a la línea. */
   get phaseOpensIn(): number {
     if (!this.mods.phase || this.silenced || this.phaseHeld) return 0;
     const beat = this.phaseBeat;
-    return Math.min(phaseSlot(phaseClock, beat, this.phaseGroup).opensIn, Math.max(0, this.lineEta() - PHASE.line * beat));
+    return Math.min(this.phaseSlotIn().opensIn, Math.max(0, this.lineEta() - PHASE.line * beat));
   }
 
   /**
@@ -1222,20 +1232,20 @@ export class Enemy {
     if (!this.mods.phase) return true;
     const beat = this.phaseBeat;
     if (this.phaseHeld || this.lineEta() - t <= PHASE.line * beat) return true;
-    const s = phaseSlot(phaseClock + t, beat, this.phaseGroup);
+    const s = this.phaseSlotIn(t);
     return s.opensIn === 0 && s.openLeft >= margin && beat - s.openLeft >= margin;
   }
 
   /**
-   * La barra del intocable: cerrado, lo que le falta para abrirse, de 1 a 0 (lleno, dos pulsos); abierto, lo
+   * La barra del intocable: cerrado, lo que le falta para abrirse, de 1 a 0 (lleno, lo cerrado); abierto, lo
    * que le queda abierto, en negativo (de -1 a 0). Llegando a la línea, lo que le falta para cruzarla.
    */
   get phaseBar(): number {
     if (this.remotePhase !== null) return this.remotePhase;
     const beat = this.phaseBeat;
     if (this.phaseHeld) return -Math.min(1, Math.max(0.05, this.lineEta() / beat));
-    const s = phaseSlot(phaseClock, beat, this.phaseGroup);
-    if (s.opensIn > 0) return Math.min(1, this.phaseOpensIn / ((PHASE.groups - 1) * beat));
+    const s = this.phaseSlotIn();
+    if (s.opensIn > 0) return Math.min(1, this.phaseOpensIn / ((this.phaseTimings - 1) * beat));
     return -(s.openLeft / beat);
   }
 
@@ -2009,7 +2019,7 @@ export class Horde {
     if (!template) throw new Error(`falta el modelo de ${kind}`);
     const enemy = new Enemy(ENEMIES[kind], template, mods ?? {}, id);
     // los intocables se turnan en grupos, repartidos en orden a medida que aparecen (ver PHASE)
-    if (mods?.phase) enemy.phaseGroup = this.phaseTurn++ % PHASE.groups;
+    if (mods?.phase) enemy.phaseGroup = this.phaseTurn++ % enemy.phaseTimings;
     enemy.position.set(x, 0, z);
     this.scene.add(enemy.group);
     this.enemies.push(enemy);
