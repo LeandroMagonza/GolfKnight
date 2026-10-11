@@ -149,9 +149,11 @@ export const BOT_SKILLS: Record<string, BotSkill> = {
   flojo: { think: 0.6, aimError: 0.8, timing: 1, fixedQuality: 2, align: false, posts: false, bait: false, evade: false, shields: false, abilities: false, regen: false },
   // como una persona (11/10, Leandro: para medir la dificultad con alguien que no es perfecto): tarda en
   // decidir, se toma un rato antes de cada tiro y suelta con error de mano. Sabe lo que sabe quien ya jugó
-  // (los poderes, los puestos, correrse de los hechizos), pero no alinea al driver ni cuenta las curas. Los
-  // números son para empezar: se ajustan con los de Leandro («Copiar mis números», en el panel)
-  humano: { think: 0.25, aimError: 0.45, timing: 1, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: false, pause: 0.3, release: 0.04 },
+  // (los poderes, los puestos, correrse de los hechizos), pero no alinea al driver ni cuenta las curas.
+  // Ajustado con una partida de Leandro (npm run partidas; nivel 10, perdió en la oleada 6): 36 tiros por
+  // minuto, pega el 77 %, golpes 1-2-3 44-36-20 %, y cerca del tope suelta 14 ms antes con ±33 ms (se pasa
+  // en el 6 %). Con esto, en sus condiciones: oleada 5.5, pega el 77 %, 32 tiros por minuto, 58-22-20 %
+  humano: { think: 0.15, aimError: 0.5, timing: 1, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: false, pause: 0.05, release: 0.035, late: -0.015 },
 };
 
 /**

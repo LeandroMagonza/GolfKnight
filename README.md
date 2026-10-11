@@ -613,10 +613,11 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
     Desde el 9/10 tiene niveles (`--nivel=perfecto`, `bueno` o `flojo`; en el navegador, `?bot=bueno`):
     el perfecto apunta adonde va a estar el enemigo, carga lo justo, le gasta la esquiva con un cebo y se
     corre para alinear; el flojo es más o menos el de antes. Con `--ver` abre una ventana para mirarlo.
-    Desde el 11/10, `humano`: piensa cada 0.25 s, se toma un rato al azar antes de cada tiro (0.3 s, a
-    veces el doble, a veces la mitad) y suelta apuntando al medio del tramo que busca (al tope, para el 3)
-    con un error de mano (40 ms), así el golpe que sale es el que da la barra. Los números son para
-    empezar: se ajustan con los de una persona (`npm run partidas`). Buscando el 3, a veces suelta
+    Desde el 11/10, `humano`: piensa cada 0.15 s, se toma un rato al azar antes de cada tiro y suelta
+    apuntando al medio del tramo que busca (al tope, para el 3) con un error de mano (±35 ms, 15 ms
+    temprano), así el golpe que sale es el que da la barra. Ajustado con una partida de Leandro
+    (`npm run partidas`): en sus mismas condiciones llega a la misma oleada, pega lo mismo (77 %) y suelta
+    igual (75 % antes del fuerte, 20 % en el fuerte, 5 % pasado). Buscando el 3, a veces suelta
     antes (un 2) y a veces se pasa (rebota: un 2 o un 1). Se ajusta desde la dirección:
     `&pausa=0.5&error=0.4&suelta=0.04&tarde=0.01&piensa=0.3&golpe=2`.
   - `bot-tanda.mjs`: muchas partidas del bot seguidas, en las dificultades que se le pidan (`base`,
