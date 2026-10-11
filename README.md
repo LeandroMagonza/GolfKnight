@@ -426,12 +426,19 @@ tope de la barra se soltó (negativo, antes; positivo, pasado: `SwingMeter.offPe
 escalón. Sin datos personales: un id al azar por navegador. Lo que no sale queda en una cola
 y se manda la próxima vez.
 
-Además, las últimas 20 partidas quedan **resumidas en el navegador** (`myRuns` en `src/telemetry.ts`):
-tiros, cuántos pegan, los golpes, cuándo se soltó cada uno, habilidades y la vida perdida. El botón
-«Copiar mis números» (panel B, pestaña Pruebas) las copia con un resumen (tiros por minuto, puntería, qué
-parte sale con cada golpe, qué parte se suelta antes del fuerte, en el fuerte y pasado, y el desvío
-alrededor del tope), para ajustar al bot humano a cómo juega una persona. No mandan el bot, el espectador ni las pruebas automáticas. La tabla se crea
-una vez con `docs/telemetria.sql`, que trae también consultas para mirar.
+No mandan el bot, el espectador ni las pruebas automáticas; si se prende el bot desde el panel en medio
+de una partida, queda marcada (`bot`). Mandan todas las versiones: la de los amigos (GitHub Pages), itch
+y la app (`host` dice de dónde: el de la app es `golfknight`). La tabla se crea una vez con
+`docs/telemetria.sql`, que trae también consultas para mirar.
+
+**Para leerlas desde la compu**, `npm run partidas` (`tools/partidas.mts`) saca los números de cada
+jugador (o por nivel, versión o sitio): tiros por minuto, puntería, qué parte sale con cada golpe, qué
+parte se suelta antes del fuerte, en el fuerte y pasado, el desvío alrededor del tope, habilidades y la
+vida y la puerta perdidas por minuto (las cuentas, en `src/core/runStats.ts`). Sirve para ajustar al bot
+humano a cómo juega una persona y para ver la dificultad con partidas de verdad. Se conecta con un usuario
+que solo puede leer esa tabla (`golf_lector`, se crea con el final de `docs/telemetria.sql`); la conexión
+va en `web/.supabase-lectura`, que no se sube. El id de cada uno está en el panel B, pestaña Pruebas
+(«Tu id de jugador»), para filtrar las suyas con `--jugador=`.
 
 ## El campo: tres mapas, uno por partida
 
@@ -609,7 +616,7 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
     Desde el 11/10, `humano`: piensa cada 0.25 s, se toma un rato al azar antes de cada tiro (0.3 s, a
     veces el doble, a veces la mitad) y suelta apuntando al medio del tramo que busca (al tope, para el 3)
     con un error de mano (40 ms), así el golpe que sale es el que da la barra. Los números son para
-    empezar: se ajustan con los de una persona («Copiar mis números»). Buscando el 3, a veces suelta
+    empezar: se ajustan con los de una persona (`npm run partidas`). Buscando el 3, a veces suelta
     antes (un 2) y a veces se pasa (rebota: un 2 o un 1). Se ajusta desde la dirección:
     `&pausa=0.5&error=0.4&suelta=0.04&tarde=0.01&piensa=0.3&golpe=2`.
   - `bot-tanda.mjs`: muchas partidas del bot seguidas, en las dificultades que se le pidan (`base`,
@@ -621,6 +628,9 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
     y un 60 % a 12× (una partida entera, menos de 2 minutos). Además corre con prioridad baja: Windows le
     da el procesador a lo demás primero. Por defecto, 2 a la vez a 4×; para dejarla corriendo,
     `--paralelo=6 --velocidad=12`.
+  - `partidas.mts` (`npm run partidas`): lee las partidas de la gente desde Supabase y saca sus números
+    (ver «Las partidas se mandan solas»). `--por=jugador|nivel|version|host`, `--jugador=`, `--desde=`,
+    `--host=`, `--filas`, `--json`.
   - `swingshot.mjs`: capturas de cerca de cada fase del swing, y distancia cabeza-pelota en el impacto.
   - `visual.mjs`: capturas de la misma escena con la capa visual apagada y en cada hora del día
     (`logs/visual-*.png`). Usa la GPU, no el render por software. Las pruebas automáticas arrancan con

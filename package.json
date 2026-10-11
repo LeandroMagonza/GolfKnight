@@ -16,6 +16,7 @@
     "desktop": "node tools/desktop.mjs",
     "desktop:demo": "node tools/desktop.mjs demo",
     "patchnotes": "node tools/patchnotes.mjs",
+    "partidas": "node --experimental-transform-types tools/partidas.mts",
     "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "@electron/packager": "^20.3.0",
     "@types/three": "^0.186.0",
     "electron": "^44.7.0",
+    "pg": "^8.23.1",
     "playwright": "^1.63.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",

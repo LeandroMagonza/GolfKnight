@@ -22,7 +22,7 @@ import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId 
 import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, MAX_LEVEL as TOP_DIFFICULTY } from './core/difficulty';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
-import { myRuns, summarizeRuns } from './telemetry';
+import { playerId } from './telemetry';
 import { FOURTH_ARCS, type FourthArc } from './core/swing';
 import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
@@ -1286,24 +1286,23 @@ export class DebugPanel {
       note('Prendido, el bot juega desde donde esté la partida (aunque no hayas entrado con ?bot). Apagado, la jugás vos: no toca el mouse, ni las teclas, ni las cartas, y al terminar no arranca otra sola. Con ?bot, al recargar vuelve a jugar.'));
     el.append(this.row(this.toggleButton('Habilidades y mejoras', () => BOT_PREFS.abilities, (v) => { BOT_PREFS.abilities = v; saveBotPrefs(); })),
       note('Para el bot que juega solo (?bot). Apagado no tira Q W E R, ni el silenciador, ni el palazo, y las cartas las cierra sin elegir ninguna. Vale en el acto y queda guardado en este navegador.'));
-    // tus números, para que el bot «humano» juegue como vos (ver BOT_SKILLS en src/bot.ts)
-    const mine = document.createElement('span');
-    const copyMine = this.button('Copiar mis números', async () => {
-      const runs = myRuns();
-      const text = JSON.stringify({ resumen: summarizeRuns(runs), partidas: runs });
+    // tus partidas en Supabase: con este id se encuentran (tools/partidas.mts --jugador=…)
+    const id = playerId();
+    const said = document.createElement('span');
+    const copyId = this.button(`Tu id de jugador: ${id.slice(0, 8)}`, async () => {
       try {
-        await navigator.clipboard.writeText(text);
-        mine.textContent = runs.length ? `copiadas ${runs.length} partidas` : 'todavía no hay partidas tuyas anotadas';
-        mine.className = 'done';
+        await navigator.clipboard.writeText(id);
+        said.textContent = 'copiado';
+        said.className = 'done';
       } catch {
-        console.log(text);
-        mine.textContent = 'está en la consola';
-        mine.className = 'note';
+        console.log(id);
+        said.textContent = 'está en la consola';
+        said.className = 'note';
       }
-      setTimeout(() => { mine.textContent = ''; }, 3000);
+      setTimeout(() => { said.textContent = ''; }, 2500);
     });
-    el.append(this.row(copyMine, mine),
-      note('Tus últimas partidas en este navegador (hasta 20, desde el 11/10): tiros por minuto, cuántos pegan, con qué golpe sale cada uno, habilidades y la vida que perdiste. Pegáselas a Claude para que el bot juegue como vos. Las del bot y las de las pruebas no se anotan.'));
+    el.append(this.row(copyId, said),
+      note('Tus partidas se suben a Supabase al terminar (desde la web, itch o la app), con tiros por minuto, cuántos pegan, con qué golpe sale cada uno y a cuánto del tope de la barra soltás. Con este id se separan de las de los demás: tools/partidas.mts las lee, para que el bot humano juegue como vos. Las del bot y las de las pruebas no se suben; si prendés el bot en medio de una partida, queda marcada.'));
     el.append(heading('Modo'));
     el.append(this.row(this.button(this.hooks.tennis ? 'Volver al golf' : 'Modo tenis (prototipo)', () => this.hooks.switchMode())),
       note('El modo tenis es un prototipo: no tiene botón en la pantalla de inicio. También se entra con ?tenis en la dirección. Recarga la página.'));

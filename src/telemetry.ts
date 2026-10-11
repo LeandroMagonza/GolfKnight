@@ -16,91 +16,8 @@ const QUEUE_KEY = 'gk.partidas';
 const PLAYER_KEY = 'gk.jugador';
 /** Más que esto en la cola y se tiran las más viejas: sin red por mucho tiempo no se llena el navegador. */
 const MAX_QUEUE = 30;
-/**
- * Las últimas partidas de este navegador, resumidas, que quedan acá (11/10, Leandro: para que el bot juegue
- * como una persona, con los números de una). Se copian desde el panel de balance, pestaña Pruebas.
- */
-const MINE_KEY = 'gk.misPartidas';
-const MAX_MINE = 20;
 /** Los tiros de una partida que anotan cuándo se soltó: de sobra (una partida entera son unos 300). */
 const MAX_OFFS = 1500;
-
-/** Una partida, resumida: tiros, cuántos pegaron, con qué golpe salió cada uno (1 a 4), y la vida perdida. */
-export interface MyRun {
-  at: string;
-  level: number;
-  result: string;
-  wave: number;
-  seconds: number;
-  shots: number;
-  hits: number;
-  q: number[];
-  abilities: number;
-  hurt: number;
-  gate: number;
-  /** A cuántos ms del tope de la barra se soltó cada tiro: negativo, antes; positivo, se pasó. */
-  off?: number[];
-}
-
-/** Las partidas de este navegador que se anotaron (las de la persona: el bot y las pruebas no). */
-export function myRuns(): MyRun[] {
-  return read<MyRun[]>(MINE_KEY, []);
-}
-
-/**
- * Lo que se le copia al bot de unas partidas: tiros por minuto, qué parte pega, qué parte sale con cada
- * golpe (del 1 al 4), habilidades por minuto y la vida (y la puerta) que se pierde por minuto. Sin las de
- * menos de medio minuto (se dejaron apenas empezadas).
- */
-export function summarizeRuns(runs: MyRun[]): Record<string, number | number[]> {
-  const list = runs.filter((r) => r.seconds >= 30);
-  const total = (f: (r: MyRun) => number) => list.reduce((n, r) => n + f(r), 0);
-  const minutes = total((r) => r.seconds) / 60;
-  const shots = total((r) => r.shots);
-  const q = [0, 1, 2, 3].map((i) => total((r) => r.q?.[i] ?? 0));
-  const graded = q.reduce((a, b) => a + b, 0);
-  const round = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
-  const per = (v: number) => (minutes > 0 ? round(v / minutes) : 0);
-  return {
-    partidas: list.length,
-    ganadas: list.filter((r) => r.result === 'victory').length,
-    minutos: round(minutes, 1),
-    oleada: list.length ? round(total((r) => r.wave) / list.length, 1) : 0,
-    tirosPorMinuto: per(shots),
-    pegan: shots ? round(total((r) => r.hits) / shots) : 0,
-    golpes: q.map((n) => (graded ? round(n / graded) : 0)),
-    habilidadesPorMinuto: per(total((r) => r.abilities)),
-    vidaPorMinuto: per(total((r) => r.hurt)),
-    puertaPorMinuto: per(total((r) => r.gate)),
-    ...releaseStats(list.flatMap((r) => r.off ?? [])),
-  };
-}
-
-/**
- * Cuándo se suelta, sobre el tope de la barra (ms; ver SwingMeter.offPeak): qué parte sale antes del fuerte,
- * en el fuerte y pasado (sin las mejoras de la barra, el fuerte son ±30 ms alrededor del tope), el promedio y
- * el desvío de los que quedan cerca del tope (±250 ms: los que buscaban el 3), y cuántos caen en cada tramo
- * de 25 ms. Para que el bot humano le erre como una persona.
- */
-export function releaseStats(offs: number[], half = 30): Record<string, number | number[]> {
-  if (!offs.length) return { soltadas: 0 };
-  const share = (f: (o: number) => boolean) => Math.round((100 * offs.filter(f).length) / offs.length) / 100;
-  const near = offs.filter((o) => Math.abs(o) <= 250);
-  const mean = near.length ? near.reduce((a, b) => a + b, 0) / near.length : 0;
-  const sd = near.length > 1 ? Math.sqrt(near.reduce((a, b) => a + (b - mean) ** 2, 0) / (near.length - 1)) : 0;
-  // de −250 a +250 en tramos de 25 ms (el primero junta todo lo de antes, y el último todo lo de después)
-  const bins = Array.from({ length: 22 }, () => 0);
-  for (const o of offs) bins[Math.max(0, Math.min(21, Math.floor((o + 250) / 25) + 1))]++;
-  return {
-    soltadas: offs.length,
-    antesDelFuerte: share((o) => o < -half),
-    enElFuerte: share((o) => Math.abs(o) <= half),
-    pasado: share((o) => o > half),
-    cercaPromedioMs: Math.round(mean),
-    cercaDesvioMs: Math.round(sd),
-    cadaVeinticincoMs: bins,
-  };
-}
 
 /** Lo que pasó en una oleada. */
 export interface WaveLog {
@@ -163,8 +80,8 @@ function uuid(): string {
   });
 }
 
-/** El id de este navegador: al azar, la primera vez. */
-function playerId(): string {
+/** El id de este navegador: al azar, la primera vez. Con él se encuentran las partidas de uno en Supabase. */
+export function playerId(): string {
   let id = read<string>(PLAYER_KEY, '');
   if (!id) {
     id = uuid();
@@ -341,7 +258,7 @@ export class RunRecorder {
   }
 
   /** Terminó (o se dejó): queda en la cola y se intenta mandar. */
-  finish(result: Row['result'], extra: { cause?: string; score: number; hp: number; gate: number; build: unknown }): void {
+  finish(result: Row['result'], extra: { cause?: string; score: number; hp: number; gate: number; build: unknown; bot?: boolean }): void {
     if (this.done) return;
     this.done = true;
     this.closeWave();
@@ -372,13 +289,6 @@ export class RunRecorder {
     });
     // también al cerrar la pestaña: el primer envío sale en el acto, con keepalive
     void flushRuns();
-    const q = [0, 0, 0, 0];
-    for (const w of this.waves) w.q?.forEach((n, i) => { q[i] += n; });
-    const total = (k: 'hurt' | 'gate') => this.waves.reduce((n, w) => n + w[k], 0);
-    write(MINE_KEY, [...myRuns(), {
-      at: this.startedAt, level: this.info.level, result, wave: this.now?.n ?? 0, seconds: Math.round(this.clock),
-      shots: sum('shots'), hits: sum('hits'), q, abilities: this.sum('abilities'), hurt: total('hurt'), gate: total('gate'), off: this.offs,
-    }].slice(-MAX_MINE));
   }
 
   get finished(): boolean {

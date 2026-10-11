@@ -259,7 +259,7 @@ function buildForLog(): unknown {
 }
 // la partida que se deja por la mitad (se cierra la pestaña, o R desde la pausa) queda como abandonada
 addEventListener('pagehide', () => {
-  if (recorder && !recorder.finished && !ended) recorder.finish('abandoned', { score, hp: player?.hp ?? 0, gate: gateHp, build: buildForLog() });
+  if (recorder && !recorder.finished && !ended) recorder.finish('abandoned', { score, hp: player?.hp ?? 0, gate: gateHp, build: buildForLog(), bot: botStarted || undefined });
 });
 let player: Player;
 let gateHp = GATE_MAX;
@@ -768,7 +768,8 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   // al ganar, el cartel espera a que se vea el festejo: tapa la cancha con un velo oscuro
   if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(info); }, VICTORY_CARD_DELAY_MS);
   else hud.showEnd(info);
-  recorder?.finish(result, { cause, score, hp: player.hp, gate: gateHp, build: buildForLog() });
+  // si el bot jugó un rato (prendido desde el panel), queda marcada: no es una partida de una persona
+  recorder?.finish(result, { cause, score, hp: player.hp, gate: gateHp, build: buildForLog(), bot: botStarted || undefined });
   if (result === 'victory') audio.victory();
   else audio.defeat();
 }
