@@ -10,6 +10,13 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 11 de octubre
 
 **La dificultad**
+- La pantalla de la dificultad, más linda: las opciones de cada escalón van centradas y de entrada está
+  elegida la del medio, así la línea dorada corre derecha; el número del escalón va chiquito arriba de
+  cada tarjeta, hay más aire, y las tarjetas se agrandan al pasar el mouse y al elegirlas. `a6f7c65`
+- **Cada opción hace siempre lo que dice**, elijas lo que elijas en los otros escalones. Las que se
+  repiten traen su número y se suman: «Más rápidos» +10, +15 y +20 %; «Recarga lenta» +35 y +65 %;
+  hechiceros, un 10 y un 15 % de cada oleada. Lo que tenías elegido volvió a las opciones de entrada.
+  `a6f7c65` También en la app de Windows. `ec4c7b2`
 - **La pantalla de la dificultad, nueva**: ocupa toda la pantalla, con los escalones de izquierda a
   derecha (en el celular parado, de arriba hacia abajo), tarjetas del mismo tamaño y una línea dorada que
   une lo que elegiste. Abajo dice qué hace la opción que señalás. `210d12b`
