@@ -1,6 +1,7 @@
 // Las partidas se mandan solas al terminar (3/10, pedido de Leandro), para ver dónde pierde la gente y
-// balancear con datos en vez de capturas. Van a Supabase, al mismo proyecto que el ManaMod, a la tabla
-// golf_runs (ver docs/telemetria.sql). Sin datos personales: un id al azar por navegador.
+// balancear con datos en vez de capturas. Van a Supabase, al proyecto del Golf Knight (desde el 11/10;
+// antes estaban en el del ManaMod), a la tabla golf_runs (ver docs/telemetria.sql). Sin datos personales:
+// un id al azar por navegador. Se leen desde la compu con npm run partidas (tools/partidas.mts).
 //
 // Como en el ManaMod, lo que no sale queda en una cola en el navegador y se manda la próxima vez: sin
 // internet, o si la tabla todavía no existe. La partida que se deja por la mitad (se cierra la pestaña o
@@ -9,9 +10,9 @@
 
 import { lang } from './i18n';
 
-const ENDPOINT = 'https://kdwiuiciobekuedpmfpj.supabase.co/rest/v1/golf_runs';
-/** La clave pública del proyecto: con la regla de la tabla, solo deja agregar partidas, no leerlas. */
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtkd2l1aWNpb2Jla3VlZHBtZnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MzQ1MDYsImV4cCI6MjA4OTIxMDUwNn0.Cm1fWVHTGQpfUDABRlLX4yFXayGyy_xD6ettzV2zJNQ';
+const ENDPOINT = 'https://qdcrurklskmjizmvxwzb.supabase.co/rest/v1/golf_runs';
+/** La clave pública del proyecto: con los permisos de la tabla, solo deja agregar partidas, no leerlas. */
+const ANON_KEY = 'sb_publishable_MB2YNHXqYs7-_cpDPiwEvw_xm_sg18u';
 const QUEUE_KEY = 'gk.partidas';
 const PLAYER_KEY = 'gk.jugador';
 /** Más que esto en la cola y se tiran las más viejas: sin red por mucho tiempo no se llena el navegador. */
