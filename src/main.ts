@@ -1033,7 +1033,7 @@ balls.onEvent = (e) => {
       // las rachas cuentan los tiros del puesto, no las habilidades
       if (e.ability) break;
       if (e.hits === 0) setCleanStreak(0);
-      else recorder?.hit();
+      else recorder?.hit(e.hits);
       break;
   }
 };

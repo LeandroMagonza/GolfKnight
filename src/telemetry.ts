@@ -32,6 +32,8 @@ export interface WaveLog {
   perfects: number;
   /** Cuántos tiros salieron con cada golpe: del 1 al 4 (11/10: para que el bot juegue como una persona). */
   q?: number[];
+  /** De los tiros que pegaron, cuántos tocaron a 1, 2, 3 y 4 o más enemigos (11/10). */
+  multi?: number[];
   kills: number;
   /** Bajas de más de un mismo tiro (un doblete suma 1, un triplete 2): lo que cuentan el albañil y el herrero. */
   extra: number;
@@ -173,7 +175,7 @@ export class RunRecorder {
   wave(n: number, title: string, mod?: string): void {
     this.closeWave();
     this.waveStart = this.clock;
-    this.waves.push({ n, title, ...(mod ? { mod } : {}), seconds: 0, shots: 0, hits: 0, perfects: 0, q: [0, 0, 0, 0], kills: 0, extra: 0, damage: 0, shotDamage: 0, abilities: 0, hurt: 0, gate: 0, by: {} });
+    this.waves.push({ n, title, ...(mod ? { mod } : {}), seconds: 0, shots: 0, hits: 0, perfects: 0, q: [0, 0, 0, 0], multi: [0, 0, 0, 0], kills: 0, extra: 0, damage: 0, shotDamage: 0, abilities: 0, hurt: 0, gate: 0, by: {} });
   }
 
   private closeWave(): void {
@@ -199,9 +201,12 @@ export class RunRecorder {
     return { waves: this.waves, cards: this.cards, offs: this.offs };
   }
 
-  /** Un tiro de palo terminó y le pegó a alguien. */
-  hit(): void {
-    if (this.now) this.now.hits++;
+  /** Un tiro de palo terminó y le pegó a alguien: a `enemies` distintos. */
+  hit(enemies = 1): void {
+    const w = this.now;
+    if (!w) return;
+    w.hits++;
+    if (w.multi && enemies >= 1) w.multi[Math.min(4, Math.floor(enemies)) - 1]++;
   }
 
   /** Daño a un enemigo; `shot`: de un tiro de palo. */

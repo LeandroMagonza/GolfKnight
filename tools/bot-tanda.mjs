@@ -98,6 +98,9 @@ async function play(job) {
           abilities: log ? log.waves.reduce((n, w) => n + w.abilities, 0) : null,
           // a cuántos ms del tope de la barra soltó cada tiro (como en «Copiar mis números»)
           offs: log?.offs ?? null,
+          // bajas de más de un mismo tiro, y de los que pegaron, a cuántos tocó (1, 2, 3, 4 o más)
+          extra: log ? log.waves.reduce((n, w) => n + w.extra, 0) : null,
+          multi: log ? log.waves.reduce((all, w) => all.map((n, i) => n + (w.multi?.[i] ?? 0)), [0, 0, 0, 0]) : null,
         };
       });
       if (r.ended) break;
@@ -128,7 +131,7 @@ for (const r of results) {
   groups.get(k).push(r);
 }
 const avg = (list, f) => (list.length ? list.reduce((n, r) => n + (f(r) ?? 0), 0) / list.length : 0);
-console.log('\ndificultad · nivel: ganó / jugó · oleada promedio · puerta perdida · vida perdida · tiros que pegan · tiros por minuto · golpes 1-2-3-4 · soltando: antes del fuerte, en el fuerte, pasado (y el desvío cerca del tope)');
+console.log('\ndificultad · nivel: ganó / jugó · oleada promedio · puerta perdida · vida perdida · tiros que pegan · tiros por minuto · golpes 1-2-3-4 · soltando: antes del fuerte, en el fuerte, pasado (y el desvío cerca del tope) · bajas por tiro · bajas de más cada 100 tiros · de los que pegan, a varios');
 for (const [k, list] of groups) {
   const won = list.filter((r) => r.result === 'victory').length;
   const q = [0, 1, 2, 3].map((i) => list.reduce((n, r) => n + (r.q?.[i] ?? 0), 0));
@@ -136,11 +139,15 @@ for (const [k, list] of groups) {
   const minutes = list.reduce((n, r) => n + (r.clock ?? 0), 0) / 60 || 1;
   const shots = list.reduce((n, r) => n + (r.shots ?? 0), 0);
   const offs = list.flatMap((r) => r.offs ?? []);
+  const kills = list.reduce((n, r) => n + (r.kills ?? 0), 0);
+  const extra = list.reduce((n, r) => n + (r.extra ?? 0), 0);
+  const multi = [0, 1, 2, 3].map((i) => list.reduce((n, r) => n + (r.multi?.[i] ?? 0), 0));
+  const hitMulti = multi.reduce((a, b) => a + b, 0);
   const share = (f) => Math.round((100 * offs.filter(f).length) / Math.max(1, offs.length));
   const near = offs.filter((o) => Math.abs(o) <= 250);
   const mean = near.reduce((a, b) => a + b, 0) / Math.max(1, near.length);
   const sd = Math.sqrt(near.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, near.length - 1));
-  console.log(`${k}: ${won}/${list.length} · oleada ${avg(list, (r) => r.wave).toFixed(1)} · puerta −${avg(list, (r) => r.gateLost).toFixed(1)} · vida −${avg(list, (r) => r.hurt).toFixed(1)} · ${Math.round(100 * avg(list, (r) => r.hit / Math.max(1, r.hit + r.miss)))} % · ${(shots / minutes).toFixed(1)}/min · ${q.map((n) => Math.round((100 * n) / graded)).join('-')} % · soltando ${share((o) => o < -30)}-${share((o) => Math.abs(o) <= 30)}-${share((o) => o > 30)} % (±${Math.round(sd)} ms)`);
+  console.log(`${k}: ${won}/${list.length} · oleada ${avg(list, (r) => r.wave).toFixed(1)} · puerta −${avg(list, (r) => r.gateLost).toFixed(1)} · vida −${avg(list, (r) => r.hurt).toFixed(1)} · ${Math.round(100 * avg(list, (r) => r.hit / Math.max(1, r.hit + r.miss)))} % · ${(shots / minutes).toFixed(1)}/min · ${q.map((n) => Math.round((100 * n) / graded)).join('-')} % · soltando ${share((o) => o < -30)}-${share((o) => Math.abs(o) <= 30)}-${share((o) => o > 30)} % (±${Math.round(sd)} ms) · ${(kills / Math.max(1, shots)).toFixed(2)} · ${((100 * extra) / Math.max(1, shots)).toFixed(1)} · ${Math.round((100 * (hitMulti - multi[0])) / Math.max(1, hitMulti))} %`);
 }
 console.log(`\n${((Date.now() - t0) / 60000).toFixed(1)} minutos · ${out}`);
 await browser.close();

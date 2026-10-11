@@ -15,9 +15,12 @@ export interface RunRow {
   data: {
     shots?: number;
     hits?: number;
+    kills?: number;
+    /** Bajas de más de un mismo tiro (un doblete suma 1). */
+    extra?: number;
     host?: string;
     bot?: boolean;
-    waves?: { q?: number[]; abilities?: number; hurt?: number; gate?: number }[];
+    waves?: { q?: number[]; multi?: number[]; abilities?: number; hurt?: number; gate?: number }[];
     /** A cuántos ms del tope de la barra se soltó cada tiro (desde el 11/10). */
     releases?: number[];
   };
@@ -47,6 +50,15 @@ export function summarize(rows: RunRow[]): Record<string, number | number[]> {
     tirosPorMinuto: per(shots),
     pegan: shots ? round(total((r) => r.data.hits ?? 0) / shots) : 0,
     golpes: q.map((n) => (graded ? round(n / graded) : 0)),
+    bajasPorTiro: shots ? round(total((r) => r.data.kills ?? 0) / shots) : 0,
+    // las bajas de más (un doblete suma 1) cada 100 tiros
+    dobletesCada100: shots ? round((100 * total((r) => r.data.extra ?? 0)) / shots, 1) : 0,
+    // de los que pegaron, qué parte tocó a 2 o más (desde el 11/10)
+    aVarios: (() => {
+      const m = [0, 1, 2, 3].map((i) => total((r) => waves(r).reduce((n, w) => n + (w.multi?.[i] ?? 0), 0)));
+      const all = m.reduce((a, b) => a + b, 0);
+      return all ? round((all - m[0]) / all) : 0;
+    })(),
     habilidadesPorMinuto: per(total((r) => waves(r).reduce((n, w) => n + (w.abilities ?? 0), 0))),
     vidaPorMinuto: per(total((r) => waves(r).reduce((n, w) => n + Math.min(w.hurt ?? 0, 99), 0))),
     puertaPorMinuto: per(total((r) => waves(r).reduce((n, w) => n + Math.min(w.gate ?? 0, 99), 0))),
