@@ -135,6 +135,12 @@ export interface BotSkill {
   /** Si en promedio suelta tarde (s; negativo, temprano): la mano que se pasa del tope. */
   late?: number;
   /**
+   * El error al adelantarse al que camina (el desvío típico, en fracción de lo que camina el blanco hasta
+   * que llega la pelota). El perfecto calcula exacto adónde va a estar; una persona le erra más cuanto más
+   * rápido va y más lejos está (11/10, Leandro: si no, al bot le daba lo mismo la velocidad de los enemigos).
+   */
+  lead?: number;
+  /**
    * El golpe más bajo que busca (salvo el cebo, que sale enseguida). Sin esto, el que alcanza: al que tiene
    * 1 de vida le suelta enseguida. Cargando siempre hasta el 3 (11/10), el humano tiraba la mitad y en el
    * nivel 0 perdía en la segunda oleada.
@@ -152,15 +158,18 @@ export const BOT_SKILLS: Record<string, BotSkill> = {
   // (los poderes, los puestos, correrse de los hechizos), pero no alinea al driver ni cuenta las curas.
   // Ajustado con una partida de Leandro (npm run partidas; nivel 10, perdió en la oleada 6): 36 tiros por
   // minuto, pega el 77 %, golpes 1-2-3 44-36-20 %, y cerca del tope suelta 14 ms antes con ±33 ms (se pasa
-  // en el 6 %). Con esto, en sus condiciones: oleada 5.5, pega el 77 %, 32 tiros por minuto, 58-22-20 %
-  humano: { think: 0.15, aimError: 0.5, timing: 1, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: false, pause: 0.05, release: 0.035, late: -0.015 },
+  // en el 6 %). Y se adelanta como una persona: le erra un 30 % de lo que camina el blanco, así los más
+  // rápidos le cuestan más. Con esto, en sus condiciones (tres partidas, oleada 4.3 en promedio): oleada 4.2,
+  // pega el 73-77 %, 32 tiros por minuto, golpes 59-20-21 %
+  humano: { think: 0.15, aimError: 0.45, timing: 1, fixedQuality: null, align: false, posts: true, bait: true, evade: true, shields: true, abilities: true, regen: false, pause: 0.05, release: 0.035, late: -0.015, lead: 0.3 },
 };
 
 /**
  * El nivel del bot, con lo que diga la dirección encima (para ajustar el humano sin tocar el código):
  * `&pausa=0.5` (s antes de cada tiro), `&error=0.4` (m de puntería), `&suelta=0.04` (s de error al soltar),
  * `&piensa=0.3` (s entre decisiones), `&golpe=2` (el golpe más bajo que busca), `&tarde=0.01` (s que en
- * promedio se pasa al soltar; negativo, que se adelanta).
+ * promedio se pasa al soltar; negativo, que se adelanta), `&adelanto=0.25` (el error al adelantarse al que
+ * camina, en fracción de lo que camina).
  */
 function skillFrom(name: string, params: URLSearchParams): BotSkill {
   const skill = { ...(BOT_SKILLS[name] ?? BOT_SKILLS.perfecto) };
@@ -171,6 +180,7 @@ function skillFrom(name: string, params: URLSearchParams): BotSkill {
   if (params.has('tarde') && Number.isFinite(Number(params.get('tarde')))) skill.late = Number(params.get('tarde'));
   skill.think = num('piensa') ?? skill.think;
   skill.minQ = num('golpe') ?? skill.minQ;
+  skill.lead = num('adelanto') ?? skill.lead;
   return skill;
 }
 
@@ -409,6 +419,8 @@ interface Plan {
   /** El error de puntería de este tiro (fijo para todo el tiro, como el pulso de una persona). */
   nx: number;
   nz: number;
+  /** Cuánto se pasa (o se queda corto) al adelantarse, en fracción de lo que camina el blanco (ver `lead`). */
+  nl?: number;
 }
 
 /** Lo que agarra la línea de un tiro: a quiénes, a qué distancia y cuándo, y si la devuelve un escudo. */
@@ -838,7 +850,7 @@ export function startBot(): BotStats {
   /** El mejor tiro contra `e` desde `o` (el puesto `spot`, a `walk` s de ir), o null si no tiene uno. */
   function planFor(e: Enemy, o: THREE.Vector3, spot: number, walk: number, times: ChargeTimes): Plan | null {
     const noise = () => (skill.aimError ? gauss() * skill.aimError : 0);
-    const make = (club: Club, q: number, mode: Plan['mode'], score: number): Plan => ({ target: e.id, club, q, spot, shift: null, mode, score, nx: noise(), nz: noise() });
+    const make = (club: Club, q: number, mode: Plan['mode'], score: number): Plan => ({ target: e.id, club, q, spot, shift: null, mode, score, nx: noise(), nz: noise(), nl: skill.lead ? gauss() * skill.lead : 0 });
     const near = Math.hypot(e.position.x - o.x, e.position.z - o.z);
     const tops = qualities();
     // el de antes: driver o putter en el golpe fijo, a lo que esté
@@ -1262,15 +1274,17 @@ export function startBot(): BotStats {
       aim(e.position.x, e.position.z);
       return true;
     }
+    // el que se adelanta como una persona: se pasa o se queda corto en una parte de lo que camina el blanco
+    const lead = (x: number, z: number) => ({ x: x + (p.nl ?? 0) * (x - e.position.x), z: z + (p.nl ?? 0) * (z - e.position.z) });
     if (p.mode === 'head') {
       const h = headShot(e, p.q, tee, left);
       if (!h) return false;
-      aim(h.x + p.nx, h.z + p.nz);
+      const l = lead(h.x, h.z);
+      aim(l.x + p.nx, l.z + p.nz);
       return true;
     }
     const hit = intercept(e, p.club, p.q, tee, left);
-    const x = hit ? hit.x : e.position.x;
-    const z = hit ? hit.z : e.position.z;
+    const { x, z } = hit ? lead(hit.x, hit.z) : { x: e.position.x, z: e.position.z };
     // el wedge cae al lado del blanco (detrás o al costado), donde se eligió
     aim(x + (p.offset?.x ?? 0) + p.nx, z + (p.offset?.z ?? 0) + p.nz);
     // el combo: cuándo tirar el silenciador, para que llegue justo antes que esta pelota
