@@ -9,6 +9,14 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 11 de octubre
 
+**Los enemigos**
+- **Los intocables, con ritmo**: ciclos mucho más cortos, para timear el golpe. Van en tres grupos que
+  se turnan: en cada momento hay un grupo abierto y los otros dos cerrados (0.8 s abierto, 1.6 s
+  cerrado). El élite y el jefe, igual que los comunes. Y **llegan abiertos a la línea**: ya no se cierran
+  a unos metros sin que puedas hacer nada. `b6f5336`
+- **El que se cura ya no se cura justo antes de la línea**: si le tocaba ahí, se cura justo después de
+  cruzarla, así el último ciclo antes de la línea es entero. `b6f5336`
+
 **La dificultad**
 - La pantalla de la dificultad, más linda: las opciones de cada escalón van centradas y de entrada está
   elegida la del medio, así la línea dorada corre derecha; el número del escalón va chiquito arriba de
