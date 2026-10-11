@@ -10,6 +10,19 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 11 de octubre
 
 **La dificultad**
+- **La pantalla de la dificultad, nueva**: ocupa toda la pantalla, con los escalones de izquierda a
+  derecha (en el celular parado, de arriba hacia abajo), tarjetas del mismo tamaño y una línea dorada que
+  une lo que elegiste. Abajo dice qué hace la opción que señalás. `210d12b`
+- **Hechiceros**, una dificultad nueva: se suman hechiceros que te tiran desde lejos. No van a la puerta,
+  así que no hace falta matarlos para pasar de oleada, pero se quedan y se juntan. Antes eran uno de los
+  apoyos. `6a64925`
+- La escalera, reordenada: la escolta del jefe va con las livianas, «Más con poder» va sola, el terreno
+  irregular en el 7 y el golpe 4 al final. Los textos de «Poderes más duros» y «Golpe 4», más cortos.
+  `6a64925` Todo esto, también en la app de Windows. `79f7bf2`
+
+**La carga**
+- Con el golpe 4, el arco de carga ya no acelera la aguja en el rojo: va siempre a la misma velocidad, y
+  el 3 y el 4 sobresalen del arco, con una rayita en cada borde, para que se vean. `210d12b`
 - **La dificultad ahora es una escalera de 10 niveles.** En cada nivel se suma un escalón, y en casi todos
   elegís una de dos o tres opciones (las del mismo escalón no van juntas). Ganar en tu nivel más alto
   desbloquea el siguiente. En el menú subís y bajás el nivel con − y +, y podés cambiar lo elegido en
@@ -30,7 +43,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   y suelta con error de mano, así a veces busca el 3 y le sale un 2, o se pasa. Y las pruebas del bot se
   pueden correr **sin dibujar** (`?liviano&velocidad=12`): una partida entera en menos de 2 minutos, sin
   frenar la compu. `86177ce` El humano quedó ajustado con una partida de verdad: en las mismas condiciones
-  llega a la misma oleada, pega lo mismo y suelta igual. `192255d`
+  llega a la misma oleada, pega lo mismo y suelta igual. `192255d` Y se adelanta como una persona: a los
+  enemigos más rápidos les erra más. `057427d`
 - Cada partida anota también a cuántos enemigos tocó cada tiro, para comparar las tuyas con las del bot.
   `f25e348`
 
