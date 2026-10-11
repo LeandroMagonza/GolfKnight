@@ -20,6 +20,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Todo esto, también en la app de Windows. `d014a33` `05abed3`
 
 **La dificultad**
+- **Golpe 4**: los élites y el jefe ya no traen vida de más (los comunes siguen con +1). Con el golpe 4
+  encima de todo lo demás no se pasaba del primer jefe. Y **«Más rápidos»**, más parejo: +8, +12 y +15 %
+  (eran +10, +15 y +20). `824af2c` También en la app de Windows. `99565c0`
 - La pantalla de la dificultad, más linda: las opciones de cada escalón van centradas y de entrada está
   elegida la del medio, así la línea dorada corre derecha; el número del escalón va chiquito arriba de
   cada tarjeta, hay más aire, y las tarjetas se agrandan al pasar el mouse y al elegirlas. `a6f7c65`
