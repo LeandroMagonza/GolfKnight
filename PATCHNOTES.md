@@ -22,7 +22,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   a unos metros sin que puedas hacer nada. `b6f5336` Con poca dificultad, **dos tiempos** en el mismo
   ciclo: 1.2 s abierto y 1.2 s cerrado. `ec57c4f`
 - **El que se cura ya no se cura justo antes de la línea**: si le tocaba ahí, se cura justo después de
-  cruzarla, así el último ciclo antes de la línea es entero. `b6f5336`
+  cruzarla, así el último ciclo antes de la línea es entero. `b6f5336` Y **su ciclo arranca con tu primer
+  golpe**: sano no corre, y al curarse se queda quieto hasta que le vuelvas a pegar. Abrís con un golpe
+  fuerte y tenés un ciclo entero para rematarlo. `179b817`
 - Todo esto, también en la app de Windows. `d014a33` `05abed3`
 
 **La dificultad**
