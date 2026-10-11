@@ -12,7 +12,7 @@ import { fieldHalfAt, laneX, spawnAt, trapezoidOn, vanishZ } from '../core/field
 import { ABE_BOLT, BOLT_INFO } from '../coop/spells';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, phaseSlot, regenPace, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { EF, r2, r3, type EnemySnap, type ProjSnap } from '../net/snapshot';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
@@ -104,6 +104,11 @@ interface Rock {
 }
 
 let nextId = 1;
+/**
+ * El reloj del ritmo de los intocables (ver PHASE): uno para todos, así se turnan. Lo hace correr la horda;
+ * en el que mira no corre (el estado llega en la foto).
+ */
+let phaseClock = 0;
 const shadowGeo = new THREE.CircleGeometry(1, 20);
 /** El círculo oscuro bajo cada enemigo: la sombra de mentira, que se apaga cuando hay sombras de verdad. */
 export const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false });
@@ -481,11 +486,16 @@ export class Enemy {
   regenGlow = 0;
   /** El que mira: el ciclo que dice la foto (-1 en el que juega). */
   private remoteRegen = -1;
+  /** Lo que se frena (o se apura) su ciclo para no curarse justo antes de la línea (ver regenPace). */
+  regenRate = 1;
+  /** Qué parte de su paso lo acerca a la línea (camina en diagonal hacia la puerta): para `lineEta`. */
+  private towardLine = 1;
   /**
-   * El intocable (ver PHASE): cuánto lleva de su ciclo (primero invulnerable, después la ventana). Arranca
-   * en un punto al azar, así no se abren todos juntos. En el que mira, lo que dice la foto (ver `phaseBar`).
+   * El intocable (ver PHASE): su grupo en el ritmo (lo pone la horda al aparecer), y si va llegando a la
+   * línea, abierto hasta cruzarla. En el que mira, lo que dice la foto (ver `phaseBar`).
    */
-  phaseTime = 0;
+  phaseGroup = 0;
+  private phaseHeld = false;
   private remotePhase: number | null = null;
   /** Prendido fuego: segundos que le quedan, y cuánto falta para el próximo mordisco. */
   burnTimer = 0;
@@ -589,8 +599,6 @@ export class Enemy {
     this.behavior = behaviorOf(stats, mods);
     this.position = this.group.position;
     this.maxHp = this.hp = Math.max(1, stats.hp + (mods.hp ?? 0));
-    // el intocable arranca en un punto cualquiera de su ciclo: así no se abren todos juntos
-    if (mods.phase) this.phaseTime = Math.random() * this.phaseCycle;
     this.divineReady = !!this.divineEvery;
     if (this.divineEvery) {
       this.bubble = new THREE.Mesh(bubbleGeo, new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.22, depthWrite: false }));
@@ -797,10 +805,34 @@ export class Enemy {
   /** Con frío encima: camina lento. Nada más: el escudo y el aura ya no se los saca el hielo. */
   /** A qué velocidad camina ahora, con el frío encima. */
   get walkSpeed(): number {
-    if (this.frozen) return 0;
+    return this.frozen ? 0 : this.pace;
+  }
+
+  /** A qué velocidad camina cuando camina (sin contar el hielo que lo tiene quieto). */
+  private get pace(): number {
     const speed = this.stats.speed * this.speedMul * (this.mods.speed ?? 1);
     // el frío frena mucho a los rápidos y poco a los lentos (ver chilledSpeed)
     return this.chilled ? chilledSpeed(speed) : speed;
+  }
+
+  /** Se planta lejos de la puerta (el chamán que conjura, el gólem, la abanderada, el hechicero, el geomante cavando). */
+  private get plants(): boolean {
+    const b = this.behavior;
+    return (b === 'shaman' && !this.forsaken) || b === 'golem' || b === 'banner' || b === 'ranged' || (b === 'geomancer' && this.digState !== 'done');
+  }
+
+  /**
+   * Cuánto le falta para llegar a la línea del golfista, a su paso de ahora: lo que le quede congelado o
+   * aturdido, más lo que le falta caminar (los empujones y el frío que se le pasa no los cuenta). 0 si ya
+   * está en la línea; Infinity si no va para ahí (se planta, lo desvía la bandera, va por el golfista) o si
+   * ya pasó. Lo usan el intocable y el que se cura.
+   */
+  lineEta(): number {
+    if (this.passed || !this.alive || this.target !== 'gate' || this.lureTimer > 0 || this.grabbing || this.plants) return Infinity;
+    const d = this.position.z - TEE_Z;
+    if (d <= 0) return 0;
+    const speed = Math.min(this.pace, this.paceCap) * this.towardLine;
+    return speed > 0.01 ? Math.max(this.frozenTimer, this.stunTimer) + d / speed : Infinity;
   }
 
   get chilled(): boolean {
@@ -1147,38 +1179,64 @@ export class Enemy {
       this.divineTimer = Math.max(this.divineTimer, this.divineEvery);
     }
     if (this.mods.dodge) this.dodgeLeft = Math.max(this.dodgeLeft, this.mods.dodgeEvery ?? DODGE.cooldown);
-    // el que se cura: el ciclo vuelve a empezar, y corre recién cuando se le pasa. El intocable, igual:
-    // silenciado es vulnerable, y cuando se le pasa arranca invulnerable
+    // el que se cura: el ciclo vuelve a empezar, y corre recién cuando se le pasa. El intocable, silenciado,
+    // es vulnerable; cuando se le pasa vuelve a su turno del ritmo
     this.regenTime = 0;
-    this.phaseTime = 0;
   }
 
-  /** El intocable: cuánto rato del ciclo es invulnerable (el élite, menos; con «Poderes más duros», más). */
-  private get phaseShutSeconds(): number {
-    return this.mods.phaseShut ?? (this.size > 1 ? PHASE.eliteShut : PHASE.shut);
-  }
-
-  /** El intocable: el ciclo entero, invulnerable más la ventana. */
-  get phaseCycle(): number {
-    return this.phaseShutSeconds + (this.mods.phase ?? 0);
-  }
-
-  /** El intocable está en la parte invulnerable de su ciclo. Silenciado, nunca. */
-  get phaseShut(): boolean {
-    if (!this.mods.phase || this.silenced) return false;
-    if (this.remotePhase !== null) return this.remotePhase > 0;
-    return this.phaseTime < this.phaseShutSeconds;
+  /** El intocable: lo que dura su ventana, un pulso del ritmo (ver PHASE). */
+  get phaseBeat(): number {
+    return Math.max(0.1, this.mods.phase ?? PHASE.beat);
   }
 
   /**
-   * La barra del intocable: invulnerable, lo que le queda de 1 a 0; en la ventana, lo que le queda de la
-   * ventana, en negativo (de -1 a 0).
+   * El intocable, cada cuadro: si va llegando a la línea queda abierto hasta cruzarla (a `line` pulsos o
+   * menos, o a `line + hold` si ya estaba abierto); si lo alejan, vuelve a su turno.
+   */
+  private updatePhase(): void {
+    const beat = this.phaseBeat;
+    const eta = this.lineEta();
+    if (eta > (PHASE.line + PHASE.hold) * beat) this.phaseHeld = false;
+    else if (eta <= PHASE.line * beat || phaseSlot(phaseClock, beat, this.phaseGroup).opensIn === 0) this.phaseHeld = true;
+  }
+
+  /** El intocable está cerrado (invulnerable): no es su turno y no va llegando a la línea. Silenciado, nunca. */
+  get phaseShut(): boolean {
+    if (!this.mods.phase || this.silenced) return false;
+    if (this.remotePhase !== null) return this.remotePhase > 0;
+    return !this.phaseHeld && phaseSlot(phaseClock, this.phaseBeat, this.phaseGroup).opensIn > 0;
+  }
+
+  /** El intocable: en cuánto se abre (0 si está abierto): en su turno, o al llegar a la línea. */
+  get phaseOpensIn(): number {
+    if (!this.mods.phase || this.silenced || this.phaseHeld) return 0;
+    const beat = this.phaseBeat;
+    return Math.min(phaseSlot(phaseClock, beat, this.phaseGroup).opensIn, Math.max(0, this.lineEta() - PHASE.line * beat));
+  }
+
+  /**
+   * El intocable: ¿va a estar abierto dentro de `t` s? Con `margin` s de los bordes de su ventana (al
+   * llegar a la línea queda abierto, así que ahí no hace falta).
+   */
+  phaseOpenAt(t: number, margin = 0): boolean {
+    if (!this.mods.phase) return true;
+    const beat = this.phaseBeat;
+    if (this.phaseHeld || this.lineEta() - t <= PHASE.line * beat) return true;
+    const s = phaseSlot(phaseClock + t, beat, this.phaseGroup);
+    return s.opensIn === 0 && s.openLeft >= margin && beat - s.openLeft >= margin;
+  }
+
+  /**
+   * La barra del intocable: cerrado, lo que le falta para abrirse, de 1 a 0 (lleno, dos pulsos); abierto, lo
+   * que le queda abierto, en negativo (de -1 a 0). Llegando a la línea, lo que le falta para cruzarla.
    */
   get phaseBar(): number {
     if (this.remotePhase !== null) return this.remotePhase;
-    const shut = this.phaseShutSeconds;
-    if (this.phaseTime < shut) return 1 - this.phaseTime / shut;
-    return -(1 - (this.phaseTime - shut) / Math.max(0.1, this.mods.phase ?? 1));
+    const beat = this.phaseBeat;
+    if (this.phaseHeld) return -Math.min(1, Math.max(0.05, this.lineEta() / beat));
+    const s = phaseSlot(phaseClock, beat, this.phaseGroup);
+    if (s.opensIn > 0) return Math.min(1, this.phaseOpensIn / ((PHASE.groups - 1) * beat));
+    return -(s.openLeft / beat);
   }
 
   /** Cada cuántos segundos se cura (el que se cura, ver REGEN). */
@@ -1363,7 +1421,9 @@ export class Enemy {
     // el que se cura: el ciclo se llena y al llenarse se cura entero, con su brillo verde (aunque esté
     // sano: así se le lee el ritmo). Silenciado el ciclo no corre
     if (this.mods.regen && !this.passed && !this.silenced) {
-      this.regenTime += dt;
+      // corre más lento (o un poco más rápido) para no curarse justo antes de la línea (ver regenPace)
+      this.regenRate = regenPace(this.lineEta(), this.regenPeriod, this.regenTime);
+      this.regenTime += dt * this.regenRate;
       const period = this.regenPeriod;
       if (this.regenTime >= period) {
         this.regenTime -= period;
@@ -1376,8 +1436,8 @@ export class Enemy {
       }
     }
     if (this.regenGlow > 0) this.regenGlow = Math.max(0, this.regenGlow - dt);
-    // el intocable: el ciclo corre (silenciado no: queda en el arranque, invulnerable para cuando se le pase)
-    if (this.mods.phase && !this.passed) this.phaseTime = this.silenced ? 0 : (this.phaseTime + dt) % this.phaseCycle;
+    // el intocable: el ritmo es el de todos (lo corre la horda); acá, si va llegando a la línea
+    if (this.mods.phase && !this.passed) this.updatePhase();
     if (this.hopLeft > 0) {
       this.hopLeft = Math.max(0, this.hopLeft - dt);
       this.model.position.y = Math.sin(Math.PI * (1 - this.hopLeft / DODGE.hopTime)) * DODGE.hop;
@@ -1556,6 +1616,7 @@ export class Enemy {
       const step = Math.min(speed * dt, dist);
       this.position.x += (dx / dist) * step;
       this.position.z += (dz / dist) * step;
+      if (!lured && this.target === 'gate') this.towardLine = THREE.MathUtils.clamp(-dz / dist, 0.2, 1);
       // los clips de Mixamo avanzan ~1.5 m/s caminando y ~4 m/s corriendo a velocidad 1, para un modelo de 1.8 m.
       // Con la altura que se ve: el élite y el gigante dan pasos más largos, así que mueven las piernas más
       // despacio (antes el élite agrandado caminaba a los saltitos)
@@ -1900,6 +1961,8 @@ export class Horde {
   private readonly templates = new Map<EnemyKind, Template>();
   private readonly rocks: Rock[] = [];
   private spawnCount = 0;
+  /** El grupo que le toca al próximo intocable (ver PHASE). */
+  private phaseTurn = 0;
 
   constructor(private readonly scene: THREE.Scene) {}
 
@@ -1945,6 +2008,8 @@ export class Horde {
     const template = this.templates.get(kind);
     if (!template) throw new Error(`falta el modelo de ${kind}`);
     const enemy = new Enemy(ENEMIES[kind], template, mods ?? {}, id);
+    // los intocables se turnan en grupos, repartidos en orden a medida que aparecen (ver PHASE)
+    if (mods?.phase) enemy.phaseGroup = this.phaseTurn++ % PHASE.groups;
     enemy.position.set(x, 0, z);
     this.scene.add(enemy.group);
     this.enemies.push(enemy);
@@ -2739,6 +2804,8 @@ export class Horde {
   }
 
   update(dt: number, player: Player): void {
+    // el ritmo de los intocables (ver PHASE)
+    phaseClock += dt;
     this.updatePace();
     this.updateWards();
     this.updateHeals(dt);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, POWERS, REGEN, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -529,11 +529,9 @@ describe('waves', () => {
     expect(POWERS.regen(0, () => 0, easy).regen!).toBeGreaterThan(POWERS.regen(0, () => 0, hard).regen! * 2);
     expect(POWERS.regen(0, () => 0, hard).regen).toBe(REGEN.margin);
     expect(elite(0, 'regen', 0, easy).mods!.regen!).toBeGreaterThan(REGEN.eliteMargin);
-    // el intocable: con el punto, más rato invulnerable y la ventana más corta
-    expect(POWERS.phase(0, () => 0, easy).phaseShut).toBeUndefined();
-    expect(POWERS.phase(0, () => 0, hard).phaseShut!).toBeGreaterThan(PHASE.shut);
+    // el intocable: con el punto, el pulso (y la ventana) más corto
     expect(POWERS.phase(0, () => 0, hard).phase!).toBeLessThan(POWERS.phase(0, () => 0, easy).phase!);
-    expect(elite(1, 'phase', 0, hard).mods!.phaseShut!).toBeGreaterThan(PHASE.eliteShut);
+    expect(elite(1, 'phase', 0, hard).mods!.phase).toBe(POWERS.phase(0, () => 0, hard).phase);
     // el fantasma: con el punto, 1 de vida más (el élite, 2, que con toda su vida al doble son 4)
     expect(POWERS.ethereal(0, () => 0, easy).hp).toBeUndefined();
     expect(POWERS.ethereal(0, () => 0, hard).hp).toBe(1);
@@ -561,16 +559,51 @@ describe('waves', () => {
     expect(REGEN.hp).toBeGreaterThan(0);
   });
 
-  it('el intocable: invulnerable casi siempre, con una ventana corta (más larga con poca dificultad)', () => {
+  it('el intocable: un pulso abierto y dos cerrados, el mismo para todos los tamaños (más largo con poca dificultad)', () => {
     expect(SCENARIO_POWERS).toContain('phase');
-    expect(PHASE.open).toBeLessThan(PHASE.shut);
-    expect(POWERS.phase(0, () => 0).phase).toBe(PHASE.open);
-    expect(POWERS.phase(0, () => 0, rulesFor({}).hard).phase).toBeCloseTo(PHASE.open * DIFFICULTY.recharge[0]);
-    // el élite: ventana más larga, menos rato invulnerable
-    const boss = elite(1, 'phase').mods!;
-    expect(boss.phase).toBe(PHASE.eliteOpen);
-    expect(PHASE.eliteOpen).toBeGreaterThan(PHASE.open);
-    expect(PHASE.eliteShut).toBeLessThanOrEqual(PHASE.shut);
+    expect(POWERS.phase(0, () => 0).phase).toBe(PHASE.beat);
+    expect(POWERS.phase(0, () => 0, rulesFor({}).hard).phase).toBeCloseTo(PHASE.beat * DIFFICULTY.recharge[0]);
+    // el élite y el jefe: el mismo ritmo que los comunes
+    expect(elite(1, 'phase').mods!.phase).toBe(PHASE.beat);
+    expect(elite(3, 'phase').mods!.phase).toBe(PHASE.beat);
+  });
+
+  it('el intocable: los tres grupos se turnan, uno abierto por vez', () => {
+    const b = PHASE.beat;
+    for (const clock of [0, 0.1, 0.79, 0.81, 1.7, 2.39, 2.41, 37.3]) {
+      const open = [0, 1, 2].filter((g) => phaseSlot(clock, b, g).opensIn === 0);
+      expect(open, `a los ${clock} s`).toHaveLength(1);
+    }
+    // el grupo 0 abre en el primer pulso; el 1, en el segundo; el 2, en el tercero
+    expect(phaseSlot(0.2, b, 0)).toEqual({ opensIn: 0, openLeft: b - 0.2 });
+    expect(phaseSlot(0.2, b, 1).opensIn).toBeCloseTo(b - 0.2);
+    expect(phaseSlot(0.2, b, 2).opensIn).toBeCloseTo(2 * b - 0.2);
+    // y vuelve: lo cerrado son dos pulsos
+    expect(phaseSlot(b, b, 0).opensIn).toBeCloseTo(2 * b);
+    expect(phaseSlot(3 * b + 0.1, b, 0).opensIn).toBe(0);
+  });
+
+  it('el que se cura: la cura que tocaba justo antes de la línea cae justo después', () => {
+    const period = 4;
+    // ninguna cura antes de llegar: el ciclo corre como siempre
+    expect(regenPace(Infinity, period, 1)).toBe(1);
+    expect(regenPace(2, period, 0)).toBe(1);
+    // se curaría 0.5 s antes de cruzar: se frena para curarse justo después
+    const slow = regenPace(2, period, 2.5);
+    expect(slow).toBeLessThan(1);
+    expect((period - 2.5) / slow).toBeCloseTo(2 + REGEN.after);
+    // de lejos: lo justo para que la última antes de la línea caiga después, sin frenarse de más
+    const far = regenPace(30, period, 0);
+    expect(far).toBeGreaterThanOrEqual(REGEN.slowest);
+    expect(far).toBeLessThanOrEqual(1 + REGEN.hurry);
+    const heals = Math.round((30 + REGEN.after) * far / period);
+    expect(heals * period / far).toBeCloseTo(30 + REGEN.after);
+    // si la próxima después de la línea cae apenas tarde, se apura un poco en vez de frenarse un ciclo entero
+    const hurry = regenPace(20, period, 3);
+    expect(hurry).toBeGreaterThan(1);
+    expect(hurry).toBeLessThanOrEqual(1 + REGEN.hurry);
+    // cerca de la línea, con la barra casi llena, espera a cruzar
+    expect(regenPace(1, period, period - 0.01)).toBeLessThan(0.05);
   });
 
   it('`order` fija los poderes de los tres escenarios, sin sortear (?poderes= para probar)', () => {

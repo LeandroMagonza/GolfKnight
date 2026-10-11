@@ -67,10 +67,11 @@ export interface EnemyMods {
   dodgeEvery?: number;
   /** Se cura entero cada tanto (ver REGEN): los segundos de margen que da su ciclo. */
   regen?: number;
-  /** Intocable (ver PHASE): invulnerable casi siempre; los segundos que dura su ventana vulnerable. */
+  /**
+   * Intocable (ver PHASE): invulnerable salvo en su turno; los segundos que dura su ventana, que es el
+   * pulso del ritmo (con poca dificultad, más largo).
+   */
   phase?: number;
-  /** Intocable: los segundos que pasa invulnerable, si no son los de PHASE (con «Poderes más duros», más). */
-  phaseShut?: number;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
   /**
@@ -281,10 +282,9 @@ export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal
  * - `cap`: hasta qué nivel llega el escudo.
  * - `armorRolls`: el blindaje (que no pasa de ARMOR_MAX) sale con el mayor de tantos sorteos: con 2, el
  *   blindaje 1 sale mucho menos.
- * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar, y la
- *   ventana en que el intocable es vulnerable.
+ * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar, y el
+ *   pulso del intocable (su ventana, y con ella todo el ritmo).
  * - `regen`: por cuánto se multiplica el margen del que se cura (más margen, más tarda en curarse).
- * - `shut`: por cuánto se multiplica el rato que el intocable pasa invulnerable.
  * - `ghostHp`: vida de más del fantasma (`ghostEliteHp`, la del élite).
  */
 export interface PowerHardness {
@@ -292,11 +292,10 @@ export interface PowerHardness {
   armorRolls: number;
   recharge: number;
   regen: number;
-  shut: number;
   ghostHp: number;
   ghostEliteHp: number;
 }
-export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, shut: 1.3, ghostHp: 1, ghostEliteHp: 2 };
+export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1, ghostEliteHp: 2 };
 
 /**
  * El blindaje no pasa de 2 (7/10, pedido de Leandro): con 3, al mejor golpe le entraba 1 y se terminaba
@@ -321,20 +320,68 @@ export const DIVINE = { every: 5, elite: 3 };
  * Con 6 de vida: 3 medios, 3 s, más el margen. Con flojos no llega. Silenciado no se cura, y el ciclo
  * vuelve a empezar cuando se le pasa. Trae `hp` de vida de más (no el élite, que ya trae la suya): al de
  * 2 de vida se lo mataba de un golpe y era como no tener poder.
+ *
+ * **No se cura justo antes de la línea** (11/10, pedido de Leandro: se curaba a unos metros y no quedaba
+ * tiempo de volver a bajarlo). El ciclo corre un poco más lento (o, si le falta poco, un poco más rápido)
+ * para que la cura que tocaría justo antes de cruzar la línea del golfista caiga `after` s después: así
+ * el último ciclo antes de la línea es entero. Ver `regenPace`.
+ * - `hurry`: lo más que se apura el ciclo (×1.1); si no alcanza, se frena.
+ * - `slowest`: lo más que se frena de lejos (×0.7). Cerca de la línea se frena lo que haga falta: la
+ *   barra casi llena espera a que cruce.
  */
-export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5, hp: 2 };
+export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5, hp: 2, after: 0.1, hurry: 0.1, slowest: 0.7 };
 
 /**
- * **El intocable** (5/10, idea de Leandro): casi todo el tiempo es **invulnerable**, como los que protege
- * el chamán (se lo ve violeta y las pelotas rebotan). Una barra violeta debajo de su vida se va
- * descargando en `shut` s; cuando se vacía queda **vulnerable** `open` s (la barra se pone dorada y se
- * vacía), y vuelve a ser invulnerable. Hay que tirar para que la pelota llegue en esa ventana. El élite:
- * `eliteShut` y `eliteOpen`. Con poca dificultad la ventana dura más (×la recarga), y con «Poderes más
- * duros» pasa más rato invulnerable (×`PowerHardness.shut`, en `EnemyMods.phaseShut`). Cada uno arranca en
- * un punto distinto del ciclo. El golpe fantasma le entra siempre; silenciado es vulnerable, y el ciclo
- * vuelve a empezar (invulnerable) cuando se le pasa.
+ * A qué ritmo corre el ciclo del que se cura (1, el de siempre): `eta` es lo que le falta para llegar a la
+ * línea (Infinity si no va para ahí), `period` lo que dura el ciclo y `elapsed` lo que lleva. Busca que la
+ * última cura antes de la línea caiga justo después de cruzarla (ver REGEN): de las dos que quedan
+ * alrededor, mueve la que esté más cerca, apurándose solo un poco.
  */
-export const PHASE = { shut: 3.5, open: 1.5, eliteShut: 3, eliteOpen: 2 };
+export function regenPace(eta: number, period: number, elapsed: number): number {
+  if (!Number.isFinite(eta) || eta <= 0 || period <= 0) return 1;
+  const aim = eta + REGEN.after;
+  const next = Math.max(0, period - elapsed);
+  // ninguna cura antes de cruzar: nada que mover
+  if (next >= aim) return 1;
+  // la última antes de cruzar, y la primera después
+  const before = next + Math.floor((aim - next) / period) * period;
+  const after = before + period;
+  if (after - aim < aim - before && after / aim <= 1 + REGEN.hurry) return after / aim;
+  return Math.max(eta < period ? 0 : REGEN.slowest, before / aim);
+}
+
+/**
+ * **El intocable** (5/10, idea de Leandro): **invulnerable** salvo en su ventana, como los que protege el
+ * chamán (se lo ve violeta y las pelotas rebotan). Una barra violeta debajo de su vida se va descargando;
+ * cuando se vacía queda **vulnerable** (la barra se pone dorada y se vacía), y vuelve a cerrarse.
+ *
+ * **Un ritmo para todos** (11/10, pedido de Leandro: ciclos mucho más cortos, que sea timear el golpe, y
+ * que no dependa del tamaño). Los intocables van en `groups` (3) grupos que se turnan, a un pulso de
+ * `beat` s: en cada pulso está abierto un grupo y los otros dos cerrados, así se prende uno y se apaga
+ * otro. La ventana es un pulso y lo cerrado dos. El élite y el jefe, igual que los comunes. Con poca
+ * dificultad el pulso es más largo (×la recarga). La horda reparte los grupos en orden, a medida que
+ * aparecen.
+ *
+ * **Llegando a la línea queda abierto** (11/10, pedido de Leandro: se cerraba a unos metros y no había más
+ * que dejarlo pasar). Si le falta `line` pulsos o menos para cruzar la línea del golfista se abre, y si ya
+ * estaba abierto a `line + hold` pulsos, no se cierra: llega abierto, por un tramo que varía con el ritmo
+ * (de uno a dos pulsos y medio), sin franjas fijas en la cancha.
+ *
+ * El golpe fantasma le entra siempre, y silenciado es vulnerable.
+ */
+export const PHASE = { beat: 0.8, groups: 3, line: 1, hold: 0.5 };
+
+/**
+ * Dónde va el ritmo de los intocables para el grupo `group`, con el reloj de la horda en `clock` y un pulso
+ * de `beat` s: cuánto le falta para abrirse (0 si está abierto) y cuánto le queda abierto (0 si está cerrado).
+ */
+export function phaseSlot(clock: number, beat: number, group: number): { opensIn: number; openLeft: number } {
+  const n = PHASE.groups;
+  const k = Math.floor(clock / beat);
+  const into = clock - k * beat;
+  const turn = (((group - k) % n) + n) % n;
+  return turn === 0 ? { opensIn: 0, openLeft: beat - into } : { opensIn: turn * beat - into, openLeft: 0 };
+}
 
 /** Cada cuántos segundos se cura uno de `maxHp` de vida con `margin` de margen. */
 export function regenPeriod(maxHp: number, margin: number): number {
@@ -373,14 +420,13 @@ export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: 
   banner: () => ({ banner: true }),
   // con poca dificultad, más margen (tarda más en curarse), y vida de más
   regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.regen, hp: REGEN.hp }),
-  // con poca dificultad, la ventana en que es vulnerable es más larga; con «Poderes más duros», además,
-  // pasa más rato invulnerable
-  phase: (_tier, _rand, hard = HARDEST_POWERS) => phaseMods(PHASE.open, PHASE.shut, hard),
+  // con poca dificultad, el pulso (y con él la ventana) es más largo
+  phase: (_tier, _rand, hard = HARDEST_POWERS) => phaseMods(hard),
 };
 
-/** El intocable: la ventana (`open`) y el rato invulnerable (`shut`), según la dificultad. */
-function phaseMods(open: number, shut: number, hard: PowerHardness): EnemyMods {
-  return hard.shut === 1 ? { phase: open * hard.recharge } : { phase: open * hard.recharge, phaseShut: shut * hard.shut };
+/** El intocable: su ventana, un pulso del ritmo, según la dificultad. El mismo para todos los tamaños. */
+function phaseMods(hard: PowerHardness): EnemyMods {
+  return { phase: PHASE.beat * hard.recharge };
 }
 
 /**
@@ -420,8 +466,8 @@ export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardn
   dodge: (_tier, hard = HARDEST_POWERS) => dodgeMods(hard),
   // menos margen: se lo mata con golpes medios, pero sin errar
   regen: (_tier, hard = HARDEST_POWERS) => ({ regen: REGEN.eliteMargin * hard.regen }),
-  // ventana más larga que la del común (tiene más vida), y menos rato invulnerable
-  phase: (_tier, hard = HARDEST_POWERS) => phaseMods(PHASE.eliteOpen, PHASE.eliteShut, hard),
+  // el mismo ritmo que los comunes (11/10): se turna con ellos
+  phase: (_tier, hard = HARDEST_POWERS) => phaseMods(hard),
 };
 
 /** Qué parte de los enemigos de una oleada sale con poder, y de esos, cuántos con el del escenario. */

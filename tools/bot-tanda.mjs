@@ -19,6 +19,7 @@
 //   --salida=x.jsonl dónde anota cada partida (logs/tandas/<fecha>.jsonl)
 //   --vivo           sobre el código de ahora (sin esto compila una copia y juega sobre ella: se puede seguir
 //                    cambiando el código mientras corre)
+//   --puerto=N       dónde sirve el juego (5207): otro, para correr dos tandas a la vez
 //
 // Anota cada partida apenas termina (una línea de JSON), y al final un resumen por dificultad: cuántas
 // ganó, hasta qué oleada llegó, cuánta puerta y vida perdió.
@@ -34,6 +35,7 @@ const parallel = Math.max(1, Number(opt('paralelo', 2)));
 const speed = Number(opt('velocidad', 4));
 const skills = opt('nivel', 'humano').split(',');
 const extra = opt('url', '');
+const port = Number(opt('puerto', 5207));
 const configs = args.filter((a) => !a.startsWith('--'));
 if (!configs.length) configs.push('base');
 mkdirSync('logs/tandas', { recursive: true });
@@ -55,14 +57,14 @@ if (opt('prioridad', 'baja') !== 'normal') {
 // medio de la tanda). Con --vivo, el código de ahora mismo, sin compilar
 let server;
 if (args.includes('--vivo')) {
-  server = await createServer({ root: process.cwd(), server: { port: 5207, strictPort: true }, logLevel: 'error' });
+  server = await createServer({ root: process.cwd(), server: { port, strictPort: true }, logLevel: 'error' });
   await server.listen();
 } else {
   const outDir = `logs/tanda-build/${stamp}`;
   process.env.GK_OUT = outDir;
   process.env.GK_EDITION = 'full';
   await build({ root: process.cwd(), logLevel: 'error', build: { outDir, emptyOutDir: true } });
-  server = await preview({ root: process.cwd(), logLevel: 'error', build: { outDir }, preview: { port: 5207, strictPort: true } });
+  server = await preview({ root: process.cwd(), logLevel: 'error', build: { outDir }, preview: { port, strictPort: true } });
   console.log(`compilado en ${outDir}`);
 }
 // render por software (sin la placa de video): no dibuja, y así no le compite a la pantalla de quien usa la compu
@@ -82,7 +84,7 @@ function urlFor({ config, skill }) {
   if (config.startsWith('escalera:')) q.push(`escalera=${config.slice('escalera:'.length)}`);
   else q.push(`talentos=${config === 'base' ? '' : config}`);
   if (extra) q.push(extra);
-  return `http://localhost:5207/?${q.join('&')}`;
+  return `http://localhost:${port}/?${q.join('&')}`;
 }
 
 async function play(job) {

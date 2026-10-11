@@ -1075,9 +1075,8 @@ export class DebugPanel {
       ['con poder, con 2', () => d.share[2], (v) => { d.share[2] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
       ['escudo hasta, de base', () => d.cap[0], (v) => { d.cap[0] = Math.max(1, Math.min(3, Math.round(v))); }, 1, ''],
       ['blindaje: sorteos con «poderes más duros»', () => d.armorRolls[1], (v) => { d.armorRolls[1] = Math.max(1, Math.round(v)); }, 1, 'se queda con el mayor'],
-      ['recarga del escurridizo y el bendito, sin el punto', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×'],
+      ['recarga del escurridizo y el bendito, y pulso del intocable, sin el punto', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×'],
       ['margen del que se cura, sin el punto', () => d.regen[0], (v) => { d.regen[0] = Math.max(0.5, v); }, 0.1, '×'],
-      ['intocable invulnerable, con el punto', () => d.shut[1], (v) => { d.shut[1] = Math.max(0.5, v); }, 0.1, '×'],
       ['fantasma: vida de más con el punto', () => d.ghostHp[1], (v) => { d.ghostHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
       ['fantasma élite: vida de más con el punto', () => d.ghostEliteHp[1], (v) => { d.ghostEliteHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
 
@@ -1111,10 +1110,8 @@ export class DebugPanel {
     el.append(heading('El que se cura, el intocable y el bendito'));
     const regen = this.numbers([
       ['se cura: vida de más', () => REGEN.hp, (v) => { REGEN.hp = Math.max(0, Math.round(v)); }, 1, ''],
-      ['intocable: invulnerable', () => PHASE.shut, (v) => { PHASE.shut = Math.max(0.5, v); }, 0.5, 's'],
-      ['intocable: ventana', () => PHASE.open, (v) => { PHASE.open = Math.max(0.3, v); }, 0.1, 's'],
-      ['intocable élite: invulnerable', () => PHASE.eliteShut, (v) => { PHASE.eliteShut = Math.max(0.5, v); }, 0.5, 's'],
-      ['intocable élite: ventana', () => PHASE.eliteOpen, (v) => { PHASE.eliteOpen = Math.max(0.3, v); }, 0.1, 's'],
+      ['intocable: pulso (la ventana; cerrado, dos)', () => PHASE.beat, (v) => { PHASE.beat = Math.max(0.2, v); }, 0.05, 's'],
+      ['intocable: abierto llegando a la línea', () => PHASE.line, (v) => { PHASE.line = Math.max(0, v); }, 0.25, 'pulsos'],
       ['se cura: daño del golpe medio', () => REGEN.hit, (v) => { REGEN.hit = Math.max(1, Math.round(v)); }, 1, ''],
       ['se cura: un golpe medio cada', () => REGEN.gap, (v) => { REGEN.gap = Math.max(0.3, v); }, 0.1, 's'],
       ['se cura: margen', () => REGEN.margin, (v) => { REGEN.margin = Math.max(0, v); }, 0.1, 's'],
@@ -1123,7 +1120,7 @@ export class DebugPanel {
       ['burbuja: vuelve sola a los', () => DIVINE.every, (v) => { DIVINE.every = Math.max(0.5, v); }, 0.5, 's'],
       ['burbuja del élite: a los', () => DIVINE.elite, (v) => { DIVINE.elite = Math.max(0.5, v); }, 0.5, 's'],
     ]);
-    el.append(regen.table, note('El que se cura se cura entero cada tanto: el ciclo alcanza para matarlo con golpes medios (cuántos le hacen falta por su vida, uno cada tanto) y sobra el margen. Con poca dificultad el margen y la burbuja se multiplican por la recarga de arriba. Al bendito, además, cada golpe que le entra le devuelve la burbuja. Vale desde la próxima partida.'));
+    el.append(regen.table, note('El que se cura se cura entero cada tanto: el ciclo alcanza para matarlo con golpes medios (cuántos le hacen falta por su vida, uno cada tanto) y sobra el margen. Con poca dificultad el margen y la burbuja se multiplican por la recarga de arriba. Al bendito, además, cada golpe que le entra le devuelve la burbuja. Los intocables van en tres grupos que se turnan: en cada pulso hay uno abierto. Vale desde la próxima partida.'));
   }
 
   // ---- campo y cámara ----

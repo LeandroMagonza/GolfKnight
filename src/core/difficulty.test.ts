@@ -29,7 +29,7 @@ describe('dificultad', () => {
     expect(easy).toMatchObject({ stack: false, specials: 0, supports: 0, escort: false, rest: INTERMISSION, speed: DIFFICULTY.speedBase, share: DIFFICULTY.share[0], cooldown: 1, casters: 0 });
     expect(easy.hard.cap).toBe(2);
     expect(easy.hard.recharge).toBeGreaterThan(1);
-    expect(easy.hard).toMatchObject({ armorRolls: 1, regen: DIFFICULTY.regen[0], shut: 1, ghostHp: 0, ghostEliteHp: 0 });
+    expect(easy.hard).toMatchObject({ armorRolls: 1, regen: DIFFICULTY.regen[0], ghostHp: 0, ghostEliteHp: 0 });
     expect(easy.eliteHp).toEqual(ELITE.hp.map((h) => h - 2));
   });
 

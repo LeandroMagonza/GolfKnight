@@ -38,9 +38,8 @@ export interface Talent {
  * - Los poderes («Poderes más duros», que desde el 7/10 toca a todos los de escenario; ver PowerHardness en
  *   core/waves), sin y con: cap, hasta qué nivel llega el escudo; armorRolls, de cuántos sorteos sale el
  *   blindaje (el mayor: con 2, casi siempre de 2); recharge, por cuánto se multiplica la recarga del
- *   escurridizo y el bendito y la ventana del intocable; regen, el margen del que se cura (más, tarda más
- *   en curarse); shut, el rato que el intocable pasa invulnerable; ghostHp, la vida de más del fantasma
- *   (ghostEliteHp, la del élite).
+ *   escurridizo y el bendito y el pulso del intocable; regen, el margen del que se cura (más, tarda más
+ *   en curarse); ghostHp, la vida de más del fantasma (ghostEliteHp, la del élite).
  * - eliteHpLess: cuánta vida de más le sacan al élite (sobre ELITE.hp; como toda su vida, va por
  *   ELITE.hpScale: «Élites más duros» le suma 4).
  * - rest: segundos de descanso entre oleadas, sin y con «Sin respiro».
@@ -55,7 +54,6 @@ export const DIFFICULTY = {
   recharge: [1.6, 1],
   // el que se cura (7/10): sin el punto, más fácil que antes (era ×1.6); con el punto, lo de siempre
   regen: [2.5, 1],
-  shut: [1, 1.3],
   ghostHp: [0, 1],
   ghostEliteHp: [0, 2],
   eliteHpLess: [2, 0],
@@ -210,7 +208,6 @@ export function rulesFor(picks: Picks): RunRules {
       armorRolls: at(DIFFICULTY.armorRolls, lv('powers')),
       recharge: at(DIFFICULTY.recharge, lv('powers')),
       regen: at(DIFFICULTY.regen, lv('powers')),
-      shut: at(DIFFICULTY.shut, lv('powers')),
       ghostHp: at(DIFFICULTY.ghostHp, lv('powers')),
       ghostEliteHp: at(DIFFICULTY.ghostEliteHp, lv('powers')),
     },

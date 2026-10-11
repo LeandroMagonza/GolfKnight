@@ -604,7 +604,8 @@ export function startBot(): BotStats {
 
   /** Cuánto le falta al que se cura para curarse. */
   function healIn(e: Enemy): number {
-    return (e.silenced ? e.silenceTimer : 0) + (1 - e.regenProgress) * e.regenPeriod;
+    // (el ciclo puede ir más lento, o un poco más rápido, para no curarse justo antes de la línea)
+    return (e.silenced ? e.silenceTimer : 0) + ((1 - e.regenProgress) * e.regenPeriod) / Math.max(0.05, e.regenRate ?? 1);
   }
 
   /** De un tiro al otro: cargar el golpe `q`, bajar el palo, ir al otro puesto y pensarlo. */
@@ -671,15 +672,11 @@ export function startBot(): BotStats {
   function shutAt(e: Enemy, t: number): boolean {
     if (!e.warded) {
       // abierto: que no se cierre antes de que llegue
-      if (e.mods?.phase && e.phaseBar < 0) return -e.phaseBar * e.mods.phase < t;
+      if (e.mods?.phase && !e.silenced) return !e.phaseOpenAt(t);
       return false;
     }
-    // el intocable cerrado se abre solo: si se abre antes de que llegue, vale
-    if (e.mods?.phase && e.phaseShut) {
-      const shut = e.phaseCycle - e.mods.phase;
-      const opens = e.phaseBar * shut;
-      return !(t > opens + 0.05 && t < opens + e.mods.phase - 0.05);
-    }
+    // el intocable cerrado se abre solo: si está abierto cuando llega, vale
+    if (e.mods?.phase && e.phaseShut) return !e.phaseOpenAt(t, 0.05);
     return true;
   }
 
@@ -932,7 +929,7 @@ export function startBot(): BotStats {
       }
     };
     // el intocable cerrado: que llegue cuando se abre (un poco adentro de la ventana, por las dudas)
-    if (e.mods?.phase && e.phaseShut && !e.silenced) timed(e.phaseBar * (e.phaseCycle - e.mods.phase) + Math.min(0.5, e.mods.phase / 2));
+    if (e.mods?.phase && e.phaseShut && !e.silenced) timed(e.phaseOpensIn + Math.min(0.5, e.phaseBeat / 2));
     // el que se cura: que llegue recién curado, con todo el ciclo por delante para terminarlo
     if (skill.regen && e.mods?.regen && !e.silenced) timed(healIn(e) + REGEN_EDGE.wait);
     // el escudo de frente: el hierro a la cabeza o el globo del wedge, que le caen por arriba

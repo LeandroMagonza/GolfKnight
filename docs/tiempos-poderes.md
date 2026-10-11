@@ -152,6 +152,33 @@ descarga; al vaciarse queda vulnerable un momento, y vuelve a ser invulnerable u
   1 al élite, desde el 8/10, y cuando se le pasa arranca invulnerable), y todo lo que mete más daño en la ventana:
   fuerza, potencia, lupa, eco y clon.
 
+### El ritmo (11/10)
+
+Pedido de Leandro: ciclos mucho más cortos, que sea un tema de timear el golpe («que te dé para meterle un
+hit cuando está vulnerable»), que no dependa del tamaño, y los enemigos coordinados en tres tiempos, que
+se prenda uno y se apague otro. Y que llegue a la línea vulnerable: se cerraba a unos metros y no quedaba
+más que dejarlo pasar.
+
+- **Tres grupos que se turnan**, con un reloj para todos (lo corre la horda): un pulso de 0.8 s abierto y
+  dos cerrados (1.6 s); en cada pulso hay exactamente un grupo abierto. La horda reparte los grupos en
+  orden a medida que aparecen. Élite, jefe y común, igual. Sin el punto de «Poderes más duros» el pulso
+  es ×1.6 (1.28 s abierto, 2.56 s cerrado). El `shut` de «Poderes más duros» (×1.3 invulnerable) se fue:
+  con el ritmo, lo cerrado son siempre dos pulsos.
+- **Llegando a la línea**: a un pulso o menos de cruzar la línea del golfista se abre, y si ya estaba
+  abierto a un pulso y medio, no se cierra. Así cruza abierto, abierto desde antes entre uno y dos pulsos
+  y medio (según dónde lo agarró el ritmo): no hay una franja fija en la cancha. Lo que le falta se
+  calcula a su paso y en la dirección en que camina, contando lo que le quede congelado o aturdido; si se
+  planta, lo desvía la bandera o va por el golfista, no cuenta.
+- Lo de arriba (ventanas de 1.5 s cada 5 s, uno o dos golpes por ventana, las tablas) es del ciclo de
+  antes. Ahora entra un golpe por pulso, cada 2.4 s.
+
+**El que se cura, tampoco justo antes de la línea** (11/10, Leandro): se curaba a unos metros de la línea
+y no quedaba tiempo de volver a bajarlo. Ahora el ciclo corre un poco más lento (o más rápido, hasta un
+10 %, si le falta poco) para que la cura que tocaba justo antes de cruzar caiga 0.1 s después: el último
+ciclo antes de la línea es entero. De lejos se frena hasta ×0.7; cerca, lo que haga falta (la barra casi
+llena espera a que cruce). Sin azar. Ver `regenPace` en `src/core/waves.ts`. El bot lo tiene en cuenta
+al calcular cuándo se cura.
+
 **El que se cura trae 2 de vida de más** (5/10, pedido de Leandro): al de 2 de vida se lo mataba de un
 golpe y era como no tener poder. La goblina que se cura tiene 4 (dos medios), el orco 5, el esqueleto 6.
 El élite no: ya trae la suya.
