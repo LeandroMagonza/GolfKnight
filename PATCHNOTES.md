@@ -73,6 +73,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   enemigos más rápidos les erra más. `057427d`
 - Cada partida anota también a cuántos enemigos tocó cada tiro, para comparar las tuyas con las del bot.
   `f25e348`
+- El bot ya no aprieta habilidades con la partida terminada o en pausa: a veces caía una R justo después
+  del final, que ahí es «Jugar de nuevo», y en las tandas rápidas se perdía la partida. `5190947`
 
 ## 10 de octubre
 
