@@ -1,11 +1,14 @@
-// Medidor del swing. Mientras se mantiene apretado sube de 0 a 1, y al llegar al tope rebota por todo el
-// rango: baja hasta 0 y vuelve a subir. Soltar arriba, en el golpe fuerte, es el crítico.
+// Medidor del swing. Mientras se mantiene apretado sube de 0 a 1, y al pasar el tope baja por el otro
+// lado como un péndulo: hasta 0, y vuelve a subir. Soltar arriba, en el golpe fuerte, es el crítico.
 //
 // **Se define por tiempos, no por forma.** La barra está repartida en tres tramos (débil, medio y
 // fuerte, con los umbrales de QUALITY_FROM) y cada uno dura sus segundos: el débil tarda `weak` en
 // cruzarse, el medio `mid`, y el fuerte dura `strong` en cada pasada (sube hasta el tope y vuelve a
-// bajar al umbral). Después viene el rebote: baja hasta 0 en `rebound` segundos, sube en otros tantos
-// y vuelve a pasar por el fuerte, que dura otra vez `strong`.
+// bajar al umbral). Después baja por el otro lado con los mismos tiempos (el medio y el débil) hasta el
+// borde, y desde ahí vuelve a cargar: el débil, el medio y otra vez el fuerte. Hasta el 11/10 había un
+// rebote aparte (bajaba y subía en 0.3 s): venía de cuando la carga era una barra, y en el arco a
+// velocidad pareja hacía correr la aguja casi tres veces más rápido a la vuelta (Leandro: que vuelva a
+// cargar desde el otro lado, igual que a la ida).
 //
 // Así cada cosa que le importa al jugador es un número suelto:
 // - **cuándo abre el golpe fuerte** es `weak + mid`: el momento que uno se aprende;
@@ -32,8 +35,6 @@ export interface ChargeTimes {
   mid: number;
   /** Lo que dura el fuerte **en cada pasada**: sube hasta el tope y vuelve al umbral. */
   strong: number;
-  /** El rebote: lo que tarda en bajar desde el fuerte hasta 0, y otro tanto en volver a subir. */
-  rebound: number;
 }
 
 /** Cómo cambian los tiempos las mejoras. Se pueden combinar. */
@@ -42,7 +43,7 @@ export interface TimingMods {
   weakMul: number;
   /** El débil y el medio tardan esto (ritmo): el fuerte abre antes y dura lo mismo. */
   lowMul: number;
-  /** El fuerte dura esto (punto dulce): abre en el mismo momento y el rebote llega más tarde. */
+  /** El fuerte dura esto (punto dulce): abre en el mismo momento y dura más en cada pasada. */
   strongMul: number;
 }
 
@@ -60,7 +61,6 @@ export function timingWith(base: ChargeTimes, mods: TimingMods): ChargeTimes {
     weak: base.weak * mods.weakMul * mods.lowMul,
     mid: base.mid * mods.lowMul,
     strong: base.strong * mods.strongMul,
-    rebound: base.rebound,
   };
 }
 
@@ -141,7 +141,7 @@ export function arcAngle(power: number, marks: readonly [number, number], layout
 
 export class SwingMeter {
   private elapsed = 0;
-  private times: ChargeTimes = { weak: 0.63, mid: 0.185, strong: 0.06, rebound: 0.3 };
+  private times: ChargeTimes = { weak: 0.63, mid: 0.185, strong: 0.06 };
   /** Dónde empiezan el medio y el fuerte, en fracción de la barra. */
   private midFrom = 0.55;
   private strongFrom = PERFECT_FROM;
@@ -166,7 +166,6 @@ export class SwingMeter {
       weak: Math.max(MIN_SEGMENT, times.weak),
       mid: Math.max(MIN_SEGMENT, times.mid),
       strong: Math.max(MIN_SEGMENT, times.strong),
-      rebound: Math.max(MIN_SEGMENT, times.rebound),
     };
     this.midFrom = marks[0];
     this.strongFrom = Math.max(marks[0], Math.min(0.999, marks[1]));
@@ -185,7 +184,7 @@ export class SwingMeter {
   get power(): number {
     if (!this.charging) return 0;
     if (this.lockedPower !== null) return this.lockedPower;
-    const { weak, mid, strong, rebound } = this.times;
+    const { weak, mid, strong } = this.times;
     const a = this.midFrom;
     const b = this.strongFrom;
     let e = this.elapsed;
@@ -193,27 +192,33 @@ export class SwingMeter {
     e -= weak;
     if (e < mid) return a + ((b - a) * e) / mid;
     e -= mid;
-    // de acá en adelante se repite: pasada por el fuerte, bajada, subida
-    e %= strong + 2 * rebound;
+    // de acá en adelante se repite, como un péndulo: la pasada por el fuerte, la bajada por el otro lado
+    // (el medio y el débil, con sus tiempos) y la subida desde ese borde
+    e %= strong + 2 * (mid + weak);
     if (e < strong) return b + (1 - b) * (1 - Math.abs((2 * e) / strong - 1));
     e -= strong;
-    if (e < rebound) return b * (1 - e / rebound);
-    return (b * (e - rebound)) / rebound;
+    if (e < mid) return b - ((b - a) * e) / mid;
+    e -= mid;
+    if (e < weak) return a - (a * e) / weak;
+    e -= weak;
+    if (e < weak) return (a * e) / weak;
+    e -= weak;
+    return a + ((b - a) * e) / mid;
   }
 
   /**
    * De qué lado del arco va la aguja: -1 a la izquierda, 1 a la derecha. En el arco el tope (el fuerte)
    * está arriba en el medio y el 0 en los dos bordes: la aguja sube por la izquierda, pasa por arriba y
-   * el rebote la baja por la derecha; al volver a subir cruza otra vez, y así. Cambia de lado cada vez
-   * que pasa por el tope.
+   * baja por la derecha hasta el borde; vuelve a subir por la derecha, cruza otra vez, y así. Cambia de
+   * lado cada vez que pasa por el tope.
    */
   get side(): number {
     if (!this.charging) return -1;
     if (this.lockedPower !== null) return this.lockedSide;
-    const { weak, mid, strong, rebound } = this.times;
+    const { weak, mid, strong } = this.times;
     const e = this.elapsed - weak - mid;
     if (e < 0) return -1;
-    const cycle = strong + 2 * rebound;
+    const cycle = strong + 2 * (mid + weak);
     const peaks = Math.floor(e / cycle) + ((e % cycle) >= strong / 2 ? 1 : 0);
     return peaks % 2 === 0 ? -1 : 1;
   }

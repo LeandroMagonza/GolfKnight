@@ -1,6 +1,8 @@
 // El simulador de la carga (arco.html; 11/10, pedido de Leandro: la lupa del golpe 4 quedó fea). Se pone
 // cuánto dura cada golpe y el arco se reparte en proporción, a velocidad pareja: cada tramo ocupa lo que
-// dura. Se carga con espacio o el mouse, como en el juego, y dice qué golpe salió y a cuántos ms del tope.
+// dura. El 3 es lo que dura toda la pasada por el rojo; con el golpe 4 se parte en tres, y el tercio del
+// medio es el 4 (FOURTH.share). Se carga con espacio o el mouse, como en el juego, y dice qué golpe salió y
+// a cuántos ms del tope.
 // La barra (SwingMeter), los golpes (qualityOf) y el dibujo (meterArt) son los del juego.
 //
 // «Usar en el juego» deja los tiempos y el arco donde los guarda el panel B (ver src/balanceStore.ts y
@@ -12,16 +14,17 @@ import { arcAngle, FOURTH_ARC, SwingMeter, type ArcLayout, type ChargeTimes } fr
 import { meterArt } from './meterArt';
 
 const el = <T extends HTMLElement = HTMLInputElement>(id: string) => document.getElementById(id) as T;
-const PREFS_KEY = 'gk.simCarga';
+// (con el 3 en tiempo total y sin el rebote: lo guardado antes no sirve)
+const PREFS_KEY = 'gk.simCarga2';
+/** Con el golpe 4, qué parte del 3 es el 4: el tercio del medio (Leandro). */
+const SPLIT = 1 / 3;
 
-/** Lo que se ajusta: los ms de cada golpe (con el golpe 4, `t3` es cada lado del 4), el arco y el dibujo. */
+/** Lo que se ajusta: los ms de cada golpe (el 3, toda la pasada por el rojo), el arco y el dibujo. */
 interface Sim {
   fourth: boolean;
   t1: number;
   t2: number;
   t3: number;
-  t4: number;
-  tr: number;
   span: number;
   border: number;
   zoom: number;
@@ -29,12 +32,7 @@ interface Sim {
 
 /** Los del juego, en ms. */
 function fromGame(fourth: boolean): Sim {
-  const strong = CHARGE.strong * 1000;
-  const t4 = fourth ? strong * FOURTH.share : 30;
-  return {
-    fourth, t1: CHARGE.weak * 1000, t2: CHARGE.mid * 1000, t3: fourth ? (strong - t4) / 2 : strong, t4, tr: CHARGE.rebound * 1000,
-    span: fourth ? FOURTH_ARC.span : 90, border: 1.5, zoom: 2.4,
-  };
+  return { fourth, t1: CHARGE.weak * 1000, t2: CHARGE.mid * 1000, t3: CHARGE.strong * 1000, span: fourth ? FOURTH_ARC.span : 90, border: 1.5, zoom: 2.4 };
 }
 
 let sim: Sim = fromGame(false);
@@ -44,11 +42,11 @@ try {
 } catch { /* lo del juego */ }
 
 const round = (v: number) => Math.round(v * 100) / 100;
-/** La pasada por el rojo, en ms: el 3 solo, o 3 + 4 + 3. */
-const strongMs = () => (sim.fourth ? 2 * sim.t3 + sim.t4 : sim.t3);
-const times = (): ChargeTimes => ({ weak: sim.t1 / 1000, mid: sim.t2 / 1000, strong: strongMs() / 1000, rebound: sim.tr / 1000 });
+/** La pasada por el rojo, en ms: el 3 (con el golpe 4, 3 + 4 + 3). */
+const strongMs = () => sim.t3;
+const times = (): ChargeTimes => ({ weak: sim.t1 / 1000, mid: sim.t2 / 1000, strong: strongMs() / 1000 });
 /** Qué parte de la pasada por el rojo es el 4. */
-const share = () => (sim.fourth ? sim.t4 / strongMs() : FOURTH.share);
+const share = () => SPLIT;
 const marks: [number, number] = [QUALITY_FROM[1], QUALITY_FROM[QUALITY_LEVELS - 1]];
 
 /** El arco a velocidad pareja: hasta el tope (débil + medio + medio fuerte) son `span` grados de cada lado. */
@@ -75,18 +73,21 @@ function draw(): void {
   needle?.setAttribute('transform', `rotate(${-edge})`);
   // lo que dura cada cosa, en palabras
   const top = sim.t1 + sim.t2 + strongMs() / 2;
-  el<HTMLParagraphElement>('explain').textContent = sim.fourth
-    ? `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo dura ${round(strongMs())} ms: 3 (${round(sim.t3)}), 4 (${round(sim.t4)}) y 3 (${round(sim.t3)}). El 4 es el ${Math.round(share() * 100)} % del rojo.`
-    : `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo (el 3) dura ${round(strongMs())} ms.`;
+  const third = strongMs() * SPLIT;
+  const back = 2 * (sim.t1 + sim.t2) + strongMs();
+  el<HTMLParagraphElement>('explain').textContent = (sim.fourth
+    ? `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo dura ${round(strongMs())} ms, partida en tres: 3 (${round(third)}), 4 (${round(third)}) y 3 (${round(third)}).`
+    : `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo (el 3) dura ${round(strongMs())} ms.`)
+    + ` Si te pasás, el rojo vuelve a los ${round(back)} ms (baja hasta el borde y vuelve a subir).`;
 }
 
 // los campos
-const fields: [keyof Sim, string][] = [['t1', 't1'], ['t2', 't2'], ['t3', 't3'], ['t4', 't4'], ['tr', 'tr'], ['span', 'span'], ['border', 'border'], ['zoom', 'zoom']];
+const fields: [keyof Sim, string][] = [['t1', 't1'], ['t2', 't2'], ['t3', 't3'], ['span', 'span'], ['border', 'border'], ['zoom', 'zoom']];
 function paintFields(): void {
   for (const [k, id] of fields) el(id).value = String(round(sim[k] as number));
   el('fourth').checked = sim.fourth;
-  el<HTMLElement>('r4').classList.toggle('hidden', !sim.fourth);
-  el<HTMLElement>('l3').textContent = sim.fourth ? 'Golpe 3, cada lado' : 'Golpe 3';
+  // con el golpe 4 el 3 es naranja (el rojo es el 4)
+  el<HTMLElement>('c3').style.background = sim.fourth ? '#ff9a2e' : '#ff2d3c';
 }
 function save(): void {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(sim)); } catch { /* no recuerda */ }
@@ -101,16 +102,8 @@ for (const [k, id] of fields) {
   });
 }
 el('fourth').addEventListener('change', () => {
-  const on = el('fourth').checked;
-  // se parte (o se junta) el rojo de ahora: el 4 en el medio, la mitad
-  if (on && !sim.fourth) {
-    const strong = sim.t3;
-    sim.t4 = strong * FOURTH.share;
-    sim.t3 = (strong - sim.t4) / 2;
-  } else if (!on && sim.fourth) {
-    sim.t3 = 2 * sim.t3 + sim.t4;
-  }
-  sim.fourth = on;
+  // el rojo se parte en tres (o se vuelve a juntar): lo que dura no cambia
+  sim.fourth = el('fourth').checked;
   paintFields();
   save();
   draw();
@@ -192,7 +185,7 @@ el('use').addEventListener('click', () => {
     store.version ??= BALANCE_VERSION;
     store.configs ??= {};
     const t = times();
-    store.configs.carga = { ...store.configs.carga, weak: t.weak, mid: t.mid, strong: t.strong, rebound: t.rebound };
+    store.configs.carga = { ...store.configs.carga, weak: t.weak, mid: t.mid, strong: t.strong };
     if (sim.fourth) {
       store.configs['golpe 4'] = { ...store.configs['golpe 4'], share: share() };
       store.configs['arco golpe 4'] = { ...store.configs['arco golpe 4'], span: sim.span };
@@ -212,7 +205,7 @@ el('use').addEventListener('click', () => {
   setTimeout(() => { said.textContent = ''; }, 5000);
 });
 el('copy').addEventListener('click', async () => {
-  const text = `golpe 1 ${round(sim.t1)} ms · golpe 2 ${round(sim.t2)} ms · ${sim.fourth ? `golpe 3 ${round(sim.t3)} ms de cada lado · golpe 4 ${round(sim.t4)} ms` : `golpe 3 ${round(sim.t3)} ms`} · rebote ${round(sim.tr)} ms · arco ${sim.span}° de cada lado · borde ${sim.border}`;
+  const text = `golpe 1 ${round(sim.t1)} ms · golpe 2 ${round(sim.t2)} ms · golpe 3 ${round(sim.t3)} ms${sim.fourth ? ` (con el 4 en el tercio del medio: ${round(sim.t3 * SPLIT)} ms)` : ''} · arco ${sim.span}° de cada lado · borde ${sim.border}`;
   try {
     await navigator.clipboard.writeText(text);
     el<HTMLSpanElement>('said').textContent = 'Copiado.';

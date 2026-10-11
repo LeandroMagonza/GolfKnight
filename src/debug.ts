@@ -654,7 +654,6 @@ export class DebugPanel {
       ['débil', () => CHARGE.weak, (v) => { CHARGE.weak = Math.max(0.01, v); refresh(); }, 0.01, 's desde que apretás'],
       ['medio', () => CHARGE.mid, (v) => { CHARGE.mid = Math.max(0.01, v); refresh(); }, 0.01, 's: el fuerte abre a débil + medio'],
       ['fuerte', () => CHARGE.strong, (v) => { CHARGE.strong = Math.max(0.005, v); refresh(); }, 0.005, 's que dura en cada pasada'],
-      ['rebote', () => CHARGE.rebound, (v) => { CHARGE.rebound = Math.max(0.02, v); refresh(); }, 0.01, 's en bajar hasta 0, y otro tanto en volver'],
     ]);
     this.timingLine = note('');
     el.append(times.table, this.timingLine);
@@ -1352,7 +1351,7 @@ export class DebugPanel {
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
       `visual: ${JSON.stringify(VISUAL)}`,
       `hierro: modo ${ironMode()}`,
-      `carga (los cuatro palos): ${timingText(CHARGE)}, rebote ${CHARGE.rebound} s`,
+      `carga (los cuatro palos): ${timingText(CHARGE)}`,
       `  con las mejoras de ahora: ${timingText(this.hooks.timing())}`,
       `  tramos dibujados desde ${QUALITY_FROM.map((p) => `${Math.round(p * 100)}%`).join(' / ')} de la barra`,
       '',

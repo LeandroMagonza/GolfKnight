@@ -62,8 +62,8 @@ export function gaugePower(err: number, marks: readonly [number, number]): numbe
 }
 
 /** Los tiempos del arco del tenis, para dibujar sus tramos. */
-export function gaugeTimes(): { weak: number; mid: number; strong: number; rebound: number } {
-  return { weak: Math.max(0.01, GAUGE_TIME - TENNIS.good), mid: Math.max(0.01, TENNIS.good - TENNIS.perfect), strong: 2 * TENNIS.perfect, rebound: 0.3 };
+export function gaugeTimes(): { weak: number; mid: number; strong: number } {
+  return { weak: Math.max(0.01, GAUGE_TIME - TENNIS.good), mid: Math.max(0.01, TENNIS.good - TENNIS.perfect), strong: 2 * TENNIS.perfect };
 }
 
 /** Una pelota que viene de vuelta: dónde cae en tu línea y en cuántos segundos. */

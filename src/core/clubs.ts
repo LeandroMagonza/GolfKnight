@@ -106,7 +106,7 @@ export function bandOf(meters: number): number {
  * abre a los 0.815 s de apretar, igual que antes, y dura unas 6 centésimas por pasada. Repartido: 74 %
  * débil, 22 % medio, 4 % fuerte.
  */
-export const CHARGE: ChargeTimes = { weak: 0.63, mid: 0.185, strong: 0.06, rebound: 0.3 };
+export const CHARGE: ChargeTimes = { weak: 0.63, mid: 0.185, strong: 0.06 };
 
 /**
  * **Los cuatro palos comparten color.** Antes cada uno tenía el suyo y el del hierro era celeste, el
@@ -287,14 +287,15 @@ export function qualityOf(power: number): number {
  * **El golpe 4** (5/10, idea de Leandro): un talento de dificultad para los que ya clavan el 3 siempre.
  * En el medio del rojo hay un tramo más angosto que pega `bonus` más que el 3, también en el área. **El 3
  * y el 4 juntos duran lo que dura el 3 sin el talento**: no se agranda la ventana, se parte. `share` es
- * qué parte de cada pasada por el fuerte es el 4 (la del medio, alrededor del tope). Como la aguja sube
+ * qué parte de cada pasada por el fuerte es el 4 (la del medio, alrededor del tope): desde el 11/10, un
+ * tercio (Leandro: el 3 se parte en tres y el pedazo del medio es el 4; era la mitad). Como la aguja sube
  * y baja a velocidad pareja, la parte del tiempo es la parte de la potencia, y el 4 arranca en
  * `fourthFrom()`. A cambio, todos traen vida de más (ver DIFFICULTY.fourthHp). `on` lo prende la partida
  * según la dificultad; en el tenis no hay.
  *
  * Las habilidades no tienen golpe 4: salen como mucho con el 3.
  */
-export const FOURTH = { on: false, share: 0.5, bonus: 1 };
+export const FOURTH = { on: false, share: 1 / 3, bonus: 1 };
 
 /** Desde qué potencia es golpe 4. */
 export function fourthFrom(): number {

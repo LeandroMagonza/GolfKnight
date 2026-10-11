@@ -46,15 +46,13 @@
   </head>
   <body>
     <main>
-      <h1>Simulador de la carga<small>Ponés cuánto dura cada golpe, y el arco se reparte en proporción, a velocidad pareja (sin lupa).</small></h1>
+      <h1>Simulador de la carga<small>Ponés cuánto dura cada golpe, y el arco se reparte en proporción, a velocidad pareja (sin lupa). La aguja sube, pasa el tope y baja por el otro lado con los mismos tiempos, como un péndulo.</small></h1>
       <section class="panel">
         <label class="check"><input type="checkbox" id="fourth" /> Con golpe 4</label>
         <h2>Cuánto dura cada golpe</h2>
         <label class="row"><span><i style="background:#5be07a"></i>Golpe 1</span><input type="number" id="t1" min="10" step="10" /><span class="u">ms</span></label>
         <label class="row"><span><i style="background:#ffd66b"></i>Golpe 2</span><input type="number" id="t2" min="5" step="5" /><span class="u">ms</span></label>
-        <label class="row"><span><i style="background:#ff9a2e" class="c3"></i><span id="l3">Golpe 3</span></span><input type="number" id="t3" min="1" step="1" /><span class="u">ms</span></label>
-        <label class="row" id="r4"><span><i style="background:#ff2d3c"></i>Golpe 4</span><input type="number" id="t4" min="1" step="1" /><span class="u">ms</span></label>
-        <label class="row"><span>Rebote</span><input type="number" id="tr" min="20" step="10" /><span class="u">ms</span></label>
+        <label class="row"><span><i style="background:#ff2d3c" id="c3"></i>Golpe 3</span><input type="number" id="t3" min="3" step="3" /><span class="u">ms</span></label>
         <p class="note" id="explain"></p>
         <h2>El arco</h2>
         <label class="row"><span>De cada lado</span><input type="number" id="span" min="45" max="180" step="5" /><span class="u">°</span></label>

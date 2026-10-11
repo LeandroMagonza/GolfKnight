@@ -63,8 +63,10 @@ decir una sola cosa:
   unos metros adelante sobre el tiro), siempre del lado del golfista para no tapar la pelota ni la línea.
   Solo aparece cargando. Verde (débil) en los dos bordes, amarillo (medio) y rojo (fuerte) arriba en el
   medio. La aguja sube por la
-  izquierda, pasa por arriba en el tope y el rebote la baja por la derecha; al volver a subir cruza de
-  nuevo, y así.
+  izquierda, pasa por arriba en el tope y baja por la derecha con los mismos tiempos, como un péndulo,
+  hasta el borde; desde ahí vuelve a cargar y cruza de nuevo, y así. (Hasta el 11/10 había un rebote
+  aparte, que bajaba y subía en 0.3 s: en el arco hacía correr la aguja casi tres veces más rápido a la
+  vuelta.)
 - La línea de tiro dibuja el arco real: blanca, amarilla y roja según la calidad. El anillo marca
   dónde cae, y con el wedge, el tamaño del área.
 - **El campo tiene marcas de distancia cada 10 m, contadas desde la línea de los puestos**: la raya
@@ -193,7 +195,7 @@ el total en 3, o con la carta en su nivel de congelar. Lo que hace cada una:
 | Guante (fantasma, de hielo, de fuego, de rayo) | 5 s (6 y 7) en que todos tus tiros de palo llevan ese elemento al nivel del guante, y pegan como siempre. El de hielo congela en el nivel 3; con el fantasma, la esquiva no salta al soltar. Uno nuevo reemplaza al que estaba. Recarga 20 s |
 
 **Mejoras**: Muñeca rápida (el tramo débil dura un 20 % menos: el golpe 2 y el 3 llegan antes, y duran
-lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y el rebote llega más tarde). Cada una
+lo mismo), Punto dulce (el perfecto dura un 35 % más: abre igual y dura más en cada pasada). Cada una
 mueve un solo número; con las dos la barra queda más pareja, pero el fuerte sigue siendo el tramo más
 corto. Ritmo (cada tiro seguido **sin errar** te hace llegar antes
 al golpe 3, hasta tres, y ahí se queda hasta que errás), En racha (después de 4 tiros seguidos sin errar,
@@ -417,7 +419,7 @@ aunque solo se mande cuando corresponde.
 | Escolta del jefe | el jefe viene con los poderes de la partida y los apoyos |
 | Sin respiro | 4 s de descanso entre oleadas en vez de 6 |
 | Recarga lenta | las habilidades del caballero tardan en recargar lo que suman sus opciones (+35 %, +65 %: con las dos, el doble). La carta dice la recarga que va a tener |
-| Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +4 (2, al doble) y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga). Cada 3 dura 15 ms, y a velocidad pareja no entraba en el arco: con el talento el arco se abre a tres cuartos de vuelta con el rojo agrandado («lupa», `fourthArc` en `src/core/swing.ts`; panel B, Visual, para comparar con el medio círculo y con el extendido a velocidad pareja) |
+| Golpe 4 | en el medio del rojo de la barra aparece el golpe 4 (en rojo; el 3 queda a los costados, en naranja): pega 1 más que el 3, también en el área, y entre los dos duran lo que el 3 sin el talento. A cambio los comunes traen +1 de vida, los élites +4 (2, al doble) y el jefe +8. Es el único talento que también te da algo. Las habilidades no tienen golpe 4. Los números del golpe están en `FOURTH` (`src/core/clubs.ts`, panel B, pestaña Carga). Desde el 11/10 el 4 es el tercio del medio del rojo (era la mitad): con los tiempos de fábrica, 20 ms de 3, 20 de 4 y 20 de 3. A velocidad pareja el 3 casi no entraba en el arco: con el talento el arco se abre a tres cuartos de vuelta con el rojo agrandado («lupa», `fourthArc` en `src/core/swing.ts`; panel B, Visual, para comparar con el medio círculo y con el extendido a velocidad pareja) |
 
 Con todo puesto es la partida de antes del 3/10, más rápida, con menos descanso y las habilidades más
 lentas, y con dos olas especiales que dejan marca en vez de tres (con la escalera ya no se llega a todo).
@@ -486,8 +488,10 @@ recargar. Va en pestañas:
 - **Palos**: el daño de cada palo en cada banda de distancia y para cada nivel de golpe, su alcance, el
   radio de su área, la rapidez del rodado, la distancia fija y los dos modos del hierro; y dónde
   **cortan las bandas** (20 y 40 m por defecto).
-- **Carga**: los cuatro tiempos de la barra (débil, medio, fuerte y rebote), cómo quedan con las
-  mejoras que tenés, y dónde se dibuja cada tramo.
+- **Carga**: los tres tiempos de la barra (débil, medio y fuerte), cómo quedan con las mejoras que
+  tenés, y dónde se dibuja cada tramo. Para probarlos sin jugar, el simulador de la carga (`arco.html`,
+  `src/arco.ts`): se pone cuánto dura cada golpe, el arco se reparte en proporción, y se carga y suelta
+  como en el juego; «Usar en el juego» los deja para el juego en ese navegador.
 - **Tiro**: qué hacen A y D mientras cargás (nada, correrse de a pasos, correrse seguido o darle
   efecto). Cada modo muestra solo sus números.
 - **Habilidades**: la lista de las 27 con el **nivel que tiene** cada una. Subirlo se la da (va al primer

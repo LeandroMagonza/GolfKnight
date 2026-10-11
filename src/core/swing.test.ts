@@ -3,7 +3,7 @@ import { CHARGE, qualityMarks, qualityOf, QUALITY_FROM } from './clubs';
 import { arcAngle, arcLayout, FOURTH_ARC, fourthArc, MIN_POWER, NO_MODS, SwingMeter, timingWith, type ChargeTimes } from './swing';
 import { PERK_NUMBERS, PERKS } from './cards';
 
-const T: ChargeTimes = { weak: 0.6, mid: 0.2, strong: 0.1, rebound: 0.3 };
+const T: ChargeTimes = { weak: 0.6, mid: 0.2, strong: 0.1 };
 const MARKS: [number, number] = [0.55, 0.92];
 const DT = 1 / 4000;
 
@@ -36,12 +36,21 @@ describe('SwingMeter por tiempos', () => {
     expect(m.power).toBeCloseTo(0.92);
   });
 
-  it('después del fuerte rebota por todo el rango, y el fuerte vuelve a durar lo mismo en cada pasada', () => {
+  it('después del fuerte baja por el otro lado con los mismos tiempos, como un péndulo, y el fuerte vuelve a durar lo mismo', () => {
     const m = new SwingMeter();
     m.start(T, MARKS);
-    m.update(T.weak + T.mid + T.strong + T.rebound);
+    m.update(T.weak + T.mid + T.strong);
+    expect(m.side).toBe(1);
+    // baja el medio en lo que tardó en subirlo, y el débil igual
+    m.update(T.mid);
+    expect(m.power).toBeCloseTo(0.55);
+    m.update(T.weak);
     expect(m.power).toBeCloseTo(0);
-    m.update(T.rebound);
+    // y vuelve a cargar desde ese lado
+    m.update(T.weak / 2);
+    expect(m.power).toBeCloseTo(0.55 / 2);
+    expect(m.side).toBe(1);
+    m.update(T.weak / 2 + T.mid);
     expect(m.power).toBeCloseTo(0.92);
     // segunda pasada por el fuerte: medida a mano
     let inside = 0;
