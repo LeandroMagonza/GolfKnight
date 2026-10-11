@@ -36,7 +36,7 @@ export type EnemyState = 'walk' | 'attack' | 'dying' | 'gone';
 
 export type HordeEvent =
   /** `crit`: rompió un congelado y pegó `ELEMENTS.breakBonus` más. */
-  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean; mark?: boolean }
+  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean; mark?: boolean; by?: readonly string[] }
   /** El escudo divino se comió el golpe. */
   | { type: 'divine'; enemy: Enemy }
   /** Un golpe del caballero detonó la marca de Abe (ver ABE_BOLT). */
@@ -104,6 +104,11 @@ interface Rock {
 }
 
 let nextId = 1;
+/** Daño sin habilidades de por medio (ver `Horde.by`). */
+const NO_TAGS: readonly string[] = [];
+const POWDER_TAGS: readonly string[] = ['powder'];
+const HOLE_TAGS: readonly string[] = ['hole'];
+const ABE_TAGS: readonly string[] = ['abe'];
 /**
  * El reloj del ritmo de los intocables (ver PHASE): uno para todos, así se turnan. Lo hace correr la horda;
  * en el que mira no corre (el estado llega en la foto).
@@ -500,6 +505,8 @@ export class Enemy {
   /** Prendido fuego: segundos que le quedan, y cuánto falta para el próximo mordisco. */
   burnTimer = 0;
   burnTick = 0;
+  /** Las habilidades del tiro que lo prendió, para el registro (ver `Horde.by`). */
+  burnBy: readonly string[] = NO_TAGS;
   /** La bandera: hacia dónde camina en vez de ir a la puerta, y por cuánto. */
   lureTimer = 0;
   readonly lure = new THREE.Vector3();
@@ -1297,10 +1304,11 @@ export class Enemy {
    * Prendido fuego `seconds`. El primer mordisco llega a los `burnTick` segundos, no en el acto (5/10,
    * pedido de Leandro). Si ya estaba prendido, le alarga el fuego sin mordisco extra.
    */
-  burn(seconds: number): void {
+  burn(seconds: number, by: readonly string[] = NO_TAGS): void {
     if (!this.alive) return;
     if (!this.burning) this.burnTick = ELEMENTS.burnTick;
     this.burnTimer = Math.max(this.burnTimer, seconds);
+    this.burnBy = by;
   }
 
   /** La bandera: camina hacia (x, z) durante `seconds` en vez de ir a la puerta. Al élite y al jefe no los desvía (8/10). */
@@ -2127,7 +2135,29 @@ export class Horde {
    * nivel del golpe fantasma (0 si no lo es): le entra entero a cualquiera (blindaje, escudos, el tope del
    * fantasma, el aura de invencible y el divino).
    */
-  shot: { club: ClubId; quality: number; ability: boolean; kills: number; ghost: number } | null = null;
+  shot: { club: ClubId; quality: number; ability: boolean; kills: number; ghost: number; tags?: readonly string[] } | null = null;
+
+  /**
+   * Para el registro: qué habilidades están haciendo el daño de ahora, si no es el tiro en curso (el
+   * carrito, la pólvora que explota, el fuego que muerde, el elemento que deja una pelota). Ver `by`.
+   */
+  source: readonly string[] | null = null;
+
+  /** Las habilidades a las que se le anota el daño de ahora: las de `source`, o las del tiro en curso. */
+  get by(): readonly string[] {
+    return this.source ?? this.shot?.tags ?? NO_TAGS;
+  }
+
+  /** Hace `fn` anotándole el daño a `tags` (ver `source`). */
+  withSource<T>(tags: readonly string[], fn: () => T): T {
+    const prev = this.source;
+    this.source = tags;
+    try {
+      return fn();
+    } finally {
+      this.source = prev;
+    }
+  }
 
   /**
    * El tutorial: decide si este golpe puede matar a este enemigo. Si no, el golpe lo deja con 1 de vida
@@ -2211,7 +2241,7 @@ export class Horde {
     if (dealt > 0 && !killed && enemy.divineEvery && !ghost && !enemy.silenced) enemy.divineReady = true;
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
-    if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit });
+    if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit, by: this.by });
     if (killed) this.died(enemy, hadPowder, wasBurning);
     // la explosión de la pólvora pasa por acá con otros enemigos: lo que se lee después es de este golpe
     this.lastDealt = dealt;
@@ -2229,7 +2259,7 @@ export class Horde {
     if (hadPowder) {
       const pos = enemy.position.clone();
       this.emit({ type: 'powder', pos, radius: POWDER.blast });
-      this.blast(pos, POWDER.blast, this.powderDamage, 6, enemy);
+      this.withSource(POWDER_TAGS, () => this.blast(pos, POWDER.blast, this.powderDamage, 6, enemy));
     }
     // la maestría del fuego (7/10; antes contagiaba, y casi no se veía): el que muere prendido, de lo
     // que sea, explota. Si a alguno de al lado lo mata prendido, explota también
@@ -2262,7 +2292,7 @@ export class Horde {
     const hadPowder = enemy.powderTimer > 0;
     const wasBurning = enemy.burning;
     const killed = enemy.damage(dealt, null, 0, 0, true);
-    this.emit({ type: 'damage', enemy, amount: dealt, killed, crit: false, mark: true });
+    this.emit({ type: 'damage', enemy, amount: dealt, killed, crit: false, mark: true, by: ABE_TAGS });
     if (killed) this.died(enemy, hadPowder, wasBurning);
     return killed;
   }
@@ -2279,7 +2309,7 @@ export class Horde {
     const killed = e.damage(hp, null, 0);
     if (killed) {
       e.sink(at);
-      this.emit({ type: 'damage', enemy: e, amount: hp, killed: true, swallowed: true });
+      this.emit({ type: 'damage', enemy: e, amount: hp, killed: true, swallowed: true, by: HOLE_TAGS });
     }
     return killed;
   }
@@ -2828,7 +2858,7 @@ export class Horde {
       e.burnTick -= dt;
       if (e.burnTick <= 0) {
         e.burnTick += ELEMENTS.burnTick;
-        this.damage(e, ELEMENTS.burnDamage, null, 0, true);
+        this.withSource(e.burnBy, () => this.damage(e, ELEMENTS.burnDamage, null, 0, true));
       }
     }
     for (const e of this.enemies) e.update(dt, player, this);

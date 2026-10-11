@@ -21,6 +21,27 @@ const MAX_QUEUE = 30;
 const MAX_OFFS = 1500;
 
 /** Lo que pasó en una oleada. */
+/**
+ * Lo de cada habilidad en la partida (11/10, pedido de Leandro, para balancearlas). Va por id de
+ * habilidad (`driver-fire`, `boost`, `glove-ice`...), y también `smith` (el herrero) y `abe` (su marca).
+ * El daño de un tiro se le anota a todas las que lo armaron: el tiro de habilidad, o en uno de palo, la
+ * potencia, el guante, la fuerza, el caddie, el eco o el clon (ver Shot.tags); el fuego que muerde y el
+ * rayo que salta, al tiro que los dejó; la pólvora que explota, a la pólvora.
+ */
+export interface AbilityLog {
+  /** Veces que se tiró. */
+  casts: number;
+  /** Golpes que entraron: uno por enemigo y por golpe. */
+  hits: number;
+  damage: number;
+  kills: number;
+  /**
+   * Alcanzados sin daño: los que marcó la pólvora o agrandó la lupa, los que desvió la bandera, los del
+   * palazo; en la lluvia, las pelotas que puso.
+   */
+  affected: number;
+}
+
 export interface WaveLog {
   n: number;
   title: string;
@@ -155,6 +176,8 @@ export class RunRecorder {
   private best = 0;
   /** A cuántos ms del tope de la barra se soltó cada tiro (11/10): negativo, antes; positivo, se pasó. */
   private readonly offs: number[] = [];
+  /** Lo de cada habilidad (ver AbilityLog). */
+  private readonly perAbility: Record<string, AbilityLog> = {};
 
   /**
    * @param send si se manda al terminar. Sin esto solo junta los números, para el cartel del final (el
@@ -197,8 +220,27 @@ export class RunRecorder {
   }
 
   /** Lo anotado hasta ahora: las oleadas, las cartas y cuándo se soltó cada tiro (para las pruebas y las tandas del bot). */
-  get log(): { waves: WaveLog[]; cards: { wave: number; offered: string[]; picked: string | null }[]; offs: number[] } {
-    return { waves: this.waves, cards: this.cards, offs: this.offs };
+  get log(): { waves: WaveLog[]; cards: { wave: number; offered: string[]; picked: string | null }[]; offs: number[]; abilities: Record<string, AbilityLog> } {
+    return { waves: this.waves, cards: this.cards, offs: this.offs, abilities: this.perAbility };
+  }
+
+  private abilityLog(id: string): AbilityLog {
+    return (this.perAbility[id] ??= { casts: 0, hits: 0, damage: 0, kills: 0, affected: 0 });
+  }
+
+  /** Daño a un enemigo hecho por (o con) las habilidades `by` (ver AbilityLog). */
+  credit(by: readonly string[], amount: number, killed: boolean): void {
+    for (const id of new Set(by)) {
+      const a = this.abilityLog(id);
+      a.hits++;
+      if (Number.isFinite(amount)) a.damage += amount;
+      if (killed) a.kills++;
+    }
+  }
+
+  /** La habilidad `id` alcanzó a `count` sin hacerles daño (ver AbilityLog.affected). */
+  affected(id: string, count: number): void {
+    if (count > 0) this.abilityLog(id).affected += count;
   }
 
   /** Un tiro de palo terminó y le pegó a alguien: a `enemies` distintos. */
@@ -226,8 +268,10 @@ export class RunRecorder {
     this.best = Math.max(this.best, kills);
   }
 
-  ability(): void {
+  /** Se tiró una habilidad (la `id`, para lo de cada una). */
+  ability(id?: string): void {
     if (this.now) this.now.abilities++;
+    if (id) this.abilityLog(id).casts++;
   }
 
   /** Perdió vida el golfista (`gate` false) o la puerta, por `source`. */
@@ -285,6 +329,7 @@ export class RunRecorder {
         shots: sum('shots'), hits: sum('hits'), perfects: sum('perfects'), kills: sum('kills'), extra: sum('extra'), damage: sum('damage'), shotDamage: sum('shotDamage'),
         waves: this.waves,
         cards: this.cards,
+        abilities: this.perAbility,
         releases: this.offs,
         host: location.hostname,
         // en qué idioma jugó (ver src/i18n.ts); el título de cada oleada sale en ese idioma

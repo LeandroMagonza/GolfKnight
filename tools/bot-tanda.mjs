@@ -121,6 +121,9 @@ async function play(job) {
           // bajas de más de un mismo tiro, y de los que pegaron, a cuántos tocó (1, 2, 3, 4 o más)
           extra: log ? log.waves.reduce((n, w) => n + w.extra, 0) : null,
           multi: log ? log.waves.reduce((all, w) => all.map((n, i) => n + (w.multi?.[i] ?? 0)), [0, 0, 0, 0]) : null,
+          // con qué terminó (habilidad y nivel, y las mejoras) y lo que hizo cada habilidad (ver AbilityLog)
+          build: g.abilities ? { abilities: g.abilities.slots.map((s) => [s.id, s.level]), perks: { ...g.perks } } : null,
+          perAbility: log?.abilities ?? null,
         };
       });
       if (r.ended) break;

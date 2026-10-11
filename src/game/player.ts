@@ -41,6 +41,11 @@ export interface Shot {
   gloved?: boolean;
   /** El tiro es de una habilidad, con pelota gratis: no cuenta para las rachas. */
   ability?: boolean;
+  /**
+   * Para el registro (ver Recorder.credit): las habilidades que armaron el tiro. La del tiro de habilidad,
+   * y en uno de palo, la potencia, el guante, la fuerza, el caddie, el eco o el clon.
+   */
+  tags?: readonly string[];
   /** Daño de más a cada uno que alcanza (la potencia). */
   bonus?: number;
   from: THREE.Vector3;

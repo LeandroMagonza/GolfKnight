@@ -781,6 +781,7 @@ horde.onEvent = (e) => {
   switch (e.type) {
     case 'damage': {
       recorder?.damage(e.amount, e.killed, !!horde.shot);
+      if (e.by?.length) recorder?.credit(e.by, e.amount, e.killed);
       const s = toScreen(e.enemy.position, e.enemy.height);
       // el que cae al hoyo no muestra daño: el «¡Al hoyo!» ya lo dice
       const text = `${e.crit ? '✸ ' : ''}${e.mark ? '✦' : ''}${e.amount}${e.killed ? ' ☠' : ''}`;
@@ -1045,6 +1046,7 @@ abilities.onEvent = (e) => {
       audio.whoosh(0.7);
       break;
     case 'mark':
+      recorder?.affected(e.id, e.hits);
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
       audio.explosion();
       if (e.hits) hud.feedback(`${ABILITIES[e.id].name} ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
@@ -1055,6 +1057,9 @@ abilities.onEvent = (e) => {
       break;
     case 'bump':
       audio.thud();
+      break;
+    case 'lured':
+      recorder?.affected(e.id, 1);
       break;
   }
 };
@@ -1125,7 +1130,7 @@ function castAbility(index: number): void {
     aimPoint.copy(keep.point);
     player.aimDir.copy(keep.dir);
   }
-  if (result === 'ok') recorder?.ability();
+  if (result === 'ok') recorder?.ability(slot.id);
   // el lugar vacío no dice nada: no hay nada que tirar
   if (result === 'cooling') {
     const name = ABILITIES[slot.id].name;
@@ -1514,7 +1519,7 @@ if (!ABE_ONLY) abilities.hooks = {
     // el wedge saltea la pifia: su nivel 1 sale con el golpe 2
     const quality = shotQuality(clubId, level);
     audio.tock(quality >= QUALITY_LEVELS);
-    balls.fire({ club, quality, level, power: 1, curve: 0, element, ability: true, from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
+    balls.fire({ club, quality, level, power: 1, curve: 0, element, ability: true, tags: [`${clubId}-${element}`], from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
   },
   fillSpots() {
     if (pocket) {
@@ -1524,6 +1529,7 @@ if (!ABE_ONLY) abilities.hooks = {
     }
     const n = tees.fillAll();
     if (n) hud.feedback(L(`¡Lluvia de pelotas! +${n}`, `Ball shower! +${n}`), 'good');
+    recorder?.affected('rain', n);
     return n;
   },
   startCaddie(seconds: number) {
@@ -2063,9 +2069,19 @@ async function makePlayer(skin: Skin): Promise<Player> {
       // se gasta recién acá, cuando sale la pelota: cancelar, cambiar de palo o pifiar no lo tocan
       const bonus = nextShot.bonus + smithBonus;
       if (bonus) shot = { ...shot, bonus };
+      // para el registro: las habilidades que arman este tiro (el eco y el clon suman la suya)
+      const tags: string[] = [];
+      if (nextShot.bonus) tags.push('boost');
+      if (smithBonus) tags.push('smith');
       smithBonus = 0;
       // el guante: el tiro lleva su elemento, al nivel del guante, y pega como siempre (el eco y el clon, igual)
-      if (glove) shot = { ...shot, element: glove.element, level: glove.level, gloved: true };
+      if (glove) {
+        shot = { ...shot, element: glove.element, level: glove.level, gloved: true };
+        tags.push(`glove-${glove.element}`);
+      }
+      if (mightLeft > 0) tags.push('might');
+      if (caddieLeft > 0) tags.push('caddie');
+      if (tags.length) shot = { ...shot, tags };
       // tenis: si le pegó a una que venía de vuelta, esa ya está en la raqueta y sale como un saque, desde
       // tu lugar y por donde marca la línea de tiro
       const back = t?.back ?? null;
@@ -2082,7 +2098,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
         hud.float(s.x, s.y, bonus ? `×${fired.rally} +${bonus}` : `×${fired.rally}`, bonus ? 'kill' : '');
       }
       for (let k = 1; k <= nextShot.echoes; k++) {
-        echoQueue.push({ at: gameClock + k * ECHO.delay, shot: { ...shot, ability: true, from: shot.from.clone(), dir: shot.dir.clone() }, range, lift });
+        echoQueue.push({ at: gameClock + k * ECHO.delay, shot: { ...shot, ability: true, from: shot.from.clone(), dir: shot.dir.clone(), tags: [...(shot.tags ?? []), 'echo'] }, range, lift });
       }
       nextShot.echoes = 0;
       nextShot.bonus = 0;
@@ -2096,7 +2112,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
         // para atrás no se tira: si el mouse queda detrás del clon, sale para el mismo lado que el tuyo
         const dir = len > 0.5 && dz > 0.3 ? new THREE.Vector3(dx / len, 0, dz / len) : shot.dir.clone();
         const cloneRange = shot.club.fixedRange > 0 ? range : THREE.MathUtils.clamp(len, shot.club.minRange, shot.club.maxRange);
-        balls.fire({ ...shot, from, dir }, cloneRange, shotLift(shot.club, cloneRange, from));
+        balls.fire({ ...shot, from, dir, tags: [...(shot.tags ?? []), 'clone'] }, cloneRange, shotLift(shot.club, cloneRange, from));
         effects.blink(from, ABILITIES.clone.color);
         if (--clone.shots <= 0) removeClone();
       }
@@ -2108,6 +2124,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
       const radius = lv(PALAZO.radius, meleeLevel);
       const center = p.position.clone().addScaledVector(p.aimDir, 1);
       const targets = horde.nearest(center, radius, new Set(), PALAZO.targets);
+      recorder?.affected('shove', targets.length);
       effects.swipe(center, radius);
       audio.whoosh(0.9);
       const dir = new THREE.Vector3();

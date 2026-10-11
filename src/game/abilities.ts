@@ -93,6 +93,9 @@ interface Cart {
   mesh: THREE.Group;
 }
 
+/** El daño del carrito, para el registro (ver Horde.source). */
+const CART_TAGS: readonly string[] = ['cart'];
+
 export type AbilityEvent =
   | { type: 'cast'; id: AbilityId }
   /** Cayó el hielo: la zona quedó armada y agarró a `hits` de entrada. */
@@ -101,7 +104,9 @@ export type AbilityEvent =
   /** El hoyo se tragó a uno. */
   | { type: 'swallow'; enemy: Enemy }
   /** El carrito le pegó a uno. */
-  | { type: 'bump'; pos: THREE.Vector3 };
+  | { type: 'bump'; pos: THREE.Vector3 }
+  /** La bandera desvió a uno más (cada enemigo, una vez por bandera): para el registro. */
+  | { type: 'lured'; id: AbilityId };
 
 export type CastResult = 'ok' | 'empty' | 'cooling' | 'blocked';
 
@@ -434,7 +439,14 @@ export class Abilities {
       if (m.left > 0) {
         if (m.kind === 'flag') {
           // mientras estén cerca siguen yendo a la bandera
-          for (const e of this.inside(m.pos, m.radius)) e.lureTo(m.pos.x, m.pos.z, 0.4);
+          for (const e of this.inside(m.pos, m.radius)) {
+            e.lureTo(m.pos.x, m.pos.z, 0.4);
+            // al élite y al jefe no los desvía (ver lureTo)
+            if (!m.seen.has(e.id) && e.lureTimer > 0) {
+              m.seen.add(e.id);
+              this.onEvent?.({ type: 'lured', id: 'flag' });
+            }
+          }
         } else {
           for (const e of this.horde.enemies) {
             if (m.swallows <= 0) break;
@@ -480,7 +492,7 @@ export class Abilities {
         if (!e.alive || e.passed || c.hit.has(e.id)) continue;
         if (Math.abs(e.position.z - c.z) > CART.width + e.radius || Math.abs(e.position.x - c.x) > 1.2 + e.radius) continue;
         c.hit.add(e.id);
-        this.horde.damage(e, lv(CART.damage, c.level), new THREE.Vector3(c.dir, 0, 0.4).normalize(), 7);
+        this.horde.withSource(CART_TAGS, () => this.horde.damage(e, lv(CART.damage, c.level), new THREE.Vector3(c.dir, 0, 0.4).normalize(), 7));
         this.onEvent?.({ type: 'bump', pos: e.position.clone() });
       }
       if (Math.abs(c.x) <= fieldHalfAt(c.z) + 4) continue;

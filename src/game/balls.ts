@@ -45,6 +45,8 @@ export interface Ball {
   floor: number;
   /** Es de una habilidad, no del puesto: no cuenta para las rachas. */
   ability: boolean;
+  /** Las habilidades que armaron el tiro, para el registro (ver `Shot.tags`). */
+  tags: readonly string[];
   /** Driver de viento: hacia dónde sale, cuántos metros ya barrió el viento y a quiénes ya acomodó. */
   dir: THREE.Vector3;
   windSwept: number;
@@ -211,7 +213,7 @@ export class Balls {
     const ball: Ball = {
       state, club: shot.club, bounce, quality: shot.quality, level: shot.level ?? shot.quality,
       from: shot.from.clone(), spin, spinTime: 0,
-      element: shot.element ?? null, ability: !!shot.ability, gloved: !!shot.gloved,
+      element: shot.element ?? null, ability: !!shot.ability, tags: shot.tags ?? [], gloved: !!shot.gloved,
       effect: effectOnly(shot.element) && !shot.gloved, floor: this.minDamage(shot.club.id),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
       hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
@@ -248,7 +250,7 @@ export class Balls {
 
   /** Le avisa a la horda qué tiro está pegando, para que cuente las bajas que hace (ver `Horde.shot`). */
   private markShot(ball: Ball): NonNullable<Horde['shot']> {
-    const shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability, kills: 0, ghost: ball.element === 'ghost' ? ball.quality : 0 };
+    const shot = { club: ball.club.id, quality: ball.quality, ability: ball.ability, kills: 0, ghost: ball.element === 'ghost' ? ball.quality : 0, tags: ball.tags };
     this.horde.shot = shot;
     return shot;
   }
@@ -371,6 +373,13 @@ export class Balls {
     // una vez por enemigo: el que tocó la pelota y además movió su viento no cobra dos veces
     if (ball.effected.has(enemy.id)) return;
     ball.effected.add(enemy.id);
+    // lo que haga el elemento (el rayo que salta, el fuego que va a morder) se le anota a lo que armó el tiro
+    this.horde.withSource(ball.tags, () => this.leaveElement(ball, enemy));
+  }
+
+  /** Deja el elemento de la pelota (y los de sus maestrías mixtas) en uno que tocó. */
+  private leaveElement(ball: Ball, enemy: Enemy): void {
+    if (!ball.element) return;
     // el viento no es de a uno: va detrás de la pelota o donde revienta (windTrail, windBurst)
     if (ball.element !== 'wind') {
       // el nivel del guante es el suyo, no el del tiro de habilidad de ese palo (el wedge llega a 2)
@@ -408,7 +417,7 @@ export class Balls {
       this.horde.applyIce(enemy, lv(ELEMENTS.iceSeconds, total));
       // congela con todo tu hielo desde `iceFreezeFrom`, o con la carta en su nivel de congelar
       if (cardFreezes || total >= ELEMENTS.iceFreezeFrom) this.horde.freeze(enemy);
-    } else if (element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, total)));
+    } else if (element === 'fire') enemy.burn(burnSeconds(lv(ELEMENTS.burnTicks, total)), this.horde.by);
     // a cada uno que toca le cae un rayo, y de ahí sale el suyo
     else if (element === 'lightning') this.horde.chain(enemy, lv(ELEMENTS.chainJumps, total), true);
     // lo deja apagado para lo que venga
