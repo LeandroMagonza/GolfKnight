@@ -1094,6 +1094,8 @@ export class DebugPanel {
       ['recarga de tus habilidades, «recarga lenta» 2', () => d.cooldown[2], (v) => { d.cooldown[2] = Math.max(1, v); }, 0.1, '×'],
       ['vida de menos del élite, sin el punto', () => d.eliteHpLess[0], (v) => { d.eliteHpLess[0] = Math.max(0, Math.round(v)); }, 1, ''],
       ['descanso con «sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's'],
+      ['hechiceros, con 1', () => d.casters[1], (v) => { d.casters[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada, aparte'],
+      ['hechiceros, con 2', () => d.casters[2], (v) => { d.casters[2] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada, aparte'],
       ['golpe 4: vida de más de los comunes', () => d.fourthHp, (v) => { d.fourthHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['golpe 4: de los élites', () => d.fourthEliteHp, (v) => { d.fourthEliteHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['golpe 4: del jefe', () => d.fourthBossHp, (v) => { d.fourthBossHp = Math.max(0, Math.round(v)); }, 1, ''],

@@ -365,22 +365,22 @@ guarda en el navegador. En el juego, desbloquear se anuncia como «¡Nivel N des
 
 Antes (del 3/10 al 11/10) eran 18 puntos para poner donde uno quisiera. Abrumaba, se podía saltar de golpe
 a lo más duro, y con todo puesto era casi imposible para una persona (Leandro, con suerte, pasaba la
-segunda oleada). La escalera tiene 10 de los 18 pasos, en orden, con elección en casi todos. Lo guardado
+segunda oleada). La escalera tiene 10 de los 20 pasos (con los hechiceros), en orden, con elección en casi todos. Lo guardado
 con puntos se pasó en la misma proporción (9 de 18 puntos: 5 de 10 niveles), y en cada escalón quedó
 elegido un talento que se tenía puesto.
 
 | Escalón | Opciones (se elige una) |
 | --- | --- |
-| 1 | Sin respiro · Élites más duros |
+| 1 | Sin respiro · Élites más duros · Escolta del jefe |
 | 2 | Más rápidos |
 | 3 | Olas especiales · Recarga lenta |
-| 4 | Más con poder · Apoyos |
+| 4 | Más con poder |
 | 5 | Poderes más duros |
-| 6 | Terreno irregular · Golpe 4 · Escolta del jefe |
-| 7 | Más rápidos · Recarga lenta |
-| 8 | Olas especiales · Más con poder · Apoyos |
-| 9 | Poderes acumulados |
-| 10 | Más rápidos |
+| 6 | Apoyos · Hechiceros |
+| 7 | Terreno irregular · Más rápidos |
+| 8 | Olas especiales · Apoyos · Hechiceros |
+| 9 | Poderes acumulados · Más rápidos |
+| 10 | Golpe 4 |
 
 Cada opción **suma un paso** a su talento: «Más rápidos» está en tres escalones y con los tres es la
 velocidad más alta; la opción dice el paso que daría (el segundo «Más rápidos» que se elige se llama
@@ -398,7 +398,8 @@ aunque solo se mande cuando corresponde.
 | --- | --- |
 | Poderes acumulados | los poderes de los escenarios anteriores siguen viniendo |
 | Olas especiales | 1: la segunda oleada es especial y deja su marca; 2: otra más adelante |
-| Apoyos | 1: en el último escenario; 2: desde el segundo |
+| Apoyos | curanderos, inmunes o abanderados. 1: en el último escenario; 2: desde el segundo |
+| Hechiceros | desde el 11/10 (antes eran un apoyo más): se plantan lejos y te tiran hechizos. Se suman a los de la oleada (1: un 10 %; 2: un 20 %; al menos uno), desde la segunda oleada, y **no cuentan para terminar la oleada** (no van a la puerta): se quedan hasta que los matás, aunque empiece la siguiente. Uno solo se esquiva para siempre; el problema es cuando se juntan (`CASTERS` en `src/core/waves.ts`) |
 | Poderes más duros | toca a todos los poderes de escenario (desde el 7/10; ver docs/tiempos-poderes.md): escudos de hasta 3 (sin el punto, hasta 2); el blindaje sigue hasta 2, pero casi siempre de 2 (el mayor de dos sorteos); el escurridizo y el bendito recargan a tiempo (sin el punto, ×1.6); el que se cura, con el margen de siempre (sin el punto, ×2.5: tarda más en curarse); el intocable, invulnerable ×1.3 y la ventana de siempre (sin el punto, ventana ×1.6); el fantasma, 1 de vida más (el élite, 4: 2 al doble) |
 | Más rápidos | sin puntos los enemigos van a ×0.76; 1: ×0.88; 2: a su velocidad; 3: ×1.12 |
 | Terreno irregular | se juega en uno de los tres campos con lomas (sin el punto, en el liso). Cambiarlo en la pantalla de inicio cambia el campo en el acto |

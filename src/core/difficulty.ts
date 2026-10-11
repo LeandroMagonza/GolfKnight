@@ -6,13 +6,13 @@
 // En el nivel 0, la partida es la más simple: en el campo liso, un solo poder por oleada (el de su
 // escenario), sin olas especiales ni apoyos, enemigos más lentos, menos con poder y más flojos, el élite
 // con menos vida y el jefe con enemigos comunes. Con todos los talentos al máximo (ya no se puede: la
-// escalera tiene diez de los dieciocho pasos) era más difícil que la de antes del 3/10.
+// escalera tiene diez de los veinte pasos) era más difícil que la de antes del 3/10.
 
 import { L } from '../i18n';
 import { FOURTH } from './clubs';
 import { ELITE, INTERMISSION, type RunRules } from './waves';
 
-export type TalentId = 'stack' | 'special' | 'support' | 'powers' | 'speed' | 'terrain' | 'powered' | 'elite' | 'escort' | 'rest' | 'cooldown' | 'fourth';
+export type TalentId = 'stack' | 'special' | 'support' | 'casters' | 'powers' | 'speed' | 'terrain' | 'powered' | 'elite' | 'escort' | 'rest' | 'cooldown' | 'fourth';
 
 export interface Talent {
   id: TalentId;
@@ -56,6 +56,8 @@ export const DIFFICULTY = {
   fourthHp: 1,
   fourthEliteHp: 2,
   fourthBossHp: 8,
+  // los hechiceros (11/10): qué parte de cada oleada se suma de hechiceros, con 0, 1 y 2 pasos
+  casters: [0, 0.1, 0.2],
 };
 
 /** Una fracción como se dice: un cuarto, un tercio. */
@@ -73,16 +75,17 @@ export const TALENTS: Talent[] = [
     () => L('Otra ola especial, más adelante', 'Another special wave, later on'),
   ] },
   { id: 'support', name: L('Apoyos', 'Supports'), levels: [
-    () => L('En el último escenario vienen curanderos, inmunes, abanderados o hechiceros', 'Healers, warders, standard-bearers or sorcerers join the last stage'),
+    () => L('En el último escenario vienen curanderos, inmunes o abanderados', 'Healers, warders or standard-bearers join the last stage'),
     () => L('Los apoyos vienen desde el segundo escenario', 'Supports join from the second stage on'),
   ] },
+  { id: 'casters', name: L('Hechiceros', 'Sorcerers'), levels: [
+    () => L('Se suman hechiceros que te tiran desde lejos. No van a la puerta: no hace falta matarlos para pasar de oleada, pero se juntan',
+      'Sorcerers join and cast at you from afar. They don\'t go for the gate: you don\'t need to kill them to clear a wave, but they pile up'),
+    () => L('El doble de hechiceros', 'Twice as many sorcerers'),
+  ] },
   { id: 'powers', name: L('Poderes más duros', 'Tougher Powers'), levels: [
-    () => L(
-      `Escudos de hasta ${DIFFICULTY.cap[1]} y más blindajes de 2; los escurridizos y los benditos recargan antes, los que se curan se curan `
-        + `más seguido, los intocables pasan más rato invulnerables y los fantasmas traen ${DIFFICULTY.ghostHp[1]} de vida más (el élite, ${DIFFICULTY.ghostEliteHp[1] * ELITE.hpScale})`,
-      `Shields up to ${DIFFICULTY.cap[1]} and more level-2 armor; slippery and blessed enemies recharge sooner, regenerators heal `
-        + `more often, untouchables stay invulnerable longer and ghosts get ${DIFFICULTY.ghostHp[1]} more HP (the elite, ${DIFFICULTY.ghostEliteHp[1] * ELITE.hpScale})`,
-    ),
+    // (11/10, Leandro: decía cada poder, y era demasiado; el detalle está en el README y en DIFFICULTY)
+    () => L('Los poderes de los enemigos son más fuertes', 'Enemy powers are stronger'),
   ] },
   { id: 'speed', name: L('Más rápidos', 'Faster Enemies'), levels: [
     () => L('Los enemigos caminan más rápido', 'Enemies walk faster'),
@@ -115,12 +118,7 @@ export const TALENTS: Talent[] = [
       : L(`Tus habilidades tardan un ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)} % más en recargar`, `Your abilities take ${Math.round((DIFFICULTY.cooldown[2] - 1) * 100)}% longer to recharge`)),
   ] },
   { id: 'fourth', name: L('Golpe 4', 'Hit 4'), levels: [
-    () => L(
-      `En el medio del rojo aparece el golpe 4: pega ${FOURTH.bonus} más que el 3, y entre los dos duran lo que el 3 de siempre. `
-        + `A cambio, los enemigos traen ${DIFFICULTY.fourthHp} de vida más, los élites ${DIFFICULTY.fourthEliteHp * ELITE.hpScale} y el jefe ${DIFFICULTY.fourthBossHp}`,
-      `Hit 4 appears in the middle of the red: it deals ${FOURTH.bonus} more than hit 3, and together they last as long as hit 3 used to. `
-        + `In exchange, enemies get ${DIFFICULTY.fourthHp} more HP, elites ${DIFFICULTY.fourthEliteHp * ELITE.hpScale} and the boss ${DIFFICULTY.fourthBossHp}`,
-    ),
+    () => L('Tus tiros pueden llegar al golpe 4, pero los enemigos tienen más vida', 'Your shots can reach hit 4, but enemies have more HP'),
   ] },
 ];
 const BY_ID = Object.fromEntries(TALENTS.map((t) => [t.id, t])) as Record<TalentId, Talent>;
@@ -137,22 +135,24 @@ export function talent(id: TalentId): Talent {
  * se podía saltar de golpe a lo más duro.
  *
  * Una opción suma un nivel a su talento: «Más rápidos» está en tres escalones, y cada uno que se elige lo
- * sube un paso. Ningún talento aparece más veces que sus niveles.
+ * sube un paso. Ningún talento aparece más veces que sus niveles (algunos, menos: no todos los pasos
+ * entran).
  *
  * El orden es el que mide el bot (tools/bot-tanda.mjs): primero lo que menos pesa.
  */
 export const LADDER: TalentId[][] = [
-  ['rest', 'elite'],
+  // (11/10, Leandro: la escolta del jefe es de las livianas; más con poder, sola; el terreno en el 7 y el
+  // golpe 4 al final, solo)
+  ['rest', 'elite', 'escort'],
   ['speed'],
   ['special', 'cooldown'],
-  ['powered', 'support'],
+  ['powered'],
   ['powers'],
-  // los que cambian cómo se juega, o el jefe con escolta
-  ['terrain', 'fourth', 'escort'],
-  ['speed', 'cooldown'],
-  ['special', 'powered', 'support'],
-  ['stack'],
-  ['speed'],
+  ['support', 'casters'],
+  ['terrain', 'speed'],
+  ['special', 'support', 'casters'],
+  ['stack', 'speed'],
+  ['fourth'],
 ];
 
 /** El nivel más alto: todos los escalones puestos. */
@@ -239,6 +239,7 @@ export function rulesFor(picks: Picks): RunRules {
     extraHp: fourth ? DIFFICULTY.fourthHp : 0,
     bossHp: fourth ? DIFFICULTY.fourthBossHp : 0,
     cooldown: at(DIFFICULTY.cooldown, lv('cooldown')),
+    casters: at(DIFFICULTY.casters, lv('casters')),
   };
 }
 

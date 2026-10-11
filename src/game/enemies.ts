@@ -1934,9 +1934,10 @@ export class Horde {
     this.onEvent?.(e);
   }
 
+  /** Los que quedan para terminar la oleada: los hechiceros del talento van aparte (ver CASTERS). */
   get aliveCount(): number {
     let n = 0;
-    for (const e of this.enemies) if (e.alive) n++;
+    for (const e of this.enemies) if (e.alive && !e.mods.apart) n++;
     return n;
   }
 

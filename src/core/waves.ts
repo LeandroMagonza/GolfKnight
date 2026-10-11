@@ -56,6 +56,11 @@ export interface EnemyMods {
   banner?: boolean;
   /** Tira hechizos al golfista desde lejos (ver RANGED). */
   ranged?: boolean;
+  /**
+   * Va aparte (los hechiceros del talento, ver CASTERS): no cuenta para terminar la oleada. Se queda hasta
+   * que lo matan, aunque empiece la siguiente.
+   */
+  apart?: boolean;
   /** Esquiva: si le apuntás al soltar el tiro o al tirar una habilidad, salta al costado (ver DODGE). */
   dodge?: boolean;
   /** Segundos que tarda en volver a esquivar, si no son los de DODGE (con poca dificultad, más). */
@@ -386,11 +391,20 @@ export const SCENARIO_POWERS = ['shield', 'armor', 'ethereal', 'divine', 'dodge'
 export type ScenarioPower = (typeof SCENARIO_POWERS)[number];
 
 /**
- * **Los de apoyo**: tirar hechizos, curar, volver inmunes, llevar la bandera. La partida sortea dos, uno
- * para el segundo escenario y otro para el tercero, y salen de a pocos. Explotar va con la estampida;
- * cavar, por ahora, no sale.
+ * **Los de apoyo**: curar, volver inmunes, llevar la bandera. La partida sortea dos, uno para el segundo
+ * escenario y otro para el tercero, y salen de a pocos. Explotar va con la estampida; cavar, por ahora, no
+ * sale. Tirar hechizos era uno más hasta el 11/10: ahora es su propio talento (ver CASTERS).
  */
-export const SUPPORT_POWERS = ['ranged', 'heal', 'ward', 'banner'] as const;
+export const SUPPORT_POWERS = ['heal', 'ward', 'banner'] as const;
+
+/**
+ * **Los hechiceros** (11/10, pedido de Leandro): un talento aparte. Se plantan lejos y te tiran hechizos; no
+ * van a la puerta, así que **no cuentan para terminar la oleada** (`apart`): se suman a los de siempre (la
+ * parte de la oleada que dice la dificultad, al menos uno) y se quedan hasta que los matás, aunque empiece
+ * la siguiente. Uno solo se esquiva para siempre; el problema es cuando se juntan. Salen desde la segunda
+ * oleada, en cuerpos chicos.
+ */
+export const CASTERS = { from: 1 };
 
 /** El élite de cada escenario lleva el poder del escenario en su versión más dura. */
 export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardness) => EnemyMods> = {
@@ -459,6 +473,8 @@ export interface Wave {
   giants?: number;
   /** La marca de «todos con poder»: unos pocos con poderes que no salieron en la partida. Aparte del tercio. */
   foreign?: { keys: PowerKey[]; count: number };
+  /** Los hechiceros que se suman, en parte de los de la oleada (ver CASTERS). Aparte de todo. */
+  casters?: number;
 }
 
 /**
@@ -556,6 +572,8 @@ export interface RunRules {
   order?: readonly ScenarioPower[];
   /** Por cuánto se multiplica la recarga de las habilidades del caballero (el talento «Recarga lenta»). */
   cooldown: number;
+  /** Los hechiceros que se suman, en parte de cada oleada (ver CASTERS). 0, ninguno. */
+  casters?: number;
 }
 
 /** Segundos de descanso entre oleadas. */
@@ -724,9 +742,10 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
   ];
   const specials: WaveMod[] = [];
   const unused = pool.filter((p) => !powers.includes(p));
-  for (const w of waves) {
+  for (const [i, w] of waves.entries()) {
     w.share = rules.share;
     w.speed = rules.speed;
+    if (rules.casters && i >= CASTERS.from) w.casters = rules.casters;
     w.hard = rules.hard;
     if (rules.extraHp) w.extraHp = rules.extraHp;
     if (rules.bossHp) w.bossHp = rules.bossHp;
@@ -869,6 +888,15 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
     for (const s of wave.supports ?? []) for (let i = 0; i < s.count && left > 0; i++, left--) give(power(s.key), false);
     for (; focus > 0; focus--) give(power(wave.focus!), false);
     for (; rest > 0 && old.length; rest--) give(power(old[Math.floor(rand() * old.length)]), false);
+  }
+  // los hechiceros del talento: se suman, en cuerpos chicos de la oleada, repartidos (nunca primeros)
+  if (wave.casters) {
+    const bodies = [...new Set(arriving.filter((s) => !ENEMIES[s.kind].boss && ENEMIES[s.kind].hp <= 3 && canTake(s.kind, { ranged: true })).map((s) => s.kind))];
+    const count = bodies.length ? Math.max(1, Math.round(order.length * wave.casters)) : 0;
+    for (let n = 0; n < count; n++) {
+      const at = 1 + Math.floor(rand() * Math.max(1, order.length - 1));
+      order.splice(at, 0, { kind: bodies[Math.floor(rand() * bodies.length)], mods: { ranged: true, apart: true }, delay: wave.interval * 0.5 });
+    }
   }
   // los escudos sorteados van de menor a mayor a lo largo de la oleada: el más duro, al final
   const shielded = arriving.filter((s) => s.mods?.shield && s.mods.shield < SHIELD_WALL && !wave.groups.some((g) => g.mods === s.mods));

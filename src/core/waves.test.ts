@@ -580,3 +580,29 @@ describe('waves', () => {
     expect(buildRun(Math.random, { ...HARDEST, order: ['shield'] }).powers).toHaveLength(3);
   });
 });
+
+describe('los hechiceros (11/10: un talento aparte)', () => {
+  it('ya no son un apoyo', () => {
+    expect(SUPPORT_POWERS).not.toContain('ranged');
+  });
+
+  it('se suman desde la segunda oleada, aparte: tiran hechizos y no cuentan para terminar la oleada', () => {
+    const run = buildRun(Math.random, rulesFor({ casters: 1 }));
+    expect(run.waves[0].casters).toBeUndefined();
+    for (const w of run.waves.slice(1)) expect(w.casters, w.title).toBe(DIFFICULTY.casters[1]);
+    const plain = spawnOrder({ ...run.waves[1], casters: undefined });
+    const order = spawnOrder(run.waves[1]);
+    const casters = order.filter((s) => s.mods?.apart);
+    // al menos uno, y la parte de la oleada que dice la dificultad
+    expect(casters.length).toBeGreaterThanOrEqual(1);
+    expect(order.length - plain.length).toBe(casters.length);
+    for (const s of casters) {
+      expect(s.mods).toMatchObject({ ranged: true, apart: true });
+      expect(ENEMIES[s.kind].boss).toBeFalsy();
+    }
+    // nunca el primero en salir
+    expect(order[0].mods?.apart).toBeFalsy();
+    // sin el talento, ninguno
+    expect(buildRun(Math.random, rulesFor({})).waves.every((w) => !w.casters)).toBe(true);
+  });
+});

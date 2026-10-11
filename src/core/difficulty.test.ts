@@ -3,11 +3,11 @@ import { choiceAt, choose, DIFFICULTY, earnLevel, hillsOn, LADDER, ladderFrom, l
 import { ELITE, HARDEST, INTERMISSION } from './waves';
 
 describe('dificultad', () => {
-  it('doce talentos, dieciocho pasos: la velocidad tiene tres, y olas especiales, apoyos, más con poder y la recarga lenta, dos', () => {
-    expect(TALENTS).toHaveLength(12);
-    expect(TALENTS.reduce((n, t) => n + t.levels.length, 0)).toBe(18);
+  it('trece talentos, veinte pasos: la velocidad tiene tres, y olas especiales, apoyos, hechiceros, más con poder y la recarga lenta, dos', () => {
+    expect(TALENTS).toHaveLength(13);
+    expect(TALENTS.reduce((n, t) => n + t.levels.length, 0)).toBe(20);
     expect(TALENTS.filter((t) => t.levels.length === 3).map((t) => t.id)).toEqual(['speed']);
-    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['cooldown', 'powered', 'special', 'support']);
+    expect(TALENTS.filter((t) => t.levels.length === 2).map((t) => t.id).sort()).toEqual(['casters', 'cooldown', 'powered', 'special', 'support']);
     expect(TALENTS.find((t) => t.id === 'cooldown')!.levels.map((f) => f())).toEqual(['Tus habilidades tardan un 50 % más en recargar', 'Tus habilidades tardan el doble en recargar']);
     for (const t of TALENTS) for (const text of t.levels) expect(text(), t.id).not.toBe('');
     expect(TALENTS.find((t) => t.id === 'powered')!.levels[0]()).toBe('Un tercio de los enemigos trae poder, en vez de un cuarto');
@@ -28,7 +28,10 @@ describe('dificultad', () => {
     const hard = rulesFor({ ...all, fourth: 0 });
     // lo mismo que la de antes del 3/10 en todo, salvo que va más rápido, descansa menos, la mitad trae
     // poder y las habilidades recargan el doble de lento
-    expect({ ...hard, speed: 1, rest: INTERMISSION, share: HARDEST.share, cooldown: 1 }).toEqual(HARDEST);
+    // (y los hechiceros, que no existían)
+    expect({ ...hard, speed: 1, rest: INTERMISSION, share: HARDEST.share, cooldown: 1, casters: undefined }).toEqual(HARDEST);
+    expect(hard.casters).toBe(DIFFICULTY.casters[2]);
+    expect(rulesFor({}).casters).toBe(0);
     expect(hard.cooldown).toBe(2);
     expect(rulesFor({ cooldown: 1 }).cooldown).toBe(1.5);
     expect(hard.speed).toBeGreaterThan(1);
@@ -71,7 +74,13 @@ describe('dificultad', () => {
       expect(options.length).toBeLessThanOrEqual(3);
       for (const id of options) times[id] = (times[id] ?? 0) + 1;
     }
-    for (const t of TALENTS) expect(times[t.id], t.id).toBe(t.levels.length);
+    // todos están, y ninguno más veces que sus niveles
+    for (const t of TALENTS) {
+      expect(times[t.id], t.id).toBeGreaterThanOrEqual(1);
+      expect(times[t.id], t.id).toBeLessThanOrEqual(t.levels.length);
+    }
+    // el golpe 4, al final y solo
+    expect(LADDER[MAX_LEVEL - 1]).toEqual(['fourth']);
   });
 
   it('cada opción elegida suma un paso a su talento; lo de los escalones sin poner no cuenta', () => {
@@ -81,13 +90,14 @@ describe('dificultad', () => {
     expect(picksOf(p)).toEqual({ [LADDER[0][0]]: 1, speed: 1 });
     // la velocidad está en tres escalones: con los tres, el paso 3
     p.level = MAX_LEVEL;
+    LADDER.forEach((o, j) => { if (j > 1 && o.includes('speed')) choose(p, j, o.indexOf('speed')); });
     expect(picksOf(p).speed).toBe(3);
     expect(rulesFor(picksOf(p)).speed).toBe(DIFFICULTY.speed[3]);
-    // en el séptimo, la recarga lenta en vez de la velocidad: un paso menos de velocidad
-    const i = LADDER.findIndex((o, j) => j > 1 && o.includes('speed') && o.includes('cooldown'));
-    expect(choose(p, i, LADDER[i].indexOf('cooldown'))).toBe(true);
+    // en el séptimo, el terreno en vez de la velocidad: un paso menos de velocidad
+    const i = LADDER.findIndex((o) => o.includes('speed') && o.includes('terrain'));
+    expect(choose(p, i, LADDER[i].indexOf('terrain'))).toBe(true);
     expect(picksOf(p).speed).toBe(2);
-    expect(picksOf(p).cooldown).toBe(1);
+    expect(picksOf(p).terrain).toBe(1);
   });
 
   it('el nombre y la línea de la opción dicen el paso que da: el segundo «Más rápidos» es el II', () => {
