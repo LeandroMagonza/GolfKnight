@@ -28,6 +28,11 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   `6a64925` Todo esto, también en la app de Windows. `79f7bf2`
 
 **La carga**
+- **La aguja va como un péndulo**: pasa el tope y baja por el otro lado al mismo ritmo con que subió,
+  hasta el borde, y desde ahí vuelve a cargar. Antes rebotaba: bajaba y volvía a subir casi tres veces
+  más rápido. Ahora va siempre igual, pero si te pasás del 3 la próxima vez tarda más en llegar. Con el
+  golpe 4, el 4 es el tercio del medio del rojo (era la mitad). `ab55017` También en la app de Windows.
+  `1cc10a1`
 - Para los que prueban: un **simulador de la carga** (`arco.html`, al lado del juego). Ponés cuánto dura
   cada golpe y el arco se reparte en proporción, con la aguja siempre a la misma velocidad; cargás con
   espacio o el mouse y te dice qué golpe sacaste y a cuántos milisegundos del tope. «Usar en el juego»
