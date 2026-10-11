@@ -1,8 +1,9 @@
-// La base de Supabase (el proyecto del ManaMod, donde está golf_runs; ver src/telemetry.ts), desde la compu.
-// La conexión va en web/.supabase-db, una línea que no se sube a git y no se muestra nunca:
-//   postgresql://postgres:CONTRASEÑA@db.kdwiuiciobekuedpmfpj.supabase.co:5432/postgres
-// (la contraseña de la base: Project Settings → Database). Con esa se puede todo: leer y cambiar la tabla y el
-// esquema. El proyecto es también el del ManaMod: acá solo se toca lo del Golf Knight.
+// La base de Supabase del Golf Knight (donde está golf_runs; ver src/telemetry.ts), desde la compu.
+// La conexión va en web/.supabase-db, que no se sube a git y no se muestra nunca (la primera línea que no
+// empieza con #; la contraseña va tal cual, sin escapar nada):
+//   postgresql://postgres:CONTRASEÑA@db.ID-DEL-PROYECTO.supabase.co:5432/postgres
+// (la del botón Connect del proyecto, con la contraseña de la base). Con esa se puede todo: leer y cambiar
+// la tabla y el esquema.
 //
 // Como módulo, `connect()` (lo usa tools/partidas.mts). Solo, corre SQL y muestra lo que devuelve:
 //   node tools/db.mjs "select count(*) from golf_runs"
@@ -13,21 +14,39 @@ import pg from 'pg';
 
 const FILE = new URL('../.supabase-db', import.meta.url);
 
+/**
+ * La conexión del archivo: la primera línea que no es un comentario (#). Se separa a mano, así la
+ * contraseña puede tener cualquier cosa (@, :, /, #) sin escaparla: va hasta la última @.
+ */
+function readConnection() {
+  let text;
+  try {
+    text = readFileSync(FILE, 'utf8');
+  } catch {
+    return { error: 'Falta web/.supabase-db con la conexión a la base (ver tools/db.mjs).' };
+  }
+  const line = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#')) ?? '';
+  const m = /^postgres(?:ql)?:\/\/([^:/]+):(.*)@([^@/:]+)(?::(\d+))?\/([^?\s]+)/.exec(line);
+  if (!m) return { error: 'En web/.supabase-db no hay una conexión que empiece con postgresql://usuario:contraseña@…' };
+  const [, user, password, host, port, database] = m;
+  if (!password || /^\[?YOUR-PASSWORD\]?$|^CONTRASEÑA$/.test(password)) return { error: 'Falta la contraseña en web/.supabase-db.' };
+  if (host.includes('REF')) return { error: 'Falta el id del proyecto en web/.supabase-db (donde dice REF).' };
+  return { config: { user, password, host, port: Number(port ?? 5432), database }, secret: password };
+}
+
 /** Conectado a la base, o sale avisando qué falta. */
 export async function connect() {
-  let url;
-  try {
-    url = readFileSync(FILE, 'utf8').trim();
-  } catch {
-    console.log('Falta web/.supabase-db con la conexión a la base (ver tools/db.mjs).');
+  const { config, secret, error } = readConnection();
+  if (error) {
+    console.log(error);
     process.exit(1);
   }
-  const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+  const client = new pg.Client({ ...config, ssl: { rejectUnauthorized: false } });
   try {
     await client.connect();
   } catch (e) {
-    // sin la conexión en el mensaje: lleva la contraseña
-    console.log(`No se pudo conectar a la base: ${String(e.message).replaceAll(url, '…')}`);
+    // sin la contraseña en el mensaje
+    console.log(`No se pudo conectar a la base (${config.host}): ${String(e.message).replaceAll(secret, '…')}`);
     process.exit(1);
   }
   return client;
