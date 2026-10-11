@@ -59,7 +59,7 @@ import { areaDamageFor, CLUBS, damageFor, fourthFrom, qualityMarks, qualityOf, r
 import { ABILITIES, CART, ELEMENTS, FLAG, LENS, POWDER, shotQuality } from './core/abilities';
 import { behindShield, RICOCHET, SHIELD_FRONT, SHIELD_TOP, shieldFaces } from './core/shield';
 import { heightAt, mounds, terrainOn } from './core/terrain';
-import { DODGE, RANGED, SHIELD_WALL } from './core/waves';
+import { DODGE, RANGED, REGEN, SHIELD_WALL } from './core/waves';
 import type { ChargeTimes } from './core/swing';
 import { BOT_PREFS } from './botPrefs';
 import { TRAMPLE_REACH } from './game/enemies';
@@ -603,6 +603,8 @@ export function startBot(): BotStats {
   function regenWindow(e: Enemy, t: number): { hp: number; left: number } | null {
     if (!e.mods?.regen) return null;
     const period: number = e.regenPeriod;
+    // sano, el ciclo no corre: arranca con el golpe que le llegue (ver REGEN.onHit), y hay uno entero
+    if (REGEN.onHit && e.hp >= e.maxHp) return { hp: e.hp, left: period };
     const heal = healIn(e);
     if (t < heal - REGEN_EDGE.before) return { hp: e.hp, left: heal - t };
     if (t < heal + REGEN_EDGE.after) return { hp: e.maxHp, left: 0 };
@@ -938,7 +940,7 @@ export function startBot(): BotStats {
     // el intocable cerrado: que llegue cuando se abre (un poco adentro de la ventana, por las dudas)
     if (e.mods?.phase && e.phaseShut && !e.silenced) timed(e.phaseOpensIn + Math.min(0.5, e.phaseBeat / 2));
     // el que se cura: que llegue recién curado, con todo el ciclo por delante para terminarlo
-    if (skill.regen && e.mods?.regen && !e.silenced) timed(healIn(e) + REGEN_EDGE.wait);
+    if (skill.regen && e.mods?.regen && !e.silenced && !(REGEN.onHit && e.hp >= e.maxHp)) timed(healIn(e) + REGEN_EDGE.wait);
     // el escudo de frente: el hierro a la cabeza o el globo del wedge, que le caen por arriba
     if (skill.shields && e.hasShield) {
       if (has('iron')) {

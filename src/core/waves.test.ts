@@ -607,6 +607,15 @@ describe('waves', () => {
     expect(hurry).toBeLessThanOrEqual(1 + REGEN.hurry);
     // cerca de la línea, con la barra casi llena, espera a cruzar
     expect(regenPace(1, period, period - 0.01)).toBeLessThan(0.05);
+    // con el ciclo que arranca con el golpe (una sola cura): solo se frena si cae a menos de un ciclo de la línea
+    expect(regenPace(10, period, 0, true)).toBe(1);
+    const once = regenPace(6, period, 0, true);
+    expect(period / once).toBeCloseTo(6 + REGEN.after);
+    expect(regenPace(3, period, 0, true)).toBe(1);
+  });
+
+  it('el que se cura: el ciclo arranca con el primer golpe', () => {
+    expect(REGEN.onHit).toBe(1);
   });
 
   it('`order` fija los poderes de los tres escenarios, sin sortear (?poderes= para probar)', () => {

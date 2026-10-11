@@ -1118,6 +1118,7 @@ export class DebugPanel {
       ['se cura: margen', () => REGEN.margin, (v) => { REGEN.margin = Math.max(0, v); }, 0.1, 's'],
       ['se cura: margen del élite', () => REGEN.eliteMargin, (v) => { REGEN.eliteMargin = Math.max(0, v); }, 0.1, 's'],
       ['se cura: ciclo mínimo', () => REGEN.min, (v) => { REGEN.min = Math.max(0.5, v); }, 0.1, 's'],
+      ['se cura: el ciclo arranca con el primer golpe', () => REGEN.onHit, (v) => { REGEN.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 corre siempre'],
       ['burbuja: vuelve sola a los', () => DIVINE.every, (v) => { DIVINE.every = Math.max(0.5, v); }, 0.5, 's'],
       ['burbuja del élite: a los', () => DIVINE.elite, (v) => { DIVINE.elite = Math.max(0.5, v); }, 0.5, 's'],
     ]);

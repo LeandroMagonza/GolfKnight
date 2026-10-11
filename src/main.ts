@@ -9,7 +9,7 @@ import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from 
 import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
-import { buildRun, ENEMIES, RANGED, SCENARIO_POWERS, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower } from './core/waves';
+import { buildRun, ENEMIES, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower } from './core/waves';
 import { choiceAt, earnLevel, hillsOn, LADDER, ladderFrom, loadProgress, MAX_LEVEL, picksOf, rulesFor, saveProgress, setLevel, TALENTS, type Picks, type Progress, type TalentId } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, fourthArc, timingWith } from './core/swing';
@@ -356,6 +356,8 @@ const raycaster = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 /** El plano a la altura del arco, para que la línea pase debajo del cursor (ver `aimUnderArc`). */
 const arcPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+/** Con las herramientas de prueba, `?curasiempre`: el ciclo del que se cura corre siempre, como antes del 11/10. */
+if (DEV_TOOLS && params.has('curasiempre')) REGEN.onHit = 0;
 /** Con las herramientas de prueba, `?mirapiso` apunta al piso como antes del 11/10, para comparar. */
 const AIM_FLOOR = DEV_TOOLS && params.has('mirapiso');
 const aimPoint = new THREE.Vector3(0, 0, 30);

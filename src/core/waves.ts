@@ -330,21 +330,32 @@ export const DIVINE = { every: 5, elite: 3 };
  * - `hurry`: lo más que se apura el ciclo (×1.1); si no alcanza, se frena.
  * - `slowest`: lo más que se frena de lejos (×0.7). Cerca de la línea se frena lo que haga falta: la
  *   barra casi llena espera a que cruce.
+ *
+ * **El ciclo arranca con el primer golpe** (`onHit`, 11/10, idea de Leandro): sano no corre; el primer
+ * golpe que le entra lo arranca, y al llenarse se cura entero y se queda quieto hasta el próximo golpe.
+ * Antes corría siempre, y había que esperar a que se curara para arrancar justo después (con el análisis
+ * de docs/dps.md, al ritmo de Leandro lo mataba en un 35 a 55 % de los ciclos aun arrancando justo).
+ * Así se abre con un golpe fuerte y hay un ciclo entero para rematarlo. 0 = como antes.
  */
-export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5, hp: 2, after: 0.1, hurry: 0.1, slowest: 0.7 };
+export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5, hp: 2, after: 0.1, hurry: 0.1, slowest: 0.7, onHit: 1 };
 
 /**
  * A qué ritmo corre el ciclo del que se cura (1, el de siempre): `eta` es lo que le falta para llegar a la
  * línea (Infinity si no va para ahí), `period` lo que dura el ciclo y `elapsed` lo que lleva. Busca que la
  * última cura antes de la línea caiga justo después de cruzarla (ver REGEN): de las dos que quedan
  * alrededor, mueve la que esté más cerca, apurándose solo un poco.
+ *
+ * Con `single` (el ciclo que arranca con el golpe, ver REGEN.onHit) viene una sola cura y después se queda
+ * quieto: solo se frena si esa cura cae a menos de un ciclo de la línea, donde ya no daría tiempo de
+ * volver a empezar; si cae antes, queda tiempo de abrirlo de nuevo.
  */
-export function regenPace(eta: number, period: number, elapsed: number): number {
+export function regenPace(eta: number, period: number, elapsed: number, single = false): number {
   if (!Number.isFinite(eta) || eta <= 0 || period <= 0) return 1;
   const aim = eta + REGEN.after;
   const next = Math.max(0, period - elapsed);
   // ninguna cura antes de cruzar: nada que mover
   if (next >= aim) return 1;
+  if (single) return aim - next < period ? next / aim : 1;
   // la última antes de cruzar, y la primera después
   const before = next + Math.floor((aim - next) / period) * period;
   const after = before + period;

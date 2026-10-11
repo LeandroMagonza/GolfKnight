@@ -12,7 +12,7 @@ import { fieldHalfAt, laneX, spawnAt, trapezoidOn, vanishZ } from '../core/field
 import { ABE_BOLT, BOLT_INFO } from '../coop/spells';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, phaseSlot, regenPace, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, phaseSlot, REGEN, regenPace, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { EF, r2, r3, type EnemySnap, type ProjSnap } from '../net/snapshot';
 import { LayeredAnimator } from './animator';
 import type { Player } from './player';
@@ -832,10 +832,10 @@ export class Enemy {
    * Cuánto le falta para llegar a la línea del golfista, a su paso de ahora: lo que le quede congelado o
    * aturdido, más lo que le falta caminar (los empujones y el frío que se le pasa no los cuenta). 0 si ya
    * está en la línea; Infinity si no va para ahí (se planta, lo desvía la bandera, va por el golfista) o si
-   * ya pasó. Lo usan el intocable y el que se cura.
+   * ya pasó, o si lo tienen quieto en un lugar (el tutorial, las pruebas). Lo usan el intocable y el que se cura.
    */
   lineEta(): number {
-    if (this.passed || !this.alive || this.target !== 'gate' || this.lureTimer > 0 || this.grabbing || this.plants) return Infinity;
+    if (this.passed || !this.alive || this.target !== 'gate' || this.lureTimer > 0 || this.grabbing || this.plants || this.hold) return Infinity;
     const d = this.position.z - TEE_Z;
     if (d <= 0) return 0;
     const speed = Math.min(this.pace, this.paceCap) * this.towardLine;
@@ -1436,11 +1436,13 @@ export class Enemy {
       if (this.divineTimer <= 0) this.divineReady = true;
     }
     if (this.dodgeLeft > 0 && !this.silenced) this.dodgeLeft = Math.max(0, this.dodgeLeft - dt);
-    // el que se cura: el ciclo se llena y al llenarse se cura entero, con su brillo verde (aunque esté
-    // sano: así se le lee el ritmo). Silenciado el ciclo no corre
-    if (this.mods.regen && !this.passed && !this.silenced) {
+    // el que se cura: el ciclo se llena y al llenarse se cura entero, con su brillo verde. Desde el 11/10
+    // arranca con el primer golpe y sano no corre (ver REGEN.onHit); antes corría siempre, y brillaba
+    // aunque estuviera sano, así se le leía el ritmo. Silenciado el ciclo no corre
+    if (this.mods.regen && REGEN.onHit && this.hp >= this.maxHp) this.regenTime = 0;
+    else if (this.mods.regen && !this.passed && !this.silenced) {
       // corre más lento (o un poco más rápido) para no curarse justo antes de la línea (ver regenPace)
-      this.regenRate = regenPace(this.lineEta(), this.regenPeriod, this.regenTime);
+      this.regenRate = regenPace(this.lineEta(), this.regenPeriod, this.regenTime, !!REGEN.onHit);
       this.regenTime += dt * this.regenRate;
       const period = this.regenPeriod;
       if (this.regenTime >= period) {
