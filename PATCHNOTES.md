@@ -23,6 +23,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   de la barra soltaste (antes o pasado), para que el bot juegue como una persona. `86177ce` Se leen desde
   Supabase (ya no quedan guardadas en el navegador), y el panel B, pestaña Pruebas, muestra tu id de
   jugador para encontrar las tuyas. Si prendés el bot en medio de una partida, queda marcada. `f7a6066`
+  La base se puede leer y cambiar desde la compu de desarrollo. `733e0d6`
 - El bot tiene un nivel **humano** (`?bot=humano`): tarda en decidir, se toma un rato antes de cada tiro
   y suelta con error de mano, así a veces busca el 3 y le sale un 2, o se pasa. Y las pruebas del bot se
   pueden correr **sin dibujar** (`?liviano&velocidad=12`): una partida entera en menos de 2 minutos, sin
