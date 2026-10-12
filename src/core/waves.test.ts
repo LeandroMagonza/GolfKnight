@@ -72,7 +72,7 @@ describe('waves', () => {
         // y desde el 8/10 toda su vida al doble; camina más lento que su cuerpo
         // (el blindado, con menos: ver ARMOR_HP)
         const body = ENEMIES[last.kind].hp;
-        const extra = ELITE.hp[s] + (run.powers[s] === 'ethereal' ? HARDEST.hard.ghostEliteHp : 0);
+        const extra = ELITE.hp[s];
         expect(last.mods!.hp!).toBe(armoredExtra(last.kind, (body + extra) * ELITE.hpScale - body, last.mods!.armor));
         expect(last.mods!.speed).toBe(ELITE.speed);
       }
@@ -294,7 +294,7 @@ describe('waves', () => {
       for (const s of [0, 1, 2]) {
         const e = run.waves[s * 3 + 2].groups.find((g) => g.mods?.size)!;
         const body = ENEMIES[e.kind].hp;
-        expect(body + e.mods!.hp!).toBe((body + ELITE.hp[s] - DIFFICULTY.eliteHpLess[0]) * ELITE.hpScale);
+        expect(body + e.mods!.hp!).toBe((body + ELITE.hp[s]) * ELITE.hpScale);
       }
       // el del primer escenario, 10 de vida (eran 5)
       const first = run.waves[2].groups.find((g) => g.mods?.size)!;
@@ -321,7 +321,7 @@ describe('waves', () => {
     const off = buildRun(seeded(9), rulesFor({}));
     for (let s = 0; s < 3; s++) {
       const e = (run: typeof off) => run.waves[s * 3 + 2].groups.find((g) => g.mods?.size)!;
-      expect(e(run).mods!.hp! - e(off).mods!.hp!).toBe(DIFFICULTY.fourthEliteHp * ELITE.hpScale);
+      expect(e(run).mods!.hp! - e(off).mods!.hp!).toBe(0);
     }
   });
 
@@ -356,11 +356,11 @@ describe('waves', () => {
     expect(buildRun(seeded(1), { ...rulesFor({}), pool: ['armor'] }).powers).toHaveLength(3);
   });
 
-  it('el blindado trae menos vida: la mitad con blindaje 2, tres cuartos con 1 (el jefe del final, no)', () => {
+  it('el blindado trae menos vida: dos tercios con blindaje 2, tres cuartos con 1 (el jefe del final, no)', () => {
     const wave: Wave = { title: 'b', interval: 1, scenario: 1, groups: [{ kind: 'knight', count: 1, mods: { armor: 2 } }, { kind: 'skeleton', count: 1, mods: { armor: 1 } }, { kind: 'goblin', count: 1, mods: { armor: 2 } }] };
     const order = spawnOrder(wave, seeded(1));
     const hp = (k: EnemyKind) => { const o = order.find((x) => x.kind === k)!; return ENEMIES[k].hp + (o.mods?.hp ?? 0); };
-    expect(hp('knight')).toBe(ENEMIES.knight.hp / 2);
+    expect(hp('knight')).toBe(Math.ceil((ENEMIES.knight.hp * 2) / 3));
     expect(hp('skeleton')).toBe(Math.ceil(ENEMIES.skeleton.hp * 0.75));
     expect(hp('goblin')).toBe(1);
   });
@@ -558,10 +558,10 @@ describe('waves', () => {
     expect(POWERS.phase(0, () => 0, easy).phase).toBe(2);
     expect(POWERS.phase(0, () => 0, hard).phase).toBe(3);
     expect(elite(1, 'phase', 0, hard).mods!.phase).toBe(POWERS.phase(0, () => 0, hard).phase);
-    // el fantasma: con el punto, 1 de vida más (el élite, 2, que con toda su vida al doble son 4)
+    // el fantasma: sin vida de más, con el punto o sin él (12/10)
     expect(POWERS.ethereal(0, () => 0, easy).hp).toBeUndefined();
-    expect(POWERS.ethereal(0, () => 0, hard).hp).toBe(1);
-    expect(elite(1, 'ethereal', 3, hard).mods!.hp! - elite(1, 'ethereal', 3, easy).mods!.hp!).toBe(2 * ELITE.hpScale);
+    expect(POWERS.ethereal(0, () => 0, hard).hp).toBeUndefined();
+    expect(elite(1, 'ethereal', 3, hard).mods!.hp).toBe(elite(1, 'ethereal', 3, easy).mods!.hp);
   });
 
   it('el que se cura: el ciclo alcanza para matarlo con golpes medios, y con flojos no', () => {

@@ -13,14 +13,13 @@ function withStore(store: Record<string, string>, f: () => void): void {
 }
 
 describe('dificultad', () => {
-  it('trece talentos; los que se suman dicen su número, y los demás, siempre lo mismo', () => {
-    expect(TALENTS).toHaveLength(13);
+  it('doce talentos; los que se suman dicen su número, y los demás, siempre lo mismo', () => {
+    expect(TALENTS).toHaveLength(12);
     expect(TALENTS.filter((t) => t.adds).map((t) => t.id).sort()).toEqual(['casters', 'cooldown', 'speed']);
     expect(talent('speed').text(0.15)).toBe('Los enemigos caminan un 15 % más rápido');
     expect(talent('cooldown').text(0.35)).toBe('Tus habilidades tardan un 35 % más en recargar');
     expect(talent('casters').text(0.1)).toMatch(/^Se suma un 10 % de hechiceros/);
     expect(talent('powered').text(0)).toBe('Un tercio de los enemigos trae poder, en vez de un cuarto');
-    expect(talent('elite').text(0)).toBe('Los élites tienen 4 de vida más');
     for (const t of TALENTS) expect(t.text(0.1), t.id).not.toBe('');
   });
 
@@ -29,8 +28,10 @@ describe('dificultad', () => {
     expect(easy).toMatchObject({ stack: false, specials: 0, supports: 0, escort: false, rest: INTERMISSION, speed: DIFFICULTY.speedBase, share: DIFFICULTY.share[0], cooldown: 1, casters: 0 });
     expect(easy.hard.cap).toBe(2);
     expect(easy.hard.recharge).toBeGreaterThan(1);
-    expect(easy.hard).toMatchObject({ armorRolls: 1, regen: DIFFICULTY.regen[0], timings: 2, ghostHp: 0, ghostEliteHp: 0 });
-    expect(easy.eliteHp).toEqual(ELITE.hp.map((h) => h - 2));
+    expect(easy.hard).toMatchObject({ armorRolls: 1, regen: DIFFICULTY.regen[0], timings: 2, ghostHp: 0 });
+    // la vida del élite es fija (12/10): la misma en cualquier dificultad
+    expect(easy.eliteHp).toEqual(ELITE.hp);
+    expect(rulesFor({ stack: 1, special: 2, support: 2, powers: 1, escort: 1, fourth: 1 }).eliteHp).toEqual(ELITE.hp);
   });
 
   it('los que se suman: la velocidad, la recarga y los hechiceros suman los números de sus opciones', () => {
@@ -43,12 +44,12 @@ describe('dificultad', () => {
     // con todo lo de antes del 3/10 (dos olas especiales, apoyos en dos escenarios, acumulados, escolta,
     // poderes más duros y los élites con su vida), es la partida de entonces, salvo la velocidad, el
     // descanso, cuántos traen poder, la recarga y los hechiceros, que no existían
-    const old = rulesFor({ stack: 1, special: 2, support: 2, powers: 1, escort: 1, elite: 1 });
+    const old = rulesFor({ stack: 1, special: 2, support: 2, powers: 1, escort: 1 });
     expect({ ...old, speed: 1, rest: INTERMISSION, share: HARDEST.share, cooldown: 1, casters: undefined }).toEqual(HARDEST);
     // un solo «Poderes más duros» pone todo: escudos hasta 3, más blindajes de 2, la recarga de siempre,
     // el que se cura y el intocable más duros, y el fantasma con 1 de vida más
     expect(rulesFor({ powers: 1 }).hard).toEqual(HARDEST.hard);
-    expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1, ghostEliteHp: 2 });
+    expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 0 });
   });
 
   it('el golpe 4: lo prende, y los comunes traen vida de más (los élites y el jefe no, desde el 11/10)', () => {
@@ -56,9 +57,8 @@ describe('dificultad', () => {
     const on = rulesFor({ fourth: 1 });
     expect(off).toMatchObject({ fourth: false, extraHp: 0, bossHp: 0 });
     expect(on).toMatchObject({ fourth: true, extraHp: DIFFICULTY.fourthHp, bossHp: DIFFICULTY.fourthBossHp });
-    expect(on.eliteHp).toEqual(off.eliteHp.map((h) => h + DIFFICULTY.fourthEliteHp));
+    expect(on.eliteHp).toEqual(off.eliteHp);
     expect(DIFFICULTY.fourthHp).toBeGreaterThan(0);
-    expect(DIFFICULTY.fourthEliteHp).toBe(0);
     expect(DIFFICULTY.fourthBossHp).toBe(0);
   });
 
@@ -105,7 +105,7 @@ describe('dificultad', () => {
     const p: Progress = { unlocked: MAX_LEVEL, level: 0, choices: [] };
     expect(picksOf(p)).toEqual({});
     p.level = 2;
-    expect(picksOf(p)).toEqual({ elite: 1, speed: LADDER[1][0].add });
+    expect(picksOf(p)).toEqual({ rest: 1, speed: LADDER[1][0].add });
     // los hechiceros del 8, sin los del 6: dicen y hacen lo mismo que con ellos
     const six = LADDER.findIndex((o) => o.some((x) => x.id === 'casters'));
     const eight = LADDER.findIndex((o, j) => j > six && o.some((x) => x.id === 'casters'));
@@ -128,7 +128,7 @@ describe('dificultad', () => {
     expect(p.level).toBe(3);
     expect(choiceAt(p, 2)).toBe(1);
     // cambiar uno de abajo no baja el nivel
-    expect(choose(p, 0, 0)).toBe(true);
+    expect(choose(p, 0, 1)).toBe(true);
     expect(p.level).toBe(3);
     // el nivel, sin pasar de lo desbloqueado
     expect(setLevel(p, 5)).toBe(false);
@@ -196,8 +196,20 @@ describe('dificultad', () => {
       // 9 de 18 puntos: 5 de 10 niveles; 4 puestos: el nivel 2
       expect(p.unlocked).toBe(5);
       expect(p.level).toBe(2);
-      expect(LADDER[0][choiceAt(p, 0)].id).toBe('elite');
-      expect(picksOf(p)).toEqual({ elite: 1, speed: LADDER[1][0].add });
+      // (los élites más duros ya no están: queda la de entrada)
+      expect(LADDER[0][choiceAt(p, 0)].id).toBe('rest');
+      expect(picksOf(p)).toEqual({ rest: 1, speed: LADDER[1][0].add });
+    });
+  });
+
+  it('lo guardado con «Élites más duros» (12/10): la escolta sigue elegida, y el que tenía élites vuelve a la de entrada', () => {
+    withStore({ 'gk.dificultad': JSON.stringify({ v: 2, unlocked: 4, level: 3, choices: [2, 0, 1] }) }, () => {
+      const p = loadProgress();
+      expect(LADDER[0][choiceAt(p, 0)].id).toBe('escort');
+      expect(choiceAt(p, 2)).toBe(1);
+    });
+    withStore({ 'gk.dificultad': JSON.stringify({ v: 2, unlocked: 4, level: 3, choices: [1, 0, 0] }) }, () => {
+      expect(LADDER[0][choiceAt(loadProgress(), 0)].id).toBe('rest');
     });
   });
 });

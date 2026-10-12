@@ -19,7 +19,7 @@ import { FIELD_HALF_WIDTH, FIELD_SHAPE } from './core/field';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
-import { DIVINE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
+import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
@@ -46,6 +46,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   // el golpe 4 (qué parte del fuerte es el 4, y cuánto pega de más) y su arco: los deja también el simulador de la carga (arco.html)
   'golpe 4': FOURTH as unknown as Record<string, number>, 'arco golpe 4': FOURTH_ARC,
   curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, intocable: PHASE, divino: DIVINE,
+  // la vida del élite, fija desde el 12/10 (ver ELITE.hp)
+  élite: ELITE as unknown as Record<string, number | number[]>,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
   // los hechizos de Abe, uno por tabla (ver coop/spells)
   'abe marca': ABE_BOLT,
@@ -1111,13 +1113,13 @@ export class DebugPanel {
       ['intocable: abierto, con el punto', () => d.phaseOpen[1], (v) => { d.phaseOpen[1] = Math.min(0.95, Math.max(0.1, v)); }, 0.05, 'del ciclo'],
       ['margen del que se cura, sin el punto', () => d.regen[0], (v) => { d.regen[0] = Math.max(0.5, v); }, 0.1, '×'],
       ['fantasma: vida de más con el punto', () => d.ghostHp[1], (v) => { d.ghostHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
-      ['fantasma élite: vida de más con el punto', () => d.ghostEliteHp[1], (v) => { d.ghostEliteHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
 
-      ['vida de menos del élite, sin el punto', () => d.eliteHpLess[0], (v) => { d.eliteHpLess[0] = Math.max(0, Math.round(v)); }, 1, ''],
+      ['élite del escenario 1: vida de más', () => ELITE.hp[0], (v) => { ELITE.hp[0] = Math.max(0, Math.round(v)); }, 1, '(al doble, con la de su cuerpo)'],
+      ['élite del escenario 2: vida de más', () => ELITE.hp[1], (v) => { ELITE.hp[1] = Math.max(0, Math.round(v)); }, 1, '(al doble, con la de su cuerpo)'],
+      ['élite del escenario 3: vida de más', () => ELITE.hp[2], (v) => { ELITE.hp[2] = Math.max(0, Math.round(v)); }, 1, '(al doble, con la de su cuerpo)'],
       ['descanso con «sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's'],
 
       ['golpe 4: vida de más de los comunes', () => d.fourthHp, (v) => { d.fourthHp = Math.max(0, Math.round(v)); }, 1, ''],
-      ['golpe 4: de los élites', () => d.fourthEliteHp, (v) => { d.fourthEliteHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['golpe 4: del jefe', () => d.fourthBossHp, (v) => { d.fourthBossHp = Math.max(0, Math.round(v)); }, 1, ''],
       ['estampida: chicos de más por oleada', () => MARKS.stampede, (v) => { MARKS.stampede = Math.max(0, Math.round(v)); }, 1, ''],
       ['gigantes: por oleada', () => MARKS.giants, (v) => { MARKS.giants = Math.max(0, Math.round(v)); }, 1, ''],

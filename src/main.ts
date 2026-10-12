@@ -358,6 +358,14 @@ const raycaster = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 /** El plano a la altura del arco, para que la línea pase debajo del cursor (ver `aimUnderArc`). */
 const arcPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+/**
+ * Con las herramientas de prueba, `?ola=N` (12/10, Leandro: para jugar directo una oleada, con
+ * `?poderes=a,b,c` y la dificultad que esté): la partida arranca en la oleada N (desde 1), y antes ofrece
+ * las cartas de las que se saltea, una por oleada, como si las hubiera jugado. Con ?bot, las elige él.
+ */
+const START_WAVE = DEV_TOOLS ? Math.max(1, Math.floor(Number(params.get('ola')) || 1)) : 1;
+/** Las cartas que quedan por ofrecer de las oleadas salteadas (ver START_WAVE). */
+let skippedCards = 0;
 /** Con las herramientas de prueba, `?curasiempre`: el ciclo del que se cura corre siempre, como antes del 11/10. */
 if (DEV_TOOLS && params.has('curasiempre')) REGEN.onHit = 0;
 /** Con las herramientas de prueba, `?mirapiso` apunta al piso como antes del 11/10, para comparar. */
@@ -836,7 +844,7 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   }, 12000);
   // ganar en el nivel más alto que se tiene desbloquea el siguiente (el bot no: juega para probar)
   const level = currentLevel();
-  const earned = result === 'victory' && !BOT && !DEMO && !testPicks && earnLevel(progress);
+  const earned = result === 'victory' && !BOT && !DEMO && !testPicks && START_WAVE === 1 && earnLevel(progress);
   if (earned) saveProgress(progress);
   paintDifficulty();
   const info = endInfo(result, title, detail, level, DEMO && result === 'victory' ? demoTeaser() : '');
@@ -1320,6 +1328,11 @@ function build(): Build {
  * elegís, pero el descanso entre oleadas sigue corriendo: si lo pensaste con calma, la oleada arranca
  * apenas elegís.
  */
+/** Ofrece la próxima carta de las oleadas salteadas con ?ola, si queda alguna (ver START_WAVE). */
+function nextSkippedCard(): void {
+  if (skippedCards > 0 && !cardOpen && offerChoice()) skippedCards--;
+}
+
 function offerChoice(): boolean {
   const cards = drawCards(build());
   if (!cards.length) return false;
@@ -1342,6 +1355,7 @@ function pickCard(i: number): void {
   hud.hideChoice();
   recorder?.picked(cardKey(card));
   applyCard(card);
+  nextSkippedCard();
 }
 
 function applyCard(card: Card): void {
@@ -1724,6 +1738,12 @@ async function startGame(withTutorial = false, quiet = false): Promise<void> {
   }
   // el que lo salteó ya no lo ve primero (el tenis no cuenta: ese no tiene tutorial)
   if (!TENNIS_ON) saveTutorialDone();
+  // ?ola=N: directo a esa oleada, con las cartas de las anteriores
+  if (START_WAVE > 1 && !TENNIS_ON) {
+    director.goTo(START_WAVE - 1);
+    skippedCards = START_WAVE - 1;
+    nextSkippedCard();
+  }
   // con ?palos, para probar: arranca eligiendo una carta
   if (ALL_CLUBS) offerChoice();
   if (BOT) await startBotNow();
@@ -3121,11 +3141,12 @@ function updateWaves(dt: number): void {
     switch (e.type) {
       case 'wave': {
         // se anota siempre (los números del cartel del final salen de acá), pero solo se manda con RECORD
-        if (!WATCH && !recorder && e.index === 0) {
+        if (!WATCH && !recorder && e.index === START_WAVE - 1) {
           recorder = new RunRecorder({
             version: DEMO ? `${__BUILD__} demo` : __BUILD__, level: currentLevel(), picks: currentPicks(), points: progress.unlocked,
             ladder: testPicks ? undefined : LADDER.slice(0, progress.level).map((options, i) => { const o = options[choiceAt(progress, i)]; return o.add === undefined ? o.id : `${o.id}+${o.add}`; }),
             powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
+            ...(START_WAVE > 1 ? { from: START_WAVE } : {}),
             charge: { weak: CHARGE.weak, mid: CHARGE.mid, strong: CHARGE.strong, ...(FOURTH.on ? { fourth: FOURTH.share } : {}) },
             tuned: tunedForLog(),
           }, RECORD);
@@ -3410,6 +3431,7 @@ if (DEV_TOOLS) (window as any).__gk = {
     choice = null;
     cardOpen = false;
     hud.hideChoice();
+    nextSkippedCard();
   },
   /** Las cartas en pantalla, y las mejoras tomadas. */
   get choice() { return choice; },

@@ -168,6 +168,8 @@ export interface RunInfo {
   charge?: { weak: number; mid: number; strong: number; fourth?: number };
   /** Lo que estaba tocado en el panel B (lo guardado en el navegador), si algo: la partida no es de fábrica. */
   tuned?: string[];
+  /** Arrancó en esta oleada, con ?ola (para probar una oleada): no es una partida entera. */
+  from?: number;
 }
 
 /** Junta lo que pasa en la partida y al final la deja en la cola. */

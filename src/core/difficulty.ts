@@ -14,7 +14,7 @@
 import { L } from '../i18n';
 import { ELITE, INTERMISSION, type RunRules } from './waves';
 
-export type TalentId = 'stack' | 'special' | 'support' | 'casters' | 'powers' | 'speed' | 'terrain' | 'powered' | 'elite' | 'escort' | 'rest' | 'cooldown' | 'fourth';
+export type TalentId = 'stack' | 'special' | 'support' | 'casters' | 'powers' | 'speed' | 'terrain' | 'powered' | 'escort' | 'rest' | 'cooldown' | 'fourth';
 
 export interface Talent {
   id: TalentId;
@@ -64,12 +64,10 @@ export const DIFFICULTY = {
   phaseOpen: [2 / 3, 0.5],
   // el escudo y el blindaje, siempre al máximo con el punto (12/10)
   full: [0, 1],
-  ghostHp: [0, 1],
-  ghostEliteHp: [0, 2],
-  eliteHpLess: [2, 0],
+  // el fantasma, sin vida de más también con el punto (12/10: era +1, y el élite +2 al doble)
+  ghostHp: [0, 0],
   rest: [INTERMISSION, 4],
   fourthHp: 1,
-  fourthEliteHp: 0,
   fourthBossHp: 0,
 };
 
@@ -103,11 +101,6 @@ export const TALENTS: Talent[] = [
       `${part(DIFFICULTY.share[1])} de los enemigos trae poder, en vez de ${part(DIFFICULTY.share[0])}`,
       `${part(DIFFICULTY.share[1])} of the enemies have a power, instead of ${part(DIFFICULTY.share[0])}`,
     )) },
-  { id: 'elite', name: L('Élites más duros', 'Tougher Elites'), max: 1,
-    text: () => L(
-      `Los élites tienen ${(DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]) * ELITE.hpScale} de vida más`,
-      `Elites have ${(DIFFICULTY.eliteHpLess[0] - DIFFICULTY.eliteHpLess[1]) * ELITE.hpScale} more HP`,
-    ) },
   { id: 'escort', name: L('Escolta del jefe', 'Boss Escort'), max: 1, text: () => L('El jefe viene con enemigos con poderes', 'The boss brings powered-up enemies') },
   { id: 'rest', name: L('Sin respiro', 'No Breather'), max: 1, text: () => L('Menos descanso entre oleadas', 'Less rest between waves') },
   { id: 'cooldown', name: L('Recarga lenta', 'Slow Recharge'), max: 3, adds: true,
@@ -140,7 +133,8 @@ const opt = (id: TalentId, add?: number): Option => (add === undefined ? { id } 
  * del bot (tools/bot-tanda.mjs) y se tocan en el panel B.
  */
 export const LADDER: Option[][] = [
-  [opt('rest'), opt('elite'), opt('escort')],
+  // «Élites más duros» se fue el 12/10: la vida del élite ya no depende de la dificultad (ver ELITE.hp)
+  [opt('rest'), opt('escort')],
   [opt('speed', 0.08)],
   [opt('special'), opt('cooldown', 0.35)],
   [opt('powered')],
@@ -222,11 +216,11 @@ export function rulesFor(picks: Picks): RunRules {
       phaseOpen: at(DIFFICULTY.phaseOpen, lv('powers')),
       full: at(DIFFICULTY.full, lv('powers')) > 0,
       ghostHp: at(DIFFICULTY.ghostHp, lv('powers')),
-      ghostEliteHp: at(DIFFICULTY.ghostEliteHp, lv('powers')),
     },
     speed: DIFFICULTY.speedBase * (1 + sum('speed')),
     share: at(DIFFICULTY.share, lv('powered')),
-    eliteHp: ELITE.hp.map((hp) => Math.max(0, hp - at(DIFFICULTY.eliteHpLess, lv('elite'))) + (fourth ? DIFFICULTY.fourthEliteHp : 0)),
+    // la vida del élite es fija (12/10): ni «Élites más duros» ni el golpe 4 le suman
+    eliteHp: [...ELITE.hp],
     escort: lv('escort') >= 1,
     rest: at(DIFFICULTY.rest, lv('rest')),
     fourth,
@@ -282,7 +276,11 @@ const KEY = 'gk.dificultad';
  * Cómo se guarda: 2 desde que las opciones son independientes (11/10). Lo elegido antes de eso (la primera
  * escalera, del mismo día) vuelve a las opciones de entrada: los escalones cambiaron.
  */
-const VERSION = 2;
+/**
+ * El formato de lo guardado: 2, la escalera (11/10); 3, sin «Élites más duros» en el primer escalón
+ * (12/10): la escolta pasó del 2 al 1, y el que tenía élites vuelve a la de entrada.
+ */
+const VERSION = 3;
 /** Los puntos que había antes de la escalera (12 talentos, 18 puntos): para pasar lo guardado. */
 const OLD_POINTS = 18;
 /** Lo de entrada: nada desbloqueado, y en cada escalón la opción del medio. */
@@ -313,7 +311,10 @@ export function loadProgress(): Progress {
     if (!Array.isArray(raw.choices)) return raw.points ? fromPoints(Math.floor(Number(raw.points) || 0), raw.picks ?? {}) : fresh();
     const unlocked = Math.max(0, Math.min(MAX_LEVEL, Math.floor(Number(raw.unlocked) || 0)));
     const p: Progress = { unlocked, level: Math.max(0, Math.min(unlocked, Math.floor(Number(raw.level) || 0))), choices: fresh().choices };
-    if (raw.v === VERSION) p.choices = LADDER.map((options, i) => { const c = Math.floor(Number(raw.choices![i] ?? -1)); return c >= 0 && c < options.length ? c : -1; });
+    const saved = raw.choices.map((c) => Math.floor(Number(c ?? -1)));
+    // de la 2: en el primer escalón eran sin respiro (0), élites (1) y escolta (2)
+    if (raw.v === 2) saved[0] = saved[0] === 0 ? 0 : saved[0] === 2 ? 1 : -1;
+    if (raw.v === VERSION || raw.v === 2) p.choices = LADDER.map((options, i) => { const c = saved[i] ?? -1; return c >= 0 && c < options.length ? c : -1; });
     return p;
   } catch {
     return fresh();

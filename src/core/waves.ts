@@ -292,7 +292,7 @@ export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal
  * - `full`: el escudo y el blindaje salen siempre al máximo (12/10, Leandro: con «Poderes más duros», el
  *   escudo de 3 y el blindaje de 2, también en el primer escenario; al escudo se le pega por el costado o
  *   con el área, y al blindaje con el driver de lejos o el putter de cerca).
- * - `ghostHp`: vida de más del fantasma (`ghostEliteHp`, la del élite).
+ * - `ghostHp`: vida de más del fantasma común (el élite, desde el 12/10, nada: ver ELITE.hp).
  */
 export interface PowerHardness {
   cap: number;
@@ -303,9 +303,8 @@ export interface PowerHardness {
   phaseOpen: number;
   full: boolean;
   ghostHp: number;
-  ghostEliteHp: number;
 }
-export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, timings: 3, phaseOpen: 0.5, full: true, ghostHp: 1, ghostEliteHp: 2 };
+export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, timings: 3, phaseOpen: 0.5, full: true, ghostHp: 0 };
 
 /**
  * El blindaje no pasa de 2 (7/10, pedido de Leandro): con 3, al mejor golpe le entraba 1 y se terminaba
@@ -315,13 +314,14 @@ export const ARMOR_MAX = 2;
 
 /**
  * **El blindado trae menos vida** (12/10, Leandro: «el problema no deben ser los enemigos con poca vida y
- * blindaje, sino los de mucha vida»): con blindaje 2, la mitad de su vida; con 1, tres cuartos (para
+ * blindaje, sino los de mucha vida»): con blindaje 2, dos tercios de su vida (con la mitad, en el nivel 5
+ * el bot ganaba 18 de 20: el más fácil); con 1, tres cuartos (para
  * arriba, al menos 1). Toda su vida: la del cuerpo y la que le sumen el élite, los gigantes o el golpe 4. El
  * jefe del final, no. Con el análisis de docs/dps.md y la mezcla de golpes de Leandro, lo que le ocupa de
- * más contra uno sin poder pasa de ×1.9 a ×1.4 (blindaje 1) y de ×4.6 a ×2.3 (blindaje 2), parecido al
- * fantasma o al bendito. Por nivel de blindaje (0, 1, 2).
+ * más contra uno sin poder pasa de ×1.9 a ×1.4 (blindaje 1) y de ×4.6 a ×3.1 (blindaje 2). Por nivel de
+ * blindaje (0, 1, 2).
  */
-export const ARMOR_HP = [1, 0.75, 0.5];
+export const ARMOR_HP = [1, 0.75, 2 / 3];
 
 /**
  * Lo que tarda en recargar el escudo divino, en segundos (el del élite, `elite`: desde el 12/10 lo mismo que
@@ -496,7 +496,7 @@ export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardn
   // a media distancia hace falta el perfecto: el driver de lejos y el putter de cerca pegan más (Leandro,
   // 8/10, que lo había bajado a 1 el 7/10)
   armor: (tier) => ({ armor: Math.min(ARMOR_MAX, tier + 1) }),
-  ethereal: (_tier, hard = HARDEST_POWERS) => (hard.ghostEliteHp ? { ethereal: true, hp: hard.ghostEliteHp } : { ethereal: true }),
+  ethereal: () => ({ ethereal: true }),
   // el divino se le recarga más rápido
   divine: (_tier, hard = HARDEST_POWERS) => ({ divine: DIVINE.elite * hard.recharge }),
   dodge: (_tier, hard = HARDEST_POWERS) => dodgeMods(hard),
@@ -663,7 +663,7 @@ export const INTERMISSION = 6;
 
 /** Todo al máximo: lo que arma `buildRun()` sin reglas. */
 export const HARDEST: RunRules = {
-  stack: true, specials: 2, supports: 2, hard: HARDEST_POWERS, speed: 1, share: 1 / 3, eliteHp: [2, 3, 4], escort: true, rest: INTERMISSION,
+  stack: true, specials: 2, supports: 2, hard: HARDEST_POWERS, speed: 1, share: 1 / 3, eliteHp: [0, 1, 2], escort: true, rest: INTERMISSION,
   fourth: false, extraHp: 0, bossHp: 0, cooldown: 1,
 };
 
@@ -707,7 +707,12 @@ export const HEAVY: EnemyKind[] = ['warchief', 'knight', 'stoneling'];
  * de su cuerpo: tarda el doble en caer, así que está más rato en el campo (sale antes, para llegar en su
  * lugar de la oleada).
  */
-export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: Number.POSITIVE_INFINITY, hp: [2, 3, 4], hpScale: 2, speed: 0.85 };
+/**
+ * `hp`: la vida de más de cada élite (por escenario), antes de ir al doble (`hpScale`). **Fija desde el
+ * 12/10** (Leandro: «sacarla de las dificultades, así son menos variables»): la de los que no tenían
+ * «Élites más duros» (eran 2, 3 y 4, y sin el punto 2 menos). Se toca en el panel B.
+ */
+export const ELITE = { height: 3.0, minScale: 1.25, at: 0.85, damage: Number.POSITIVE_INFINITY, hp: [0, 1, 2], hpScale: 2, speed: 0.85 };
 
 /** El élite del escenario `scenario` con el poder `power`: cierra la última oleada del escenario. */
 export function elite(scenario: number, power: ScenarioPower, hp = ELITE.hp[scenario], hard = HARDEST_POWERS): WaveGroup {
