@@ -22,13 +22,14 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **La vida de los élites ya no depende de la dificultad**: se va «Élites más duros» del primer escalón
   (queda «Sin respiro» o la escolta, y lo que tenías elegido se pasa solo), y el golpe 4 tampoco les suma.
   Y el élite fantasma ya no trae vida de más con «Poderes más duros» (los comunes, sí: +1). `b068d28`
-- Todo esto, también en la app de Windows. `f9e25ab`
+  `f2b849a`
+- Todo esto, también en la app de Windows. `f9e25ab` `1c0d451`
 
 **Para los que prueban**
 - El bot apunta como la mira nueva (los tiros, al arco que queda debajo del cursor). `b0bff1d`
-- **`?ola=N`**: la partida arranca directo en esa oleada, después de elegir las cartas de las que se
-  saltea. Con `?poderes=a,b,c` elegís los poderes, y con `?bot` la juega el bot. No desbloquea niveles.
-  `b068d28`
+- **Probar una oleada** (panel B, pestaña Pruebas): elegís la oleada, el poder de cada escenario y si la
+  juega el bot, y arranca directo ahí, después de elegir las cartas de las oleadas salteadas. No
+  desbloquea niveles. `b068d28` `668b0ae`
 - `?ajuste=tabla.clave:valor` cambia números del panel B solo por esa visita, para probar variantes. Y el
   bot contra el bendito: le tira adelantado y aprovecha romperle la burbuja de paso. `dc4f3c2`
 
