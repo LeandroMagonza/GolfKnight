@@ -451,8 +451,9 @@ export function startBot(): BotStats {
   let aimY = innerHeight / 3;
   /** Adónde apuntó, en el piso: para saber si el juego ya tiene la mira ahí (ver `aimSettled`). */
   const aimAt = { x: 0, z: 0, since: 0 };
-  const aim = (x: number, z: number) => {
-    const s = gk.screenOf(x, z);
+  /** Pone el mouse para apuntar a (x, z): un tiro de palo, o una habilidad (`ground`, que se apunta al piso). */
+  const aim = (x: number, z: number, ground = false) => {
+    const s = gk.screenOf(x, z, ground);
     if (Math.hypot(x - aimAt.x, z - aimAt.z) > 0.5) aimAt.since = gk.clock ?? 0;
     aimAt.x = x;
     aimAt.z = z;
@@ -1508,7 +1509,7 @@ export function startBot(): BotStats {
     const c = best;
     castAt = clock;
     busyUntil = clock + 0.15;
-    aim(c.x, c.z);
+    aim(c.x, c.z, true);
     const id: string = ab.slots[c.slot].id;
     stats.casts[id] = (stats.casts[id] ?? 0) + 1;
     castLater(SLOT_KEYS[c.slot], 80);
@@ -1536,7 +1537,7 @@ export function startBot(): BotStats {
       const [x, z] = opener ? [open.position.x, open.position.z] : center(group);
       castAt = clock;
       busyUntil = clock + 0.15;
-      aim(x, z);
+      aim(x, z, true);
       stats.casts[id] = (stats.casts[id] ?? 0) + 1;
       castLater(SLOT_KEYS[i], 80);
       return true;

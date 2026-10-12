@@ -456,6 +456,18 @@ function aimUnderArc(club: Club): void {
 }
 
 /**
+ * A qué altura está, debajo del cursor, el punto apuntado (x, z): con relieve, el terreno (los globos, el
+ * piso plano); en la cancha plana, la del arco del palo en la mano (ver aimUnderArc), o el piso para las
+ * habilidades (`ground`). Para el bot, que apunta proyectando ese punto a la pantalla.
+ */
+function aimHeightAt(x: number, z: number, ground = false): number {
+  if (terrainOn()) return isLob(player.club) ? 0 : heightAt(x, z);
+  if (ground || AIM_FLOOR || player.curving || TENNIS_ON) return 0;
+  player.teePosition(tee);
+  return arcHeightAt(player.club, Math.hypot(x - tee.x, z - tee.z));
+}
+
+/**
  * `lob`: se apunta un globo (sobre el piso plano, ver abajo). Por defecto, lo que diga el palo en la mano.
  * `underArc`: que la línea del palo en la mano pase debajo del cursor (ver `aimUnderArc`); las habilidades
  * apuntan al piso.
@@ -3364,7 +3376,11 @@ if (DEV_TOOLS) (window as any).__gk = {
   /** Las marcas del piso (piques, divots, pisadas), para probarlas. */
   get scuffs() { return scuffs; },
   // con los globos el mouse apunta sobre el piso plano (ver updateAim): el píxel es el del plano
-  screenOf(x: number, z: number) { return toScreen(new THREE.Vector3(x, isLob(player.club) || !terrainOn() ? 0 : heightAt(x, z), z), 0); },
+  /**
+   * Dónde poner el mouse para apuntar a (x, z): para el bot. Los tiros de palo, a la altura del arco en la
+   * cancha plana (ver aimUnderArc); las habilidades (`ground`), al piso.
+   */
+  screenOf(x: number, z: number, ground = false) { return toScreen(new THREE.Vector3(x, aimHeightAt(x, z, ground), z), 0); },
   heightAt,
   spawn(kind: EnemyKind, x: number, z: number, mods?: EnemyMods) { return horde.spawn(kind, new THREE.Vector3(x, 0, z), mods); },
   mounds,
