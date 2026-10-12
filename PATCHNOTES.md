@@ -30,6 +30,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **Probar una oleada** (panel B, pestaña Pruebas): elegís la oleada, el poder de cada escenario y si la
   juega el bot, y arranca directo ahí, después de elegir las cartas de las oleadas salteadas. No
   desbloquea niveles. `b068d28` `668b0ae`
+- Cada partida anota también **lo de cada poder de los enemigos**: cuántos salieron, cuántos mataste, cuántos
+  golpes te pidieron y cuánta puerta te sacaron (los benditos, los gigantes, el élite...). `a6262bd`
 - `?ajuste=tabla.clave:valor` cambia números del panel B solo por esa visita, para probar variantes. Y el
   bot contra el bendito: le tira adelantado y aprovecha romperle la burbuja de paso. `dc4f3c2`
 
