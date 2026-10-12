@@ -17,9 +17,20 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **Los intocables, abiertos más rato**: la mitad del tiempo (1.2 s de cada 2.4), y con poca dificultad dos
   tercios. Siempre hay alguno abierto. `71d8130`
 - Todo esto, también en la app de Windows. `b00ba3e`
+- **Los blindados traen menos vida**: con blindaje 2, dos tercios; con 1, tres cuartos (también los élites).
+  El problema no eran los chicos blindados sino los de mucha vida. `dc4f3c2` `b068d28`
+- **La vida de los élites ya no depende de la dificultad**: se va «Élites más duros» del primer escalón
+  (queda «Sin respiro» o la escolta, y lo que tenías elegido se pasa solo), y el golpe 4 tampoco les suma.
+  Y el fantasma ya no trae vida de más con «Poderes más duros». `b068d28`
+- Todo esto, también en la app de Windows. `f9e25ab`
 
 **Para los que prueban**
 - El bot apunta como la mira nueva (los tiros, al arco que queda debajo del cursor). `b0bff1d`
+- **`?ola=N`**: la partida arranca directo en esa oleada, después de elegir las cartas de las que se
+  saltea. Con `?poderes=a,b,c` elegís los poderes, y con `?bot` la juega el bot. No desbloquea niveles.
+  `b068d28`
+- `?ajuste=tabla.clave:valor` cambia números del panel B solo por esa visita, para probar variantes. Y el
+  bot contra el bendito: le tira adelantado y aprovecha romperle la burbuja de paso. `dc4f3c2`
 
 ## 11 de octubre
 
