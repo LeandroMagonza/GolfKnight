@@ -129,6 +129,8 @@ async function play(job) {
           // con qué terminó (habilidad y nivel, y las mejoras) y lo que hizo cada habilidad (ver AbilityLog)
           build: g.abilities ? { abilities: g.abilities.slots.map((s) => [s.id, s.level]), perks: { ...g.perks } } : null,
           perAbility: log?.abilities ?? null,
+          // lo de cada poder de los enemigos: cuántos salieron, mataste, golpes y puerta (ver PowerLog)
+          perPower: log?.perPower ?? null,
         };
       });
       if (r.ended || r.clock > maxGameSeconds) break;

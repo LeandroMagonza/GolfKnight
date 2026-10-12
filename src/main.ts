@@ -247,6 +247,24 @@ difficultyMenu.onClose = () => {
 const RECORD = !ABE_ONLY && !params.has('bot') && !params.has('mirar') && !navigator.webdriver;
 let recorder: RunRecorder | null = null;
 /** Cómo se anota quién pegó: el cuerpo, y si es élite o hace algo distinto, eso también. */
+/**
+ * Las marcas de un enemigo para el registro de cada poder (ver PowerLog): sus poderes de escenario y de
+ * apoyo, gigante y élite; sin nada, `none`.
+ */
+function powerTags(mods: EnemyMods | undefined): string[] {
+  const t: string[] = [];
+  if (mods) {
+    for (const p of SCENARIO_POWERS) if (mods[p]) t.push(p);
+    if (mods.aura) t.push(mods.aura);
+    if (mods.banner) t.push('banner');
+    if (mods.explode) t.push('explode');
+    if (mods.ranged) t.push('ranged');
+    if (mods.giant) t.push('giant');
+    if ((mods.size ?? 1) > 1) t.push('elite');
+  }
+  return t.length ? t : ['none'];
+}
+
 function sourceOf(enemy: { stats: { kind: EnemyKind }; size: number; behavior: string } | null, fallback: string): string {
   if (!enemy) return fallback;
   return `${enemy.size > 1 ? 'élite ' : ''}${enemy.stats.kind}${enemy.behavior !== 'melee' ? ` (${enemy.behavior})` : ''}`; // i18n-ok: el registro
@@ -865,6 +883,7 @@ horde.onEvent = (e) => {
   switch (e.type) {
     case 'damage': {
       recorder?.damage(e.amount, e.killed, !!horde.shot);
+      recorder?.struck(powerTags(e.enemy.mods), e.amount, e.killed);
       if (e.by?.length) recorder?.credit(e.by, e.amount, e.killed);
       const s = toScreen(e.enemy.position, e.enemy.height);
       // el que cae al hoyo no muestra daño: el «¡Al hoyo!» ya lo dice
@@ -936,6 +955,7 @@ horde.onEvent = (e) => {
     }
     case 'gateHit':
       recorder?.hurt(e.amount, sourceOf(e.enemy, ''), true);
+      recorder?.breached(powerTags(e.enemy?.mods), e.amount);
       if (!godMode.godGate) gateHp = Math.max(0, gateHp - e.amount);
       audio.gateHit();
       world.flashDoor();
@@ -3172,6 +3192,7 @@ function updateWaves(dt: number): void {
             mods = Object.keys(rest).length ? rest : undefined;
           }
           horde.spawn(e.kind, undefined, mods);
+          recorder?.spawned(powerTags(mods));
         }
         // el élite cierra su escenario: que se note cuando entra
         if ((e.mods?.size ?? 1) > 1) hud.showBanner(L('¡Llega el élite!', 'Here comes the elite!'), ENEMIES[e.kind].name, 2.5);

@@ -42,6 +42,23 @@ export interface AbilityLog {
   affected: number;
 }
 
+/**
+ * Lo de cada poder de los enemigos en la partida (12/10, para ver qué poderes complican: los benditos
+ * comunes, los gigantes...). Va por marca: el poder de escenario (`divine`, `armor`...), el de apoyo
+ * (`heal`, `ward`, `banner`, `explode`, `ranged`), `giant` el gigante, `elite` el élite, y `none` el que
+ * no trae nada. Uno con dos marcas cuenta en las dos.
+ */
+export interface PowerLog {
+  /** Cuántos salieron. */
+  seen: number;
+  killed: number;
+  /** Golpes que les entraron, y cuánto les sacaron. */
+  hits: number;
+  damage: number;
+  /** Lo que le sacaron a la puerta (el élite que entra, 99). */
+  gate: number;
+}
+
 export interface WaveLog {
   n: number;
   title: string;
@@ -187,6 +204,8 @@ export class RunRecorder {
   private readonly offs: number[] = [];
   /** Lo de cada habilidad (ver AbilityLog). */
   private readonly perAbility: Record<string, AbilityLog> = {};
+  /** Lo de cada poder de los enemigos (ver PowerLog). */
+  private readonly perPower: Record<string, PowerLog> = {};
 
   /**
    * @param send si se manda al terminar. Sin esto solo junta los números, para el cartel del final (el
@@ -229,8 +248,32 @@ export class RunRecorder {
   }
 
   /** Lo anotado hasta ahora: las oleadas, las cartas y cuándo se soltó cada tiro (para las pruebas y las tandas del bot). */
-  get log(): { waves: WaveLog[]; cards: { wave: number; offered: string[]; picked: string | null }[]; offs: number[]; abilities: Record<string, AbilityLog> } {
-    return { waves: this.waves, cards: this.cards, offs: this.offs, abilities: this.perAbility };
+  get log(): { waves: WaveLog[]; cards: { wave: number; offered: string[]; picked: string | null }[]; offs: number[]; abilities: Record<string, AbilityLog>; perPower: Record<string, PowerLog> } {
+    return { waves: this.waves, cards: this.cards, offs: this.offs, abilities: this.perAbility, perPower: this.perPower };
+  }
+
+  private powerLog(tag: string): PowerLog {
+    return (this.perPower[tag] ??= { seen: 0, killed: 0, hits: 0, damage: 0, gate: 0 });
+  }
+
+  /** Salió un enemigo con estas marcas (ver PowerLog). */
+  spawned(tags: readonly string[]): void {
+    for (const t of tags) this.powerLog(t).seen++;
+  }
+
+  /** Le entró un golpe de `amount` a uno con estas marcas. */
+  struck(tags: readonly string[], amount: number, killed: boolean): void {
+    for (const t of tags) {
+      const p = this.powerLog(t);
+      p.hits++;
+      if (Number.isFinite(amount)) p.damage += amount;
+      if (killed) p.killed++;
+    }
+  }
+
+  /** Uno con estas marcas le sacó `amount` a la puerta (el élite, que la tira entera: 99). */
+  breached(tags: readonly string[], amount: number): void {
+    for (const t of tags) this.powerLog(t).gate += Number.isFinite(amount) ? amount : 99;
   }
 
   private abilityLog(id: string): AbilityLog {
@@ -339,6 +382,7 @@ export class RunRecorder {
         waves: this.waves,
         cards: this.cards,
         abilities: this.perAbility,
+        perPower: this.perPower,
         releases: this.offs,
         host: location.hostname,
         // en qué idioma jugó (ver src/i18n.ts); el título de cada oleada sale en ese idioma
