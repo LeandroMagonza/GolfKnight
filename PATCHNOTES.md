@@ -26,6 +26,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Todo esto, también en la app de Windows. `f9e25ab` `1c0d451`
 
 **Para los que prueban**
+- **El bot juega mejor contra los benditos**: ya no gasta tiros en reventarles la burbuja de paso con el
+  área (le volvía antes de pegarles). Y en el panel B, pestaña de poderes, tres perillas en prueba que todavía
+  no cambian nada: la velocidad de cada poder (igual con «Poderes más duros» y sin él), cuántos salen con
+  cada poder, y en qué cuerpos caen el fantasma y el bendito. `6806265`
 - El bot apunta como la mira nueva (los tiros, al arco que queda debajo del cursor). `b0bff1d`
 - **Probar una oleada** (panel B, pestaña Pruebas): elegís la oleada, el poder de cada escenario y si la
   juega el bot, y arranca directo ahí, después de elegir las cartas de las oleadas salteadas. No
