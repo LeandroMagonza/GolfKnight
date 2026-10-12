@@ -7,6 +7,20 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 12 de octubre
+
+**Los enemigos**
+- **Con «Poderes más duros», el escudo viene siempre de 3 y el blindaje siempre de 2**, desde el primer
+  escenario. Al escudo se le pega de costado o con el área; al blindaje, con el driver de lejos o el putter
+  de cerca. `71d8130`
+- **El élite bendito recupera la burbuja a los 5 s**, como los comunes (eran 3). `71d8130`
+- **Los intocables, abiertos más rato**: la mitad del tiempo (1.2 s de cada 2.4), y con poca dificultad dos
+  tercios. Siempre hay alguno abierto. `71d8130`
+- Todo esto, también en la app de Windows. `b00ba3e`
+
+**Para los que prueban**
+- El bot apunta como la mira nueva (los tiros, al arco que queda debajo del cursor). `b0bff1d`
+
 ## 11 de octubre
 
 **La puntería**
