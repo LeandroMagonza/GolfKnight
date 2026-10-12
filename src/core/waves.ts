@@ -332,6 +332,42 @@ export const ARMOR_HP = [1, 0.75, 2 / 3];
 export const DIVINE = { every: 5, elite: 5 };
 
 /**
+ * En qué cuerpos caen el fantasma y el bendito (en prueba desde el 12/10, idea de Leandro: «en vez de
+ * bajarle la vida, que vengan menos de los grandes»). Contra los dos la carga no sirve (al fantasma cada
+ * golpe le saca 1; al bendito cada golpe pide antes otro que le rompa la burbuja), así que lo que cuestan
+ * son tiros, uno por cada punto de vida. `ethereal` y `divine`: con 0 cae parejo en cualquiera que pueda
+ * tenerlo; con k, con chance 1/vida^k (1: el de 4 de vida sale la mitad que el de 2). `giants`: con 0, no
+ * se agrandan (ni en la oleada de gigantes ni con la marca). El élite, aparte (ver `elite`).
+ */
+export const POWER_BIAS = { ethereal: 0, divine: 0, giants: 1 };
+
+/**
+ * La velocidad de todos los que traen cada poder de escenario, élite incluido (el jefe del final, no), encima
+ * de la que traigan. Es del poder, no de la dificultad: igual con «Poderes más duros» y sin él (Leandro,
+ * 12/10: «todos los fantasmas un 10 % más lentos, siempre, me parece razonable; y después el talento le suma
+ * uno de vida»). 1 es la de siempre; en prueba.
+ */
+export const POWER_SPEED: Record<ScenarioPower, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1, dodge: 1, regen: 1, phase: 1 };
+
+/**
+ * Cuántos salen con cada poder de escenario, sobre los que le tocarían (el que lo presenta y el élite,
+ * siempre): con 0.7, de cada diez que le tocaban salen unos siete, y el resto sin poder. En prueba desde el
+ * 12/10 para el bendito, que cuesta el doble de tiros y no tiene palo que lo resuelva (la burbuja se come
+ * también el área). 1 es todos.
+ */
+export const POWER_COUNT: Record<ScenarioPower, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1, dodge: 1, regen: 1, phase: 1 };
+
+/** A cuál de `free` le toca el poder `mods`: parejo, salvo el fantasma y el bendito (ver POWER_BIAS). */
+function pickBody(free: Spawn[], mods: EnemyMods, rand: () => number): Spawn {
+  const k = mods.ethereal ? POWER_BIAS.ethereal : mods.divine ? POWER_BIAS.divine : 0;
+  if (!k) return free[Math.floor(rand() * free.length)];
+  const weights = free.map((s) => ENEMIES[s.kind].hp ** -k);
+  let r = rand() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < free.length; i++) if ((r -= weights[i]) < 0) return free[i];
+  return free[free.length - 1];
+}
+
+/**
  * **El que se cura** (5/10, idea de Leandro): cada tanto se cura **entero**, con aviso (la barra verde
  * debajo de la vida se llena, y al llenarse el cuerpo brilla verde). Hay que meterle todo el daño entre
  * una cura y la siguiente, y conviene arrancar justo después de la cura, ya cargando.
@@ -940,7 +976,10 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   const give = (mods: EnemyMods, first: boolean): boolean => {
     const free = open().filter((s) => canTake(s.kind, mods));
     if (!free.length) return false;
-    const pick = first ? free[0] : free[Math.floor(rand() * free.length)];
+    // menos de los que tocaban (ver POWER_COUNT): este queda sin poder, pero cuenta como dado
+    const keep = first ? 1 : SCENARIO_POWERS.reduce((m, p) => (mods[p] ? m * POWER_COUNT[p] : m), 1);
+    if (keep < 1 && rand() >= keep) return true;
+    const pick = first ? free[0] : pickBody(free, mods, rand);
     pick.mods = mods;
     return true;
   };
@@ -992,12 +1031,14 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   // lo que el modificador le cambia a todos (menos al jefe): no es un poder, va encima del que tengan
   const extra = (kind: EnemyKind): EnemyMods | null =>
     wave.mod === 'giants' ? { giant: giantScale(kind), hp: GIANTS.hp, speed: GIANTS.speed } : wave.mod === 'powered' ? { hp: POWERED.hp } : null;
+  // (en la de gigantes, el fantasma y el bendito pueden quedar de su tamaño: ver POWER_BIAS.giants)
+  const keepsSize = (s: Spawn) => !POWER_BIAS.giants && wave.mod === 'giants' && !!(s.mods?.ethereal || s.mods?.divine);
   for (const s of order) {
     const add = extra(s.kind);
-    if (add && !ENEMIES[s.kind].boss) s.mods = { ...s.mods, ...add, hp: (s.mods?.hp ?? 0) + (add.hp ?? 0) };
+    if (add && !ENEMIES[s.kind].boss && !keepsSize(s)) s.mods = { ...s.mods, ...add, hp: (s.mods?.hp ?? 0) + (add.hp ?? 0) };
   }
   // la marca de los gigantes: unos cuantos al azar, ni el jefe ni el élite
-  const growable = order.filter((s) => !ENEMIES[s.kind].boss && !s.mods?.size && !s.mods?.giant);
+  const growable = order.filter((s) => !ENEMIES[s.kind].boss && !s.mods?.size && !s.mods?.giant && (POWER_BIAS.giants || !(s.mods?.ethereal || s.mods?.divine)));
   for (let n = wave.giants ?? 0; n > 0 && growable.length; n--) {
     const s = growable.splice(Math.floor(rand() * growable.length), 1)[0];
     s.mods = { ...s.mods, giant: giantScale(s.kind), speed: GIANTS.speed, hp: (s.mods?.hp ?? 0) + GIANTS.hp };
@@ -1021,6 +1062,13 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
     if (share >= 1) continue;
     const base = ENEMIES[s.kind].hp;
     s.mods = { ...s.mods, hp: Math.max(1, Math.ceil((base + (s.mods?.hp ?? 0)) * share)) - base };
+  }
+  // la velocidad de cada poder (ver POWER_SPEED)
+  for (const s of order) {
+    const mods = s.mods;
+    if (!mods || ENEMIES[s.kind].boss) continue;
+    const pace = SCENARIO_POWERS.reduce((m, p) => (mods[p] ? m * POWER_SPEED[p] : m), 1);
+    if (pace !== 1) s.mods = { ...mods, speed: (mods.speed ?? 1) * pace };
   }
   return order;
 }

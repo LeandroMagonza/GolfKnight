@@ -171,6 +171,13 @@ export const BOT_SKILLS: Record<string, BotSkill> = {
  * promedio se pasa al soltar; negativo, que se adelanta), `&adelanto=0.25` (el error al adelantarse al que
  * camina, en fracción de lo que camina).
  */
+/**
+ * Lo que vale romperle la burbuja a un bendito de paso (ver `popValue`): apagado desde el 12/10, solo con
+ * `?romper`. Con eso el bot le gastaba tiros a reventar burbujas que volvían antes de que les pegara: con los
+ * benditos en el nivel 0 ganaba 22 de 40, y sin eso 19 de 20.
+ */
+const POP = new URLSearchParams(location.search).has('romper') ? 0.5 : 0;
+
 function skillFrom(name: string, params: URLSearchParams): BotSkill {
   const skill = { ...(BOT_SKILLS[name] ?? BOT_SKILLS.perfecto) };
   const num = (key: string) => (params.has(key) && Number.isFinite(Number(params.get(key))) ? Math.max(0, Number(params.get(key))) : null);
@@ -729,8 +736,8 @@ export function startBot(): BotStats {
    * que valdría pegarle. Solo si la burbuja está y el golpe le llega (`raw` > 0).
    */
   function popValue(e: Enemy, raw: number, o: THREE.Vector3, t: number): number {
-    if (raw <= 0 || !e.divineReady || e.silenced || shutAt(e, t)) return 0;
-    return 0.5 * value(e, Math.min(e.hp, 3), o, t);
+    if (!POP || raw <= 0 || !e.divineReady || e.silenced || shutAt(e, t)) return 0;
+    return POP * value(e, Math.min(e.hp, 3), o, t);
   }
 
   /** Lo que vale un área de `raw` que estalla en (x, z) dentro de `t` s, de radio `r`, para todos los que agarra. */

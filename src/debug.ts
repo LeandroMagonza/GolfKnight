@@ -19,7 +19,7 @@ import { FIELD_HALF_WIDTH, FIELD_SHAPE } from './core/field';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
-import { DIVINE, ELITE, ENEMIES, GEOMANCER, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
+import { DIVINE, ELITE, ENEMIES, GEOMANCER, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
@@ -45,6 +45,12 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   carga: CHARGE as unknown as Record<string, number>,
   // el golpe 4 (qué parte del fuerte es el 4, y cuánto pega de más) y su arco: los deja también el simulador de la carga (arco.html)
   'golpe 4': FOURTH as unknown as Record<string, number>, 'arco golpe 4': FOURTH_ARC,
+  // en qué cuerpos caen el fantasma y el bendito (`reparto.divine:1,reparto.giants:0`)
+  reparto: POWER_BIAS,
+  // la velocidad de los que traen cada poder, con el talento y sin él (`paso.divine:0.9`)
+  paso: POWER_SPEED,
+  // cuántos salen con cada poder, sobre los que tocaban (`cuantos.divine:0.7`)
+  cuantos: POWER_COUNT,
   curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, intocable: PHASE, divino: DIVINE,
   // la vida del élite, fija desde el 12/10 (ver ELITE.hp)
   élite: ELITE as unknown as Record<string, number | number[]>,
@@ -395,6 +401,8 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
 };
 
 /** Lo elegido en «Probar una oleada» (ver buildTrial). */
+/** Los poderes de escenario, como se los nombra en las filas de velocidad. */
+const SPEED_NAMES: Record<ScenarioPower, string> = { shield: 'escudo', armor: 'blindado', ethereal: 'fantasma', divine: 'bendito', dodge: 'escurridizo', regen: 'que se cura', phase: 'intocable' };
 const TRIAL_KEY = 'gk.pruebaOla';
 const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Visual', 'Pruebas'] as const;
 type Tab = (typeof TABS)[number];
@@ -1157,6 +1165,10 @@ export class DebugPanel {
       ['se cura: el ciclo arranca con el primer golpe', () => REGEN.onHit, (v) => { REGEN.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 corre siempre'],
       ['burbuja: vuelve sola a los', () => DIVINE.every, (v) => { DIVINE.every = Math.max(0.5, v); }, 0.5, 's'],
       ['burbuja del élite: a los', () => DIVINE.elite, (v) => { DIVINE.elite = Math.max(0.5, v); }, 0.5, 's'],
+      ['bendito: preferir cuerpos chicos', () => POWER_BIAS.divine, (v) => { POWER_BIAS.divine = Math.max(0, v); }, 0.5, '(0 parejo)'],
+      ['fantasma: preferir cuerpos chicos', () => POWER_BIAS.ethereal, (v) => { POWER_BIAS.ethereal = Math.max(0, v); }, 0.5, '(0 parejo)'],
+      ['gigantes fantasmas y benditos', () => POWER_BIAS.giants, (v) => { POWER_BIAS.giants = v > 0 ? 1 : 0; }, 1, '1 sí, 0 no'],
+      ...(Object.entries(SPEED_NAMES) as [ScenarioPower, string][]).map(([p, name]) => [`velocidad del ${name}, siempre`, () => POWER_SPEED[p], (v: number) => { POWER_SPEED[p] = Math.min(2, Math.max(0.3, v)); }, 0.05, '×'] as [string, () => number, (v: number) => void, number, string]),
     ]);
     el.append(regen.table, note('El que se cura se cura entero cada tanto: el ciclo alcanza para matarlo con golpes medios (cuántos le hacen falta por su vida, uno cada tanto) y sobra el margen. Con poca dificultad el margen y la burbuja se multiplican por la recarga de arriba. Al bendito, además, cada golpe que le entra le devuelve la burbuja. Los intocables van en tres grupos que se turnan (sin el punto, dos), en el mismo ciclo: en cada pulso hay uno abierto. Vale desde la próxima partida.'));
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -83,6 +83,52 @@ describe('waves', () => {
     expect(elite(0, 'shield').kind).toBe('warchief');
     // el tamaño depende del modelo: el jefe goblin, chico, crece mucho más que el caballero
     expect(elite(0, 'shield').mods!.size!).toBeGreaterThan(elite(1, 'shield').mods!.size! + 0.3);
+  });
+
+  it('en prueba (12/10): el fantasma y el bendito, más en los chicos y sin agrandarse (POWER_BIAS)', () => {
+    const wave: Wave = { title: 'b', interval: 1, scenario: 1, focus: 'divine', share: 0.5, mod: 'giants', giants: 6, groups: [{ kind: 'goblina', count: 10 }, { kind: 'knight', count: 10 }] };
+    const tally = () => {
+      let knights = 0, all = 0, giants = 0;
+      for (let i = 1; i <= 200; i++) {
+        for (const s of spawnOrder(wave, seeded(i))) {
+          if (!s.mods?.divine) continue;
+          all++;
+          if (s.kind === 'knight') knights++;
+          if (s.mods.giant) giants++;
+        }
+      }
+      return { share: knights / all, giants };
+    };
+    const even = tally();
+    expect(even.share).toBeGreaterThan(0.4);
+    expect(even.giants).toBeGreaterThan(0);
+    POWER_BIAS.divine = 1;
+    POWER_BIAS.giants = 0;
+    try {
+      const biased = tally();
+      // la goblina tiene 2 de vida y el caballero 8: con 1/vida, uno de cada cinco
+      expect(biased.share).toBeLessThan(0.3);
+      expect(biased.giants).toBe(0);
+    } finally {
+      POWER_BIAS.divine = 0;
+      POWER_BIAS.giants = 1;
+    }
+  });
+
+  it('en prueba (12/10): la velocidad de cada poder, a todos los que lo traen (élite incluido), con el talento y sin él', () => {
+    const groups = (hard = HARDEST.hard): Wave['groups'] => [{ kind: 'orc', count: 1, mods: POWERS.ethereal(1, Math.random, hard) }, { kind: 'orc', count: 1 }, elite(1, 'ethereal', 0, hard)];
+    for (const hard of [HARDEST.hard, rulesFor({}).hard]) {
+      const wave: Wave = { title: 'f', interval: 1, scenario: 1, groups: groups(hard) };
+      const before = spawnOrder(wave, seeded(1));
+      POWER_SPEED.ethereal = 0.9;
+      try {
+        const after = spawnOrder({ ...wave, groups: groups(hard) }, seeded(1));
+        before.forEach((b, i) => expect(after[i].mods?.speed ?? 1).toBeCloseTo((b.mods?.speed ?? 1) * (b.mods?.ethereal ? 0.9 : 1)));
+        expect(after.filter((s) => s.mods?.ethereal)).toHaveLength(2);
+      } finally {
+        POWER_SPEED.ethereal = 1;
+      }
+    }
   });
 
   it('el cuerpo fuerte del escenario viene desde la primera oleada: 1, 3 y 3, sin poder salvo el élite', () => {
