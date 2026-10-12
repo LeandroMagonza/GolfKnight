@@ -9,7 +9,7 @@ import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from 
 import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
-import { buildRun, ENEMIES, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower } from './core/waves';
+import { buildRun, ENEMIES, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WAVE_MODS, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower, type WaveMod } from './core/waves';
 import { choiceAt, earnLevel, hillsOn, LADDER, ladderFrom, loadProgress, MAX_LEVEL, picksOf, rulesFor, saveProgress, setLevel, TALENTS, type Picks, type Progress, type TalentId } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, fourthArc, timingWith } from './core/swing';
@@ -184,10 +184,15 @@ showRun();
 
 /**
  * Las reglas de la partida: las de la dificultad, y en la demo, sin los poderes que no trae (DEMO_LOCKS).
- * Con las herramientas de prueba, `?poderes=shield,dodge,phase` elige los de los tres escenarios.
+ * Con las herramientas de prueba, `?poderes=shield,dodge,phase` elige los de los tres escenarios, y
+ * `?especiales=giants,ninguna,` la ola especial de cada uno (vacío, la que diga la dificultad).
  */
 function runRules(): RunRules {
-  const r = rulesFor(currentPicks());
+  const base = rulesFor(currentPicks());
+  const forced = DEV_TOOLS && params.has('especiales')
+    ? (params.get('especiales') ?? '').split(',').map((m) => (m === 'ninguna' ? null : (WAVE_MODS as readonly string[]).includes(m) ? (m as WaveMod) : undefined))
+    : undefined;
+  const r = forced ? { ...base, specialAt: forced } : base;
   const order = DEV_TOOLS ? (params.get('poderes') ?? '').split(',').filter((p): p is ScenarioPower => (SCENARIO_POWERS as readonly string[]).includes(p)) : [];
   if (order.length >= 3) return { ...r, order };
   return DEMO ? { ...r, pool: SCENARIO_POWERS.filter((p) => !DEMO_LOCKS.powers.includes(p)) } : r;

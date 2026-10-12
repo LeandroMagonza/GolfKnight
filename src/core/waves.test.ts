@@ -131,6 +131,19 @@ describe('waves', () => {
     }
   });
 
+  it('para probar, la ola especial de cada escenario se puede elegir (o ninguna), con su marca después', () => {
+    for (let i = 1; i <= 10; i++) {
+      const run = buildRun(seeded(i), { ...HARDEST, specialAt: [null, 'giants', undefined] });
+      expect(run.waves[1].mod).toBeUndefined();
+      expect(run.waves[4].mod).toBe('giants');
+      // la de los gigantes deja su marca en las que siguen, y en las de antes no hay
+      expect(run.waves[3].giants).toBeUndefined();
+      expect(run.waves[5].giants).toBe(MARKS.giants);
+    }
+    // sin elegir, como diga la dificultad: con dos especiales, la primera en el primer escenario
+    expect(buildRun(seeded(3), HARDEST).waves[1].mod).toBeDefined();
+  });
+
   it('el cuerpo fuerte del escenario viene desde la primera oleada: 1, 3 y 3, sin poder salvo el élite', () => {
     for (const run of runs(10)) {
       for (const s of [0, 1, 2]) {

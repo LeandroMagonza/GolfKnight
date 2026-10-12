@@ -688,6 +688,11 @@ export interface RunRules {
    * herramientas de prueba). Con menos de tres, se sortean como siempre.
    */
   order?: readonly ScenarioPower[];
+  /**
+   * La ola especial de cada escenario, sin sortear (para probar: `?especiales=` con las herramientas de
+   * prueba): `null`, ninguna; sin nada (`undefined`), la que diga la dificultad.
+   */
+  specialAt?: readonly (WaveMod | null | undefined)[];
   /** Por cuánto se multiplica la recarga de las habilidades del caballero (el talento «Recarga lenta»). */
   cooldown: number;
   /** Los hechiceros que se suman, en parte de cada oleada (ver CASTERS). 0, ninguno. */
@@ -806,6 +811,8 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
   const specialAt: (WaveMod | undefined)[] = [undefined, undefined, undefined];
   if (rules.specials >= 1) specialAt[0] = drawnMods[0];
   if (rules.specials >= 2) specialAt[later] = drawnMods[1];
+  // para probar: la que se eligió en cada escenario, o ninguna (ver RunRules.specialAt)
+  rules.specialAt?.slice(0, 3).forEach((m, s) => { if (m !== undefined) specialAt[s] = m ?? undefined; });
   // el apoyo de cada escenario: con uno, en el último; con dos, uno en el segundo y otro en el tercero
   const supportAt: (PowerKey | undefined)[] = [undefined, undefined, undefined];
   if (rules.supports >= 2) [supportAt[1], supportAt[2]] = drawnSupports;

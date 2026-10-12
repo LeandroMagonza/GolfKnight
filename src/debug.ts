@@ -1365,15 +1365,20 @@ export class DebugPanel {
     const params = new URLSearchParams(location.search);
     const stored = (() => {
       try {
-        return JSON.parse(localStorage.getItem(TRIAL_KEY) ?? 'null') as { wave?: string; powers?: string[]; bot?: boolean } | null;
+        return JSON.parse(localStorage.getItem(TRIAL_KEY) ?? 'null') as { wave?: string; powers?: string[]; specials?: string[]; bot?: boolean } | null;
       } catch {
         return null;
       }
     })();
     const now = (params.get('poderes') ?? '').split(',');
+    // la ola especial de cada escenario: «al azar» es la que diga la dificultad (ver ?especiales en main.ts)
+    const mods: Record<string, string> = { 'al azar': '', ninguna: 'ninguna', estampida: 'stampede', gigantes: 'giants', 'todos con poder': 'powered' };
+    const modLabels = Object.keys(mods);
+    const nowMods = (params.get('especiales') ?? '').split(',');
     const trial = {
       wave: params.get('ola') ?? stored?.wave ?? '6',
       powers: [0, 1, 2].map((s) => labels.find((l) => names[l] && names[l] === now[s]) ?? stored?.powers?.[s] ?? 'al azar'),
+      specials: [0, 1, 2].map((s) => modLabels.find((l) => mods[l] && mods[l] === nowMods[s]) ?? stored?.specials?.[s] ?? 'al azar'),
       bot: params.has('bot') || !!stored?.bot,
     };
     const keep = () => {
@@ -1387,6 +1392,9 @@ export class DebugPanel {
     for (const s of [0, 1, 2]) {
       el.append(this.choiceRow(`Escenario ${s + 1}`, labels, () => trial.powers[s], (v) => { trial.powers[s] = v; keep(); }, Object.fromEntries(labels.map((l) => [l, ''])) as Record<string, string>));
     }
+    for (const s of [0, 1, 2]) {
+      el.append(this.choiceRow(`Ola especial del ${s + 1}`, modLabels, () => trial.specials[s], (v) => { trial.specials[s] = v; keep(); }, Object.fromEntries(modLabels.map((l) => [l, l === 'al azar' ? 'la que diga la dificultad' : ''])) as Record<string, string>));
+    }
     const start = this.button('Arrancar', () => {
       const url = new URL(location.href);
       url.searchParams.set('ola', trial.wave);
@@ -1397,6 +1405,8 @@ export class DebugPanel {
         const order = picked.map((p) => p || pool.splice(Math.floor(Math.random() * pool.length), 1)[0] || SCENARIO_POWERS[0]);
         url.searchParams.set('poderes', order.join(','));
       } else url.searchParams.delete('poderes');
+      if (trial.specials.some((l) => mods[l])) url.searchParams.set('especiales', trial.specials.map((l) => mods[l] ?? '').join(','));
+      else url.searchParams.delete('especiales');
       if (trial.bot) url.searchParams.set('bot', 'humano');
       else url.searchParams.delete('bot');
       keep();
@@ -1406,11 +1416,11 @@ export class DebugPanel {
     });
     const normal = this.button('Partida normal', () => {
       const url = new URL(location.href);
-      for (const k of ['ola', 'poderes', 'bot']) url.searchParams.delete(k);
+      for (const k of ['ola', 'poderes', 'especiales', 'bot']) url.searchParams.delete(k);
       location.href = url.toString();
     });
     el.append(this.row(this.toggleButton('La juega el bot', () => trial.bot, (v) => { trial.bot = v; keep(); }), start, normal),
-      note('Arranca directo en esa oleada, con la dificultad que tengas elegida: antes te ofrece las cartas de las oleadas salteadas, una por oleada (el bot las elige solo). Los escenarios en «al azar» se sortean entre los poderes que no elegiste. No desbloquea niveles. «Partida normal» vuelve a la de siempre.'));
+      note('Arranca directo en esa oleada, con la dificultad que tengas elegida: antes te ofrece las cartas de las oleadas salteadas, una por oleada (el bot las elige solo). Los escenarios en «al azar» se sortean entre los poderes que no elegiste. La ola especial de cada escenario (la segunda oleada) y su marca, que sigue en las oleadas de después: «al azar» es la que diga la dificultad, y lo elegido manda aunque la dificultad no traiga especiales. No desbloquea niveles. «Partida normal» vuelve a la de siempre.'));
   }
 
   // ---- copiar y restaurar: fuera de las pestañas, siempre a mano ----
