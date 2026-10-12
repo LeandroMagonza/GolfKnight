@@ -49,7 +49,7 @@ describe('dificultad', () => {
     // un solo «Poderes más duros» pone todo: escudos hasta 3, más blindajes de 2, la recarga de siempre,
     // el que se cura y el intocable más duros, y el fantasma con 1 de vida más
     expect(rulesFor({ powers: 1 }).hard).toEqual(HARDEST.hard);
-    expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 0 });
+    expect(HARDEST.hard).toMatchObject({ cap: 3, armorRolls: 2, recharge: 1, regen: 1, ghostHp: 1 });
   });
 
   it('el golpe 4: lo prende, y los comunes traen vida de más (los élites y el jefe no, desde el 11/10)', () => {

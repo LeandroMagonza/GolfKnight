@@ -558,9 +558,9 @@ describe('waves', () => {
     expect(POWERS.phase(0, () => 0, easy).phase).toBe(2);
     expect(POWERS.phase(0, () => 0, hard).phase).toBe(3);
     expect(elite(1, 'phase', 0, hard).mods!.phase).toBe(POWERS.phase(0, () => 0, hard).phase);
-    // el fantasma: sin vida de más, con el punto o sin él (12/10)
+    // el fantasma común: con el punto, 1 de vida más; el élite, nada (12/10)
     expect(POWERS.ethereal(0, () => 0, easy).hp).toBeUndefined();
-    expect(POWERS.ethereal(0, () => 0, hard).hp).toBeUndefined();
+    expect(POWERS.ethereal(0, () => 0, hard).hp).toBe(1);
     expect(elite(1, 'ethereal', 3, hard).mods!.hp).toBe(elite(1, 'ethereal', 3, easy).mods!.hp);
   });
 

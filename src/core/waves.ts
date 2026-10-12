@@ -304,7 +304,7 @@ export interface PowerHardness {
   full: boolean;
   ghostHp: number;
 }
-export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, timings: 3, phaseOpen: 0.5, full: true, ghostHp: 0 };
+export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, timings: 3, phaseOpen: 0.5, full: true, ghostHp: 1 };
 
 /**
  * El blindaje no pasa de 2 (7/10, pedido de Leandro): con 3, al mejor golpe le entraba 1 y se terminaba

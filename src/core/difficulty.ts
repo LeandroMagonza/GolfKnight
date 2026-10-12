@@ -64,8 +64,8 @@ export const DIFFICULTY = {
   phaseOpen: [2 / 3, 0.5],
   // el escudo y el blindaje, siempre al máximo con el punto (12/10)
   full: [0, 1],
-  // el fantasma, sin vida de más también con el punto (12/10: era +1, y el élite +2 al doble)
-  ghostHp: [0, 0],
+  // el fantasma común: con el punto, 1 de vida más (el élite, desde el 12/10, nada: ver ELITE.hp)
+  ghostHp: [0, 1],
   rest: [INTERMISSION, 4],
   fourthHp: 1,
   fourthBossHp: 0,

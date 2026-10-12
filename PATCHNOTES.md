@@ -21,7 +21,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   El problema no eran los chicos blindados sino los de mucha vida. `dc4f3c2` `b068d28`
 - **La vida de los élites ya no depende de la dificultad**: se va «Élites más duros» del primer escalón
   (queda «Sin respiro» o la escolta, y lo que tenías elegido se pasa solo), y el golpe 4 tampoco les suma.
-  Y el fantasma ya no trae vida de más con «Poderes más duros». `b068d28`
+  Y el élite fantasma ya no trae vida de más con «Poderes más duros» (los comunes, sí: +1). `b068d28`
 - Todo esto, también en la app de Windows. `f9e25ab`
 
 **Para los que prueban**
