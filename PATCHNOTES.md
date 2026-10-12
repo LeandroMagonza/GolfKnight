@@ -10,6 +10,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 12 de octubre
 
 **Los enemigos**
+- **Las marcas ya no corren los tiempos**: los 10 chicos que suma la estampida a las oleadas siguientes se
+  meten entre los demás, y el resto (el élite también) sale cuando salía sin ella. Antes el élite tardaba
+  más en salir y eso ayudaba. Lo mismo los hechiceros. `66899ce`
 - **Con «Poderes más duros», el escudo viene siempre de 3 y el blindaje siempre de 2**, desde el primer
   escenario. Al escudo se le pega de costado o con el área; al blindaje, con el driver de lejos o el putter
   de cerca. `71d8130`
