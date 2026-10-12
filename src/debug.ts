@@ -53,6 +53,36 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...Object.fromEntries(SPELL_ORDER.map((id) => [`abe ${SPELL_KEYS[id]}`, ABE_SPELLS[id] as Record<string, number | number[]>])),
 };
 
+/**
+ * Con las herramientas de prueba, `?ajuste=tabla.clave:valor,tabla.clave.índice:valor` cambia números de
+ * las tablas del panel B solo para esta visita, sin guardarlos (12/10: para las tandas del bot, probar
+ * variantes sin tocar el código). Por ejemplo `?ajuste=dificultad.ghostEliteHp.1:0,divino.elite:3`; un
+ * espacio en el nombre de la tabla va como `+`. Devuelve lo que cambió.
+ */
+export function applyTweaks(text: string): string[] {
+  const done: string[] = [];
+  for (const part of text.split(',')) {
+    const [path, raw] = part.split(':');
+    const value = Number(raw);
+    if (!path || raw === undefined || !Number.isFinite(value)) continue;
+    const [table, key, index] = path.split('.');
+    const into = CONFIGS[table];
+    if (!into || !(key in into)) continue;
+    const now = into[key];
+    if (Array.isArray(now) && index !== undefined) {
+      const i = Number(index);
+      if (Number.isInteger(i) && i >= 0 && i < now.length) {
+        now[i] = value;
+        done.push(`${path}=${value}`);
+      }
+    } else if (typeof now === 'number' && index === undefined) {
+      into[key] = value;
+      done.push(`${path}=${value}`);
+    }
+  }
+  return done;
+}
+
 export interface DebugHooks {
   /** Los niveles de dificultad desbloqueados: para probar cualquiera sin ganar las partidas. */
   difficultyPoints: { get(): number; set(points: number): void };

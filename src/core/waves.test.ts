@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -25,6 +25,9 @@ const has = (m: EnemyMods | undefined, key: PowerKey) => {
 
 /** Muchas partidas distintas. */
 const runs = (n = 40) => Array.from({ length: n }, (_, i) => buildRun(seeded(i + 1)));
+/** La vida de más que le queda a uno de `kind` que traía `extra`, si está blindado (ver ARMOR_HP). */
+const armoredExtra = (kind: EnemyKind, extra: number, armor = 0) =>
+  armor ? Math.max(1, Math.ceil((ENEMIES[kind].hp + extra) * ARMOR_HP[Math.min(armor, ARMOR_HP.length - 1)])) - ENEMIES[kind].hp : extra;
 
 describe('waves', () => {
   it('una partida son tres escenarios de tres oleadas y la del jefe', () => {
@@ -67,9 +70,10 @@ describe('waves', () => {
         expect(ENEMIES[last.kind].height * size).toBeGreaterThanOrEqual(ELITE.height - 1e-9);
         // y trae vida de más: +2, +3 y +4 según el escenario (el fantasma, con «Poderes más duros», 2 más),
         // y desde el 8/10 toda su vida al doble; camina más lento que su cuerpo
+        // (el blindado, con menos: ver ARMOR_HP)
         const body = ENEMIES[last.kind].hp;
         const extra = ELITE.hp[s] + (run.powers[s] === 'ethereal' ? HARDEST.hard.ghostEliteHp : 0);
-        expect(body + last.mods!.hp!).toBe((body + extra) * ELITE.hpScale);
+        expect(last.mods!.hp!).toBe(armoredExtra(last.kind, (body + extra) * ELITE.hpScale - body, last.mods!.armor));
         expect(last.mods!.speed).toBe(ELITE.speed);
       }
     }
@@ -106,11 +110,13 @@ describe('waves', () => {
           const fixed = w.groups.filter((g) => g.mods || g.plain).reduce((n, g) => n + g.count, 0);
           const exploders = order.filter((o) => o.mods?.explode).length;
           // la marca de «todos con poder» va aparte del tercio, con los poderes que no salieron
-          const isForeign = (o: Spawn) => !!w.foreign && unused.some((p) => has(o.mods, p)) && !w.groups.some((g) => g.mods === o.mods);
+          // (el élite es de un grupo, aunque el blindaje le cambie la vida: ver ARMOR_HP)
+          const ofGroup = (o: Spawn) => !!o.mods?.size || w.groups.some((g) => g.mods === o.mods);
+          const isForeign = (o: Spawn) => !!w.foreign && unused.some((p) => has(o.mods, p)) && !ofGroup(o);
           const foreign = order.filter(isForeign).length;
           if (w.foreign) expect(foreign, w.title).toBe(w.foreign.count);
           const open = order.filter((o) => !ENEMIES[o.kind].boss).length - fixed - exploders - foreign;
-          const drawn = order.filter((o) => hasPower(o.mods) && !o.mods!.explode && !o.plain && !isForeign(o) && !w.groups.some((g) => g.mods === o.mods));
+          const drawn = order.filter((o) => hasPower(o.mods) && !o.mods!.explode && !o.plain && !isForeign(o) && !ofGroup(o));
           // con «todos con poder», todos; si no, un tercio
           expect(drawn.length, `${i} ${w.title}`).toBe(w.mod === 'powered' ? open : Math.round(open / 3));
           // el jefe nunca; nadie recibe un poder que no pueda tener
@@ -191,7 +197,7 @@ describe('waves', () => {
         // ninguno llega a la altura del élite
         expect(ENEMIES[o.kind].height * giant).toBeLessThan(ELITE.height);
         expect(o.mods?.size).toBeUndefined();
-        expect(o.mods?.hp ?? 0).toBeGreaterThanOrEqual(GIANTS.hp);
+        if (!o.mods?.armor) expect(o.mods?.hp ?? 0).toBeGreaterThanOrEqual(GIANTS.hp);
         expect(o.mods?.speed).toBe(GIANTS.speed);
       }
       // los chicos se notan: crecen todo lo que dice GIANTS.scale
@@ -211,7 +217,7 @@ describe('waves', () => {
         // (en la segunda oleada no hay élite: a todos les toca lo mismo; la marca de los gigantes, si
         // vino antes, les suma vida a unos cuantos)
         // (el que se cura trae su vida de más encima, y el fantasma, con «Poderes más duros», la suya)
-        if (!o.mods?.giant) expect(o.mods?.hp, o.kind).toBe(POWERED.hp + (o.mods?.regen ? REGEN.hp : 0) + (o.mods?.ethereal ? HARDEST.hard.ghostHp : 0));
+        if (!o.mods?.giant) expect(o.mods?.hp, o.kind).toBe(armoredExtra(o.kind, POWERED.hp + (o.mods?.regen ? REGEN.hp : 0) + (o.mods?.ethereal ? HARDEST.hard.ghostHp : 0), o.mods?.armor));
         for (const p of SCENARIO_POWERS) if (has(o.mods, p) && !run.powers.includes(p)) outside.add(p);
       }
     }
@@ -348,6 +354,15 @@ describe('waves', () => {
     }
     // con menos de tres no alcanzan para los tres escenarios: de todos
     expect(buildRun(seeded(1), { ...rulesFor({}), pool: ['armor'] }).powers).toHaveLength(3);
+  });
+
+  it('el blindado trae menos vida: la mitad con blindaje 2, tres cuartos con 1 (el jefe del final, no)', () => {
+    const wave: Wave = { title: 'b', interval: 1, scenario: 1, groups: [{ kind: 'knight', count: 1, mods: { armor: 2 } }, { kind: 'skeleton', count: 1, mods: { armor: 1 } }, { kind: 'goblin', count: 1, mods: { armor: 2 } }] };
+    const order = spawnOrder(wave, seeded(1));
+    const hp = (k: EnemyKind) => { const o = order.find((x) => x.kind === k)!; return ENEMIES[k].hp + (o.mods?.hp ?? 0); };
+    expect(hp('knight')).toBe(ENEMIES.knight.hp / 2);
+    expect(hp('skeleton')).toBe(Math.ceil(ENEMIES.skeleton.hp * 0.75));
+    expect(hp('goblin')).toBe(1);
   });
 
   it('sin «Poderes más duros» el escudo sube con el escenario hasta 2 y el blindaje hasta 2; con el punto, al máximo siempre', () => {

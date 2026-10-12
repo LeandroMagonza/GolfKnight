@@ -314,6 +314,16 @@ export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 
 export const ARMOR_MAX = 2;
 
 /**
+ * **El blindado trae menos vida** (12/10, Leandro: «el problema no deben ser los enemigos con poca vida y
+ * blindaje, sino los de mucha vida»): con blindaje 2, la mitad de su vida; con 1, tres cuartos (para
+ * arriba, al menos 1). Toda su vida: la del cuerpo y la que le sumen el élite, los gigantes o el golpe 4. El
+ * jefe del final, no. Con el análisis de docs/dps.md y la mezcla de golpes de Leandro, lo que le ocupa de
+ * más contra uno sin poder pasa de ×1.9 a ×1.4 (blindaje 1) y de ×4.6 a ×2.3 (blindaje 2), parecido al
+ * fantasma o al bendito. Por nivel de blindaje (0, 1, 2).
+ */
+export const ARMOR_HP = [1, 0.75, 0.5];
+
+/**
  * Lo que tarda en recargar el escudo divino, en segundos (el del élite, `elite`: desde el 12/10 lo mismo que
  * los comunes, como el escurridizo; era 3, y en el nivel 5 el bot ganaba 1 de 20). Además, **cada golpe que
  * le entra le devuelve la burbuja** (5/10, primero al élite y después a todos, pedido de Leandro): como el
@@ -997,6 +1007,15 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
       const add = ENEMIES[s.kind].boss ? wave.bossHp ?? 0 : s.mods?.size ? 0 : wave.extraHp ?? 0;
       if (add) s.mods = { ...s.mods, hp: (s.mods?.hp ?? 0) + add };
     }
+  }
+  // el blindado, con menos vida (ver ARMOR_HP): toda la que tenga, después de lo que le sumaron
+  for (const s of order) {
+    const armor = s.mods?.armor;
+    if (!armor || ENEMIES[s.kind].boss) continue;
+    const share = ARMOR_HP[Math.min(armor, ARMOR_HP.length - 1)];
+    if (share >= 1) continue;
+    const base = ENEMIES[s.kind].hp;
+    s.mods = { ...s.mods, hp: Math.max(1, Math.ceil((base + (s.mods?.hp ?? 0)) * share)) - base };
   }
   return order;
 }

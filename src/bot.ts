@@ -723,6 +723,16 @@ export function startBot(): BotStats {
     return guard;
   }
 
+  /**
+   * Romperle la burbuja al bendito también vale (12/10, Leandro: se le puede romper de paso, con el área
+   * del hierro o del wedge, o con el driver que antes le pegó a otro): lo mismo que el cebo, la mitad de lo
+   * que valdría pegarle. Solo si la burbuja está y el golpe le llega (`raw` > 0).
+   */
+  function popValue(e: Enemy, raw: number, o: THREE.Vector3, t: number): number {
+    if (raw <= 0 || !e.divineReady || e.silenced || shutAt(e, t)) return 0;
+    return 0.5 * value(e, Math.min(e.hp, 3), o, t);
+  }
+
   /** Lo que vale un área de `raw` que estalla en (x, z) dentro de `t` s, de radio `r`, para todos los que agarra. */
   function areaValue(x: number, z: number, r: number, raw: number, t: number, o: THREE.Vector3, need: Enemy | null = null): number {
     let total = 0;
@@ -733,7 +743,13 @@ export function startBot(): BotStats {
       const guard = areaGuard(x, z, e, t);
       if (guard >= SHIELD_WALL) continue;
       const dmg = Math.max(0, dealt(e, raw, t) - guard);
-      if (dmg <= 0) continue;
+      if (dmg <= 0) {
+        // la burbuja se la rompe igual
+        const pop = popValue(e, raw, o, t);
+        if (pop > 0 && e === need) got = true;
+        total += pop;
+        continue;
+      }
       if (e === need) got = true;
       total += value(e, dmg, o, t);
     }
@@ -885,7 +901,7 @@ export function startBot(): BotStats {
         if (!hit) continue;
         const scan = scanLine(club, q, o, hit.x, hit.z, lead);
         if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
-        const total = scan.hits.reduce((n, h) => n + value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t), 0);
+        const total = scan.hits.reduce((n, h) => n + (value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t) || popValue(h.e, damageFor(club, h.d, q), o, h.t)), 0);
         if (total <= 0) continue;
         consider(make(club, q, 'lead', total / (lead + AFTER_SHOT)));
       }
@@ -930,7 +946,7 @@ export function startBot(): BotStats {
           if (!hit || lead < chargeTime(q, times) + delay + walk || shutAt(e, hit.t)) continue;
           const scan = scanLine(club, q, o, hit.x, hit.z, lead);
           if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
-          const total = scan.hits.reduce((n, h) => n + value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t), 0);
+          const total = scan.hits.reduce((n, h) => n + (value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t) || popValue(h.e, damageFor(club, h.d, q), o, h.t)), 0);
           if (total <= 0) continue;
           const p = make(club, q, 'lead', total / (lead + AFTER_SHOT));
           p.releaseAt = gk.clock + lead - delay;
@@ -1046,7 +1062,7 @@ export function startBot(): BotStats {
       if (!h) return -1;
       const scan = scanLine(club, q, from, h.x, h.z, lead);
       if (scan.ricochet || !scan.hits.some((x) => x.e === e)) return -1;
-      return scan.hits.reduce((n, x) => n + value(x.e, dealt(x.e, damageFor(club, x.d, q), x.t), from, x.t), 0);
+      return scan.hits.reduce((n, x) => n + (value(x.e, dealt(x.e, damageFor(club, x.d, q), x.t), from, x.t) || popValue(x.e, damageFor(club, x.d, q), from, x.t)), 0);
     };
     let best = { shift: 0, value: worth(o) };
     const spotX = gk.tees.spots[gk.tees.nearest(o.x)]?.x ?? o.x;
@@ -1278,7 +1294,10 @@ export function startBot(): BotStats {
     if (!e) return false;
     gk.player.teePosition(tee);
     if (p.mode === 'bait') {
-      aim(e.position.x, e.position.z);
+      // al escurridizo alcanza con apuntarle (salta al soltar); la burbuja hay que tocarla: adelantado, como
+      // a cualquiera (12/10: le tiraba a donde estaba, y al que caminaba no le llegaba)
+      const hit = e.canDodge ? null : intercept(e, p.club, p.q, tee, left);
+      aim(hit ? hit.x : e.position.x, hit ? hit.z : e.position.z);
       return true;
     }
     // el que se adelanta como una persona: se pasa o se queda corto en una parte de lo que camina el blanco

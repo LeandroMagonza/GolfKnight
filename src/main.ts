@@ -28,7 +28,7 @@ import { Player, type Shot } from './game/player';
 import { FIELD_HALF_WIDTH, GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { loadVisual, VISUAL, Visuals } from './game/visuals';
 import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
-import { DebugPanel, loadBalance, type SavedExtras } from './debug';
+import { DebugPanel, applyTweaks, loadBalance, type SavedExtras } from './debug';
 import { BOT_PREFS } from './botPrefs';
 import { Hud, type PerkChip } from './hud';
 import { Input, type InputEvents } from './input';
@@ -101,6 +101,8 @@ let gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.
 // esto se perdía todo lo tocado. Tiene que aplicarse antes de armar el mundo (las bandas se dibujan)
 // (solo con las herramientas de prueba: lo que se publica para jugadores juega con los números del código)
 const savedBalance: SavedExtras = DEV_TOOLS ? loadBalance() : {};
+// ?ajuste=: números de prueba para esta visita, encima de lo guardado (ver applyTweaks)
+if (DEV_TOOLS && params.has('ajuste')) console.info('ajuste:', applyTweaks(params.get('ajuste') ?? '').join(', ') || 'nada');
 // el campo en trapecio (ver core/field): con ?trapecio se prende para esta visita. El tenis, siempre en el
 // rectángulo: la cancha tiene sus paredes
 if (params.has('trapecio')) FIELD_SHAPE.trapezoid = true;
