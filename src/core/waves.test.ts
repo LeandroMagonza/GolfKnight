@@ -131,6 +131,20 @@ describe('waves', () => {
     }
   });
 
+  it('lo que suma la marca de la estampida no corre a los demás: el élite sale cuando salía sin ella', () => {
+    const leaves = (order: Spawn[]) => { let t = 0; return order.map((s, i) => (t += i ? s.delay ?? 0 : 0)); };
+    const eliteAt = (w: Wave) => { const order = spawnOrder(w, seeded(2)); const i = order.findIndex((s) => s.mods?.size); return leaves(order)[i] - Math.min(...leaves(order)); };
+    for (const run of runs(5)) {
+      for (const i of [2, 5, 8]) {
+        const w = run.waves[i];
+        const plain = { ...w, groups: w.groups.filter((g) => !g.mark), kamikaze: undefined };
+        const marked = { ...plain, groups: [{ kind: 'goblin' as const, count: 6, mark: true }, { kind: 'goblina' as const, count: 4, mark: true }, ...plain.groups], kamikaze: true };
+        expect(spawnOrder(marked, seeded(2))).toHaveLength(spawnOrder(plain, seeded(2)).length + 10);
+        expect(eliteAt(marked)).toBeCloseTo(eliteAt(plain), 6);
+      }
+    }
+  });
+
   it('para probar, la ola especial de cada escenario se puede elegir (o ninguna), con su marca después', () => {
     for (let i = 1; i <= 10; i++) {
       const run = buildRun(seeded(i), { ...HARDEST, specialAt: [null, 'giants', undefined] });

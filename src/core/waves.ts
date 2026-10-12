@@ -273,6 +273,12 @@ export interface WaveGroup {
   at?: number;
   /** Salen sin poder: el cuerpo fuerte del escenario, para que el élite sea el único de ese cuerpo con poder. */
   plain?: boolean;
+  /**
+   * Los suma una marca (la de la estampida): se meten entre los de la oleada, repartidos en lo que dura, sin
+   * correrlos. Así los de siempre (el élite también) salen cuando salían sin la marca (12/10, Leandro: con
+   * la estampida el élite tardaba más en salir, y eso ayudaba).
+   */
+  mark?: boolean;
 }
 
 /** Los poderes que se reparten al azar. */
@@ -881,8 +887,7 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
     if (rules.bossHp) w.bossHp = rules.bossHp;
     // las marcas de las olas especiales que ya pasaron
     if (specials.includes('stampede')) {
-      addBodies(w.groups, 'goblin', Math.ceil(MARKS.stampede * 0.6));
-      addBodies(w.groups, 'goblina', Math.floor(MARKS.stampede * 0.4));
+      w.groups.unshift({ kind: 'goblin', count: Math.ceil(MARKS.stampede * 0.6), mark: true }, { kind: 'goblina', count: Math.floor(MARKS.stampede * 0.4), mark: true });
       w.kamikaze = true;
     }
     if (specials.includes('giants')) w.giants = MARKS.giants;
@@ -890,14 +895,6 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
     if (w.mod) specials.push(w.mod);
   }
   return { waves, powers, supports, specials };
-}
-
-/** Suma `count` de `kind` a la oleada: al grupo que ya hay de ese cuerpo, o en uno nuevo. */
-function addBodies(groups: WaveGroup[], kind: EnemyKind, count: number): void {
-  if (count <= 0) return;
-  const g = groups.find((x) => x.kind === kind && !x.mods && !x.plain && x.at === undefined);
-  if (g) g.count += count;
-  else groups.unshift({ kind, count });
 }
 
 /**
@@ -954,19 +951,23 @@ export function arrivalOrder(order: Spawn[], interval: number): Spawn[] {
  * de los gigantes agranda a unos cuantos, y todos (menos el jefe) van a la velocidad de la dificultad.
  */
 export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[] {
-  const slots: { spawn: Spawn; at: number }[] = [];
+  const slots: { spawn: Spawn; at: number; mark: boolean }[] = [];
   for (const g of wave.groups) {
     for (let i = 0; i < g.count; i++) {
       const at = g.at ?? (g.count <= 2 ? 0.4 + 0.2 * i : (i + 0.5) / g.count);
-      slots.push({ spawn: g.mods ? { kind: g.kind, mods: g.mods } : g.plain ? { kind: g.kind, plain: true } : { kind: g.kind }, at });
+      slots.push({ spawn: g.mods ? { kind: g.kind, mods: g.mods } : g.plain ? { kind: g.kind, plain: true } : { kind: g.kind }, at, mark: !!g.mark });
     }
   }
   slots.sort((a, b) => a.at - b.at);
   // el turno `k` llega en k·intervalo + lo que tarda: sale justo cuando tiene que salir para llegar a
-  // tiempo. Cada uno lleva la espera desde el anterior, así llegan con el ritmo de la oleada
-  const arriving = slots.map((s) => s.spawn);
+  // tiempo. Cada uno lleva la espera desde el anterior, así llegan con el ritmo de la oleada. Los que suma
+  // una marca no tienen turno: llegan en su punto de lo que dura la oleada sin ellos (ver WaveGroup.mark)
+  const span = Math.max(0, slots.filter((s) => !s.mark).length - 1) * wave.interval;
+  let turn = 0;
+  const timed = slots.map((s) => ({ spawn: s.spawn, due: s.mark ? s.at * span : turn++ * wave.interval })).sort((a, b) => a.due - b.due);
+  const arriving = timed.map((s) => s.spawn);
   const lag = lags(arriving);
-  const want = arriving.map((spawn, k) => k * wave.interval - lag[k]);
+  const want = arriving.map((_, k) => timed[k].due - lag[k]);
   // pero ningún pesado sale antes que el primer liviano: el caballero que tiene su turno al principio
   // salía veinte segundos antes que todos, y se lo mataba tranquilo antes de que apareciera el resto.
   // Sale con el primero y llega un poco más tarde, en el medio del montón
@@ -1028,7 +1029,11 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
     const count = bodies.length ? Math.max(1, Math.round(order.length * wave.casters)) : 0;
     for (let n = 0; n < count; n++) {
       const at = 1 + Math.floor(rand() * Math.max(1, order.length - 1));
-      order.splice(at, 0, { kind: bodies[Math.floor(rand() * bodies.length)], mods: { ranged: true, apart: true }, delay: wave.interval * 0.5 });
+      // en el medio del hueco entre dos, sin correr a los de después
+      const next = order[at];
+      const delay = (next?.delay ?? wave.interval) / 2;
+      if (next) next.delay = delay;
+      order.splice(at, 0, { kind: bodies[Math.floor(rand() * bodies.length)], mods: { ranged: true, apart: true }, delay });
     }
   }
   // los escudos sorteados van de menor a mayor a lo largo de la oleada: el más duro, al final
