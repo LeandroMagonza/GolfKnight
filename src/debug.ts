@@ -19,7 +19,7 @@ import { FIELD_HALF_WIDTH, FIELD_SHAPE } from './core/field';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
-import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
+import { DIVINE, ELITE, ENEMIES, GEOMANCER, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
@@ -394,6 +394,8 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
   masteryFire: [[ELEMENTS, 'blastRadius', 'explosión m'], [ELEMENTS, 'blastDamage', 'explosión daño']],
 };
 
+/** Lo elegido en «Probar una oleada» (ver buildTrial). */
+const TRIAL_KEY = 'gk.pruebaOla';
 const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Visual', 'Pruebas'] as const;
 type Tab = (typeof TABS)[number];
 const TAB_KEY = 'gk.balanceTab';
@@ -1301,6 +1303,7 @@ export class DebugPanel {
     const list = this.hooks.director.list;
     for (let i = 0; i < list.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), list[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
+    this.buildTrial(el);
     el.append(heading('Bot'));
     // prendido es que está andando de verdad: sin ?bot no está cargado, y tocarlo lo arranca
     const bot = this.hooks.bot;
@@ -1334,6 +1337,68 @@ export class DebugPanel {
     el.append(heading('Modo'));
     el.append(this.row(this.button(this.hooks.tennis ? 'Volver al golf' : 'Modo tenis (prototipo)', () => this.hooks.switchMode())),
       note('El modo tenis es un prototipo: no tiene botón en la pantalla de inicio. También se entra con ?tenis en la dirección. Recarga la página.'));
+  }
+
+  /**
+   * Probar una oleada (12/10, Leandro: sin tocar la dirección): la oleada, el poder de cada escenario y si
+   * la juega el bot. «Arrancar» recarga con ?ola, ?poderes y ?bot (ver START_WAVE en main.ts) y arranca
+   * sola; «Partida normal» los saca. Lo elegido queda en este navegador.
+   */
+  private buildTrial(el: HTMLElement): void {
+    el.append(heading('Probar una oleada'));
+    const names: Record<string, ScenarioPower | ''> = {
+      'al azar': '', escudo: 'shield', blindaje: 'armor', fantasma: 'ethereal', bendito: 'divine', escurridizo: 'dodge', 'se cura': 'regen', intocable: 'phase',
+    };
+    const labels = Object.keys(names);
+    const params = new URLSearchParams(location.search);
+    const stored = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(TRIAL_KEY) ?? 'null') as { wave?: string; powers?: string[]; bot?: boolean } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const now = (params.get('poderes') ?? '').split(',');
+    const trial = {
+      wave: params.get('ola') ?? stored?.wave ?? '6',
+      powers: [0, 1, 2].map((s) => labels.find((l) => names[l] && names[l] === now[s]) ?? stored?.powers?.[s] ?? 'al azar'),
+      bot: params.has('bot') || !!stored?.bot,
+    };
+    const keep = () => {
+      try {
+        localStorage.setItem(TRIAL_KEY, JSON.stringify(trial));
+      } catch { /* sin localStorage: vale hasta recargar */ }
+    };
+    const list = this.hooks.director.list;
+    const waves = list.map((_, i) => String(i + 1));
+    el.append(this.choiceRow('Oleada', waves, () => trial.wave, (v) => { trial.wave = v; keep(); }, Object.fromEntries(waves.map((w, i) => [w, list[i].title])) as Record<string, string>));
+    for (const s of [0, 1, 2]) {
+      el.append(this.choiceRow(`Escenario ${s + 1}`, labels, () => trial.powers[s], (v) => { trial.powers[s] = v; keep(); }, Object.fromEntries(labels.map((l) => [l, ''])) as Record<string, string>));
+    }
+    const start = this.button('Arrancar', () => {
+      const url = new URL(location.href);
+      url.searchParams.set('ola', trial.wave);
+      const picked = trial.powers.map((l) => names[l]);
+      if (picked.some(Boolean)) {
+        // los «al azar», sorteados entre los que no se eligieron
+        const pool = SCENARIO_POWERS.filter((p) => !picked.includes(p));
+        const order = picked.map((p) => p || pool.splice(Math.floor(Math.random() * pool.length), 1)[0] || SCENARIO_POWERS[0]);
+        url.searchParams.set('poderes', order.join(','));
+      } else url.searchParams.delete('poderes');
+      if (trial.bot) url.searchParams.set('bot', 'humano');
+      else url.searchParams.delete('bot');
+      keep();
+      // que arranque sola al recargar (ver AUTOSTART_KEY en main.ts)
+      sessionStorage.setItem('gk.autostart', '1');
+      location.href = url.toString();
+    });
+    const normal = this.button('Partida normal', () => {
+      const url = new URL(location.href);
+      for (const k of ['ola', 'poderes', 'bot']) url.searchParams.delete(k);
+      location.href = url.toString();
+    });
+    el.append(this.row(this.toggleButton('La juega el bot', () => trial.bot, (v) => { trial.bot = v; keep(); }), start, normal),
+      note('Arranca directo en esa oleada, con la dificultad que tengas elegida: antes te ofrece las cartas de las oleadas salteadas, una por oleada (el bot las elige solo). Los escenarios en «al azar» se sortean entre los poderes que no elegiste. No desbloquea niveles. «Partida normal» vuelve a la de siempre.'));
   }
 
   // ---- copiar y restaurar: fuera de las pestañas, siempre a mano ----
