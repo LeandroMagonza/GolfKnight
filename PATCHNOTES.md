@@ -26,6 +26,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Todo esto, también en la app de Windows. `f9e25ab` `1c0d451`
 
 **Para los que prueban**
+- **Probar una oleada, con la ola especial**: en cada escenario se elige la ola especial (estampida,
+  gigantes, todos con poder o ninguna), y su marca sigue en las oleadas de después. Así se comparan los
+  élites con la misma mezcla. `e6b4499`
 - **El bot juega mejor contra los benditos**: ya no gasta tiros en reventarles la burbuja de paso con el
   área (le volvía antes de pegarles). Y en el panel B, pestaña de poderes, tres perillas en prueba que todavía
   no cambian nada: la velocidad de cada poder (igual con «Poderes más duros» y sin él), cuántos salen con
