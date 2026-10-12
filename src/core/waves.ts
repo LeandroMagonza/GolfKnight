@@ -69,9 +69,11 @@ export interface EnemyMods {
   regen?: number;
   /**
    * Intocable (ver PHASE): invulnerable salvo en su turno; en cuántos tiempos va el ritmo (3, o 2 con poca
-   * dificultad): está abierto un pulso de cada tantos.
+   * dificultad): los grupos arrancan su ventana escalonados.
    */
   phase?: number;
+  /** Intocable: qué parte del ciclo está abierto (la mitad; con poca dificultad, dos tercios). */
+  phaseOpen?: number;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
   /**
@@ -284,8 +286,12 @@ export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal
  *   blindaje 1 sale mucho menos.
  * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar.
  * - `regen`: por cuánto se multiplica el margen del que se cura (más margen, más tarda en curarse).
- * - `timings`: en cuántos tiempos va el ritmo de los intocables (3; con poca dificultad, 2: el mismo ciclo
- *   partido en dos, abierto la mitad del tiempo).
+ * - `timings`: en cuántos tiempos va el ritmo de los intocables (3; con poca dificultad, 2).
+ * - `phaseOpen`: qué parte del ciclo está abierto cada intocable (la mitad; con poca dificultad, dos
+ *   tercios).
+ * - `full`: el escudo y el blindaje salen siempre al máximo (12/10, Leandro: con «Poderes más duros», el
+ *   escudo de 3 y el blindaje de 2, también en el primer escenario; al escudo se le pega por el costado o
+ *   con el área, y al blindaje con el driver de lejos o el putter de cerca).
  * - `ghostHp`: vida de más del fantasma (`ghostEliteHp`, la del élite).
  */
 export interface PowerHardness {
@@ -294,10 +300,12 @@ export interface PowerHardness {
   recharge: number;
   regen: number;
   timings: number;
+  phaseOpen: number;
+  full: boolean;
   ghostHp: number;
   ghostEliteHp: number;
 }
-export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, timings: 3, ghostHp: 1, ghostEliteHp: 2 };
+export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 1, regen: 1, timings: 3, phaseOpen: 0.5, full: true, ghostHp: 1, ghostEliteHp: 2 };
 
 /**
  * El blindaje no pasa de 2 (7/10, pedido de Leandro): con 3, al mejor golpe le entraba 1 y se terminaba
@@ -306,11 +314,12 @@ export const HARDEST_POWERS: PowerHardness = { cap: 3, armorRolls: 2, recharge: 
 export const ARMOR_MAX = 2;
 
 /**
- * Lo que tarda en recargar el escudo divino, en segundos (el del élite, `elite`). Además, **cada golpe que
+ * Lo que tarda en recargar el escudo divino, en segundos (el del élite, `elite`: desde el 12/10 lo mismo que
+ * los comunes, como el escurridizo; era 3, y en el nivel 5 el bot ganaba 1 de 20). Además, **cada golpe que
  * le entra le devuelve la burbuja** (5/10, primero al élite y después a todos, pedido de Leandro): como el
  * que esquiva, hay que rompérsela antes de cada golpe.
  */
-export const DIVINE = { every: 5, elite: 3 };
+export const DIVINE = { every: 5, elite: 5 };
 
 /**
  * **El que se cura** (5/10, idea de Leandro): cada tanto se cura **entero**, con aviso (la barra verde
@@ -369,12 +378,15 @@ export function regenPace(eta: number, period: number, elapsed: number, single =
  * cuando se vacía queda **vulnerable** (la barra se pone dorada y se vacía), y vuelve a cerrarse.
  *
  * **Un ritmo para todos** (11/10, pedido de Leandro: ciclos mucho más cortos, que sea timear el golpe, y
- * que no dependa del tamaño). Los intocables van en tres grupos que se turnan, en un ciclo de `cycle` s
- * partido en tres pulsos: en cada pulso está abierto un grupo y los otros dos cerrados, así se prende uno
- * y se apaga otro. La ventana es un pulso (0.8 s) y lo cerrado dos. El élite y el jefe, igual que los
- * comunes. Con poca dificultad, **dos tiempos** (Leandro, 11/10): el mismo ciclo partido en dos, abierto
- * 1.2 s y cerrado 1.2 s (ver `PowerHardness.timings`; hasta ahí era el pulso ×1.6). La horda reparte los
- * grupos en orden, a medida que aparecen.
+ * que no dependa del tamaño). Los intocables van en tres grupos que se turnan, en un ciclo de `cycle` s:
+ * cada grupo arranca su ventana un tercio de ciclo después del anterior, así se prende uno y se apaga otro.
+ * El élite y el jefe, igual que los comunes. Con poca dificultad, **dos tiempos** (Leandro, 11/10; ver
+ * `PowerHardness.timings`). La horda reparte los grupos en orden, a medida que aparecen.
+ *
+ * **Cuánto está abierto** (`PowerHardness.phaseOpen`, 12/10, Leandro: complicaban toda la oleada): la
+ * mitad del ciclo (1.2 s abierto, 1.2 cerrado), y con poca dificultad dos tercios (1.6 y 0.8). Hasta ahí
+ * era un tiempo (un tercio, y la mitad con dos tiempos), así que cada ventana era de un grupo solo; ahora
+ * se pisan un poco: siempre hay alguno abierto.
  *
  * **Llegando a la línea queda abierto** (11/10, pedido de Leandro: se cerraba a unos metros y no había más
  * que dejarlo pasar). Si le falta `line` pulsos o menos para cruzar la línea del golfista se abre, y si ya
@@ -387,14 +399,13 @@ export const PHASE = { cycle: 2.4, line: 1, hold: 0.5 };
 
 /**
  * Dónde va el ritmo de los intocables para el grupo `group` de `n` (los tiempos), con el reloj de la horda
- * en `clock` y un pulso de `beat` s: cuánto le falta para abrirse (0 si está abierto) y cuánto le queda
- * abierto (0 si está cerrado).
+ * en `clock`, un ciclo de `cycle` s y abierto `open` de él: cuánto le falta para abrirse (0 si está
+ * abierto) y cuánto le queda abierto (0 si está cerrado). El grupo g abre a los g/n del ciclo.
  */
-export function phaseSlot(clock: number, beat: number, group: number, n: number): { opensIn: number; openLeft: number } {
-  const k = Math.floor(clock / beat);
-  const into = clock - k * beat;
-  const turn = (((group - k) % n) + n) % n;
-  return turn === 0 ? { opensIn: 0, openLeft: beat - into } : { opensIn: turn * beat - into, openLeft: 0 };
+export function phaseSlot(clock: number, cycle: number, group: number, n: number, open = 1 / n): { opensIn: number; openLeft: number } {
+  const t = clock / cycle - group / n;
+  const into = t - Math.floor(t);
+  return into < open ? { opensIn: 0, openLeft: (open - into) * cycle } : { opensIn: (1 - into) * cycle, openLeft: 0 };
 }
 
 /** Cada cuántos segundos se cura uno de `maxHp` de vida con `margin` de margen. */
@@ -420,8 +431,9 @@ function armorLevel(tier: number, rand: () => number, hard: PowerHardness): numb
  * pasan de 3: con el mejor golpe en 4, un escudo o un blindaje de 4 ya no deja pasar nada.
  */
 export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: PowerHardness) => EnemyMods> = {
-  shield: (tier, rand, hard = HARDEST_POWERS) => ({ shield: 1 + Math.floor(rand() * Math.min(hard.cap, tier + 1)) }),
-  armor: (tier, rand, hard = HARDEST_POWERS) => ({ armor: armorLevel(tier, rand, hard) }),
+  // con «Poderes más duros», al máximo siempre (ver PowerHardness.full)
+  shield: (tier, rand, hard = HARDEST_POWERS) => ({ shield: hard.full ? hard.cap : 1 + Math.floor(rand() * Math.min(hard.cap, tier + 1)) }),
+  armor: (tier, rand, hard = HARDEST_POWERS) => ({ armor: hard.full ? ARMOR_MAX : armorLevel(tier, rand, hard) }),
   explode: () => ({ explode: true }),
   ranged: () => ({ ranged: true }),
   // cava: por ahora afuera de las partidas (ver docs/pendientes.md). El poder sigue andando
@@ -438,9 +450,9 @@ export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: 
   phase: (_tier, _rand, hard = HARDEST_POWERS) => phaseMods(hard),
 };
 
-/** El intocable: en cuántos tiempos va el ritmo, según la dificultad. El mismo para todos los tamaños. */
+/** El intocable: en cuántos tiempos va el ritmo y cuánto está abierto, según la dificultad. El mismo para todos los tamaños. */
 function phaseMods(hard: PowerHardness): EnemyMods {
-  return { phase: hard.timings };
+  return { phase: hard.timings, phaseOpen: hard.phaseOpen };
 }
 
 /**

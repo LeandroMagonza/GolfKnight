@@ -1077,6 +1077,8 @@ export class DebugPanel {
       ['blindaje: sorteos con «poderes más duros»', () => d.armorRolls[1], (v) => { d.armorRolls[1] = Math.max(1, Math.round(v)); }, 1, 'se queda con el mayor'],
       ['recarga del escurridizo y el bendito, sin el punto', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×'],
       ['intocable: tiempos del ritmo, sin el punto', () => d.timings[0], (v) => { d.timings[0] = Math.max(2, Math.round(v)); }, 1, '(con el punto, 3)'],
+      ['intocable: abierto, sin el punto', () => d.phaseOpen[0], (v) => { d.phaseOpen[0] = Math.min(0.95, Math.max(0.1, v)); }, 0.05, 'del ciclo'],
+      ['intocable: abierto, con el punto', () => d.phaseOpen[1], (v) => { d.phaseOpen[1] = Math.min(0.95, Math.max(0.1, v)); }, 0.05, 'del ciclo'],
       ['margen del que se cura, sin el punto', () => d.regen[0], (v) => { d.regen[0] = Math.max(0.5, v); }, 0.1, '×'],
       ['fantasma: vida de más con el punto', () => d.ghostHp[1], (v) => { d.ghostHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
       ['fantasma élite: vida de más con el punto', () => d.ghostEliteHp[1], (v) => { d.ghostEliteHp[1] = Math.max(0, Math.round(v)); }, 1, ''],

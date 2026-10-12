@@ -350,21 +350,28 @@ describe('waves', () => {
     expect(buildRun(seeded(1), { ...rulesFor({}), pool: ['armor'] }).powers).toHaveLength(3);
   });
 
-  it('el escudo sube con el escenario hasta 3, y el blindaje hasta 2', () => {
-    const levels = (scenario: number, key: 'shield' | 'armor') => {
+  it('sin «Poderes más duros» el escudo sube con el escenario hasta 2 y el blindaje hasta 2; con el punto, al máximo siempre', () => {
+    const easy = rulesFor({});
+    const levels = (scenario: number, key: 'shield' | 'armor', rules = easy) => {
       const seen = new Set<number>();
-      for (const run of runs(40)) {
+      for (let i = 0; i < 40; i++) {
+        const run = buildRun(seeded(i + 1), rules);
         for (const w of run.waves.filter((x) => x.scenario === scenario)) {
-          for (const o of spawnOrder(w, seeded(7))) if (o.mods?.[key] && !w.groups.some((g) => g.mods === o.mods)) seen.add(o.mods[key]!);
+          for (const o of spawnOrder(w, seeded(7))) if (o.mods?.[key] && !o.mods.size && !w.groups.some((g) => g.mods === o.mods)) seen.add(o.mods[key]!);
         }
       }
       return seen;
     };
     expect([...levels(0, 'shield')]).toEqual([1]);
     expect([...levels(0, 'armor')]).toEqual([1]);
-    expect(Math.max(...levels(2, 'shield'))).toBe(3);
-    expect(Math.max(...levels(3, 'armor'))).toBe(ARMOR_MAX);
+    expect(Math.max(...levels(2, 'shield'))).toBe(DIFFICULTY.cap[0]);
+    expect(Math.max(...levels(2, 'armor'))).toBe(ARMOR_MAX);
     expect(ARMOR_MAX).toBe(2);
+    // con el punto (12/10): el escudo siempre de 3 y el blindaje siempre de 2, desde el primer escenario
+    for (const scenario of [0, 1, 2]) {
+      expect([...levels(scenario, 'shield', HARDEST)], `escenario ${scenario}`).toEqual([3]);
+      expect([...levels(scenario, 'armor', HARDEST)], `escenario ${scenario}`).toEqual([ARMOR_MAX]);
+    }
     // en cada oleada, los escudos van de menor a mayor
     for (const run of runs(10)) {
       for (const w of run.waves) {
@@ -511,8 +518,8 @@ describe('waves', () => {
   it('«Poderes más duros» toca a todos los de escenario', () => {
     const easy = rulesFor({}).hard;
     const hard = rulesFor({ powers: 1 }).hard;
-    // el blindaje: con el punto sale casi siempre de 2 (el mayor de dos sorteos); sin él, mitad y mitad.
-    // En el primer escenario, siempre 1
+    // el blindaje: sin el punto, mitad y mitad (en el primer escenario, siempre 1); con el punto, siempre
+    // de 2 (12/10). Y el escudo con el punto, siempre de 3
     const share2 = (h: typeof easy) => {
       const rand = seeded(3);
       let two = 0;
@@ -521,8 +528,11 @@ describe('waves', () => {
     };
     expect(share2(easy)).toBeGreaterThan(0.42);
     expect(share2(easy)).toBeLessThan(0.58);
-    expect(share2(hard)).toBeGreaterThan(0.68);
-    expect(POWERS.armor(0, () => 0.99, hard).armor).toBe(1);
+    expect(share2(hard)).toBe(1);
+    expect(POWERS.armor(0, () => 0.99, easy).armor).toBe(1);
+    expect(POWERS.armor(0, () => 0, hard).armor).toBe(ARMOR_MAX);
+    expect([0, 1, 2].map((tier) => POWERS.shield(tier, () => 0, hard).shield)).toEqual([3, 3, 3]);
+    expect(POWERS.shield(0, () => 0.99, easy).shield).toBe(1);
     // el élite blindado: 1 en el primer escenario y 2 después, con el punto o sin él
     expect([0, 1, 2, 3].map((s) => elite(s, 'armor', 0, easy).mods!.armor)).toEqual([1, 2, 2, 2]);
     // el que se cura: sin el punto tarda bastante más en curarse
@@ -560,29 +570,36 @@ describe('waves', () => {
     expect(REGEN.hp).toBeGreaterThan(0);
   });
 
-  it('el intocable: tres tiempos, el mismo para todos los tamaños; con poca dificultad, dos', () => {
+  it('el intocable: tres tiempos, el mismo para todos los tamaños; con poca dificultad, dos y más rato abierto', () => {
     expect(SCENARIO_POWERS).toContain('phase');
     expect(POWERS.phase(0, () => 0).phase).toBe(3);
+    expect(POWERS.phase(0, () => 0).phaseOpen).toBe(0.5);
     expect(POWERS.phase(0, () => 0, rulesFor({}).hard).phase).toBe(DIFFICULTY.timings[0]);
+    expect(POWERS.phase(0, () => 0, rulesFor({}).hard).phaseOpen).toBeCloseTo(2 / 3);
     expect(DIFFICULTY.timings[0]).toBe(2);
     // el élite y el jefe: el mismo ritmo que los comunes
     expect(elite(1, 'phase').mods!.phase).toBe(3);
     expect(elite(3, 'phase').mods!.phase).toBe(3);
   });
 
-  it('el intocable: los grupos se turnan, uno abierto por vez, en el mismo ciclo', () => {
-    for (const n of [3, 2]) {
-      const b = PHASE.cycle / n;
-      for (const clock of [0, 0.1, 0.79, 0.81, 1.19, 1.21, 1.7, 2.39, 2.41, 37.3]) {
-        const open = Array.from({ length: n }, (_, g) => g).filter((g) => phaseSlot(clock, b, g, n).opensIn === 0);
-        expect(open, `${n} tiempos, a los ${clock} s`).toHaveLength(1);
-      }
-      // el grupo 0 abre en el primer pulso, el 1 en el segundo...
-      expect(phaseSlot(0.2, b, 0, n)).toEqual({ opensIn: 0, openLeft: b - 0.2 });
-      expect(phaseSlot(0.2, b, 1, n).opensIn).toBeCloseTo(b - 0.2);
-      // y vuelve al ciclo: lo cerrado son los otros pulsos
-      expect(phaseSlot(b, b, 0, n).opensIn).toBeCloseTo((n - 1) * b);
-      expect(phaseSlot(PHASE.cycle + 0.1, b, 0, n).opensIn).toBe(0);
+  it('el intocable: los grupos se turnan escalonados en el mismo ciclo, abiertos la parte que diga', () => {
+    const c = PHASE.cycle;
+    // con un tercio abierto y tres tiempos (como hasta el 11/10): uno abierto por vez
+    for (const clock of [0, 0.1, 0.79, 0.81, 1.19, 1.21, 1.7, 2.39, 2.41, 37.3]) {
+      const open = [0, 1, 2].filter((g) => phaseSlot(clock, c, g, 3, 1 / 3).opensIn === 0);
+      expect(open, `a los ${clock} s`).toHaveLength(1);
+    }
+    for (const [n, share] of [[3, 0.5], [2, 2 / 3]]) {
+      // cada grupo está abierto `share` del ciclo
+      let openTime = 0;
+      for (let t = 0; t < c; t += 0.001) if (phaseSlot(t, c, 1, n, share).opensIn === 0) openTime += 0.001;
+      expect(openTime / c, `${n} tiempos`).toBeCloseTo(share, 2);
+      // el grupo 0 abre al empezar el ciclo, el 1 a 1/n del ciclo
+      expect(phaseSlot(0.2, c, 0, n, share).openLeft).toBeCloseTo(share * c - 0.2);
+      expect(phaseSlot(c / n + 0.1, c, 1, n, share).openLeft).toBeCloseTo(share * c - 0.1);
+      expect(phaseSlot(c / n - 0.1, c, 1, n, share).opensIn > 0 || share > 1 - 1 / n).toBe(true);
+      // siempre hay alguno abierto
+      for (let t = 0; t < c; t += 0.05) expect(Array.from({ length: n }, (_, g) => g).some((g) => phaseSlot(t, c, g, n, share).opensIn === 0)).toBe(true);
     }
   });
 

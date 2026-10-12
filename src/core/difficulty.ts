@@ -39,7 +39,8 @@ export interface Talent {
  *   core/waves), sin y con: cap, hasta qué nivel llega el escudo; armorRolls, de cuántos sorteos sale el
  *   blindaje (el mayor: con 2, casi siempre de 2); recharge, por cuánto se multiplica la recarga del
  *   escurridizo y el bendito; regen, el margen del que se cura (más, tarda más en curarse); timings, en
- *   cuántos tiempos va el ritmo del intocable; ghostHp, la vida de más del fantasma (ghostEliteHp, la del élite).
+ *   cuántos tiempos va el ritmo del intocable, y phaseOpen, cuánto del ciclo está abierto; full, el escudo y
+ *   el blindaje al máximo; ghostHp, la vida de más del fantasma (ghostEliteHp, la del élite).
  * - eliteHpLess: cuánta vida de más le sacan al élite (sobre ELITE.hp; como toda su vida, va por
  *   ELITE.hpScale: «Élites más duros» le suma 4).
  * - rest: segundos de descanso entre oleadas, sin y con «Sin respiro».
@@ -59,6 +60,10 @@ export const DIFFICULTY = {
   regen: [2.5, 1],
   // el intocable (11/10): sin el punto, dos tiempos (abierto la mitad del ciclo); con el punto, tres
   timings: [2, 3],
+  // cuánto del ciclo está abierto (12/10): dos tercios sin el punto, la mitad con el punto
+  phaseOpen: [2 / 3, 0.5],
+  // el escudo y el blindaje, siempre al máximo con el punto (12/10)
+  full: [0, 1],
   ghostHp: [0, 1],
   ghostEliteHp: [0, 2],
   eliteHpLess: [2, 0],
@@ -214,6 +219,8 @@ export function rulesFor(picks: Picks): RunRules {
       recharge: at(DIFFICULTY.recharge, lv('powers')),
       regen: at(DIFFICULTY.regen, lv('powers')),
       timings: at(DIFFICULTY.timings, lv('powers')),
+      phaseOpen: at(DIFFICULTY.phaseOpen, lv('powers')),
+      full: at(DIFFICULTY.full, lv('powers')) > 0,
       ghostHp: at(DIFFICULTY.ghostHp, lv('powers')),
       ghostEliteHp: at(DIFFICULTY.ghostEliteHp, lv('powers')),
     },

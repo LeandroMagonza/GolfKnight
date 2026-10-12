@@ -174,6 +174,11 @@ más que dejarlo pasar.
 - Lo de arriba (ventanas de 1.5 s cada 5 s, uno o dos golpes por ventana, las tablas) es del ciclo de
   antes. Ahora entra un golpe por pulso, cada 2.4 s.
 
+**Abiertos más rato** (12/10, Leandro: en el segundo jefe los intocables complicaban toda la oleada):
+cada uno está abierto la mitad del ciclo (1.2 s de 2.4), y sin el punto de «Poderes más duros», dos
+tercios (1.6 s, con dos tiempos). Los grupos siguen escalonados (cada uno arranca un tercio o medio ciclo
+después del anterior), pero ahora las ventanas se pisan: siempre hay alguno abierto.
+
 **El que se cura, tampoco justo antes de la línea** (11/10, Leandro): se curaba a unos metros de la línea
 y no quedaba tiempo de volver a bajarlo. Ahora el ciclo corre un poco más lento (o más rápido, hasta un
 10 %, si le falta poco) para que la cura que tocaba justo antes de cruzar caiga 0.1 s después: el último

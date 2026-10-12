@@ -77,8 +77,13 @@ for (let i = 0; i < games; i++) for (const config of configs) for (const skill o
 const total = jobs.length;
 const results = [];
 const t0 = Date.now();
-/** Cuánto puede durar una partida de verdad (una partida entera son unos 20 minutos de juego). */
-const maxMs = (35 * 60000) / speed;
+/**
+ * Hasta cuándo se espera una partida: 35 minutos **de juego** (una entera son unos 10), y como mucho 20 de
+ * verdad. Hasta el 12/10 era el tiempo de verdad (35 / velocidad): con varias a la vez algunas corrían más
+ * lentas, y las cortaba ganando en la última oleada.
+ */
+const maxGameSeconds = 35 * 60;
+const maxMs = 20 * 60000;
 
 function urlFor({ config, skill }) {
   const [difficulty, ...more] = config.split('&');
@@ -126,7 +131,7 @@ async function play(job) {
           perAbility: log?.abilities ?? null,
         };
       });
-      if (r.ended) break;
+      if (r.ended || r.clock > maxGameSeconds) break;
     }
   } catch (e) {
     errors.push(`tanda: ${e.message.split('\n')[0]}`);

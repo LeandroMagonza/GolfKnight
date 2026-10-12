@@ -1196,14 +1196,24 @@ export class Enemy {
     return Math.max(2, Math.round(this.mods.phase ?? 3));
   }
 
-  /** El intocable: lo que dura su ventana, un pulso del ritmo (el ciclo partido en sus tiempos). */
+  /** El intocable: un pulso del ritmo (el ciclo partido en sus tiempos): de un grupo al siguiente. */
   get phaseBeat(): number {
     return Math.max(0.1, PHASE.cycle / this.phaseTimings);
   }
 
+  /** El intocable: qué parte del ciclo está abierto (ver PowerHardness.phaseOpen). */
+  get phaseOpenShare(): number {
+    return Math.min(0.95, Math.max(0.05, this.mods.phaseOpen ?? 1 / this.phaseTimings));
+  }
+
+  /** El intocable: lo que dura su ventana, en s. */
+  get phaseWindow(): number {
+    return PHASE.cycle * this.phaseOpenShare;
+  }
+
   /** Dónde va su turno en el ritmo, dentro de `t` s. */
   private phaseSlotIn(t = 0): { opensIn: number; openLeft: number } {
-    return phaseSlot(phaseClock + t, this.phaseBeat, this.phaseGroup, this.phaseTimings);
+    return phaseSlot(phaseClock + t, PHASE.cycle, this.phaseGroup, this.phaseTimings, this.phaseOpenShare);
   }
 
   /**
@@ -1240,11 +1250,11 @@ export class Enemy {
     const beat = this.phaseBeat;
     if (this.phaseHeld || this.lineEta() - t <= PHASE.line * beat) return true;
     const s = this.phaseSlotIn(t);
-    return s.opensIn === 0 && s.openLeft >= margin && beat - s.openLeft >= margin;
+    return s.opensIn === 0 && s.openLeft >= margin && this.phaseWindow - s.openLeft >= margin;
   }
 
   /**
-   * La barra del intocable: cerrado, lo que le falta para abrirse, de 1 a 0 (lleno, lo cerrado); abierto, lo
+   * La barra del intocable: cerrado, lo que le falta para abrirse, de 1 a 0 (lleno, todo lo cerrado); abierto, lo
    * que le queda abierto, en negativo (de -1 a 0). Llegando a la línea, lo que le falta para cruzarla.
    */
   get phaseBar(): number {
@@ -1252,8 +1262,8 @@ export class Enemy {
     const beat = this.phaseBeat;
     if (this.phaseHeld) return -Math.min(1, Math.max(0.05, this.lineEta() / beat));
     const s = this.phaseSlotIn();
-    if (s.opensIn > 0) return Math.min(1, this.phaseOpensIn / ((this.phaseTimings - 1) * beat));
-    return -(s.openLeft / beat);
+    if (s.opensIn > 0) return Math.min(1, this.phaseOpensIn / Math.max(0.1, PHASE.cycle - this.phaseWindow));
+    return -Math.min(1, s.openLeft / this.phaseWindow);
   }
 
   /** Cada cuántos segundos se cura (el que se cura, ver REGEN). */
