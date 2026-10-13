@@ -28,6 +28,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Todo esto, también en la app de Windows. `39fecf3`
 
 **Las oleadas**
+- **Menos benditos comunes**: en el presupuesto, cada poder tiene un peso, para que todos cuesten parecido.
+  El bendito cuenta 1,4 veces lo que suma, así que vienen menos o más chicos; el resto queda igual.
+  `7a6d510`
 - **El presupuesto de las oleadas**: cada enemigo vale los tiros que te pide (su vida, por lo que le hace su
   poder), y las oleadas se arman con eso. Un común con poder ya no puede ser un monstruo (no más chamán
   fantasma de 8 de vida ni orco gigante que se cura de 9); los poderes de una oleada tienen techo; el élite
@@ -38,6 +41,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Esto, también en la app de Windows. `8826a7f`
 
 **Para los que prueban**
+- **El click, para probar**: soltar casi sin cargar (la primera mitad del golpe 1) puede ser una pifia, como
+  el golpe 1 del wedge (`?click=pifia`), o pegar 1 aunque el palo pegue más a esa distancia, el putter de
+  cerca y el driver de lejos (`?click=uno`); el resto del golpe 1 pega lo de siempre. Apagado si no se pide.
+  El arco lo marca, y `?clickparte=0.5` dice qué parte del golpe 1 es. También en el panel y en el
+  simulador de la carga, con su daño por segundo. El enlace de la página de la contraseña pasa estos
+  parámetros a la versión completa. `1e0f3c0` `896eeb9`
 - **El arco** (arco.html) dice el daño por segundo de cada golpe, de cargar lo justo a cargar todo su tramo, con lo que tarda la mecánica entre tiros, y por palo (el driver de lejos y el putter de cerca, uno más; el wedge, uno menos). `c0b4087` `184a6de`
 - El registro anota, por cuerpo, cuántos mueren en tiros que agarran a varios. Y `node tools/sorteo.mjs`
   usa el mismo modelo que el juego. `1721cf0`
