@@ -34,6 +34,19 @@ import { ENEMIES, PHASE, regenPeriod, type EnemyKind, type EnemyMods } from './w
  */
 export const BUDGET = { on: 1, perMin: 37.1, connect: 0.87, mix: [0.33, 0.34, 0.2, 0.13], small: [0.6, 0.8], cap: 7, powers: 1, marks: 0.1, regen: 2 };
 
+/**
+ * Lo que cuenta de más cada poder, sobre lo que dice la cuenta (13/10, Leandro: «tendrían que dar todos los
+ * poderes alrededor de lo mismo»): con menos de 1 sale más barato y vienen más (o más grandes); con más,
+ * menos. Solo los comunes: el élite paga lo que pide de verdad. Las tandas del bot que juega como Leandro,
+ * en el nivel 10 (20 partidas por poder):
+ * - bendito: con 1, 30 %; con 1.4, 45 % (los comunes eran los que más puerta sacaban);
+ * - fantasma: con 0.6, 20 %; con 1, 30 %; con 1.4, 28 %. Lo que más pierde es el élite fantasma, que el
+ *   peso no toca, y en las partidas de Leandro los comunes fantasma son los que más se le pasan;
+ * - blindaje y escurridizo: con 1, 70 y 65 %; con 0.7, 78 y 67 % (el blindaje bien jugado casi no suma, así
+ *   que el peso casi no lo mueve).
+ */
+export const POWER_WEIGHT: Record<string, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1.4, dodge: 1, regen: 1, phase: 1 };
+
 /** Lo que le entra de un golpe que pega, en promedio, con lo que le resta su defensa (`cut`). */
 export function perHit(cut: (d: number) => number = (d) => d): number {
   const total = BUDGET.mix.reduce((a, b) => a + b, 0);
@@ -66,6 +79,17 @@ export function killChance(hp: number, heal: number): { shots: number; chance: n
  */
 export function shotsFor(kind: EnemyKind, mods: EnemyMods | undefined, hp: number): number {
   const m = mods ?? {};
+  // lo que el poder suma, por su peso (ver POWER_WEIGHT). Al élite no: paga lo que pide de verdad
+  const power = m.size ? undefined : Object.keys(POWER_WEIGHT).find((p) => m[p as keyof EnemyMods]);
+  const weight = power ? POWER_WEIGHT[power] : 1;
+  const raw = rawShots(kind, m, hp);
+  if (weight === 1) return raw;
+  const plain = rawShots(kind, { hp: m.hp, size: m.size }, hp);
+  return plain + (raw - plain) * weight;
+}
+
+/** Lo de `shotsFor`, sin el peso de cada poder. */
+function rawShots(kind: EnemyKind, m: EnemyMods, hp: number): number {
   let hit = perHit();
   let slow = 1;
   if (m.armor) hit = perHit((d) => Math.max(0, d + 1 - m.armor!));

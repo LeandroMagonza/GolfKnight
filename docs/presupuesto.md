@@ -73,6 +73,11 @@ En `BUDGET` (`src/core/budget.ts`), en el panel B (pestaña de poderes) y con `?
 con poder), `marks` (lo de cada marca), `small` (lo que piden los chicos), `regen` (el techo del que se cura) y
 el jugador de referencia (`perMin`, `connect`, `mix`).
 
+Y `POWER_WEIGHT` (`?ajuste=pesos.*`, 13/10): lo que cuenta de más cada poder en los comunes, para que todos
+den parecido. El bendito va en 1.4 (con el bot que juega como Leandro, en el nivel 10, pasó de ganar 30 % a
+45 %). El fantasma, entre 0.6 y 1.4, no se movió del 20 a 30 %: lo que más pierde es el élite fantasma, que
+el peso no toca. Al blindaje y al escurridizo (70 y 65 %), bajarlos a 0.7 tampoco los movió.
+
 ## Lo que falta
 
 - **Las llegadas repartidas por carga**: hoy cada uno tiene su turno a intervalo fijo, y los gordos de la 9

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUDGET, perHit, shotsFor } from './budget';
+import { BUDGET, perHit, POWER_WEIGHT, shotsFor } from './budget';
 import { rulesFor } from './difficulty';
 import { buildRun, ENEMIES, HARDEST, SCENARIO_POWERS, spawnOrder, type Spawn } from './waves';
 
@@ -18,11 +18,14 @@ describe('el presupuesto de las oleadas', () => {
   it('cada poder multiplica lo que pide el mismo enemigo', () => {
     const plain = shotsFor('orc', undefined, 4);
     expect(plain).toBeCloseTo(4 / (BUDGET.connect * perHit()));
+    // lo que suma cada poder, por su peso (ver POWER_WEIGHT); el élite, sin peso
+    const times = (m: number, p: string) => 1 + (m - 1) * POWER_WEIGHT[p];
     // el fantasma: cada golpe le saca 1
-    expect(shotsFor('orc', { ethereal: true }, 4) / plain).toBeCloseTo(perHit(), 5);
+    expect(shotsFor('orc', { ethereal: true }, 4) / plain).toBeCloseTo(times(perHit(), 'ethereal'), 5);
+    expect(shotsFor('orc', { ethereal: true, size: 1.5 }, 4) / plain).toBeCloseTo(perHit(), 5);
     // el bendito y el escurridizo: el doble
-    expect(shotsFor('orc', { divine: 5 }, 4) / plain).toBeCloseTo(2);
-    expect(shotsFor('orc', { dodge: true }, 4) / plain).toBeCloseTo(2);
+    expect(shotsFor('orc', { divine: 5 }, 4) / plain).toBeCloseTo(times(2, 'divine'));
+    expect(shotsFor('orc', { dodge: true }, 4) / plain).toBeCloseTo(times(2, 'dodge'));
     // el escudo, por arriba: nada
     expect(shotsFor('orc', { shield: 3 }, 4)).toBeCloseTo(plain);
     // el que se cura pide más
