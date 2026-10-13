@@ -162,15 +162,15 @@ export class Hud {
    * `widen`: el arco abierto más de medio círculo (ver `fourthArc` en core/swing), cuánto más que 90° de
    * cada lado. Pasa por debajo del centro: el recuadro crece para abajo y el centro queda donde estaba.
    */
-  setMarks(layout: ArcLayout, marks: readonly [number, number], duff = false, damage: readonly number[] = [], fourth = 0, widen = 1, crown = false, border = 1.5): void {
+  setMarks(layout: ArcLayout, marks: readonly [number, number], duff = false, damage: readonly number[] = [], fourth = 0, widen = 1, crown = false, border = 1.5, tap: { part: number; damage: number } | null = null): void {
     this.layout = layout;
     this.marks = marks;
     // se llama en cada cuadro (las mejoras, el palo y la distancia cambian): solo se rearma si cambió algo
-    const key = `${layout.weak.toFixed(2)}/${layout.mid.toFixed(2)}/${layout.strong.toFixed(2)}/${duff}/${damage.join()}/${fourth}/${widen}/${crown}/${border}`;
+    const key = `${layout.weak.toFixed(2)}/${layout.mid.toFixed(2)}/${layout.strong.toFixed(2)}/${duff}/${damage.join()}/${fourth}/${widen}/${crown}/${border}/${tap ? `${tap.part}:${tap.damage}` : ''}`;
     if (key === this.marksKey) return;
     this.marksKey = key;
     // el dibujo es el mismo del simulador de la carga (ver src/meterArt.ts)
-    const art = meterArt(layout, { duff, damage, fourth, widen, crown, border });
+    const art = meterArt(layout, { duff, damage, fourth, widen, crown, border, tap });
     this.arcEdge = art.edge;
     this.meter.style.height = `${((METER_PX * (86 + art.below)) / 100).toFixed(0)}px`;
     this.meter.innerHTML = art.svg;

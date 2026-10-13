@@ -191,7 +191,8 @@ export interface RunInfo {
    * Los tiempos de la carga con que se jugó, en s (11/10: se pueden cambiar en el panel B o con el
    * simulador): lo que tarda el golpe 1, el 2 y cada pasada por el 3; con el golpe 4, qué parte del 3 es.
    */
-  charge?: { weak: number; mid: number; strong: number; fourth?: number };
+  /** `click` y `clickPart`: el click, si estaba prendido (ver TAP en core/clubs). */
+  charge?: { weak: number; mid: number; strong: number; fourth?: number; click?: string; clickPart?: number };
   /** Lo que estaba tocado en el panel B (lo guardado en el navegador), si algo: la partida no es de fábrica. */
   tuned?: string[];
   /** Arrancó en esta oleada, con ?ola (para probar una oleada): no es una partida entera. */

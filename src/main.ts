@@ -8,7 +8,7 @@ import { FIELD_SHAPE, trapezoidOn } from './core/field';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
 import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, SPLIT, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
-import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
+import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, isTap, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, TAP, TAP_MODES, type Club, type ClubId, type TapMode } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WAVE_MODS, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower, type WaveMod } from './core/waves';
 import { choiceAt, earnLevel, hillsOn, LADDER, ladderFrom, loadProgress, MAX_LEVEL, picksOf, rulesFor, saveProgress, setLevel, TALENTS, type Picks, type Progress, type TalentId } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
@@ -107,6 +107,15 @@ if (DEV_TOOLS && params.has('ajuste')) console.info('ajuste:', applyTweaks(param
 // rectángulo: la cancha tiene sus paredes
 if (params.has('trapecio')) FIELD_SHAPE.trapezoid = true;
 if (TENNIS_ON) FIELD_SHAPE.trapezoid = false;
+// el click (ver TAP en core/clubs): ?click=pifia o ?click=uno, y ?clickparte=0.5 (qué parte del golpe 1). Va
+// sin las herramientas de prueba, para mandárselo a otros. En el tenis no hay
+{
+  const mode = TAP_MODES.indexOf(params.get('click') as TapMode);
+  if (mode >= 0) TAP.mode = mode;
+  const part = Number(params.get('clickparte'));
+  if (params.has('clickparte') && part > 0) TAP.part = Math.min(1, part);
+  if (TENNIS_ON) TAP.mode = 0;
+}
 // el modo tenis cambia los palos y las cartas: antes de armar el HUD, que dibuja los palos
 if (TENNIS_ON) applyTennis();
 const world = new World(scene);
@@ -740,13 +749,15 @@ function updatePreview(): void {
   teeBall.visible = show && player.mode === 'charging' && ballHere && !pocket;
   // la barra dice solo la calidad; la distancia y el daño los dice el cursor y el palo
   const quality = qualityOf(player.meter.power);
+  // en el click (ver TAP), el golpe 1 pega lo suyo
+  const tap = isTap(player.meter.power);
   // el que atraviesa y además abre área tiene dos números: lo que saca al pegarle y lo que saca el área
   // la potencia y el herrero suman a lo que pega (menos a la pifia, que no sale), y con la fuerza pega
   // por lo menos lo suyo
   const floor = balls.minDamage(club.id);
   const plus = (n: number) => (n > 0 ? Math.max(n, floor) + nextShot.bonus + smithBonus : n);
-  const damage = plus(damageFor(club, hitAt, quality));
-  const areaHit = plus(areaDamageFor(club, hitAt, quality));
+  const damage = plus(damageFor(club, hitAt, quality, tap));
+  const areaHit = plus(areaDamageFor(club, hitAt, quality, tap));
   const echo = nextShot.echoes ? L(` · eco ×${nextShot.echoes}`, ` · echo ×${nextShot.echoes}`) : '';
   // lo que dura unos segundos, con lo que le queda
   const timed = (mightLeft > 0 ? L(` · fuerza ${Math.ceil(mightLeft)} s`, ` · might ${Math.ceil(mightLeft)} s`) : '') + (glove ? ` · ${ELEMENT_INFO[glove.element].name.toLowerCase()} ${Math.ceil(glove.left)} s` : '');
@@ -757,6 +768,9 @@ function updatePreview(): void {
       : L(`${damage} de daño`, `${damage} damage`)) + echo + timed;
   // el palo que pifia con el golpe 1 (el wedge) lo marca en el arco
   const duff = damageFor(club, hitAt, 1) <= 0 && areaDamageFor(club, hitAt, 1) <= 0;
+  // el click, si con este palo y a esta distancia pega distinto que el resto del golpe 1: va aparte en el arco
+  const tapHit = plus(damageFor(club, hitAt, 1, true));
+  const tapZone = TAP.mode && !duff && tapHit !== plus(damageFor(club, hitAt, 1)) ? { part: TAP.part, damage: tapHit } : null;
   // tenis: el arco es el del timing, y aparece solo cuando se acerca la pelota (o en el saque)
   if (tennis) {
     const g = tennis.gauge;
@@ -771,7 +785,7 @@ function updatePreview(): void {
     const levels = Array.from({ length: topQuality() }, (_, i) => i + 1);
     // con el golpe 4 el arco se abre (ver fourthArc): si no, el 3 no se ve
     const arc = fourthArc(arcLayout(player.meter.charging ? player.meter.timing : player.timing, CHARGE), FOURTH.on ? VISUAL.fourthArc : 'medio');
-    hud.setMarks(arc.layout, qualityMarks(), duff, levels.map((q) => plus(damageFor(club, hitAt, q))), FOURTH.on ? FOURTH.share : 0, arc.widen, !!arc.crown, VISUAL.zoneBorder);
+    hud.setMarks(arc.layout, qualityMarks(), duff, levels.map((q) => plus(damageFor(club, hitAt, q))), FOURTH.on ? FOURTH.share : 0, arc.widen, !!arc.crown, VISUAL.zoneBorder, tapZone);
   }
   // en el tenis, el arco es el del timing (arriba)
   if (!tennis) {
@@ -796,7 +810,8 @@ function updatePreview(): void {
   pos.needsUpdate = true;
   // la línea toma el color del palo; mientras se carga, el de la calidad del golpe
   const lineColors = FOURTH.on ? (duff ? DUFF_COLORS_4 : QUALITY_COLORS_4) : duff ? DUFF_COLORS : QUALITY_COLORS;
-  const lineColor = charging ? lineColors[quality - 1] : club.color;
+  // en el click que pifia, gris como la pifia del wedge
+  const lineColor = charging ? (tapZone && tapHit <= 0 && tap ? DUFF_COLORS[0] : lineColors[quality - 1]) : club.color;
   previewMat.color.setHex(!ballHere ? 0x6b7480 : lineColor);
   previewMat.size = charging ? (quality >= topQuality() ? 10 : 4 + quality * 1.5) : 5;
   previewMat.opacity = !ballHere ? 0.25 : charging ? 0.95 : 0.3;
@@ -2214,11 +2229,11 @@ async function makePlayer(skin: Skin): Promise<Player> {
     p.canStart = () => hasBallHere();
     // la pifia: un golpe que con ese palo no pega nada (el golpe 1 del wedge) no sale. La pelota se queda
     // en el puesto y cuenta como errar
-    p.duffs = (club, quality) => {
+    p.duffs = (club, quality, tap) => {
       // en el tenis no hay pifia: el nivel lo da el timing
       if (tennis) return false;
       const range = shotRange(club);
-      return damageFor(club, range, quality) <= 0 && areaDamageFor(club, range, quality) <= 0;
+      return damageFor(club, range, quality, tap) <= 0 && areaDamageFor(club, range, quality, tap) <= 0;
     };
     p.onDuff = () => {
       // la pifia también gasta el eco y la potencia
@@ -3245,7 +3260,7 @@ function updateWaves(dt: number): void {
             ladder: testPicks ? undefined : LADDER.slice(0, progress.level).map((options, i) => { const o = options[choiceAt(progress, i)]; return o.add === undefined ? o.id : `${o.id}+${o.add}`; }),
             powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
             ...(START_WAVE > 1 ? { from: START_WAVE } : {}),
-            charge: { weak: CHARGE.weak, mid: CHARGE.mid, strong: CHARGE.strong, ...(FOURTH.on ? { fourth: FOURTH.share } : {}) },
+            charge: { weak: CHARGE.weak, mid: CHARGE.mid, strong: CHARGE.strong, ...(FOURTH.on ? { fourth: FOURTH.share } : {}), ...(TAP.mode ? { click: TAP_MODES[TAP.mode], clickPart: TAP.part } : {}) },
             tuned: tunedForLog(),
           }, RECORD);
         }

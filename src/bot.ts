@@ -55,7 +55,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as THREE from 'three';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, stepBall, type BounceParams } from './core/ballistics';
-import { areaDamageFor, CLUBS, damageFor, fourthFrom, qualityMarks, qualityOf, rollFrictionFor, SHIFT, spreadFor, topQuality, type Club, type ClubId } from './core/clubs';
+import { areaDamageFor, CLUBS, damageFor, fourthFrom, qualityMarks, qualityOf, rollFrictionFor, SHIFT, spreadFor, TAP, topQuality, type Club, type ClubId } from './core/clubs';
 import { ABILITIES, CART, ELEMENTS, FLAG, LENS, POWDER, shotQuality } from './core/abilities';
 import { behindShield, RICOCHET, SHIELD_FRONT, SHIELD_TOP, shieldFaces } from './core/shield';
 import { heightAt, mounds, terrainOn } from './core/terrain';
@@ -383,7 +383,8 @@ function chargeTime(q: number, t: ChargeTimes): number {
  * primera pasada por el fuerte (con el golpe 4, el 4 es el medio del rojo y el 3 sus costados).
  */
 function handTime(q: number, t: ChargeTimes): number {
-  if (q <= 1) return 0.02;
+  // con el click (ver TAP), el golpe 1 pasando el click, con margen para el error de la mano
+  if (q <= 1) return TAP.mode ? t.weak * TAP.part + 0.07 : 0.02;
   if (q === 2) return t.weak + t.mid / 2;
   return t.weak + t.mid + t.strong / 2;
 }

@@ -9,7 +9,7 @@
 // VISUAL en src/game/visuals.ts): valen al recargar el juego en el mismo navegador.
 
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
-import { CHARGE, FOURTH, QUALITY_FROM, QUALITY_LEVELS, qualityOf } from './core/clubs';
+import { CHARGE, FOURTH, isTap, QUALITY_FROM, QUALITY_LEVELS, qualityOf, TAP } from './core/clubs';
 import { arcAngle, FOURTH_ARC, SwingMeter, type ArcLayout, type ChargeTimes } from './core/swing';
 import { meterArt } from './meterArt';
 
@@ -34,6 +34,9 @@ interface Sim {
   zoom: number;
   move: number;
   hit: number;
+  /** El click (ver TAP en core/clubs): 0 lo de siempre, 1 pifia, 2 pega 1; y qué % del golpe 1 es. */
+  click: number;
+  clickPart: number;
 }
 
 /**
@@ -47,7 +50,7 @@ const MEASURED = { move: 750, played: 1000, hit: 90 };
 
 /** Los del juego, en ms. */
 function fromGame(fourth: boolean): Sim {
-  return { fourth, t1: CHARGE.weak * 1000, t2: CHARGE.mid * 1000, t3: CHARGE.strong * 1000, span: fourth ? FOURTH_ARC.span : 90, border: 1.5, zoom: 2.4, ...MEASURED };
+  return { fourth, t1: CHARGE.weak * 1000, t2: CHARGE.mid * 1000, t3: CHARGE.strong * 1000, span: fourth ? FOURTH_ARC.span : 90, border: 1.5, zoom: 2.4, click: TAP.mode, clickPart: TAP.part * 100, ...MEASURED };
 }
 
 let sim: Sim = fromGame(false);
@@ -80,7 +83,8 @@ let charging = false;
 let last = performance.now();
 
 function draw(): void {
-  const art = meterArt(layout(), { fourth: sim.fourth ? share() : 0, widen: sim.span / 90, damage: [1, 2, 3, 4], border: sim.border });
+  const tap = sim.click ? { part: sim.clickPart / 100, damage: sim.click === 1 ? 0 : 1 } : null;
+  const art = meterArt(layout(), { fourth: sim.fourth ? share() : 0, widen: sim.span / 90, damage: [1, 2, 3, 4], border: sim.border, tap });
   edge = art.edge;
   meterEl.innerHTML = art.svg;
   meterEl.style.setProperty('--zoom', String(sim.zoom));
@@ -93,7 +97,8 @@ function draw(): void {
   el<HTMLParagraphElement>('explain').textContent = (sim.fourth
     ? `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo dura ${round(strongMs())} ms, partida en tres: 3 (${round(third)}), 4 (${round(third)}) y 3 (${round(third)}).`
     : `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo (el 3) dura ${round(strongMs())} ms.`)
-    + ` Si te pasás, el rojo vuelve a los ${round(back)} ms (baja hasta el borde y vuelve a subir).`;
+    + ` Si te pasás, el rojo vuelve a los ${round(back)} ms (baja hasta el borde y vuelve a subir).`
+    + (sim.click ? ` El click: hasta los ${round((sim.t1 * sim.clickPart) / 100)} ms${sim.click === 1 ? ', pifia' : ', pega 1 (el tramo pálido)'}.` : '');
   drawDps();
 }
 
@@ -108,8 +113,10 @@ function drawDps(): void {
   const red = sim.t3;
   const edge = (1 - FOURTH.share) / 2;
   const base = sim.t1 + sim.t2;
-  const rows: { q: number; from: number; to: number }[] = [
-    { q: 1, from: 0, to: sim.t1 },
+  // con el click, el golpe 1 en dos: el click y el resto
+  const tapEnd = (sim.t1 * sim.clickPart) / 100;
+  const rows: { q: number; from: number; to: number; tap?: boolean }[] = [
+    ...(sim.click ? [{ q: 1, from: 0, to: tapEnd, tap: true }, { q: 1, from: tapEnd, to: sim.t1 }] : [{ q: 1, from: 0, to: sim.t1 }]),
     { q: 2, from: sim.t1, to: base },
     { q: 3, from: base, to: sim.fourth ? base + red * edge : base + red },
     ...(sim.fourth ? [{ q: 4, from: base + red * edge, to: base + red * (1 - edge) }] : []),
@@ -119,13 +126,16 @@ function drawDps(): void {
   const dps = (dmg: number, charge: number) => (Math.max(0, dmg) * (sim.hit / 100)) / secs(charge);
   // de lo justo a lo más: el primero es el más alto
   const range = (dmg: number, r: { from: number; to: number }) => (dmg <= 0 ? '—' : `${dps(dmg, r.from).toFixed(2)} – ${dps(dmg, r.to).toFixed(2)}`);
+  // en el click: con la pifia no sale; pegando 1, 1 (sin el +1 de distancia)
+  const tapped = (n: number, r: { tap?: boolean }) => (!r.tap ? n : sim.click === 1 ? 0 : Math.min(n, 1));
   el<HTMLElement>('dps').innerHTML = rows.map((r) => {
     const q = hits(r.q);
-    return `<tr><td>${r.q}</td><td>${Math.round(r.from)}–${Math.round(r.to)} ms</td><td>${secs(r.from).toFixed(2)}–${secs(r.to).toFixed(2)} s</td>`
-      + `<td>${range(q, r)}</td><td>${range(q + 1, r)}</td><td>${range(q - 1, r)}</td></tr>`;
+    return `<tr><td>${r.q}${r.tap ? ' (click)' : ''}</td><td>${Math.round(r.from)}–${Math.round(r.to)} ms</td><td>${secs(r.from).toFixed(2)}–${secs(r.to).toFixed(2)} s</td>`
+      + `<td>${range(tapped(q, r), r)}</td><td>${range(tapped(q + 1, r), r)}</td><td>${range(tapped(q - 1, r), r)}</td></tr>`;
   }).join('');
-  // las que importan para el que se cura: llegar a la misma vida con un golpe o con varios (cargando lo justo)
-  const t = (q: number) => secs(rows[q - 1].from);
+  // las que importan para el que se cura: llegar a la misma vida con un golpe o con varios (cargando lo justo,
+  // y con la pifia del click, pasándola)
+  const t = (q: number) => secs(rows.find((r) => r.q === q && !(r.tap && sim.click === 1))!.from);
   const vs = (a: string, ta: number, b: string, tb: number) => `${a}: ${ta.toFixed(2)} s, contra ${b}: ${tb.toFixed(2)} s`;
   el<HTMLParagraphElement>('dpsnote').textContent = 'Cargando lo justo: ' + [
     vs('un 2', t(2), 'dos 1', 2 * t(1)),
@@ -140,12 +150,27 @@ const fields: [keyof Sim, string][] = [['t1', 't1'], ['t2', 't2'], ['t3', 't3'],
 function paintFields(): void {
   for (const [k, id] of fields) el(id).value = String(round(sim[k] as number));
   el('fourth').checked = sim.fourth;
+  el<HTMLSelectElement>('click').value = String(sim.click);
+  el('clickpart').value = String(round(sim.clickPart));
   // con el golpe 4 el 3 es naranja (el rojo es el 4)
   el<HTMLElement>('c3').style.background = sim.fourth ? '#ff9a2e' : '#ff2d3c';
 }
 function save(): void {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(sim)); } catch { /* no recuerda */ }
 }
+el<HTMLSelectElement>('click').addEventListener('change', () => {
+  sim.click = Number(el<HTMLSelectElement>('click').value);
+  save();
+  draw();
+  paintStats();
+});
+el('clickpart').addEventListener('input', () => {
+  const v = Number(el('clickpart').value);
+  if (!Number.isFinite(v) || v <= 0 || v > 100) return;
+  sim.clickPart = v;
+  save();
+  draw();
+});
 for (const [k, id] of fields) {
   el(id).addEventListener('input', () => {
     const v = Number(el(id).value);
@@ -163,7 +188,7 @@ el('fourth').addEventListener('change', () => {
   draw();
 });
 el('defaults').addEventListener('click', () => {
-  sim = { ...fromGame(sim.fourth), border: sim.border, zoom: sim.zoom, move: sim.move, hit: sim.hit };
+  sim = { ...fromGame(sim.fourth), border: sim.border, zoom: sim.zoom, move: sim.move, hit: sim.hit, click: sim.click, clickPart: sim.clickPart };
   paintFields();
   save();
   draw();
@@ -175,6 +200,8 @@ function start(): void {
   if (charging) return;
   FOURTH.on = sim.fourth;
   FOURTH.share = share();
+  TAP.mode = sim.click;
+  TAP.part = sim.clickPart / 100;
   meter.start(times(), marks);
   charging = true;
   pad.classList.add('charging');
@@ -184,14 +211,16 @@ function release(): void {
   charging = false;
   pad.classList.remove('charging');
   const off = meter.offPeak * 1000;
-  const q = qualityOf(meter.release().power);
+  const power = meter.release().power;
+  // el click (ver TAP) cuenta aparte, como golpe 0
+  const q = isTap(power) ? 0 : qualityOf(power);
   shots.push({ q, off });
   const res = el<HTMLDivElement>('result');
   res.className = `q${q}`;
   void res.offsetWidth;
   res.classList.add('pop');
   const when = Math.abs(off) < 0.5 ? 'justo en el tope' : off < 0 ? `${Math.round(-off)} ms antes del tope` : `${Math.round(off)} ms después del tope`;
-  res.innerHTML = `Golpe ${q}<small>${when}</small>`;
+  res.innerHTML = `${q ? `Golpe ${q}` : sim.click === 1 ? 'Pifia' : 'Click: pega 1'}<small>${when}</small>`;
   paintStats();
 }
 function cancel(): void {
@@ -211,9 +240,9 @@ addEventListener('keyup', (e) => { if (e.code === 'Space') release(); });
 function paintStats(): void {
   const top = sim.fourth ? 4 : 3;
   const rows = [];
-  for (let q = top; q >= 1; q--) {
+  for (let q = top; q >= (sim.click ? 0 : 1); q--) {
     const n = shots.filter((s) => s.q === q).length;
-    rows.push(`<tr><td>${q}</td><td>${n}</td><td>${shots.length ? Math.round((100 * n) / shots.length) : 0} %</td></tr>`);
+    rows.push(`<tr><td>${q || 'click'}</td><td>${n}</td><td>${shots.length ? Math.round((100 * n) / shots.length) : 0} %</td></tr>`);
   }
   el<HTMLElement>('stats').innerHTML = rows.join('');
   // los que buscaban el tope: a menos de 250 ms
@@ -240,6 +269,7 @@ el('use').addEventListener('click', () => {
     store.configs ??= {};
     const t = times();
     store.configs.carga = { ...store.configs.carga, weak: t.weak, mid: t.mid, strong: t.strong };
+    store.configs.click = { ...store.configs.click, mode: sim.click, part: sim.clickPart / 100 };
     if (sim.fourth) {
       store.configs['golpe 4'] = { ...store.configs['golpe 4'], share: share() };
       store.configs['arco golpe 4'] = { ...store.configs['arco golpe 4'], span: sim.span };
@@ -259,7 +289,7 @@ el('use').addEventListener('click', () => {
   setTimeout(() => { said.textContent = ''; }, 5000);
 });
 el('copy').addEventListener('click', async () => {
-  const text = `golpe 1 ${round(sim.t1)} ms · golpe 2 ${round(sim.t2)} ms · golpe 3 ${round(sim.t3)} ms${sim.fourth ? ` (con el 4 en el tercio del medio: ${round(sim.t3 * SPLIT)} ms)` : ''} · arco ${sim.span}° de cada lado · borde ${sim.border}`;
+  const text = `golpe 1 ${round(sim.t1)} ms · golpe 2 ${round(sim.t2)} ms · golpe 3 ${round(sim.t3)} ms${sim.fourth ? ` (con el 4 en el tercio del medio: ${round(sim.t3 * SPLIT)} ms)` : ''}${sim.click ? ` · click ${sim.click === 1 ? 'pifia' : 'pega 1'} en el ${round(sim.clickPart)} % del golpe 1` : ''} · arco ${sim.span}° de cada lado · borde ${sim.border}`;
   try {
     await navigator.clipboard.writeText(text);
     el<HTMLSpanElement>('said').textContent = 'Copiado.';

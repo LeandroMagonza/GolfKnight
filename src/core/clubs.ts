@@ -192,9 +192,12 @@ export const CLUB_ORDER: ClubId[] = ['driver', 'iron', 'wedge', 'putter'];
 /** Tecla de cada palo, para el HUD. */
 export const CLUB_KEYS = ['1', '2', '3', '4'];
 
-/** Daño de un tiro: lo deciden el palo, a qué distancia pega, y qué tan bien se le pegó. */
-export function damageFor(club: Club, meters: number, quality: number): number {
-  return fromTable(club.damage, meters, quality);
+/**
+ * Daño de un tiro: lo deciden el palo, a qué distancia pega, y qué tan bien se le pegó. `tap`: se soltó en
+ * el principio del golpe 1 (ver TAP).
+ */
+export function damageFor(club: Club, meters: number, quality: number, tap = false): number {
+  return tapped(fromTable(club.damage, meters, quality), quality, tap);
 }
 
 /** El número de la tabla para esa distancia y ese golpe. El golpe 4 es el 3 más `FOURTH.bonus`. */
@@ -234,8 +237,31 @@ export function clubDamage(club: Club): { hits: string; more: string } {
  * Daño del área donde cae. Pega menos que el impacto en el palo que hace las dos cosas: el área agarra
  * a varios y no hay que apuntarle a nadie. En los que solo hacen área, es su tabla de siempre.
  */
-export function areaDamageFor(club: Club, meters: number, quality: number): number {
-  return fromTable(club.areaDamage ?? club.damage, meters, quality);
+export function areaDamageFor(club: Club, meters: number, quality: number, tap = false): number {
+  return tapped(fromTable(club.areaDamage ?? club.damage, meters, quality), quality, tap);
+}
+
+/**
+ * **El click** (13/10, Leandro, para probar con amigos): soltar sin cargar daba el golpe 1, y con el +1 de
+ * distancia (el putter de cerca, el driver de lejos) pegaba 2, casi lo del golpe 3 por segundo sin hacer
+ * nada de timing. `part`: qué parte del golpe 1, desde el principio de la carga, es el click (también si la
+ * aguja vuelve hasta ahí). `mode`, lo que hace (ver TAP_MODES): 0, lo de siempre; 1, pifia, como el golpe 1
+ * del wedge (no sale y la pelota se queda); 2, pega 1, sin el +1 de distancia (el resto del golpe 1 sí lo
+ * suma). Se prende con `?click=pifia` o `?click=uno`; en el tenis no hay.
+ */
+export const TAP = { mode: 0, part: 0.5 };
+export const TAP_MODES = ['normal', 'pifia', 'uno'] as const;
+export type TapMode = (typeof TAP_MODES)[number];
+
+/** Si la potencia `power` cae en el click (ver TAP). */
+export function isTap(power: number): boolean {
+  return TAP.mode > 0 && power < QUALITY_FROM[1] * TAP.part;
+}
+
+/** Lo que pega el golpe 1 en el click (ver TAP), si `tap`; si no, `n`. */
+function tapped(n: number, quality: number, tap: boolean): number {
+  if (!tap || quality !== 1 || !TAP.mode) return n;
+  return TAP.mode === 1 ? 0 : Math.min(n, 1);
 }
 
 /**

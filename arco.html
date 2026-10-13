@@ -15,7 +15,7 @@
       .panel h2 { margin: 6px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: #8d97a5; }
       label.row { display: grid; grid-template-columns: 1fr 86px 22px; align-items: center; gap: 8px; font-size: 14px; }
       label.row i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
-      label.row input { width: 100%; box-sizing: border-box; padding: 5px 6px; border-radius: 6px; border: 1px solid #3a4452; background: #0c1219; color: #e4e9f0; font: inherit; text-align: right; }
+      label.row input, label.row select { width: 100%; box-sizing: border-box; padding: 5px 6px; border-radius: 6px; border: 1px solid #3a4452; background: #0c1219; color: #e4e9f0; font: inherit; text-align: right; }
       label.row span.u { color: #8d97a5; font-size: 12px; }
       label.check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
       .hidden { display: none !important; }
@@ -33,7 +33,7 @@
       #pad.charging #meter svg { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)); }
       #result { min-height: 1.6em; font-size: 22px; font-weight: 800; text-align: center; }
       #result small { display: block; font-size: 14px; font-weight: 500; color: #cfd6e0; }
-      #result.q1 { color: #5be07a; } #result.q2 { color: #ffd66b; } #result.q3 { color: #ff9a2e; } #result.q4 { color: #ff2d3c; }
+      #result.q0 { color: #a3c4ab; } #result.q1 { color: #5be07a; } #result.q2 { color: #ffd66b; } #result.q3 { color: #ff9a2e; } #result.q4 { color: #ff2d3c; }
       #result.pop { animation: pop 0.25s ease; }
       @keyframes pop { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
       table { border-collapse: collapse; font-size: 14px; }
@@ -57,6 +57,10 @@
         <label class="row"><span><i style="background:#ffd66b"></i>Golpe 2</span><input type="number" id="t2" min="5" step="5" /><span class="u">ms</span></label>
         <label class="row"><span><i style="background:#ff2d3c" id="c3"></i>Golpe 3</span><input type="number" id="t3" min="3" step="3" /><span class="u">ms</span></label>
         <p class="note" id="explain"></p>
+        <h2>El click</h2>
+        <label class="row"><span>Soltar casi sin cargar</span><select id="click"><option value="0">Lo de siempre</option><option value="1">Pifia</option><option value="2">Pega 1</option></select><span class="u"></span></label>
+        <label class="row"><span>Parte del golpe 1</span><input type="number" id="clickpart" min="5" max="100" step="5" /><span class="u">%</span></label>
+        <p class="note">El principio del golpe 1. Con la pifia no sale, como el golpe 1 del wedge. Con «pega 1», pega 1 aunque el palo pegue más a esa distancia (el putter de cerca, el driver de lejos); el resto del golpe 1 pega lo suyo. En el juego: ?click=pifia o ?click=uno, y ?clickparte=0.5.</p>
         <h2>El arco</h2>
         <label class="row"><span>De cada lado</span><input type="number" id="span" min="45" max="180" step="5" /><span class="u">°</span></label>
         <p class="note">90° es medio círculo (como el juego sin el golpe 4), 135° tres cuartos, 180° la vuelta entera. La aguja va siempre a la misma velocidad: cada golpe ocupa lo que dura.</p>

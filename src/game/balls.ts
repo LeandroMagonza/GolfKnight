@@ -64,6 +64,8 @@ export interface Ball {
   burst: boolean;
   /** El driver en cruz: los metros de los dos que salen a los costados del primero que toca (0, ninguno). */
   split: number;
+  /** Salió del click (ver TAP en core/clubs): el golpe 1 pega lo del click. */
+  tap: boolean;
   /** Enemigos que mató esta pelota, y de qué cuerpo (para el registro: ver RunRecorder.kinds). */
   kills: number;
   killedKinds: string[];
@@ -219,7 +221,7 @@ export class Balls {
       element: shot.element ?? null, ability: !!shot.ability, tags: shot.tags ?? [], gloved: !!shot.gloved,
       effect: effectOnly(shot.element) && !shot.gloved, floor: this.minDamage(shot.club.id),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
-      hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, split: shot.split ?? 0, burst: false, kills: 0, killedKinds: [], connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, split: shot.split ?? 0, tap: !!shot.tap, burst: false, kills: 0, killedKinds: [], connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
       phase: tennis ? 'out' : null, rally: 0, walls: 0,
     };
     this.list.push(ball);
@@ -291,7 +293,7 @@ export class Balls {
     this.effects.explosion(pos, radius, ball.club.color);
     // el área pega menos que el impacto: agarra a varios y no hay que apuntarle a nadie. Al que esta
     // misma pelota ya golpeó no le toca otra vez: un tiro es un daño por enemigo
-    const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality));
+    const damage = this.damageOf(ball, areaDamageFor(ball.club, this.metersTo(ball, pos), ball.quality, ball.tap));
     // el viento va primero (7/10): con las maestrías de viento, los mueve y después les cae lo demás
     if (this.windy(ball)) this.windBurst(ball, pos);
     const shot = this.markShot(ball);
@@ -342,7 +344,7 @@ export class Balls {
       if (finish) ball.done = true;
       return touched;
     }
-    const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality));
+    const damage = this.damageOf(ball, damageFor(ball.club, this.metersTo(ball, s.pos), ball.quality, ball.tap));
     const shot = this.markShot(ball);
     // el de efecto con la fuerza pega, pero no empuja
     const killed = this.horde.damage(enemy, damage, dir, ball.effect ? 0 : ball.club.knockback, false, guard);

@@ -12,7 +12,7 @@
 // e incorporarlo al juego.
 import { ABILITIES, ABILITY_CONFIG, ABILITY_KEYS, ABILITY_LIST, configOf, cooldownAt, ELEMENTS, LEVELS, MAX_LEVEL, SLOTS, VULNERABLE, type AbilityId } from './core/abilities';
 import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from './core/cards';
-import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, FOURTH, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, type Club, type IronMode, type ShiftMode } from './core/clubs';
+import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, FOURTH, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, TAP, TAP_MODES, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
 import { FIELD_HALF_WIDTH, FIELD_SHAPE } from './core/field';
@@ -46,6 +46,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   carga: CHARGE as unknown as Record<string, number>,
   // el golpe 4 (qué parte del fuerte es el 4, y cuánto pega de más) y su arco: los deja también el simulador de la carga (arco.html)
   'golpe 4': FOURTH as unknown as Record<string, number>, 'arco golpe 4': FOURTH_ARC,
+  // el click, el principio del golpe 1 (`click.mode:1` pifia, `click.mode:2` pega 1; ver TAP)
+  click: TAP,
   // en qué cuerpos caen el fantasma y el bendito (`reparto.divine:1,reparto.giants:0`)
   reparto: POWER_BIAS,
   // el presupuesto de las oleadas (`presupuesto.on:0` lo apaga; ver core/budget)
@@ -728,6 +730,15 @@ export class DebugPanel {
     el.append(fourth.table, note(
       'Es un talento de la dificultad (la vida de más que trae está en Enemigos, Dificultad). El rojo se parte: el 4 en el medio y el 3 a los costados, '
       + 'en naranja. Entre los dos duran lo que el fuerte. ' + (FOURTH.on ? 'En esta partida está prendido.' : 'En esta partida no está.'),
+    ));
+    el.append(heading('El click'));
+    const tap = this.numbers([
+      ['qué hace', () => TAP.mode, (v) => { TAP.mode = Math.min(TAP_MODES.length - 1, Math.max(0, Math.round(v))); }, 1, '0 lo de siempre, 1 pifia, 2 pega 1'],
+      ['parte del golpe 1', () => TAP.part, (v) => { TAP.part = Math.min(1, Math.max(0.05, v)); }, 0.05, 'desde que apretás'],
+    ]);
+    el.append(tap.table, note(
+      'Soltar casi sin cargar. Con la pifia no sale, como el golpe 1 del wedge; con 1, pega 1 aunque el palo pegue más a esa distancia (el putter de cerca, '
+      + 'el driver de lejos), y el resto del golpe 1 pega lo suyo. Para mandar a otros: ?click=pifia o ?click=uno, y ?clickparte=0.5.',
     ));
   }
 

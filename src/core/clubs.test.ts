@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ROLL_FRICTION } from './ballistics';
 import {
   areaDamageFor, bandOf, BAND_LIMITS, CHARGE, CLUB_KEYS, CLUB_ORDER, CLUBS, clubDamage, damageFor, FOURTH, fourthFrom, hasArea, ironMode, rollFrictionFor, setIronMode, spreadFor,
-  isLob, QUALITY_FROM, QUALITY_LEVELS, qualityMarks, qualityOf, topQuality,
+  isLob, isTap, QUALITY_FROM, QUALITY_LEVELS, qualityMarks, qualityOf, TAP, topQuality,
 } from './clubs';
 import { MIN_POWER, PERFECT_FROM, SwingMeter } from './swing';
 import { ENEMIES } from './waves';
@@ -232,6 +232,54 @@ describe('reglas de los palos', () => {
       expect(clubDamage(CLUBS.wedge).hits).toBe('✕·1·2·3');
     } finally {
       FOURTH.on = false;
+    }
+  });
+});
+
+describe('el click (13/10)', () => {
+  const close = 10;
+  const far = BAND_LIMITS[1] + 5;
+  it('apagado, soltar sin cargar es el golpe 1 de siempre', () => {
+    expect(isTap(MIN_POWER)).toBe(false);
+    expect(damageFor(CLUBS.putter, close, 1, true)).toBe(damageFor(CLUBS.putter, close, 1));
+  });
+  it('es la primera parte del golpe 1, por potencia (también si la aguja vuelve)', () => {
+    TAP.mode = 2;
+    try {
+      expect(isTap(MIN_POWER)).toBe(true);
+      expect(isTap(QUALITY_FROM[1] * TAP.part * 0.99)).toBe(true);
+      expect(isTap(QUALITY_FROM[1] * TAP.part * 1.01)).toBe(false);
+      expect(isTap(QUALITY_FROM[1])).toBe(false);
+    } finally {
+      TAP.mode = 0;
+    }
+  });
+  it('con la pifia no pega nada, con ningún palo; el resto del golpe 1, lo suyo', () => {
+    TAP.mode = 1;
+    try {
+      for (const id of CLUB_ORDER) {
+        expect(damageFor(CLUBS[id], close, 1, true)).toBe(0);
+        expect(areaDamageFor(CLUBS[id], close, 1, true)).toBe(0);
+      }
+      expect(damageFor(CLUBS.putter, close, 1)).toBe(2);
+    } finally {
+      TAP.mode = 0;
+    }
+  });
+  it('pegando 1: el putter de cerca y el driver de lejos pierden el +1 en el click, el hierro no cambia', () => {
+    TAP.mode = 2;
+    try {
+      expect(damageFor(CLUBS.putter, close, 1, true)).toBe(1);
+      expect(damageFor(CLUBS.putter, close, 1)).toBe(2);
+      expect(damageFor(CLUBS.driver, far, 1, true)).toBe(1);
+      expect(damageFor(CLUBS.driver, far, 1)).toBe(2);
+      expect(damageFor(CLUBS.iron, close, 1, true)).toBe(1);
+      expect(areaDamageFor(CLUBS.iron, close, 1, true)).toBe(1);
+      // el wedge sigue pifiando, y los otros golpes no se tocan
+      expect(damageFor(CLUBS.wedge, close, 1, true)).toBe(0);
+      expect(damageFor(CLUBS.putter, close, 2, true)).toBe(3);
+    } finally {
+      TAP.mode = 0;
     }
   });
 });

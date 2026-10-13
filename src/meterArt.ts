@@ -22,11 +22,15 @@ export const METER_PX = 78;
  * cada lado. Pasa por debajo del centro: el recuadro crece para abajo y el centro queda donde estaba.
  * `crown`: el 3 y el 4 en corona (ver `fourthArc`). `border`: el ancho del borde oscuro de cada tramo.
  *
+ * `tap`: el click (ver TAP en core/clubs), si con este palo pega distinto que el resto del golpe 1: la
+ * parte `part` del principio del verde va aparte, en gris con el triángulo si es pifia (`damage` 0), o en
+ * un verde apagado con lo que pega.
+ *
  * Devuelve el SVG (con la aguja, de clase `needle`, apuntando arriba), hasta dónde llega el arco de cada
  * lado (`edge`, en grados) y lo que baja por debajo del centro (`below`, en unidades del dibujo).
  */
-export function meterArt(layout: ArcLayout, opts: { duff?: boolean; damage?: readonly (number | string)[]; fourth?: number; widen?: number; crown?: boolean; border?: number } = {}): { svg: string; edge: number; below: number } {
-  const { duff = false, damage = [], fourth = 0, widen = 1, crown = false } = opts;
+export function meterArt(layout: ArcLayout, opts: { duff?: boolean; damage?: readonly (number | string)[]; fourth?: number; widen?: number; crown?: boolean; border?: number; tap?: { part: number; damage: number | string } | null } = {}): { svg: string; edge: number; below: number } {
+  const { duff = false, damage = [], fourth = 0, widen = 1, crown = false, tap = null } = opts;
   const R = 66;
   const r = 44;
   const at = (rad: number, a: number) => `${(rad * Math.sin((a * Math.PI) / 180)).toFixed(2)} ${(-rad * Math.cos((a * Math.PI) / 180)).toFixed(2)}`;
@@ -46,6 +50,13 @@ export function meterArt(layout: ArcLayout, opts: { duff?: boolean; damage?: rea
   const mid = duff ? '#5be07a' : '#ffd66b';
   const top = duff ? (f ? '#ff9a2e' : '#ffd21f') : '#ff2d3c';
   const third = duff ? '#ffd21f' : '#ff9a2e';
+  // el click: desde dónde (en grados desde arriba) hasta el borde. Si no entra en el arco, no va
+  const tapFrom = tap && !duff ? Math.max(g, layout.span - layout.weak * tap.part) : edge;
+  const tapOn = !!tap && tapFrom < edge - 0.5;
+  const tapDuff = tapOn && Number(tap!.damage) <= 0;
+  const tapColor = tapDuff ? '#4d535c' : '#a3c4ab';
+  // hasta dónde llega el golpe 1 de verdad
+  const one = tapOn ? tapFrom : edge;
   // el triángulo de peligro, en el medio de cada tramo de la pifia
   const warn = (a: number) => {
     const [x, yy] = at((R + r) / 2, a).split(' ').map(Number);
@@ -72,7 +83,8 @@ export function meterArt(layout: ArcLayout, opts: { duff?: boolean; damage?: rea
   };
   // el 3 con el golpe 4: solo si su tramo da para un número sin pisar los de al lado
   const thirdLabel = f && y - f >= 9 ? label(-(y + f) / 2, damage[2], dark) + label((y + f) / 2, damage[2], dark) : '';
-  const numbers = (duff ? '' : label(-(edge + g) / 2, damage[0], dark) + label((edge + g) / 2, damage[0], dark))
+  const tapMarks = !tapOn ? '' : tapDuff ? warn(-(edge + tapFrom) / 2) + warn((edge + tapFrom) / 2) : label(-(edge + tapFrom) / 2, tap!.damage, dark) + label((edge + tapFrom) / 2, tap!.damage, dark);
+  const numbers = (duff ? '' : label(-(one + g) / 2, damage[0], dark) + label((one + g) / 2, damage[0], dark)) + tapMarks
     + label(-(g + y) / 2, damage[1], dark) + label((g + y) / 2, damage[1], dark)
     + thirdLabel + topLabel();
   // un fondo oscuro un poco más grande, como tenía la barra: sobre el pasto el verde se perdía
@@ -85,8 +97,8 @@ export function meterArt(layout: ArcLayout, opts: { duff?: boolean; damage?: rea
       + [-y, -f, f, y].map((a) => { const [x1, y1] = at(r - 3, a).split(' '); const [x2, y2] = at(R + 14, a).split(' '); return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#ffffff" stroke-width="0.9" />`; }).join('')
     : f ? sector(-y, -f, third) + sector(-f, f, top) + sector(f, y, third) : sector(-y, y, top);
   const svg = `<svg viewBox="-72 -86 144 ${86 + below}">` + back
-    + sector(-edge, -g, low) + sector(-g, -y, mid)
-    + sector(y, g, mid) + sector(g, edge, low)
+    + (tapOn ? sector(-edge, -tapFrom, tapColor) : '') + sector(-one, -g, low) + sector(-g, -y, mid)
+    + sector(y, g, mid) + sector(g, one, low) + (tapOn ? sector(tapFrom, edge, tapColor) : '')
     + strong
     + (duff ? warn(-(edge + g) / 2) + warn((edge + g) / 2) : '') + numbers
     + `<g class="needle"><line x1="0" y1="-30" x2="0" y2="-72" stroke="#0b0f14" stroke-width="6" stroke-linecap="round" />`

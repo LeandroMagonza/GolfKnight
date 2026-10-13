@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Element } from '../core/abilities';
-import { CHARGE, CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, qualityMarks, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
+import { CHARGE, CLUB_ORDER, CLUBS, CURVE, CURVE_CLUBS, isTap, qualityMarks, qualityOf, SHIFT, type Club, type ClubId } from '../core/clubs';
 import type { ChargeTimes } from '../core/swing';
 import { SwingMeter } from '../core/swing';
 import { r2, r3, type PlayerSnap } from '../net/snapshot';
@@ -48,6 +48,8 @@ export interface Shot {
   tags?: readonly string[];
   /** Daño de más a cada uno que alcanza (la potencia). */
   bonus?: number;
+  /** Se soltó en el click, el principio del golpe 1 (ver TAP en core/clubs). */
+  tap?: boolean;
   /** El driver en cruz (ver SPLIT): al primero que le pega, sale hacia los dos costados, a tantos metros. */
   split?: number;
   from: THREE.Vector3;
@@ -153,8 +155,8 @@ export class Player {
   canStart: (() => boolean) | null = null;
   /** El swing no encontró pelota. */
   onWhiff: (() => void) | null = null;
-  /** ¿Con este palo y este nivel de golpe se pifia? El tiro no sale y la pelota se queda. */
-  duffs: ((club: Club, quality: number) => boolean) | null = null;
+  /** ¿Con este palo y este nivel de golpe (`tap`: en el click, ver TAP) se pifia? El tiro no sale y la pelota se queda. */
+  duffs: ((club: Club, quality: number, tap: boolean) => boolean) | null = null;
   onDuff: (() => void) | null = null;
   club: Club = CLUBS.driver;
   mode: PlayerMode = 'free';
@@ -912,7 +914,8 @@ export class Player {
     if (!shot) return;
     this.swingShot = null;
     // pifia: el palo pasa y la pelota se queda en el puesto (se chequea antes de gastarla)
-    if (this.duffs?.(this.club, qualityOf(shot.power))) {
+    const tap = isTap(shot.power);
+    if (this.duffs?.(this.club, qualityOf(shot.power), tap)) {
       this.onDuff?.();
       return;
     }
@@ -924,7 +927,7 @@ export class Player {
     // el efecto sale con el tiro y la mano vuelve a cero para el próximo
     const curve = this.curving ? this.curve : 0;
     this.curve = 0;
-    this.onShot?.({ club: this.club, curve, quality: qualityOf(shot.power), power: shot.power, from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
+    this.onShot?.({ club: this.club, curve, quality: qualityOf(shot.power), power: shot.power, ...(tap ? { tap } : {}), from: this.teePosition(new THREE.Vector3()), dir: this.aimDir.clone() });
   }
 
   /** Swing con clip de Mixamo: baja hasta el impacto, pega, y sigue hasta el final del gesto. */
