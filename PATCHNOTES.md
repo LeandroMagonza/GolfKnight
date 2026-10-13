@@ -38,7 +38,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Esto, también en la app de Windows. `8826a7f`
 
 **Para los que prueban**
-- **El arco** (arco.html) dice el daño por segundo de cada golpe, con lo que se tarda entre tiros. `c0b4087`
+- **El arco** (arco.html) dice el daño por segundo de cada golpe, de cargar lo justo a cargar todo su tramo, con lo que tarda la mecánica entre tiros, y por palo (el driver de lejos y el putter de cerca, uno más; el wedge, uno menos). `c0b4087` `184a6de`
 - El registro anota, por cuerpo, cuántos mueren en tiros que agarran a varios. Y `node tools/sorteo.mjs`
   usa el mismo modelo que el juego. `1721cf0`
 - En el panel, apagado: los pesados escalonados (cada uno llega unos segundos después del anterior, sin
