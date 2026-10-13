@@ -10,6 +10,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 ## 13 de octubre
 
 **La línea del tiro**
+- **La marca de dónde cae el tiro se apoya en el piso**: en las lomas se dobla con la ladera, y se ve dónde
+  va a pegar el wedge. `9cb1d1f`
+- **El wedge ya no promete un área que no sale**: sin cargar, o en el golpe 1 (que pifia), el anillo va
+  punteado; al pasar el golpe 1 queda entero, con el área del golpe. `9cb1d1f`
 - **Los puntos van parejos de punta a punta.** Antes, cerca del caballero quedaban muy separados y al fondo
   se amontonaban en una raya, y costaba leer por dónde iba el tiro. El arco es el mismo. `d031794`
 
