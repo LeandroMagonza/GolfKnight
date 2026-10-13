@@ -23,13 +23,19 @@ const opt = (name, fallback) => args.find((a) => a.startsWith(`--${name}=`))?.sl
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 const W = await server.ssrLoadModule('/src/core/waves.ts');
 const D = await server.ssrLoadModule('/src/core/difficulty.ts');
+
+const B = await server.ssrLoadModule('/src/core/budget.ts');
 await server.close();
 
 const times = Number(opt('veces', 1000));
-const perMin = Number(opt('tiros', 37.1));
-const connect = Number(opt('pegan', 0.87));
-const mixRaw = opt('golpes', '33,34,20,13').split(',').map(Number);
-const mix = mixRaw.map((p) => p / mixRaw.reduce((a, b) => a + b, 0));
+// el jugador de referencia: el del presupuesto (core/budget), o el que se pida
+const { BUDGET } = B;
+if (args.some((a) => a.startsWith('--tiros='))) BUDGET.perMin = Number(opt('tiros', BUDGET.perMin));
+if (args.some((a) => a.startsWith('--pegan='))) BUDGET.connect = Number(opt('pegan', BUDGET.connect));
+if (args.some((a) => a.startsWith('--golpes='))) BUDGET.mix = opt('golpes', '').split(',').map(Number);
+// --sin-presupuesto: el reparto de antes (para comparar)
+if (args.includes('--sin-presupuesto')) BUDGET.on = 0;
+const { perMin, connect } = BUDGET;
 const gap = 60 / perMin;
 const picksText = opt('talentos', 'rest:1,speed:0.2,stack:1,fourth:1,powers:1,powered:1,special:1,support:2');
 const picks = Object.fromEntries(picksText.split(',').filter(Boolean).map((p) => p.split(':')).map(([k, v]) => [k, Number(v)]));
@@ -38,52 +44,19 @@ const order = opt('poderes', '').split(',').filter(Boolean);
 if (order.length >= 3) rules.order = order;
 if (args.some((a) => a.startsWith('--especiales='))) rules.specialAt = opt('especiales', '').split(',').map((m) => (m === 'ninguna' ? null : m || undefined));
 
-/** Lo que le entra de un golpe que pega, en promedio, con lo que le resta su defensa (`cut`). */
-const perHit = (cut = (d) => d) => mix.reduce((sum, p, i) => sum + p * cut(i + 1), 0);
+const { perHit, killChance } = B;
 const plainHit = perHit();
-
-/** La chance de matar en un ciclo de `heal` s a uno de `hp` (los tiros que entran, uno cada `gap`). */
-function killChance(hp, heal) {
-  const shots = Math.floor(heal / gap) + 1;
-  let dist = new Map([[0, 1]]);
-  for (let n = 0; n < shots; n++) {
-    const next = new Map();
-    for (const [sum, p] of dist) {
-      next.set(sum, (next.get(sum) ?? 0) + p * (1 - connect));
-      mix.forEach((q, i) => {
-        const v = Math.min(hp, sum + i + 1);
-        next.set(v, (next.get(v) ?? 0) + p * connect * q);
-      });
-    }
-    dist = next;
-  }
-  return { shots, chance: dist.get(hp) ?? 0 };
-}
 
 /** La vida de uno: la de su cuerpo y lo que le sumaron (el jefe, la del golpe 4 también). */
 const hpOf = (s) => W.ENEMIES[s.kind].hp + (s.mods?.hp ?? 0);
 
 /**
- * Cuántos tiros te pide uno (en tiempo de tiro: al intocable le entra uno por ciclo, así que cuenta lo que
- * esperás), jugado bien. `plain`, los que pediría el mismo con su vida y sin poder.
+ * Cuántos tiros te pide uno, con el modelo del presupuesto (core/budget: jugado bien, y los chicos menos).
+ * `plain`, los que pediría el mismo con su vida y sin poder.
  */
 function shotsOf(s) {
-  const m = s.mods ?? {};
   const hp = hpOf(s);
-  const plain = hp / (connect * plainHit);
-  let hit = plainHit;
-  let slow = 1;
-  if (m.armor) hit = perHit((d) => Math.max(0, d + 1 - m.armor));
-  if (m.ethereal) hit = Math.min(hit, perHit((d) => Math.min(d, 1)));
-  if (m.divine || m.dodge) hit /= 2;
-  if (m.phase) slow = Math.max(1, W.PHASE.cycle / gap);
-  let shots = (hp / (connect * hit)) * slow;
-  if (m.regen) {
-    const k = killChance(hp, W.regenPeriod(hp, m.regen));
-    // los ciclos que no alcanzan se tiran enteros; el que alcanza, lo de siempre
-    shots = k.chance > 0 ? (1 / k.chance - 1) * k.shots + shots : shots * 10;
-  }
-  return { shots, plain };
+  return { shots: B.shotsFor(s.kind, s.mods, hp), plain: B.shotsFor(s.kind, s.mods ? { hp: s.mods.hp, size: s.mods.size } : undefined, hp) };
 }
 
 const POWER_KEYS = ['shield', 'armor', 'ethereal', 'divine', 'dodge', 'regen', 'phase'];
@@ -134,7 +107,7 @@ for (let t = 0; t < times; t++) {
 
 const out = [];
 const line = (s = '') => out.push(s);
-line(`Talentos: ${picksText}${order.length >= 3 ? ` · poderes: ${order.join(', ')}` : ' · poderes al azar'}${rules.specialAt ? ` · especiales: ${opt('especiales', '')}` : ''} · ${times} sorteos.`);
+line(`${BUDGET.on ? 'Con el presupuesto' : 'Sin el presupuesto (el reparto de antes)'} · talentos: ${picksText}${order.length >= 3 ? ` · poderes: ${order.join(', ')}` : ' · poderes al azar'}${rules.specialAt ? ` · especiales: ${opt('especiales', '')}` : ''} · ${times} sorteos.`);
 line(`Ritmo: ${perMin} tiros por minuto, ${Math.round(connect * 100)} % que pegan, ${plainHit.toFixed(2)} de daño por golpe que pega.`);
 line();
 line('| Oleada | Enemigos | Vida total | Tiros que pide (de 5 % a 95 %) | De esos, por los poderes | Con poder | El común con poder más caro (tiros) |');

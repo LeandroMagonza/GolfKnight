@@ -131,6 +131,7 @@ async function play(job) {
           perAbility: log?.abilities ?? null,
           // lo de cada poder de los enemigos: cuántos salieron, mataste, golpes y puerta (ver PowerLog)
           perPower: log?.perPower ?? null,
+          perKind: log?.perKind ?? null,
         };
       });
       if (r.ended || r.clock > maxGameSeconds) break;

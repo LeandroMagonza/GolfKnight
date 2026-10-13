@@ -2147,7 +2147,7 @@ export class Horde {
    * nivel del golpe fantasma (0 si no lo es): le entra entero a cualquiera (blindaje, escudos, el tope del
    * fantasma, el aura de invencible y el divino).
    */
-  shot: { club: ClubId; quality: number; ability: boolean; kills: number; ghost: number; tags?: readonly string[] } | null = null;
+  shot: { club: ClubId; quality: number; ability: boolean; kills: number; ghost: number; tags?: readonly string[]; kinds?: EnemyKind[] } | null = null;
 
   /**
    * Para el registro: qué habilidades están haciendo el daño de ahora, si no es el tiro en curso (el
@@ -2264,7 +2264,11 @@ export class Horde {
 
   /** Lo que pasa cuando un golpe lo mata: la baja del tiro, y la pólvora o el fuego que explotan. */
   private died(enemy: Enemy, hadPowder: boolean, wasBurning: boolean): void {
-    if (this.shot) this.shot.kills++;
+    if (this.shot) {
+      this.shot.kills++;
+      // para el registro: qué cuerpos caen en tiros que agarran a varios (ver RunRecorder.kinds)
+      (this.shot.kinds ??= []).push(enemy.stats.kind);
+    }
     enemy.powderTimer = 0;
     enemy.burnTimer = 0;
     // la pólvora: el marcado explota al morir, y si los de al lado también están marcados, siguen

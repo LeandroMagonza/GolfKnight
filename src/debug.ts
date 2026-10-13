@@ -19,6 +19,7 @@ import { FIELD_HALF_WIDTH, FIELD_SHAPE } from './core/field';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
+import { BUDGET } from './core/budget';
 import { DIVINE, ELITE, ENEMIES, GEOMANCER, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
@@ -47,6 +48,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   'golpe 4': FOURTH as unknown as Record<string, number>, 'arco golpe 4': FOURTH_ARC,
   // en qué cuerpos caen el fantasma y el bendito (`reparto.divine:1,reparto.giants:0`)
   reparto: POWER_BIAS,
+  // el presupuesto de las oleadas (`presupuesto.on:0` lo apaga; ver core/budget)
+  presupuesto: BUDGET as unknown as Record<string, number | number[]>,
   // la velocidad de los que traen cada poder, con el talento y sin él (`paso.divine:0.9`)
   paso: POWER_SPEED,
   // cuántos salen con cada poder, sobre los que tocaban (`cuantos.divine:0.7`)
@@ -1165,6 +1168,10 @@ export class DebugPanel {
       ['se cura: el ciclo arranca con el primer golpe', () => REGEN.onHit, (v) => { REGEN.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 corre siempre'],
       ['burbuja: vuelve sola a los', () => DIVINE.every, (v) => { DIVINE.every = Math.max(0.5, v); }, 0.5, 's'],
       ['burbuja del élite: a los', () => DIVINE.elite, (v) => { DIVINE.elite = Math.max(0.5, v); }, 0.5, 's'],
+      ['presupuesto de las oleadas', () => BUDGET.on, (v) => { BUDGET.on = v > 0 ? 1 : 0; }, 1, '1 sí, 0 el reparto de antes'],
+      ['presupuesto: tope de un común con poder', () => BUDGET.cap, (v) => { BUDGET.cap = Math.max(1, v); }, 0.5, 'tiros'],
+      ['presupuesto: lo de los poderes, por la parte con poder', () => BUDGET.powers, (v) => { BUDGET.powers = Math.max(0, v); }, 0.1, '×'],
+      ['presupuesto: lo de cada marca', () => BUDGET.marks, (v) => { BUDGET.marks = Math.max(0, v); }, 0.05, 'de la oleada'],
       ['bendito: preferir cuerpos chicos', () => POWER_BIAS.divine, (v) => { POWER_BIAS.divine = Math.max(0, v); }, 0.5, '(0 parejo)'],
       ['fantasma: preferir cuerpos chicos', () => POWER_BIAS.ethereal, (v) => { POWER_BIAS.ethereal = Math.max(0, v); }, 0.5, '(0 parejo)'],
       ['gigantes fantasmas y benditos', () => POWER_BIAS.giants, (v) => { POWER_BIAS.giants = v > 0 ? 1 : 0; }, 1, '1 sí, 0 no'],

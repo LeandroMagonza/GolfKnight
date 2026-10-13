@@ -62,8 +62,9 @@ export interface Ball {
   bonus: number;
   /** Ya abrió su área: no la vuelve a abrir aunque siga rodando. */
   burst: boolean;
-  /** Enemigos que mató esta pelota. */
+  /** Enemigos que mató esta pelota, y de qué cuerpo (para el registro: ver RunRecorder.kinds). */
   kills: number;
+  killedKinds: string[];
   /** Ya le pegó a alguien (evento 'connected'): para las rachas de tiros sin errar. */
   connected: boolean;
   /**
@@ -117,7 +118,7 @@ export type BallEvent =
    */
   | { type: 'kill'; kills: number; quality: number; ability: boolean }
   /** Un tiro ya se jugó: a cuántos alcanzó y cuántas bajas hizo. */
-  | { type: 'settled'; club: Club; hits: number; kills: number; ability: boolean }
+  | { type: 'settled'; club: Club; hits: number; kills: number; kinds: readonly string[]; ability: boolean }
   /** Tenis: la pelota rebotó en un enemigo y viene de vuelta, o pegó en una pared. */
   | { type: 'returned'; ball: Ball }
   | { type: 'wall'; ball: Ball }
@@ -216,7 +217,7 @@ export class Balls {
       element: shot.element ?? null, ability: !!shot.ability, tags: shot.tags ?? [], gloved: !!shot.gloved,
       effect: effectOnly(shot.element) && !shot.gloved, floor: this.minDamage(shot.club.id),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
-      hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, killedKinds: [], connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
       phase: tennis ? 'out' : null, rally: 0, walls: 0,
     };
     this.list.push(ball);
@@ -260,12 +261,13 @@ export class Balls {
     const shot = this.markShot(ball);
     this.horde.detonate(enemy);
     this.horde.shot = null;
-    this.countKills(ball, shot.kills);
+    this.countKills(ball, shot);
   }
 
-  /** Suma las bajas a la pelota y las avisa de a una, en el acto. */
-  private countKills(ball: Ball, n: number): void {
-    for (let i = 0; i < n; i++) {
+  /** Suma las bajas del golpe (`shot`) a la pelota y las avisa de a una, en el acto. */
+  private countKills(ball: Ball, shot: NonNullable<Horde['shot']>): void {
+    if (shot.kinds) ball.killedKinds.push(...shot.kinds);
+    for (let i = 0; i < shot.kills; i++) {
       ball.kills++;
       this.onEvent?.({ type: 'kill', kills: ball.kills, quality: ball.quality, ability: ball.ability });
     }
@@ -298,7 +300,7 @@ export class Balls {
     this.horde.shot = null;
     this.onEvent?.({ type: 'land', pos, hits, quality: ball.quality });
     // las bajas del área también son del tiro; se avisan después del «le pegó a tantos», que si no lo tapa
-    this.countKills(ball, shot.kills);
+    this.countKills(ball, shot);
     ball.hits += hits;
     this.checkConnected(ball);
     // tenis: el globo, después de reventar, vuelve por el aire a la línea para seguir jugando
@@ -334,7 +336,7 @@ export class Balls {
         this.applyElement(ball, enemy);
       }
       this.horde.shot = null;
-      this.countKills(ball, shot.kills);
+      this.countKills(ball, shot);
       if (finish) ball.done = true;
       return touched;
     }
@@ -357,7 +359,7 @@ export class Balls {
     // el elemento pega con el tiro todavía marcado, como en el área: las bajas del rayo son de esta pelota
     if (touched) this.applyElement(ball, enemy);
     this.horde.shot = null;
-    this.countKills(ball, shot.kills);
+    this.countKills(ball, shot);
     if (finish) ball.done = true;
     return landed;
   }
@@ -625,7 +627,7 @@ export class Balls {
   private settle(ball: Ball): void {
     if (ball.settled) return;
     ball.settled = true;
-    this.onEvent?.({ type: 'settled', club: ball.club, hits: ball.hits, kills: ball.kills, ability: ball.ability });
+    this.onEvent?.({ type: 'settled', club: ball.club, hits: ball.hits, kills: ball.kills, kinds: ball.killedKinds, ability: ball.ability });
   }
 
   /** Tenis: las que vienen de vuelta, que el tenista puede devolver. */

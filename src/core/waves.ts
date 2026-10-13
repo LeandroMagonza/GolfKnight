@@ -16,6 +16,7 @@
 // especiales ni apoyos; `buildRun()` sin reglas arma la más difícil.
 
 import { L } from '../i18n';
+import { BUDGET, shotsFor } from './budget';
 
 export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'knight' | 'stoneling' | 'wraith' | 'golem';
 
@@ -829,7 +830,9 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
   const at = (scenario: number, i: number) => ({ scenario, focus: powers[scenario], debut: i === 0, old: rules.stack ? powers.slice(0, scenario) : [] });
   const boss = (scenario: number) => elite(scenario, powers[scenario], rules.eliteHp[scenario] ?? 0, rules.hard);
   const bossTitle = (scenario: number) => `${L('Élite', 'Elite')}: ${BOSS_TITLES[powers[scenario]](ENEMIES[boss(scenario).kind].name.toLowerCase())}`;
-  // el cuerpo fuerte del escenario: 1, 3 y 3, siempre sin poder; de ese cuerpo, el único con poder es el élite
+  // el cuerpo fuerte del escenario: 1, 3 y 2, siempre sin poder; de ese cuerpo, el único con poder es el
+  // élite, que en la última es el tercero (13/10: con tres más el élite, la oleada del élite pedía un tercio
+  // más que la anterior; ver docs/presupuesto.md)
   const heavy = (scenario: number, count: number): WaveGroup => ({ kind: HEAVY[scenario], count, plain: true });
   // la segunda de cada escenario: los cuerpos de siempre de ese escenario, o la ola especial que le tocó
   const usual: { interval: number; counts: [number, number, number, number]; more: [EnemyKind, number][] }[] = [
@@ -859,15 +862,15 @@ export function buildRun(rand: () => number = Math.random, rules: RunRules = HAR
     // primer escenario: los cuerpos de 1 a 4, el jefe goblin desde el arranque, y el poder solo
     { title: TITLES[powers[0]], interval: 2.1, groups: [...bodies(8, 5, 2, 2), heavy(0, 1)], ...at(0, 0) },
     second(0),
-    { title: bossTitle(0), interval: 2.0, groups: [...bodies(6, 5, 3, 2), heavy(0, 3), boss(0)], ...at(0, 2) },
+    { title: bossTitle(0), interval: 2.0, groups: [...bodies(6, 5, 3, 2), heavy(0, 2), boss(0)], ...at(0, 2) },
     // segundo escenario: el caballero desde el arranque, el chamán, y el primer apoyo
     { title: TITLES[powers[1]], interval: 1.85, groups: [...bodies(6, 5, 3, 2, [['warchief', 2]]), heavy(1, 1)], ...at(1, 0), ...help(1, 1) },
     second(1),
-    { title: bossTitle(1), interval: 2.1, groups: [...bodies(5, 4, 2, 2, [['warchief', 2], ['shaman', 2]]), heavy(1, 3), boss(1)], ...at(1, 2), ...help(1, 2) },
+    { title: bossTitle(1), interval: 2.1, groups: [...bodies(5, 4, 2, 2, [['warchief', 2], ['shaman', 1]]), heavy(1, 2), boss(1)], ...at(1, 2), ...help(1, 2) },
     // tercer escenario: el gólem chico desde el arranque, el alma en pena, y el segundo apoyo
     { title: TITLES[powers[2]], interval: 1.75, groups: [...bodies(6, 5, 3, 3, [['warchief', 1], ['shaman', 1], ['knight', 1], ['wraith', 1]]), heavy(2, 1)], ...at(2, 0), ...help(2, 1) },
     second(2),
-    { title: bossTitle(2), interval: 1.9, groups: [...bodies(5, 4, 2, 2, [['warchief', 1], ['shaman', 1], ['knight', 1]]), heavy(2, 3), boss(2)], ...at(2, 2), ...help(2, 2) },
+    { title: bossTitle(2), interval: 1.9, groups: [...bodies(5, 4, 2, 2, [['warchief', 1], ['shaman', 1], ['knight', 1]]), heavy(2, 2), boss(2)], ...at(2, 2), ...help(2, 2) },
     // el jefe solo ya tiene 80 de vida: la escolta es más chica. Con escolta trae los poderes de la
     // partida y los apoyos; sin escolta, son enemigos comunes
     {
@@ -951,6 +954,8 @@ export function arrivalOrder(order: Spawn[], interval: number): Spawn[] {
  * de los gigantes agranda a unos cuantos, y todos (menos el jefe) van a la velocidad de la dificultad.
  */
 export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[] {
+  // (en la de gigantes, el fantasma y el bendito pueden quedar de su tamaño: ver POWER_BIAS.giants)
+  const keepsSize = (s: Spawn) => !POWER_BIAS.giants && wave.mod === 'giants' && !!(s.mods?.ethereal || s.mods?.divine);
   const slots: { spawn: Spawn; at: number; mark: boolean }[] = [];
   for (const g of wave.groups) {
     for (let i = 0; i < g.count; i++) {
@@ -959,6 +964,33 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
     }
   }
   slots.sort((a, b) => a.at - b.at);
+
+  // el presupuesto (ver core/budget): lo que pide cada uno, con la vida que va a tener de verdad (la de sus
+  // poderes, el golpe 4, la de la oleada de gigantes o la de todos con poder, y el blindaje)
+  const budget = !!BUDGET.on;
+  const hpWith = (s: Spawn, mods: EnemyMods | undefined): number => {
+    let hp = ENEMIES[s.kind].hp + (mods?.hp ?? 0);
+    if (!mods?.size && !ENEMIES[s.kind].boss) {
+      hp += wave.extraHp ?? 0;
+      if (wave.mod === 'giants' && !(mods && keepsSize({ kind: s.kind, mods }))) hp += GIANTS.hp;
+      if (wave.mod === 'powered') hp += POWERED.hp;
+    }
+    if (mods?.armor && !ENEMIES[s.kind].boss) hp = Math.ceil(hp * ARMOR_HP[Math.min(mods.armor, ARMOR_HP.length - 1)]);
+    return Math.max(1, hp);
+  };
+  const cost = (s: Spawn, mods = s.mods): number => shotsFor(s.kind, mods, hpWith(s, mods));
+  // sin poder: el cuerpo con la vida que traiga (la del élite también), sin lo que le hace el poder
+  const plain = (s: Spawn): number => cost(s, s.mods ? { hp: s.mods.hp, size: s.mods.size } : undefined);
+  // lo que piden los cuerpos de la oleada, sin poderes ni marcas (el jefe del final, aparte)
+  const base = slots.filter((s) => !s.mark && !ENEMIES[s.spawn.kind].boss).reduce((n, s) => n + plain(s.spawn), 0);
+  // la marca de la estampida: los chicos que entren en lo suyo (`BUDGET.marks`), repartidos parejo
+  if (budget) {
+    const marked = slots.filter((s) => s.mark);
+    const each = marked.length ? marked.reduce((n, s) => n + plain(s.spawn), 0) / marked.length : 0;
+    const fit = each > 0 ? Math.min(marked.length, Math.floor((base * BUDGET.marks) / each)) : 0;
+    const keep = new Set(Array.from({ length: fit }, (_, i) => marked[Math.floor(((i + 0.5) * marked.length) / fit)]));
+    for (let i = slots.length - 1; i >= 0; i--) if (slots[i].mark && !keep.has(slots[i])) slots.splice(i, 1);
+  }
   // el turno `k` llega en k·intervalo + lo que tarda: sale justo cuando tiene que salir para llegar a
   // tiempo. Cada uno lleva la espera desde el anterior, así llegan con el ritmo de la oleada. Los que suma
   // una marca no tienen turno: llegan en su punto de lo que dura la oleada sin ellos (ver WaveGroup.mark)
@@ -981,13 +1013,55 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   // lo que va "primero" o "al final" se mide por cuándo llegan (`arriving`), no por cuándo salen
   const open = () => arriving.filter((s) => !s.mods && !s.plain && !ENEMIES[s.kind].boss);
   const power = (key: PowerKey) => POWERS[key](wave.scenario, rand, wave.hard);
-  const give = (mods: EnemyMods, first: boolean): boolean => {
-    const free = open().filter((s) => canTake(s.kind, mods));
+  // lo que pueden sumar los poderes de la oleada (ver BUDGET.powers). El élite paga de su oleada: de lo de
+  // los poderes, a lo sumo la mitad (los comunes siempre traen algo del poder del escenario); lo que se
+  // pase, en cuerpos: salen menos comunes (13/10, Leandro: «si es fantasma, viene un poco menos del resto»)
+  const allowance = base * (wave.share ?? POWERED_SHARE) * BUDGET.powers;
+  const eliteExtra = arriving.filter((s) => s.mods?.size).reduce((n, s) => n + cost(s) - plain(s), 0);
+  let left = allowance - Math.min(eliteExtra, allowance / 2);
+  let owed = budget ? eliteExtra - allowance / 2 : 0;
+  // de a uno y salteados: dos seguidos dejaban un hueco largo en la oleada
+  const lineup = [...arriving];
+  const gone = new Set<Spawn>();
+  while (owed > 0) {
+    const spare = arriving.filter((s) => {
+      const k = lineup.indexOf(s);
+      return !s.mods && !s.plain && !ENEMIES[s.kind].boss && s !== order[0] && !gone.has(lineup[k - 1]) && !gone.has(lineup[k + 1]);
+    });
+    if (spare.length <= 1) break;
+    const out = spare[Math.floor(rand() * spare.length)];
+    gone.add(out);
+    owed -= plain(out);
+    // sale de la oleada sin correr a los de después: el que le sigue espera lo que esperaba él
+    const i = order.indexOf(out);
+    const next = order[i + 1];
+    if (next && i > 0) next.delay = (next.delay ?? 0) + (out.delay ?? 0);
+    order.splice(i, 1);
+    arriving.splice(arriving.indexOf(out), 1);
+  }
+  // lo de la marca de los poderes que no salieron, aparte (ver BUDGET.marks)
+  let foreignLeft = base * BUDGET.marks;
+  /**
+   * Le da el poder `mods` a uno de los que quedan sin poder. Con el presupuesto, a uno que no se pase del
+   * tope (`BUDGET.cap`) y cuyo poder entre en lo que queda (`pay`: de dónde sale; el que presenta el poder,
+   * siempre, y en la de todos con poder, solo el tope).
+   */
+  const give = (mods: EnemyMods, first: boolean, pay: 'powers' | 'foreign' | 'none' = 'powers'): boolean => {
+    let free = open().filter((s) => canTake(s.kind, mods));
+    if (budget) {
+      const room = pay === 'powers' ? left : pay === 'foreign' ? foreignLeft : Infinity;
+      free = free.filter((s) => cost(s, mods) <= BUDGET.cap && (first || cost(s, mods) - plain(s) <= room));
+    }
     if (!free.length) return false;
     // menos de los que tocaban (ver POWER_COUNT): este queda sin poder, pero cuenta como dado
     const keep = first ? 1 : SCENARIO_POWERS.reduce((m, p) => (mods[p] ? m * POWER_COUNT[p] : m), 1);
     if (keep < 1 && rand() >= keep) return true;
     const pick = first ? free[0] : pickBody(free, mods, rand);
+    if (budget) {
+      const extra = cost(pick, mods) - plain(pick);
+      if (pay === 'powers') left -= extra;
+      else if (pay === 'foreign') foreignLeft -= extra;
+    }
     pick.mods = mods;
     return true;
   };
@@ -1005,12 +1079,12 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   const presented = !!wave.debut && !!wave.focus && wave.mod !== 'powered' && give(power(wave.focus!), true);
   // la marca de «todos con poder»: estos van aparte del tercio
   const foreign = wave.foreign;
-  if (foreign) for (let i = 0; i < foreign.count; i++) give(power(foreign.keys[Math.floor(rand() * foreign.keys.length)]), false);
+  if (foreign) for (let i = 0; i < foreign.count; i++) give(power(foreign.keys[Math.floor(rand() * foreign.keys.length)]), false, 'foreign');
   if (wave.mod === 'powered') {
     // todos con poder: los apoyos que traiga, y a cada uno de los demás uno de los cinco de escenario,
     // haya salido sorteado en la partida o no
-    for (const s of wave.supports ?? []) for (let i = 0; i < s.count; i++) give(power(s.key), false);
-    for (let tries = 0; open().length && tries < 500; tries++) give(power(SCENARIO_POWERS[Math.floor(rand() * SCENARIO_POWERS.length)]), false);
+    for (const s of wave.supports ?? []) for (let i = 0; i < s.count; i++) give(power(s.key), false, 'none');
+    for (let tries = 0; open().length && tries < 500; tries++) give(power(SCENARIO_POWERS[Math.floor(rand() * SCENARIO_POWERS.length)]), false, 'none');
   } else {
     const total = Math.round((open().length + (presented ? 1 : 0)) * (wave.share ?? POWERED_SHARE));
     const supports = Math.min(total, (wave.supports ?? []).reduce((n, s) => n + s.count, 0));
@@ -1040,20 +1114,25 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   const shielded = arriving.filter((s) => s.mods?.shield && s.mods.shield < SHIELD_WALL && !wave.groups.some((g) => g.mods === s.mods));
   const levels = shielded.map((s) => s.mods!.shield!).sort((a, b) => a - b);
   shielded.forEach((s, i) => { s.mods = { ...s.mods, shield: levels[i] }; });
+  // la marca de los gigantes: unos cuantos al azar, ni el jefe ni el élite. Con el presupuesto, los que
+  // entren en lo suyo (`BUDGET.marks`), y uno con poder solo si agrandado no se pasa del tope
+  const growable = order.filter((s) => !ENEMIES[s.kind].boss && !s.mods?.size && !s.mods?.giant && (POWER_BIAS.giants || !(s.mods?.ethereal || s.mods?.divine)));
+  let giantsLeft = base * BUDGET.marks;
+  const grown = (s: Spawn): EnemyMods => ({ ...s.mods, giant: giantScale(s.kind), speed: GIANTS.speed, hp: (s.mods?.hp ?? 0) + GIANTS.hp });
+  for (let n = wave.giants ?? 0; n > 0 && growable.length; n--) {
+    const fits = budget ? growable.filter((s) => cost(s, grown(s)) - cost(s) <= giantsLeft && (!hasPower(s.mods) || cost(s, grown(s)) <= BUDGET.cap)) : growable;
+    if (!fits.length) break;
+    const s = fits[Math.floor(rand() * fits.length)];
+    growable.splice(growable.indexOf(s), 1);
+    if (budget) giantsLeft -= cost(s, grown(s)) - cost(s);
+    s.mods = grown(s);
+  }
   // lo que el modificador le cambia a todos (menos al jefe): no es un poder, va encima del que tengan
   const extra = (kind: EnemyKind): EnemyMods | null =>
     wave.mod === 'giants' ? { giant: giantScale(kind), hp: GIANTS.hp, speed: GIANTS.speed } : wave.mod === 'powered' ? { hp: POWERED.hp } : null;
-  // (en la de gigantes, el fantasma y el bendito pueden quedar de su tamaño: ver POWER_BIAS.giants)
-  const keepsSize = (s: Spawn) => !POWER_BIAS.giants && wave.mod === 'giants' && !!(s.mods?.ethereal || s.mods?.divine);
   for (const s of order) {
     const add = extra(s.kind);
     if (add && !ENEMIES[s.kind].boss && !keepsSize(s)) s.mods = { ...s.mods, ...add, hp: (s.mods?.hp ?? 0) + (add.hp ?? 0) };
-  }
-  // la marca de los gigantes: unos cuantos al azar, ni el jefe ni el élite
-  const growable = order.filter((s) => !ENEMIES[s.kind].boss && !s.mods?.size && !s.mods?.giant && (POWER_BIAS.giants || !(s.mods?.ethereal || s.mods?.divine)));
-  for (let n = wave.giants ?? 0; n > 0 && growable.length; n--) {
-    const s = growable.splice(Math.floor(rand() * growable.length), 1)[0];
-    s.mods = { ...s.mods, giant: giantScale(s.kind), speed: GIANTS.speed, hp: (s.mods?.hp ?? 0) + GIANTS.hp };
   }
   // la velocidad de la dificultad, encima de la que traigan
   if (wave.speed !== undefined && wave.speed !== 1) {

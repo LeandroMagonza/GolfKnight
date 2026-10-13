@@ -1145,6 +1145,7 @@ balls.onEvent = (e) => {
       if (e.ability) break;
       if (e.hits === 0) setCleanStreak(0);
       else recorder?.hit(e.hits);
+      if (e.kinds.length) recorder?.kinds(e.kinds, e.hits);
       break;
   }
 };

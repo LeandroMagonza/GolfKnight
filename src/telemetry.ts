@@ -59,6 +59,15 @@ export interface PowerLog {
   gate: number;
 }
 
+/**
+ * Las bajas de cada cuerpo a tiros de palo (13/10, para el presupuesto de las oleadas: los chicos caen de
+ * paso, con el driver que atraviesa a varios). `together`: las de tiros que le pegaron a más de uno.
+ */
+export interface KindLog {
+  killed: number;
+  together: number;
+}
+
 export interface WaveLog {
   n: number;
   title: string;
@@ -206,6 +215,8 @@ export class RunRecorder {
   private readonly perAbility: Record<string, AbilityLog> = {};
   /** Lo de cada poder de los enemigos (ver PowerLog). */
   private readonly perPower: Record<string, PowerLog> = {};
+  /** Las bajas de cada cuerpo (ver KindLog). */
+  private readonly perKind: Record<string, KindLog> = {};
 
   /**
    * @param send si se manda al terminar. Sin esto solo junta los números, para el cartel del final (el
@@ -248,8 +259,17 @@ export class RunRecorder {
   }
 
   /** Lo anotado hasta ahora: las oleadas, las cartas y cuándo se soltó cada tiro (para las pruebas y las tandas del bot). */
-  get log(): { waves: WaveLog[]; cards: { wave: number; offered: string[]; picked: string | null }[]; offs: number[]; abilities: Record<string, AbilityLog>; perPower: Record<string, PowerLog> } {
-    return { waves: this.waves, cards: this.cards, offs: this.offs, abilities: this.perAbility, perPower: this.perPower };
+  get log(): { waves: WaveLog[]; cards: { wave: number; offered: string[]; picked: string | null }[]; offs: number[]; abilities: Record<string, AbilityLog>; perPower: Record<string, PowerLog>; perKind: Record<string, KindLog> } {
+    return { waves: this.waves, cards: this.cards, offs: this.offs, abilities: this.perAbility, perPower: this.perPower, perKind: this.perKind };
+  }
+
+  /** Un tiro de palo terminó: mató a los de `kinds`, y le pegó a `hits` distintos (ver KindLog). */
+  kinds(kinds: readonly string[], hits: number): void {
+    for (const k of kinds) {
+      const log = (this.perKind[k] ??= { killed: 0, together: 0 });
+      log.killed++;
+      if (hits > 1) log.together++;
+    }
   }
 
   private powerLog(tag: string): PowerLog {
@@ -383,6 +403,7 @@ export class RunRecorder {
         cards: this.cards,
         abilities: this.perAbility,
         perPower: this.perPower,
+        perKind: this.perKind,
         releases: this.offs,
         host: location.hostname,
         // en qué idioma jugó (ver src/i18n.ts); el título de cada oleada sale en ese idioma
