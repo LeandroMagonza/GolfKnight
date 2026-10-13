@@ -397,9 +397,16 @@ const aimPoint = new THREE.Vector3(0, 0, 30);
 /** Vector de trabajo de la puntería: se reusa en cada cuadro en vez de crear uno nuevo. */
 const scratchAim = new THREE.Vector3();
 const tee = new THREE.Vector3();
-const PREVIEW_POINTS = 28;
+/** Cuántos puntos se calculan del arco: fino, y después se reparten los que se dibujan (ver spreadDots). */
+const PREVIEW_POINTS = 160;
+/** Los puntos que se dibujan, como mucho. */
+const PREVIEW_MAX_DOTS = 96;
+/** Con los puntos parejos en el campo (los de antes del 13/10), cuántos van. */
+const PREVIEW_FIELD_DOTS = 28;
+/** Cada cuánto va un punto de la línea, en fracción del alto de la ventana (18 px en 1080). */
+const AIM_DOT_GAP = 1 / 60;
 const previewGeo = new THREE.BufferGeometry();
-previewGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((PREVIEW_POINTS + 1) * 3), 3));
+previewGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PREVIEW_MAX_DOTS * 3), 3));
 const previewMat = new THREE.PointsMaterial({ color: 0xffffff, size: 5, sizeAttenuation: false, transparent: true, opacity: 0.5, depthWrite: false });
 const previewLine = new THREE.Points(previewGeo, previewMat);
 previewLine.frustumCulled = false;
@@ -670,6 +677,56 @@ function impactRange(club: Club, range: number): number {
   return THREE.MathUtils.clamp(Math.hypot(aimPoint.x - tee.x, aimPoint.z - tee.z), club.minRange, club.maxRange);
 }
 
+const dotScratch = new THREE.Vector3();
+
+/**
+ * Los puntos de la línea del tiro, **parejos en pantalla** (13/10, Leandro: al principio del tiro
+ * quedaban mucho más separados que al final, y costaba entender qué estaba pasando). El arco se calcula
+ * parejo en el tiempo, que en el campo es parejo en metros; pero la cámara está detrás del golfista y lo
+ * de cerca se ve más grande: los primeros metros se llevaban un pedazo grande de pantalla con dos o tres
+ * puntos, y los últimos se amontonaban. Ahora se mide el largo del arco en píxeles y va un punto cada
+ * AIM_DOT_GAP. Devuelve cuántos puntos quedaron. Lo de antes sigue en el panel B (Visual → Línea del tiro).
+ */
+function spreadDots(path: { x: number; y: number; z: number }[], pos: THREE.BufferAttribute): number {
+  const evenOnField = () => {
+    const n = Math.min(PREVIEW_FIELD_DOTS, path.length - 1);
+    for (let i = 0; i <= n; i++) {
+      const p = path[Math.round(((path.length - 1) * i) / n)];
+      pos.setXYZ(i, p.x, p.y, p.z);
+    }
+    return n + 1;
+  };
+  if (VISUAL.aimDots === 'campo' || path.length < 2) return evenOnField();
+  // el largo del arco en pantalla hasta cada punto, en píxeles
+  const length = [0];
+  let lastX = 0;
+  let lastY = 0;
+  for (let i = 0; i < path.length; i++) {
+    const v = dotScratch.set(path[i].x, path[i].y, path[i].z).applyMatrix4(camera.matrixWorldInverse);
+    // detrás de la cámara no hay píxel que medir (jugando no pasa)
+    if (v.z > -camera.near) return evenOnField();
+    v.applyMatrix4(camera.projectionMatrix);
+    const x = (v.x * innerWidth) / 2;
+    const y = (v.y * innerHeight) / 2;
+    if (i > 0) length.push(length[i - 1] + Math.hypot(x - lastX, y - lastY));
+    lastX = x;
+    lastY = y;
+  }
+  const total = length[length.length - 1];
+  const n = THREE.MathUtils.clamp(Math.round(total / Math.max(12, innerHeight * AIM_DOT_GAP)), 2, PREVIEW_MAX_DOTS - 1);
+  let j = 0;
+  for (let i = 0; i <= n; i++) {
+    const want = (total * i) / n;
+    while (j < length.length - 2 && length[j + 1] < want) j++;
+    const span = length[j + 1] - length[j];
+    const t = span > 0 ? THREE.MathUtils.clamp((want - length[j]) / span, 0, 1) : 0;
+    const a = path[j];
+    const b = path[j + 1];
+    pos.setXYZ(i, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
+  }
+  return n + 1;
+}
+
 function updatePreview(): void {
   const charging = player.mode === 'charging';
   const club = player.club;
@@ -735,7 +792,7 @@ function updatePreview(): void {
       : previewPath({ x: tee.x, y: 0, z: tee.z }, player.aimDir.x, player.aimDir.z, range, loft, PREVIEW_POINTS, club.gravity, terrainOn() ? heightAt : undefined);
   const pos = previewGeo.attributes.position as THREE.BufferAttribute;
   // el arco se ve siempre, no solo mientras se carga
-  path.forEach((p, i) => pos.setXYZ(i, p.x, p.y, p.z));
+  previewGeo.setDrawRange(0, spreadDots(path, pos));
   pos.needsUpdate = true;
   // la línea toma el color del palo; mientras se carga, el de la calidad del golpe
   const lineColors = FOURTH.on ? (duff ? DUFF_COLORS_4 : QUALITY_COLORS_4) : duff ? DUFF_COLORS : QUALITY_COLORS;
@@ -3059,6 +3116,8 @@ const cam = {
   auto: savedBalance.camera?.auto ?? true, margin: savedBalance.camera?.margin ?? CAM_MARGIN,
   /** Metros que se corre de costado, sin girar (+x queda a la izquierda): solo para las imágenes de promoción. */
   side: 0,
+  /** Una toma puesta a mano, desde dónde y hacia dónde: solo para las imágenes de promoción (tools/promo.mjs). */
+  pose: null as null | { at: [number, number, number]; look: [number, number, number] },
 };
 /** Dónde empieza el HUD de abajo, en píxeles desde arriba. Se mide cada tanto: casi no cambia. */
 let hudTop = innerHeight * 0.8;
@@ -3120,6 +3179,11 @@ function updateCamera(dt: number): void {
     const a = player.aimDir;
     camera.position.set(player.position.x + f.x * 3.2 + a.x * 1.6, 1.4, player.position.z + f.z * 3.2 + a.z * 1.6);
     camera.lookAt(player.position.x + f.x * 0.6, 0.8, player.position.z + f.z * 0.6);
+    return;
+  }
+  if (cam.pose) {
+    camera.position.set(...cam.pose.at);
+    camera.lookAt(...cam.pose.look);
     return;
   }
   // La cámara sigue al **puesto**, no al cuerpo. Apuntar mueve al golfista alrededor de la pelota, y si
@@ -3502,7 +3566,7 @@ if (DEV_TOOLS) (window as any).__gk = {
   get previewOnScreen() {
     const pos = previewGeo.attributes.position as THREE.BufferAttribute;
     const out: [number, number][] = [];
-    for (let i = 0; i < pos.count; i++) {
+    for (let i = 0; i < Math.min(pos.count, previewGeo.drawRange.count); i++) {
       const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)).project(camera);
       out.push([((v.x + 1) / 2) * innerWidth, ((1 - v.y) / 2) * innerHeight]);
     }

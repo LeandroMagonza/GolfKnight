@@ -68,6 +68,14 @@ const DAY_TRANSITION = 5;
 export const METER_SPOTS = ['adelante', 'cabeza', 'pelota'] as const;
 export type MeterSpot = (typeof METER_SPOTS)[number];
 
+/**
+ * Cómo se reparten los puntos de la línea del tiro: parejos en **pantalla** (desde el 13/10, ver
+ * spreadDots en main) o parejos en el **campo**, como antes: con la cámara detrás del golfista, los de
+ * cerca se ven mucho más separados.
+ */
+export const AIM_DOTS = ['pantalla', 'campo'] as const;
+export type AimDots = (typeof AIM_DOTS)[number];
+
 export const VISUAL = {
   meterAt: 'adelante' as MeterSpot,
   /**
@@ -81,6 +89,7 @@ export const VISUAL = {
   gateIcons: false,
   /** Versión del lugar del arco: un guardado de antes de que el de fábrica fuera «adelante» no lo pisa. */
   meterVersion: 2,
+  aimDots: 'pantalla' as AimDots,
   shadows: true,
   shadowSize: '2048' as (typeof SHADOW_SIZES)[number],
   tone: 'ACES' as Tone,
@@ -173,6 +182,7 @@ export function loadVisual(params: URLSearchParams): void {
   if (!LIGHTS.includes(VISUAL.light)) VISUAL.light = DEFAULTS.light;
   if (!SHADOW_SIZES.includes(VISUAL.shadowSize)) VISUAL.shadowSize = DEFAULTS.shadowSize;
   if (!FOURTH_ARCS.includes(VISUAL.fourthArc)) VISUAL.fourthArc = DEFAULTS.fourthArc;
+  if (!AIM_DOTS.includes(VISUAL.aimDots)) VISUAL.aimDots = DEFAULTS.aimDots;
 }
 
 export function saveVisual(): void {

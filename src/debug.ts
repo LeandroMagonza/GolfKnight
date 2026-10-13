@@ -26,7 +26,7 @@ import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
 import { playerId } from './telemetry';
 import { FOURTH_ARC, FOURTH_ARCS, type FourthArc } from './core/swing';
-import { LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type LightName, type MeterSpot, type Tone } from './game/visuals';
+import { AIM_DOTS, LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type AimDots, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
 export interface DebugFlags {
   /** El golfista no recibe daño. */
@@ -1283,6 +1283,11 @@ export class DebugPanel {
       lupa: 'Tres cuartos de vuelta y el rojo agrandado: la aguja lo cruza más rápido',
       corona: 'Tres cuartos de vuelta a velocidad pareja, con el 3 y el 4 sobresaliendo y una rayita en cada borde (el de fábrica)',
     }), note('Con el talento Golpe 4 el rojo se parte en 3, 4 y 3, y cada 3 dura 15 ms: a velocidad pareja no entra en el arco.'));
+
+    el.append(heading('Línea del tiro'), choice('los puntos', AIM_DOTS, () => VISUAL.aimDots, (v: AimDots) => { VISUAL.aimDots = v; }, {
+      pantalla: 'Parejos en pantalla: un punto cada 18 px (en 1080), de cerca y de lejos (el de fábrica, desde el 13/10)',
+      campo: 'Parejos en el campo, como antes: los de cerca se ven mucho más separados que los de lejos',
+    }), note('El arco es el mismo; cambia solo cómo se reparten los puntos.'));
 
     el.append(heading('Sombras'), this.row(toggle('Sombras del sol', 'shadows')), choice('resolución', SHADOW_SIZES, () => VISUAL.shadowSize, (v) => { VISUAL.shadowSize = v; }), note(
       'El sol proyecta sombra de verdad: los personajes quedan parados en el piso y las lomas se leen solas. Con sombras se apaga el círculo oscuro de abajo de cada enemigo. '
