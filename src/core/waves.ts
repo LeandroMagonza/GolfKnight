@@ -17,6 +17,7 @@
 
 import { L } from '../i18n';
 import { BUDGET, shotsFor } from './budget';
+import { CHARGE, FOURTH } from './clubs';
 
 export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'knight' | 'stoneling' | 'wraith' | 'golem';
 
@@ -398,8 +399,33 @@ function pickBody(free: Spawn[], mods: EnemyMods, rand: () => number): Spawn {
  * Antes corría siempre, y había que esperar a que se curara para arrancar justo después (con el análisis
  * de docs/dps.md, al ritmo de Leandro lo mataba en un 35 a 55 % de los ciclos aun arrancando justo).
  * Así se abre con un golpe fuerte y hay un ciclo entero para rematarlo. 0 = como antes.
+ *
+ * **Con las cargas** (`byCharge`, 13/10, idea de Leandro: «que desde el primer golpe tengas poco tiempo para
+ * matarlo»): el ciclo alcanza para rematarlo después del golpe más fuerte (el 3, o el 4 con el golpe 4) con
+ * la combinación de golpes más rápida (ver `finishTime`: lo que se carga cada uno y `move`, lo que se tarda
+ * entre tiros, el de Leandro), y sobra el margen por `slack` (lo que vuela la pelota). Con 5 de vida y sin
+ * el golpe 4, después de un 3 alcanza para cargar un 2 y nada más. `minCharge`, el ciclo más corto. 0 = con
+ * golpes medios, como antes.
  */
-export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5, hp: 2, after: 0.1, hurry: 0.1, slowest: 0.7, onHit: 1 };
+export const REGEN = { hit: 2, gap: 1.5, margin: 1.2, eliteMargin: 0.8, min: 2.5, hp: 2, after: 0.1, hurry: 0.1, slowest: 0.7, onHit: 1, byCharge: 1, move: 1, slack: 0.6, minCharge: 1.5 };
+
+/**
+ * Lo que se tarda en sacarle `hp` de vida con la combinación de golpes más rápida: cada tiro es lo de entre
+ * tiros (`REGEN.move`) más la carga hasta el medio de su tramo (como en arco.html), y saca su número (el 4,
+ * uno más que el 3, con el golpe 4).
+ */
+export function finishTime(hp: number): number {
+  const red = FOURTH.on ? (CHARGE.strong * (1 - FOURTH.share)) / 4 : CHARGE.strong / 2;
+  const shots = [
+    { dmg: 1, t: CHARGE.weak / 2 },
+    { dmg: 2, t: CHARGE.weak + CHARGE.mid / 2 },
+    { dmg: 3, t: CHARGE.weak + CHARGE.mid + red },
+    ...(FOURTH.on ? [{ dmg: 3 + FOURTH.bonus, t: CHARGE.weak + CHARGE.mid + CHARGE.strong / 2 }] : []),
+  ];
+  const best = [0];
+  for (let x = 1; x <= hp; x++) best[x] = Math.min(...shots.map((s) => REGEN.move + s.t + best[Math.max(0, x - s.dmg)]));
+  return best[Math.max(0, hp)];
+}
 
 /**
  * A qué ritmo corre el ciclo del que se cura (1, el de siempre): `eta` es lo que le falta para llegar a la
@@ -463,6 +489,8 @@ export function phaseSlot(clock: number, cycle: number, group: number, n: number
 
 /** Cada cuántos segundos se cura uno de `maxHp` de vida con `margin` de margen. */
 export function regenPeriod(maxHp: number, margin: number): number {
+  // con las cargas: lo que falta después del golpe más fuerte, y el margen (ver REGEN.byCharge)
+  if (REGEN.byCharge) return Math.max(REGEN.minCharge, finishTime(maxHp - (FOURTH.on ? 3 + FOURTH.bonus : 3)) + margin * REGEN.slack);
   return Math.max(REGEN.min, margin + (Math.ceil(maxHp / REGEN.hit) - 1) * REGEN.gap);
 }
 

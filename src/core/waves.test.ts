@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BUDGET } from './budget';
+import { CHARGE } from './clubs';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, finishTime, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -672,7 +673,24 @@ describe('waves', () => {
     expect(elite(1, 'ethereal', 3, hard).mods!.hp).toBe(elite(1, 'ethereal', 3, easy).mods!.hp);
   });
 
-  it('el que se cura: el ciclo alcanza para matarlo con golpes medios, y con flojos no', () => {
+  it('el que se cura, con las cargas: después de un 3 alcanza para un 2 y nada más', () => {
+    // 5 de vida y sin el golpe 4: un 3, y lo que queda (2) con un 2
+    const shot = (q: 1 | 2) => REGEN.move + (q === 1 ? CHARGE.weak / 2 : CHARGE.weak + CHARGE.mid / 2);
+    const period = regenPeriod(5, REGEN.margin);
+    expect(period).toBeCloseTo(Math.max(REGEN.minCharge, shot(2) + REGEN.margin * REGEN.slack));
+    expect(shot(2)).toBeLessThan(period);
+    expect(2 * shot(1)).toBeGreaterThan(period);
+    // más vida, más ciclo; y el que se mata de un golpe, el mínimo
+    expect(regenPeriod(9, REGEN.margin)).toBeGreaterThan(period);
+    expect(regenPeriod(3, REGEN.margin)).toBe(REGEN.minCharge);
+    // la combinación más rápida: para 4, un 3 y un 1 (o dos 2), nunca cuatro 1
+    expect(finishTime(4)).toBeLessThan(4 * shot(1));
+  });
+
+  it('el que se cura, con golpes medios (como antes): el ciclo alcanza para matarlo con medios, y con flojos no', () => {
+    const was = REGEN.byCharge;
+    REGEN.byCharge = 0;
+    try {
     // 6 de vida: 3 medios (3 s) y el margen
     expect(regenPeriod(6, REGEN.margin)).toBeCloseTo(REGEN.margin + 2 * REGEN.gap);
     // al de 2 de vida, el ciclo mínimo
@@ -691,6 +709,9 @@ describe('waves', () => {
     // trae vida de más: al de 2 de vida se lo mataba de un golpe (el élite no: ya trae la suya)
     expect(POWERS.regen(0, () => 0).hp).toBe(REGEN.hp);
     expect(REGEN.hp).toBeGreaterThan(0);
+    } finally {
+      REGEN.byCharge = was;
+    }
   });
 
   it('el intocable: tres tiempos, el mismo para todos los tamaños; con poca dificultad, dos y más rato abierto', () => {

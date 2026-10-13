@@ -188,6 +188,8 @@ function skillFrom(name: string, params: URLSearchParams): BotSkill {
   skill.think = num('piensa') ?? skill.think;
   skill.minQ = num('golpe') ?? skill.minQ;
   skill.lead = num('adelanto') ?? skill.lead;
+  // `&remata`: al que se cura lo termina antes de que se cure (el humano no lo planea)
+  if (params.has('remata')) skill.regen = true;
   return skill;
 }
 
@@ -1409,6 +1411,8 @@ export function startBot(): BotStats {
     const w = (e: Enemy) => weight(e) * urgency(e, o);
     const mid = (l: Enemy[]) => ({ x: l.reduce((t, e) => t + e.position.x, 0) / l.length, z: l.reduce((t, e) => t + e.position.z, 0) / l.length });
     switch (a.kind) {
+      // el driver en cruz, como un driver de habilidad (lo de los costados no lo cuenta)
+      case 'split':
       case 'shot': {
         const club = CLUBS[a.club as ClubId];
         const q = shotQuality(club.id, level);
