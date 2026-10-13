@@ -9,6 +9,19 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 13 de octubre
 
+**Los enemigos**
+- **El que se cura, más duro**: el ciclo arranca con el primer golpe y ahora alcanza justo para rematarlo
+  con la combinación de golpes más rápida. Con 5 de vida, si abrís con un 3, te da para cargar un 2 y nada
+  más. `9291207`
+
+**Las habilidades**
+- **Nueva: el driver en cruz.** Un disparo de driver que, al pegarle al primero, sale también hacia los dos
+  costados. `79268f3`
+
+**La pantalla de dificultad**
+- Sin barras de scroll: de costado ya no se corre, y para arriba y abajo se arrastra con el mouse. Los
+  hechiceros ya no dicen que no hace falta matarlos. `a511711`
+
 **Las oleadas**
 - **El presupuesto de las oleadas**: cada enemigo vale los tiros que te pide (su vida, por lo que le hace su
   poder), y las oleadas se arman con eso. Un común con poder ya no puede ser un monstruo (no más chamán
@@ -20,6 +33,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - Esto, también en la app de Windows. `8826a7f`
 
 **Para los que prueban**
+- **El arco** (arco.html) dice el daño por segundo de cada golpe, con lo que se tarda entre tiros. `c0b4087`
 - El registro anota, por cuerpo, cuántos mueren en tiros que agarran a varios. Y `node tools/sorteo.mjs`
   usa el mismo modelo que el juego. `1721cf0`
 - En el panel, apagado: los pesados escalonados (cada uno llega unos segundos después del anterior, sin
