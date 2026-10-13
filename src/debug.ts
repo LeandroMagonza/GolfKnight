@@ -20,7 +20,7 @@ import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { BUDGET } from './core/budget';
-import { DIVINE, ELITE, ENEMIES, GEOMANCER, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
+import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
@@ -50,6 +50,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   reparto: POWER_BIAS,
   // el presupuesto de las oleadas (`presupuesto.on:0` lo apaga; ver core/budget)
   presupuesto: BUDGET as unknown as Record<string, number | number[]>,
+  // los pesados escalonados (`gordos.turns:2`; ver HEAVY_GAP)
+  gordos: HEAVY_GAP,
   // la velocidad de los que traen cada poder, con el talento y sin él (`paso.divine:0.9`)
   paso: POWER_SPEED,
   // cuántos salen con cada poder, sobre los que tocaban (`cuantos.divine:0.7`)

@@ -909,6 +909,14 @@ export const TRAVEL = 58;
 /** Los que caminan más lento que esto son pesados: nunca salen antes que el primer liviano de la oleada. */
 export const HEAVY_SPEED = 2;
 
+/**
+ * Los pesados, escalonados (13/10, en prueba; con 0, como antes): cada uno llega al menos `turns` intervalos
+ * después del pesado anterior. En la 9 los gordos salían todos con los primeros goblins y llegaban juntos
+ * (Leandro: «vinieron un montón de enemigos gordos a la vez»); con 2, llegan uno cada 4 s y la oleada
+ * termina igual.
+ */
+export const HEAVY_GAP = { turns: 0 };
+
 /** Segundos que tarda en llegar a los puestos un enemigo de este tipo. */
 export function travelTime(kind: EnemyKind): number {
   return TRAVEL / ENEMIES[kind].speed;
@@ -1004,8 +1012,16 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
   // salía veinte segundos antes que todos, y se lo mataba tranquilo antes de que apareciera el resto.
   // Sale con el primero y llega un poco más tarde, en el medio del montón
   const lightStart = Math.min(...arriving.map((s, k) => (ENEMIES[s.kind].speed >= HEAVY_SPEED ? want[k] : Infinity)));
+  let lastHeavy = -Infinity;
   const leave = arriving
-    .map((spawn, k) => ({ spawn, t: Number.isFinite(lightStart) && ENEMIES[spawn.kind].speed < HEAVY_SPEED ? Math.max(want[k], lightStart) : want[k] }))
+    .map((spawn, k) => {
+      if (!Number.isFinite(lightStart) || ENEMIES[spawn.kind].speed >= HEAVY_SPEED) return { spawn, t: want[k] };
+      if (!HEAVY_GAP.turns) return { spawn, t: Math.max(want[k], lightStart) };
+      // escalonados (ver HEAVY_GAP): llega cuando le toca, pero no antes de que pueda ni pegado al anterior
+      const arrive = Math.max(want[k] + lag[k], lightStart + lag[k], lastHeavy + HEAVY_GAP.turns * wave.interval);
+      lastHeavy = arrive;
+      return { spawn, t: arrive - lag[k] };
+    })
     .sort((a, b) => a.t - b.t);
   leave.forEach((l, i) => { if (i) l.spawn.delay = l.t - leave[i - 1].t; });
   const order = leave.map((s) => s.spawn);

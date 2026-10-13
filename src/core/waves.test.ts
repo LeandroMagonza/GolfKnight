@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUDGET } from './budget';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -544,6 +544,25 @@ describe('waves', () => {
         // llegan con el ritmo de la oleada: uno por intervalo (o menos, donde está el jefe), sin huecos
         // largos (con el presupuesto, el élite caro saca algún común de su oleada: queda un turno vacío)
         for (let i = 1; i < t.length; i++) expect(t[i] - t[i - 1], w.title).toBeLessThanOrEqual(3 * w.interval + 1e-9);
+      }
+    }
+  });
+
+  it('en prueba (13/10): los pesados escalonados llegan separados, y la oleada no se estira', () => {
+    for (const run of runs(10)) {
+      for (const i of [5, 8]) {
+        const w = run.waves[i];
+        const last = (o: Spawn[]) => Math.max(...arrivals(o, w.interval));
+        const before = last(spawnOrder(w, seeded(4)));
+        HEAVY_GAP.turns = 2;
+        try {
+          const order = spawnOrder(w, seeded(4));
+          const t = arrivals(order, w.interval).filter((_, k) => ENEMIES[order[k].kind].speed < HEAVY_SPEED && !ENEMIES[order[k].kind].boss).sort((a, b) => a - b);
+          for (let k = 1; k < t.length; k++) expect(t[k] - t[k - 1], w.title).toBeGreaterThanOrEqual(2 * w.interval - 1e-9);
+          expect(last(order), w.title).toBeLessThanOrEqual(before + 2 * w.interval + 1e-9);
+        } finally {
+          HEAVY_GAP.turns = 0;
+        }
       }
     }
   });
