@@ -19,6 +19,7 @@ import { RICOCHET } from './core/shield';
 import { MoundView } from './game/mounds';
 import { Scuffs } from './game/scuffs';
 import { Effects } from './game/effects';
+import { GroundRing } from './game/groundRing';
 import { badgeImage, Horde, SCENARIO_ICONS, shadowMat, SHIELD_MODELS, SHIELD_PROPS } from './game/enemies';
 import { BALLS, TEE_Z, Tees } from './game/tees';
 import { Traps } from './game/traps';
@@ -422,13 +423,12 @@ previewLine.frustumCulled = false;
 previewLine.visible = false;
 scene.add(previewLine);
 const landingMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
-const landing = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40), landingMat);
-landing.rotation.x = -Math.PI / 2;
-landing.position.y = 0.05;
+// la marca de caída, proyectada en el piso (ver GroundRing): se dobla con las lomas
+const landingRing = new GroundRing(landingMat);
+const landing = landingRing.mesh;
 landing.visible = false;
 scene.add(landing);
-// sobre una pendiente la marca del piso, que es plana, se hundiría en el terreno: con relieve se dibuja
-// siempre por encima
+// entre vértice y vértice, la ladera puede tapar el anillo: con relieve se dibuja siempre por encima
 if (relief.on) landingMat.depthTest = false;
 const teeBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x666666 }));
 teeBall.visible = false;
@@ -819,12 +819,15 @@ function updatePreview(): void {
   if (charging && quality !== lastLevel) audio.chargeTick(quality);
   lastLevel = charging ? quality : 0;
   const end = path[path.length - 1];
-  const radius = spreadFor(club, quality);
-  landing.position.set(end.x, heightAt(end.x, end.z) + 0.05, end.z);
   // el anillo solo muestra el área cuando el área sale por caer al piso (el globo). El hierro tiene
-  // que conectar con alguien, así que dibujarle el círculo grande prometía algo que no pasa
-  landing.scale.setScalar(club.burstsOnGround ? Math.max(0.7, radius) : 0.7);
-  landingMat.opacity = charging ? 0.85 : 0.35;
+  // que conectar con alguien, así que dibujarle el círculo grande prometía algo que no pasa. Mientras el
+  // globo pifiaría (sin cargar, o en el golpe 1 del wedge), punteado y con el área del primer golpe que sale
+  // (Leandro: mostraba un área aunque el tiro no iba a salir)
+  const whiff = club.burstsOnGround && damage <= 0 && areaHit <= 0;
+  const firstHit = whiff ? Array.from({ length: topQuality() }, (_, i) => i + 1).find((q) => damageFor(club, hitAt, q) > 0 || areaDamageFor(club, hitAt, q) > 0) ?? quality : quality;
+  const radius = spreadFor(club, firstHit);
+  landingRing.place(end.x, end.z, club.burstsOnGround ? Math.max(0.7, radius) : 0.7, heightAt, whiff);
+  landingMat.opacity = charging && !whiff ? 0.85 : whiff && charging ? 0.6 : 0.35;
   landingMat.color.setHex(club.color);
   teeBall.position.set(tee.x, 0.12, tee.z);
 }
@@ -2882,7 +2885,7 @@ async function startHosting(code: string): Promise<string> {
         abe: abe.status,
         tu: !!tutorial,
         // adónde apunta: lo mismo que se le dibuja a él (la línea de tiro y la marca de caída)
-        am: landing.visible && player ? [r2(tee.x), r2(tee.z), r2(landing.position.x), r2(landing.position.z), r2(landing.scale.x), player.mode === 'charging' ? 1 : 0] : null,
+        am: landing.visible && player ? [r2(tee.x), r2(tee.z), r2(landingRing.at.x), r2(landingRing.at.z), r2(landingRing.at.r), player.mode === 'charging' ? 1 : 0] : null,
       }),
       player: () => player ?? null,
       horde,
@@ -3495,7 +3498,9 @@ if (DEV_TOOLS) (window as any).__gk = {
     applyPerks();
   },
   /** Dónde está la marca de caída del tiro, para las pruebas. */
-  get landingAt() { return [+landing.position.x.toFixed(1), +landing.position.z.toFixed(1)]; },
+  get landingAt() { return [+landingRing.at.x.toFixed(1), +landingRing.at.z.toFixed(1)]; },
+  /** La marca de caída entera: dónde, qué radio, si va punteada, y los vértices (para ver que sigue el piso). */
+  get landingRing() { return { ...landingRing.at, dashed: (landing.geometry.index?.count ?? 0) < 72 * 6, opacity: landingMat.opacity, ys: Array.from({ length: 8 }, (_, i) => +(landing.geometry.attributes.position as THREE.BufferAttribute).getY(i * 18 + 1).toFixed(2)) }; },
   get paused() { return paused; },
   get lastEvent() { return lastEvent; },
   get lastLanding() { return lastLanding; },
