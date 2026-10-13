@@ -9,6 +9,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 13 de octubre
 
+**La línea del tiro**
+- **Los puntos van parejos de punta a punta.** Antes, cerca del caballero quedaban muy separados y al fondo
+  se amontonaban en una raya, y costaba leer por dónde iba el tiro. El arco es el mismo. `d031794`
+
 **Los enemigos**
 - **El que se cura, más duro**: el ciclo arranca con el primer golpe y ahora alcanza justo para rematarlo
   con la combinación de golpes más rápida. Con 5 de vida, si abrís con un 3, te da para cargar un 2 y nada
@@ -39,6 +43,12 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   usa el mismo modelo que el juego. `1721cf0`
 - En el panel, apagado: los pesados escalonados (cada uno llega unos segundos después del anterior, sin
   estirar la oleada), para probar con el bot. `ca60bfb`
+- En el panel, Visual → Línea del tiro: los puntos como antes (parejos en el campo), para comparar. `d031794`
+
+**Detrás de escena**
+- La portada de itch nueva: el caballero en lo alto del swing visto desde atrás y al costado de la pelota,
+  el arco cayendo sobre el enemigo más cercano, la horda repartida por un campo con lomas, con luz de tarde
+  y el título más grande. `bea53a6`
 
 ## 12 de octubre
 
