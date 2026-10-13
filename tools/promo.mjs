@@ -1,8 +1,8 @@
 // Las imágenes de la página de itch.io (8/10): capturas del juego y de la cinemática, y la portada, el
 // banner y la imagen del botón de jugar armados encima. Usa la GPU de la máquina, como tools/cine.mjs.
 //
-//   node tools/promo.mjs crudas [cine|portada|juego|abe]...   cuadros sin nada encima, en logs/promo/
-//   node tools/promo.mjs armar                                lo final, en promo/itch/<es|en>/
+//   node tools/promo.mjs crudas [cine|portada|embed|banner|juego|abe]...   cuadros sin nada encima, en logs/promo/
+//   node tools/promo.mjs armar [portada|banner|embed|capturas|icono]...   lo final, en promo/itch/<es|en>/
 //
 // Las ráfagas sacan varios cuadros seguidos: `armar` usa el que dice ELEGIDOS (se eligen mirándolos).
 // Ver promo/itch/README.md: qué va en cada lugar de la página.
@@ -25,11 +25,11 @@ const BASE = 'http://localhost:5199';
 const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** La de la portada: detrás del caballero, a la altura de la cabeza. */
+/** La del botón de jugar (y la de la portada hasta el 13/10): detrás del caballero, a la altura de la cabeza. */
 const COVER_CAM = { pitch: 8, dist: 6.5, rise: 1.3, ahead: 3, auto: false };
 
 /** El cuadro de cada ráfaga que se usa (se eligen mirándolos). */
-const ELEGIDOS = { portada: 1, embed: 2, banner: 2, oleada: 1, rayo: { es: '2-1', en: '2-1' }, jefe: 0, abe: 0 };
+const ELEGIDOS = { embed: 2, banner: 2, oleada: 1, rayo: { es: '2-1', en: '2-1' }, jefe: 0, abe: 0 };
 
 /** La cinemática en el segundo `t`, sin barra de controles ni botón de saltar; `clean` saca también las franjas y los textos. */
 async function cineFrame(name, t, { width = 1920, height = 1080, lang = 'es', clean = true } = {}) {
@@ -44,16 +44,21 @@ async function cineFrame(name, t, { width = 1920, height = 1080, lang = 'es', cl
   console.log('cuadro', name);
 }
 
-/** Una partida lista para escenificar: sin intro, sin tutorial, invencible. */
-async function newGame(lang, { width = 1920, height = 1080, query = '', ctx = null } = {}) {
+/**
+ * Una partida lista para escenificar: sin intro, sin tutorial, invencible. `field` es el campo (`plano`, el
+ * liso, o `campo=1..4`); con `visual`, la capa visual prendida con esos valores (sin eso, con Playwright
+ * arranca apagada: sin sombras, sin corrección de color y con la luz del mediodía).
+ */
+async function newGame(lang, { width = 1920, height = 1080, query = '', ctx = null, field = 'plano', visual = null } = {}) {
   const page = ctx ? await ctx.newPage() : await browser.newPage({ viewport: { width, height } });
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-  const url = `${BASE}/?plano&sincine&lang=${lang}${query}`;
+  const url = `${BASE}/?${field}&sincine&lang=${lang}${visual ? '&visual' : ''}${query}`;
   await page.goto(url);
-  await page.evaluate(() => {
+  await page.evaluate((visual) => {
     sessionStorage.setItem('gk.introSeen', '1');
     localStorage.setItem('gk.tutorialDone', '1');
-  });
+    if (visual) localStorage.setItem('gk.visual', JSON.stringify(visual));
+  }, visual);
   await page.goto(url);
   await page.waitForFunction(() => !document.getElementById('start').disabled, null, { timeout: 120000 });
   await page.evaluate(() => document.getElementById('start').click());
@@ -198,24 +203,118 @@ async function bannerShots() {
   await page.close();
 }
 
-/** La portada y la imagen del botón de jugar: el caballero de espaldas con el palo arriba, la horda viniendo. */
-async function coverShots() {
-  for (const [name, width, height] of [['portada', 1260, 1000], ['embed', 1280, 720]]) {
-    const page = await newGame('en', { width, height });
-    await page.addStyleTag({ content: '#hud { visibility: hidden !important; }' });
-    await page.evaluate(() => { window.__gk.director.timer = 9999; });
-    await crowd(page, HORDE.map(([k, dx, z, m]) => [k, dx, z, m]), { walk: true });
-    await hideBadges(page);
-    await camera(page, COVER_CAM);
-    // que se acerquen caminando, y cada tanto un swing: después se elige el cuadro en que la horda está
-    // a la distancia de pegarle
-    await sleep(2500);
-    for (let i = 0; i < 10; i++) {
-      await swingShot(page, `${RAW}/${name}-${i}.png`, { hold: 520, min: 12 });
-      await sleep(700);
-    }
-    await page.close();
+/** La imagen del botón de jugar: el caballero de espaldas con el palo arriba, la horda viniendo. */
+async function embedShots() {
+  const page = await newGame('en', { width: 1280, height: 720 });
+  await page.addStyleTag({ content: '#hud { visibility: hidden !important; }' });
+  await page.evaluate(() => { window.__gk.director.timer = 9999; });
+  await crowd(page, HORDE.map(([k, dx, z, m]) => [k, dx, z, m]), { walk: true });
+  await hideBadges(page);
+  await camera(page, COVER_CAM);
+  // que se acerquen caminando, y cada tanto un swing: después se elige el cuadro en que la horda está
+  // a la distancia de pegarle
+  await sleep(2500);
+  for (let i = 0; i < 10; i++) {
+    await swingShot(page, `${RAW}/embed-${i}.png`, { hold: 520, min: 12 });
+    await sleep(700);
   }
+  await page.close();
+}
+
+/**
+ * La cámara de la portada (13/10, Leandro: más atrás, que se vea la pelota y adónde va el golpe, y que
+ * se note que es golf). Se probaron detrás y más atrás, tres cuartos, de costado y al ras del piso
+ * (logs/portada-tomas.mjs); quedó baja, detrás y del lado de enfrente del caballero: se le ve el swing
+ * de perfil, la pelota grande y el arco que sube y cae sobre el enemigo. Puesta a mano (`pose` de la
+ * cámara, en main), relativa al puesto: +x queda a la izquierda.
+ */
+const COVER_POSE = { at: [-1.6, 1.25, -4.4], look: [0.9, 1.15, 10], fov: 50 };
+/**
+ * La capa visual prendida, con la luz de la tarde (el atardecer tiene más color, pero en la miniatura de
+ * itch el pasto se oscurece y el caballero queda rosado).
+ */
+const COVER_VISUAL = { light: 'tarde', lightVersion: 2, shadows: true, shadowSize: '4096', tone: 'ACES', rim: true, bloom: true };
+/** El campo con lomas: con las lomas y sin las rayas de distancia parece una cancha de golf. */
+const COVER_FIELD = 'campo=3';
+/**
+ * La horda de la portada, por todo el ancho del campo (36 m) y con gente a los costados. El primero, el del
+ * escudo, es el más cercano: es al que le apunta el caballero. Cerca, solo los que caminan lento: un goblin
+ * que corre lo pasaba antes de la foto.
+ */
+const COVER_HORDE = [['skeleton', -3, 19, { shield: 2 }],
+  ['orc', -7.5, 22, {}], ['knight', -12, 23.5, {}], ['warchief', 7.5, 23, {}],
+  ['orc', 5, 25.5, {}], ['goblina', -10, 26.5, {}], ['warchief', 12, 27, {}], ['knight', -15.5, 29, {}], ['goblin', 2, 28, {}],
+  ['orc', -6, 30, {}], ['shaman', 8, 32, {}], ['skeleton', 16, 33, {}], ['goblina', -12, 35, {}], ['stoneling', 0, 35, {}],
+  ['goblin', 4, 39, {}], ['orc', -17, 40, {}], ['skeleton', 11, 41, {}], ['goblina', -4, 42, {}], ['knight', 15, 46, {}],
+  ['goblin', -9, 46, {}], ['orc', 6, 48, {}], ['skeleton', -14, 51, {}], ['goblin', 1, 52, {}], ['goblina', 10, 55, {}],
+  ['warchief', -6, 57, {}], ['goblin', 16, 60, {}], ['orc', -11, 62, {}], ['skeleton', 4, 63, {}], ['goblina', -1, 67, {}],
+  ['goblin', 12, 69, {}], ['orc', -15, 71, {}], ['skeleton', 7, 74, {}]];
+
+/**
+ * La portada: el caballero en lo alto del swing, la pelota en el puesto y el arco del hierro cayendo sobre
+ * el enemigo más cercano, con la horda repartida detrás. Sin la banderita del puesto, sin los carteles de
+ * distancia de los costados ni las rayas del piso. La horda queda quieta en pleno paso (se le corta el
+ * update a la horda), así el cuadro sale igual cada vez y no hay que elegirlo de una ráfaga.
+ */
+async function coverShots() {
+  const page = await newGame('en', { width: 1260, height: 1000, field: COVER_FIELD, visual: COVER_VISUAL });
+  // la aguja del arco de carga tiene su propio visibility y se veía igual con el HUD escondido
+  await page.addStyleTag({ content: '#hud, #topbar { visibility: hidden !important; } #meter { display: none !important; }' });
+  await page.evaluate(() => {
+    const g = window.__gk;
+    g.director.timer = 9999;
+    // el hierro: el arco cae donde se apunta, sobre el enemigo
+    g.selectClub(1);
+    // los carteles (las distancias de los costados, la vida y los poderes) y las banderitas de los puestos:
+    // el juego los vuelve a prender, así que en cada cuadro
+    const hide = () => {
+      g.horde.scene.traverse((o) => { if (o.isSprite) o.visible = false; });
+      for (const o of g.tees.props) o.visible = false;
+      requestAnimationFrame(hide);
+    };
+    hide();
+    // las rayas de distancia del piso (buildDistanceMarks en game/world): las dos medidas que tienen
+    g.horde.scene.traverse((o) => {
+      const h = o.geometry?.parameters?.height;
+      if (o.isMesh && o.material?.isMeshBasicMaterial && (h === 0.12 || h === 0.3)) o.visible = false;
+    });
+    // los guardias de la puerta (GUARD_POSTS en game/world)
+    for (const o of g.horde.scene.children) {
+      if (Math.abs(o.position.z - 4.5) < 0.4 && [-14, -5, 5, 14].some((x) => Math.abs(o.position.x - x) < 0.5)) o.visible = false;
+    }
+  });
+  await crowd(page, COVER_HORDE, { walk: true });
+  // que arranquen a caminar, y quietos en pleno paso (con `hold` se quedaban parados mirando al costado)
+  await sleep(1400);
+  await page.evaluate(({ at, look, fov }) => {
+    const g = window.__gk;
+    g.horde.update = () => {};
+    const [tx, tz] = g.tee;
+    g.debug.hooks.camera().pose = { at: [tx + at[0], at[1], tz + at[2]], look: [tx + look[0], look[1], tz + look[2]] };
+    g.view.fov = fov;
+    g.view.updateProjectionMatrix();
+  }, COVER_POSE);
+  await sleep(400);
+  const target = await page.evaluate(() => {
+    const g = window.__gk;
+    const [tx, tz] = g.tee;
+    const far = (e) => Math.hypot(e.position.x - tx, e.position.z - tz);
+    const t = window.__t[0];
+    const closer = g.horde.enemies.filter((e) => e.alive && e !== t && far(e) < far(t)).length;
+    return { at: g.screenOf(t.position.x, t.position.z), closer };
+  });
+  if (target.closer) console.log(`ojo: ${target.closer} enemigos quedaron más cerca que el del escudo`);
+  await page.mouse.move(target.at.x, target.at.y);
+  await sleep(250);
+  // cargando, con la carga clavada al tope: el palo en lo alto del swing y la línea roja del mejor golpe
+  await page.mouse.down();
+  await sleep(450);
+  await page.evaluate(() => { const m = window.__gk.player.meter; m.setPower(1); m.lock(); });
+  await sleep(350);
+  await page.screenshot({ path: `${RAW}/portada.png` });
+  await page.keyboard.press('KeyX');
+  await page.mouse.up();
+  await page.close();
 }
 
 /** Las capturas del juego, en un idioma, con la cámara de siempre y oleadas de verdad. */
@@ -370,6 +469,7 @@ if (step === 'crudas') {
     }
   }
   if (want('portada')) await coverShots();
+  if (want('embed')) await embedShots();
   if (want('banner')) await bannerShots();
   for (const lang of LANGS) {
     if (['oleada', 'rayo', 'jefe', 'cartas'].some(want)) await gameShots(lang);
@@ -453,17 +553,22 @@ if (step === 'armar') {
     mkdirSync(out, { recursive: true });
     const t = TEXTS[lang];
     // la portada: 630×500 (lo que pide itch), y al doble
+    // (13/10, Leandro: el título más grande) ocupa casi todo el ancho; el cielo se oscurece arriba para que
+    // se lea, y las esquinas un poco, para que la vista vaya al caballero y al arco
     const cover = `
-      <img class="bg" src="RAW/portada-${ELEGIDOS.portada}.png">
-      <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(10, 22, 44, 0.72) 0%, rgba(10, 22, 44, 0.25) 30%, transparent 46%)"></div>
-      <div style="position:absolute; left:0; right:0; top:5.5%; text-align:center; --size: 104px; --tag: 34px">
+      <img class="bg" src="RAW/portada.png" style="filter: saturate(1.1) contrast(1.04)">
+      <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(10, 22, 44, 0.78) 0%, rgba(10, 22, 44, 0.35) 24%, transparent 42%)"></div>
+      <div style="position:absolute; inset:0; background: radial-gradient(120% 95% at 50% 55%, transparent 55%, rgba(8, 14, 24, 0.45) 100%)"></div>
+      <div style="position:absolute; left:0; right:0; top:4.5%; text-align:center; --size: 142px; --tag: 40px">
         <div class="title">GOLF KNIGHT</div>
-        <div class="tag" style="margin-top: 14px">${t.tagline}</div>
+        <div class="tag" style="margin-top: 20px">${t.tagline}</div>
       </div>`;
-    await compose(`${out}/portada-1260x1000.png`, 1260, 1000, cover);
-    await compose(`${out}/portada-630x500.png`, 1260, 1000, cover, { scale: 0.5 });
+    if (want('portada')) {
+      await compose(`${out}/portada-1260x1000.png`, 1260, 1000, cover);
+      await compose(`${out}/portada-630x500.png`, 1260, 1000, cover, { scale: 0.5 });
+    }
     // el banner de arriba de la página: 960 de ancho (el de itch), al doble
-    await compose(`${out}/banner-1920x600.png`, 1920, 600, `
+    if (want('banner')) await compose(`${out}/banner-1920x600.png`, 1920, 600, `
       <img class="bg" src="RAW/banner-juego-${ELEGIDOS.banner}.png">
       <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(10, 22, 44, 0.62) 0%, rgba(10, 22, 44, 0.22) 28%, transparent 42%)"></div>
       <div style="position:absolute; right:3%; top:3.5%; text-align:center; --size: 118px; --tag: 36px">
@@ -471,7 +576,7 @@ if (step === 'armar') {
         <div class="tag" style="margin-top: 16px">${t.tagline}</div>
       </div>`);
     // detrás del botón de jugar, en la página de la demo: 640×360, al doble. El botón va en el medio
-    await compose(`${out}/boton-jugar-1280x720.png`, 1280, 720, `
+    if (want('embed')) await compose(`${out}/boton-jugar-1280x720.png`, 1280, 720, `
       <img class="bg" src="RAW/embed-${ELEGIDOS.embed}.png">
       <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(10, 22, 44, 0.7) 0%, transparent 38%)"></div>
       <div style="position:absolute; left:0; right:0; top:6%; text-align:center; --size: 92px; --tag: 30px">
@@ -482,6 +587,7 @@ if (step === 'armar') {
     const framed = (name, body) => compose(`${out}/${name}.png`, 1920 + 2 * FRAME, 1080 + 2 * FRAME, `
       <div style="position:absolute; left:${FRAME}px; top:${FRAME}px; width:1920px; height:1080px; overflow:hidden; border-radius:16px">${body}</div>`, { transparent: true });
     const shot = (name, src) => framed(name, `<img class="bg" src="RAW/${src}.png">`);
+    if (!want('capturas')) continue;
     await shot('1-oleada', `oleada-${lang}-${ELEGIDOS.oleada}`);
     await shot('2-rayo-y-fuego', `rayo-${lang}-${ELEGIDOS.rayo[lang]}`);
     await shot('3-jefe', `jefe-${lang}-${ELEGIDOS.jefe}`);
@@ -531,7 +637,7 @@ async function makeIcon() {
   writeFileSync('desktop/icon.ico', Buffer.concat([header, ...pngs]));
   console.log('ícono: promo/itch/icono-512.png y desktop/icon.ico');
 }
-if (step === 'armar' || step === 'icono') await makeIcon();
+if ((step === 'armar' && want('icono')) || step === 'icono') await makeIcon();
 
 await browser.close();
 await server.close();

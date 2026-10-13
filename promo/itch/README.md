@@ -14,7 +14,7 @@ español debajo.
 
 | Dónde, en itch | Archivo | Tamaño que pide itch |
 |---|---|---|
-| **Cover image** (la miniatura en las búsquedas, el inicio y los perfiles: la que más se ve) | `en/portada-630x500.png` (o la de 1260×1000, más nítida) | 630×500, hasta 3 MB |
+| **Cover image** (la miniatura en las búsquedas, el inicio y los perfiles: la que más se ve) | `en/portada-630x500.png` (o la de 1260×1000, más nítida): desde el 13/10, cámara baja detrás y al costado de la pelota, el caballero en lo alto del swing, el arco del hierro cayendo sobre el enemigo más cercano y la horda repartida en el campo con lomas, con la luz de la tarde; sin la banderita del puesto, sin los carteles ni las rayas de distancia, y el título más grande | 630×500, hasta 3 MB |
 | **Screenshots** (la columna de la derecha, en este orden) | `en/1-oleada.png` … `en/7-historia-mago.png`: 1920×1080 con un margen transparente de 40 px y las esquinas redondeadas (8/10: en el celular itch las muestra pegadas, y así se ve dónde termina cada una) | cualquiera; unos 2 MB cada una |
 | **Banner** (Edit theme → Banner, arriba de la página) | `en/banner-1920x600.png`: el juego con la cámara de la portada, el caballero cargando el golpe, la horda viniendo y los puestos con sus banderas (8/10; el anterior, de la cinemática, juntaba al mago y al caballero, que se nota que son de modelos distintos) | 960 de ancho; la de 1920 se ve nítida |
 | **Embed background** (detrás del botón «Run game» de la demo) | `en/boton-jugar-1280x720.png` | 640×360 |
