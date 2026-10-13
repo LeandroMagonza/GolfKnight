@@ -22,6 +22,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **Para los que prueban**
 - El registro anota, por cuerpo, cuántos mueren en tiros que agarran a varios. Y `node tools/sorteo.mjs`
   usa el mismo modelo que el juego. `1721cf0`
+- En el panel, apagado: los pesados escalonados (cada uno llega unos segundos después del anterior, sin
+  estirar la oleada), para probar con el bot. `ca60bfb`
 
 ## 12 de octubre
 
