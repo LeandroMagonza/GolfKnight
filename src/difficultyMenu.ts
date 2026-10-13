@@ -40,6 +40,7 @@ export class DifficultyMenu {
       const button = (e.target as HTMLElement).closest('button[data-step]') as HTMLButtonElement | null;
       if (button && !this.locked) this.changed(setLevel(this.progress, this.progress.level + Number(button.dataset.step)));
     });
+    this.dragToScroll();
     this.list.addEventListener('click', (e) => {
       const button = (e.target as HTMLElement).closest('button[data-i]') as HTMLButtonElement | null;
       if (!button || this.locked) return;
@@ -139,12 +140,46 @@ export class DifficultyMenu {
   }
 
   /**
+   * Arrastrar con el mouse (el botón izquierdo) sube y baja la escalera (13/10, Leandro: sin barra de
+   * scroll). Si se arrastró, el click de la tarjeta donde se soltó no cuenta.
+   */
+  private dragToScroll(): void {
+    let drag: { y: number; top: number; moved: boolean } | null = null;
+    let swallow = false;
+    this.track.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button === 0) drag = { y: e.clientY, top: this.track.scrollTop, moved: false };
+    });
+    addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dy = e.clientY - drag.y;
+      if (!drag.moved && Math.abs(dy) < 6) return;
+      drag.moved = true;
+      this.track.classList.add('dragging');
+      this.track.scrollTop = drag.top - dy;
+    });
+    addEventListener('pointerup', () => {
+      if (!drag) return;
+      swallow = drag.moved;
+      drag = null;
+      this.track.classList.remove('dragging');
+      setTimeout(() => { swallow = false; }, 0);
+    });
+    this.el.addEventListener('click', (e) => {
+      if (!swallow) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }, true);
+  }
+
+  /**
    * La línea dorada: por el medio de las tarjetas elegidas, de un escalón al siguiente. Llena hasta el nivel
    * con que se juega; punteada y tenue por los desbloqueados que se recuerdan sin poner.
    */
   private drawPath(): void {
     const box = this.track.getBoundingClientRect();
-    this.path.setAttribute('width', String(this.track.scrollWidth));
+    // del ancho de lo que se ve: con el de todo lo que se puede correr, al aparecer la barra de arriba abajo
+    // la línea quedaba más ancha que la pantalla y aparecía otra de costado
+    this.path.setAttribute('width', String(this.track.clientWidth));
     this.path.setAttribute('height', String(this.track.scrollHeight));
     this.path.replaceChildren();
     const center = (el: Element) => {

@@ -236,7 +236,12 @@
       #difficulty .levelbar button { width: 34px; height: 32px; padding: 0; font-size: 20px; line-height: 1; border-radius: 6px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
       #difficulty .levelbar button:hover:not(:disabled) { border-color: #ffd66b; }
       #difficulty .levelbar button:disabled { opacity: 0.3; cursor: default; }
-      #difficulty .track { position: relative; flex: 1; min-height: 0; overflow: auto; display: flex; scrollbar-width: thin; }
+      /* sin barras (13/10, Leandro: no pegan con el juego): de costado no hace falta, y para arriba y abajo se
+         arrastra con el mouse (ver DifficultyMenu) o se usa la rueda */
+      #difficulty .track { position: relative; flex: 1; min-height: 0; overflow: hidden auto; display: flex; scrollbar-width: none; }
+      #difficulty .track::-webkit-scrollbar { display: none; }
+      #difficulty .track.dragging { cursor: grabbing; }
+      #difficulty .track.dragging .opt { pointer-events: none; }
       #difficulty .track .path { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
       #difficulty .track .path .on { fill: none; stroke: #ffd66b; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 6px rgba(255, 196, 64, 0.85)); }
       #difficulty .track .path .later { fill: none; stroke: rgba(255, 214, 107, 0.35); stroke-width: 2; stroke-dasharray: 5 7; stroke-linecap: round; }

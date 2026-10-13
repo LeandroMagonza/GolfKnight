@@ -89,8 +89,8 @@ export const TALENTS: Talent[] = [
   { id: 'support', name: L('Apoyos', 'Supports'), max: 2,
     text: () => L('En un escenario más vienen curanderos, inmunes o abanderados', 'Healers, warders or standard-bearers join one more stage') },
   { id: 'casters', name: L('Hechiceros', 'Sorcerers'), max: 2, adds: true,
-    text: (add) => L(`Se suma un ${pct(add)} de hechiceros, que te tiran desde lejos. No van a la puerta: no hace falta matarlos para pasar de oleada`,
-      `${upper(pct(add))} more sorcerers join, casting at you from afar. They don't go for the gate: you don't need to kill them to clear a wave`) },
+    text: (add) => L(`Se suma un ${pct(add)} de hechiceros, que te tiran desde lejos. No van a la puerta`,
+      `${upper(pct(add))} more sorcerers join, casting at you from afar. They don't go for the gate`) },
   // (11/10, Leandro: decía cada poder, y era demasiado; el detalle está en el README y en DIFFICULTY)
   { id: 'powers', name: L('Poderes más duros', 'Tougher Powers'), max: 1, text: () => L('Los poderes de los enemigos son más fuertes', 'Enemy powers are stronger') },
   { id: 'speed', name: L('Más rápidos', 'Faster Enemies'), max: 3, adds: true,
