@@ -17,6 +17,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   especiales suma a lo sumo un 10 %. En la oleada del élite, el élite es el tercero del cuerpo fuerte (eran
   tres más él), y en la 6 viene un chamán. La 6 ya no salta sobre la 5, y la misma oleada varía la mitad
   entre partidas. Detalle en docs/presupuesto.md. `1721cf0`
+- Esto, también en la app de Windows. `8826a7f`
 
 **Para los que prueban**
 - El registro anota, por cuerpo, cuántos mueren en tiros que agarran a varios. Y `node tools/sorteo.mjs`
