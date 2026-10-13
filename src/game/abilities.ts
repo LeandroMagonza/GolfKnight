@@ -24,6 +24,8 @@ import { GATE_Z } from './world';
 export interface AbilityHooks {
   /** Tiro de palo y elemento de nivel `level`: sale del puesto, con pelota gratis (ver `shotQuality`). */
   fireShot(club: ClubId, level: number, element: Element): void;
+  /** El driver en cruz de nivel `level` (ver SPLIT): sale del puesto, con pelota gratis. */
+  fireSplit(level: number): void;
   /** Lluvia de pelotas: una en cada puesto. Devuelve cuántas puso. */
   fillSpots(): number;
   /** Caddie dorado: tu puesto no se queda sin pelota durante `seconds`. */
@@ -209,6 +211,7 @@ export class Abilities {
       case 'flag': this.makeMark('flag', at, lv(FLAG.radius, level), lv(FLAG.seconds, level), 0); break;
       case 'cart': this.sendCart(at.z, from.x, level); break;
       case 'shot': this.hooks?.fireShot(a.club!, level, a.element!); break;
+      case 'split': this.hooks?.fireSplit(level); break;
       case 'rain': this.hooks?.fillSpots(); break;
       case 'caddie': this.hooks?.startCaddie(lv(CADDIE.seconds, level)); break;
       case 'clone': this.hooks?.placeClone(lv(CLONE.shots, level), CLONE.life); break;

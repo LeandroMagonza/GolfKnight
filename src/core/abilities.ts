@@ -21,7 +21,7 @@ export type AbilityId = string;
 export type Element = 'ice' | 'fire' | 'lightning' | 'wind' | 'ghost' | 'silence';
 export type AbilityKind =
   | 'shot' | 'cart' | 'hole' | 'flag' | 'powder' | 'rain' | 'caddie' | 'lens' | 'clone' | 'melee'
-  | 'echo' | 'boost' | 'might' | 'glove';
+  | 'echo' | 'boost' | 'might' | 'glove' | 'split';
 
 export interface Ability {
   id: AbilityId;
@@ -218,6 +218,12 @@ export const ECHO = { shots: [1, 2, 3], delay: 0.25 };
 /** Potencia: tu próximo tiro le saca `bonus` de más a cada uno que alcanza. Se pierde igual que el eco. */
 export const BOOST = { bonus: [1, 2, 3] };
 /**
+ * Driver en cruz (13/10, idea de Leandro): un disparo de driver instantáneo, cargado al nivel de la
+ * habilidad, que al pegarle al primero sale también hacia los dos costados: dos drivers más, desde ese
+ * enemigo, de `range` metros, que no se vuelven a abrir.
+ */
+export const SPLIT = { range: [14, 18, 22] };
+/**
  * Fuerza (4/10, pedido de Leandro): durante `seconds`, todos tus tiros pegan por lo menos `floor` (el
  * putter, que ya pega 2 de cerca, `putter`). También los de habilidad, y los de efecto, que solos no
  * pegan: pegan `floor` y dejan su efecto. Es para que el golpe fantasma de nivel 1 (que pega 1) mate de
@@ -243,10 +249,15 @@ export const PALAZO = { radius: [4, 4.75, 5.5], knockback: 84, stagger: [0.7, 1,
 export const ABILITY_CONFIG: Record<string, Record<string, number | number[]>> = {
   elementos: ELEMENTS, carrito: CART, hoyo: HOLE,
   bandera: FLAG, 'pólvora': POWDER, caddie: CADDIE, lupa: LENS, clon: CLONE, palazo: PALAZO, // i18n-ok: claves del panel B
-  eco: ECHO, potencia: BOOST, fuerza: MIGHT, guante: GLOVE,
+  eco: ECHO, potencia: BOOST, fuerza: MIGHT, guante: GLOVE, cruz: SPLIT,
 };
 
 const BASE: Ability[] = [
+  {
+    // (la recarga y el alcance, los de los tiros de driver: ver CLUB_COOLDOWN y CLUB_RANGE)
+    id: 'driver-split', kind: 'split', club: 'driver', name: L('Driver en cruz', 'Cross Driver'), title: L('se abre a los costados', 'splits sideways'), cooldown: 7, range: 55, color: 0x7fd6ff,
+    hint: L('Un disparo de driver instantáneo que, al pegarle al primero, sale también hacia los dos costados', 'An instant driver shot that, when it hits the first enemy, also fires to both sides'),
+  },
   {
     id: 'cart', kind: 'cart', name: L('Carrito', 'Golf Cart'), title: L('atropella', 'runs them over'), cooldown: 14, range: 60, color: 0xe9e2cf,
     hint: L('Un carrito de golf cruza el campo a la altura que apuntás y atropella a todos', 'A golf cart crosses the field where you aim and runs everyone over'),
@@ -477,6 +488,7 @@ export function upgradeNote(id: AbilityId, level: number): string | null {
     case 'melee': table(L('Alcance', 'Reach'), PALAZO.radius, ' m'); table(L('Les corta el ataque', 'Stagger'), PALAZO.stagger, ' s'); break;
     case 'echo': table(L('Repeticiones', 'Repeats'), ECHO.shots); break;
     case 'boost': table(L('Daño extra', 'Extra damage'), BOOST.bonus); break;
+    case 'split': stat(L('Golpe', 'Hit'), (l) => shotQuality('driver', l)); table(L('A los costados', 'Sideways'), SPLIT.range, ' m'); break;
     case 'might': table(lasts, MIGHT.seconds, ' s'); break;
     // el efecto del elemento ya no va por el nivel de la carta sino por el total (7/10): eso lo dice
     // `elementNote`. Acá queda lo de la carta: el congelar en su nivel, el golpe del fantasma y el área
@@ -513,7 +525,7 @@ const ELEMENT_KEYS: Record<Element, string[]> = {
 const KIND_CONFIG: Partial<Record<AbilityKind, string>> = {
   cart: 'carrito', hole: 'hoyo', flag: 'bandera',
   powder: 'pólvora', caddie: 'caddie', lens: 'lupa', clone: 'clon', melee: 'palazo', // i18n-ok: claves del panel B
-  echo: 'eco', boost: 'potencia', might: 'fuerza', glove: 'guante',
+  echo: 'eco', boost: 'potencia', might: 'fuerza', glove: 'guante', split: 'cruz',
 };
 
 /**

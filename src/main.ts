@@ -6,7 +6,7 @@ import { GameAudio } from './audio/audio';
 import { BALL_RADIUS, GRAVITY, launch, launchSpeed, launchWith, previewOver, previewPath, previewRoll, ROLL_FRICTION, spinFor } from './core/ballistics';
 import { FIELD_SHAPE, trapezoidOn } from './core/field';
 import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from './core/terrain';
-import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, type AbilityId, type Element } from './core/abilities';
+import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, SPLIT, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, type Club, type ClubId } from './core/clubs';
 import { buildRun, ENEMIES, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WAVE_MODS, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower, type WaveMod } from './core/waves';
@@ -1636,6 +1636,14 @@ if (!ABE_ONLY) abilities.hooks = {
     const quality = shotQuality(clubId, level);
     audio.tock(quality >= QUALITY_LEVELS);
     balls.fire({ club, quality, level, power: 1, curve: 0, element, ability: true, tags: [`${clubId}-${element}`], from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
+  },
+  fireSplit(level: number) {
+    const club = CLUBS.driver;
+    player.teePosition(tee);
+    const range = shotRange(club);
+    const quality = shotQuality('driver', level);
+    audio.tock(quality >= QUALITY_LEVELS);
+    balls.fire({ club, quality, level, power: 1, curve: 0, ability: true, split: lv(SPLIT.range, level), tags: ['driver-split'], from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
   },
   fillSpots() {
     if (pocket) {

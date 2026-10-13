@@ -62,6 +62,8 @@ export interface Ball {
   bonus: number;
   /** Ya abrió su área: no la vuelve a abrir aunque siga rodando. */
   burst: boolean;
+  /** El driver en cruz: los metros de los dos que salen a los costados del primero que toca (0, ninguno). */
+  split: number;
   /** Enemigos que mató esta pelota, y de qué cuerpo (para el registro: ver RunRecorder.kinds). */
   kills: number;
   killedKinds: string[];
@@ -217,7 +219,7 @@ export class Balls {
       element: shot.element ?? null, ability: !!shot.ability, tags: shot.tags ?? [], gloved: !!shot.gloved,
       effect: effectOnly(shot.element) && !shot.gloved, floor: this.minDamage(shot.club.id),
       dir: new THREE.Vector3(shot.dir.x, 0, shot.dir.z).normalize(), windSwept: 0, windCaught: new Set(),
-      hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, burst: false, kills: 0, killedKinds: [], connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
+      hitIds: new Set(), effected: new Set(), hits: 0, bonus: shot.bonus ?? 0, split: shot.split ?? 0, burst: false, kills: 0, killedKinds: [], connected: false, settled: false, age: 0, restTime: 0, mesh, trail, trailPositions, done: false,
       phase: tennis ? 'out' : null, rally: 0, walls: 0,
     };
     this.list.push(ball);
@@ -489,10 +491,27 @@ export class Balls {
       return;
     }
     // el que atraviesa: a cada uno que toca le cobra el pelotazo y sigue
-    this.directHit(ball, enemy, ball.hits + 1 >= ball.club.maxHits);
+    const landed = this.directHit(ball, enemy, ball.hits + 1 >= ball.club.maxHits);
+    // el driver en cruz: al primero que le pega, sale también hacia los dos costados
+    if (landed && ball.split > 0) this.split(ball, enemy);
     if (!ball.done) {
       ball.state.vel.x *= 0.88;
       ball.state.vel.z *= 0.88;
+    }
+  }
+
+  /**
+   * El driver en cruz (ver SPLIT): desde el enemigo que tocó salen dos más, uno a cada costado del tiro,
+   * con el mismo golpe, que no se vuelven a abrir ni le pegan otra vez a ese enemigo.
+   */
+  private split(ball: Ball, enemy: Enemy): void {
+    const range = ball.split;
+    ball.split = 0;
+    const from = new THREE.Vector3(enemy.position.x, 0, enemy.position.z);
+    for (const side of [1, -1]) {
+      const dir = new THREE.Vector3(-ball.dir.z * side, 0, ball.dir.x * side);
+      const child = this.fire({ club: ball.club, quality: ball.quality, level: ball.level, power: 1, curve: 0, ability: ball.ability, tags: ball.tags, from, dir }, range);
+      child.hitIds.add(enemy.id);
     }
   }
 

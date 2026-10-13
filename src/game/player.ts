@@ -48,6 +48,8 @@ export interface Shot {
   tags?: readonly string[];
   /** Daño de más a cada uno que alcanza (la potencia). */
   bonus?: number;
+  /** El driver en cruz (ver SPLIT): al primero que le pega, sale hacia los dos costados, a tantos metros. */
+  split?: number;
   from: THREE.Vector3;
   dir: THREE.Vector3;
 }
