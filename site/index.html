@@ -95,11 +95,11 @@
       return res.ok;
     }
     const KEY = 'gk.amigos';
-    // el que ya entró una vez va directo
+    // el que ya entró una vez va directo. Lo que venga en el enlace (?click=uno) pasa a la completa
     (async () => {
       let folder = null;
       try { folder = localStorage.getItem(KEY); } catch { /* sin almacenamiento */ }
-      if (folder && /^j[0-9a-f]{16}$/.test(folder) && await exists(folder).catch(() => false)) location.replace(`${folder}/`);
+      if (folder && /^j[0-9a-f]{16}$/.test(folder) && await exists(folder).catch(() => false)) location.replace(`${folder}/${location.search}`);
     })();
     document.getElementById('friends').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -111,7 +111,7 @@
         const folder = await folderFor(password);
         if (!await exists(folder)) { error.textContent = TEXTS.wrong[lang]; return; }
         try { localStorage.setItem(KEY, folder); } catch { /* sin almacenamiento */ }
-        location.href = `${folder}/`;
+        location.href = `${folder}/${location.search}`;
       } catch {
         error.textContent = TEXTS.offline[lang];
       }
