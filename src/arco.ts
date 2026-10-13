@@ -37,12 +37,13 @@ interface Sim {
 }
 
 /**
- * Lo que tarda Leandro entre un tiro y el siguiente sin contar la carga (moverse entre puestos, apuntar, el
- * swing y lo que espera a los enemigos), en ms: de sus partidas del nivel 10 del 11 al 13/10, las oleadas
- * de 25 tiros o más, a lo que tarda cada tiro se le resta lo que carga con sus golpes (al medio de cada
- * tramo). Con todas sus cargas dio lo mismo: 950 a 1070 ms. Y pega el 90 %.
+ * Lo que tarda la mecánica entre un tiro y el siguiente, sin la carga ni apuntar (Leandro: «algo más teórico
+ * pero realista»), en ms: del soltar al impacto (~110) y hasta poder cargar otra vez (220, ver RECOVER en
+ * game/player.ts), y el paso al puesto de al lado, donde está la pelota siguiente (medido: 400; a dos
+ * puestos, 530). En sus partidas, apuntando, le da unos 1000 (de las oleadas de 25 tiros o más del 11 al
+ * 13/10, a lo que tarda cada tiro se le resta lo que carga). Y pega el 90 %.
  */
-const MEASURED = { move: 1000, hit: 90 };
+const MEASURED = { move: 750, played: 1000, hit: 90 };
 
 /** Los del juego, en ms. */
 function fromGame(fourth: boolean): Sim {
@@ -97,34 +98,41 @@ function draw(): void {
 }
 
 /**
- * El daño por segundo de cada golpe: cada tiro tarda lo de entre tiros más la carga hasta el medio de su
- * tramo (el 1, la mitad del suyo; con el golpe 4, el 3 es el primer tercio del rojo y el 4 el del medio), y
- * saca su número (el 4, uno más que el 3) en los que pegan.
+ * El daño por segundo de cada golpe, con lo que se carga cada uno **de lo justo a lo más** (Leandro: el 1 es
+ * un click sin cargar; el 2, de pasar el 1 hasta el final de su tramo): cada tiro tarda lo de entre tiros
+ * más esa carga. Con el golpe 4, el rojo se parte en tres: 3, 4 (el del medio) y 3. Cada palo pega distinto:
+ * el hierro y el driver, su número; el driver de lejos (más de 40 m) y el putter de cerca (hasta 20 m), uno
+ * más; el wedge, uno menos (es de área). En los que pegan.
  */
 function drawDps(): void {
-  const third = sim.t3 / 3;
-  const rows: { q: number; charge: number }[] = [
-    { q: 1, charge: sim.t1 / 2 },
-    { q: 2, charge: sim.t1 + sim.t2 / 2 },
-    { q: 3, charge: sim.t1 + sim.t2 + (sim.fourth ? third / 2 : sim.t3 / 2) },
-    ...(sim.fourth ? [{ q: 4, charge: sim.t1 + sim.t2 + third + third / 2 }] : []),
+  const red = sim.t3;
+  const edge = (1 - FOURTH.share) / 2;
+  const base = sim.t1 + sim.t2;
+  const rows: { q: number; from: number; to: number }[] = [
+    { q: 1, from: 0, to: sim.t1 },
+    { q: 2, from: sim.t1, to: base },
+    { q: 3, from: base, to: sim.fourth ? base + red * edge : base + red },
+    ...(sim.fourth ? [{ q: 4, from: base + red * edge, to: base + red * (1 - edge) }] : []),
   ];
-  const shot = (r: { charge: number }) => (sim.move + r.charge) / 1000;
-  const dps = (r: { q: number; charge: number }) => ((r.q === 4 ? 3 + FOURTH.bonus : r.q) * (sim.hit / 100)) / shot(r);
-  const best = Math.max(...rows.map(dps));
+  const hits = (q: number) => (q === 4 ? 3 + FOURTH.bonus : q);
+  const secs = (charge: number) => (sim.move + charge) / 1000;
+  const dps = (dmg: number, charge: number) => (Math.max(0, dmg) * (sim.hit / 100)) / secs(charge);
+  // de lo justo a lo más: el primero es el más alto
+  const range = (dmg: number, r: { from: number; to: number }) => (dmg <= 0 ? '—' : `${dps(dmg, r.from).toFixed(2)} – ${dps(dmg, r.to).toFixed(2)}`);
   el<HTMLElement>('dps').innerHTML = rows.map((r) => {
-    const d = dps(r);
-    return `<tr><td>${r.q}</td><td>${Math.round(r.charge)} ms</td><td>${shot(r).toFixed(2)} s</td><td>${r.q === 4 ? 3 + FOURTH.bonus : r.q}</td><td class="${d >= best - 1e-9 ? 'best' : ''}">${d.toFixed(2)}</td></tr>`;
+    const q = hits(r.q);
+    return `<tr><td>${r.q}</td><td>${Math.round(r.from)}–${Math.round(r.to)} ms</td><td>${secs(r.from).toFixed(2)}–${secs(r.to).toFixed(2)} s</td>`
+      + `<td>${range(q, r)}</td><td>${range(q + 1, r)}</td><td>${range(q - 1, r)}</td></tr>`;
   }).join('');
-  // las que importan para el que se cura: llegar a la misma vida con un golpe o con varios
-  const t = (q: number) => shot(rows[q - 1]);
+  // las que importan para el que se cura: llegar a la misma vida con un golpe o con varios (cargando lo justo)
+  const t = (q: number) => secs(rows[q - 1].from);
   const vs = (a: string, ta: number, b: string, tb: number) => `${a}: ${ta.toFixed(2)} s, contra ${b}: ${tb.toFixed(2)} s`;
-  el<HTMLParagraphElement>('dpsnote').textContent = [
+  el<HTMLParagraphElement>('dpsnote').textContent = 'Cargando lo justo: ' + [
     vs('un 2', t(2), 'dos 1', 2 * t(1)),
     vs('un 3', t(3), 'un 2 y un 1', t(2) + t(1)),
     vs('un 3 y un 2', t(3) + t(2), 'dos 2 y un 1', 2 * t(2) + t(1)),
   ].join(' · ') + '. Sin contar los que no pegan.';
-  el<HTMLParagraphElement>('movenote').textContent = `Medido con tus partidas del nivel 10 (11 al 13/10): entre un tiro y el siguiente, sin la carga, ${MEASURED.move} ms (moverte entre puestos, apuntar, el swing y lo que esperás), y pegan el ${MEASURED.hit} %.`;
+  el<HTMLParagraphElement>('movenote').textContent = `Entre tiros: lo de la mecánica, sin apuntar (${MEASURED.move} ms: el swing hasta poder cargar otra vez, ~330, y el paso al puesto de al lado, 400). En tus partidas, apuntando, te da unos ${MEASURED.played} ms. El daño por segundo va de cargar lo justo a cargar todo el tramo.`;
 }
 
 // los campos

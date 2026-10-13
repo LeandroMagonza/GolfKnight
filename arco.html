@@ -82,11 +82,12 @@
       </section>
       <section class="panel dps">
         <h2>Daño por segundo</h2>
+        <p class="note">Por palo: el hierro y el driver pegan el número del golpe; el driver de lejos (más de 40 m) y el putter de cerca (hasta 20 m), uno más; el wedge, uno menos, en área.</p>
         <label class="row"><span>Entre tiros, sin la carga (moverte, apuntar, el swing)</span><input type="number" id="move" min="0" step="50" /><span class="u">ms</span></label>
         <label class="row"><span>Tiros que pegan</span><input type="number" id="hit" min="10" max="100" step="1" /><span class="u">%</span></label>
         <p class="note" id="movenote"></p>
         <table>
-          <thead><tr><th>Golpe</th><th>Carga</th><th>Cada tiro</th><th>Daño</th><th>Daño por segundo</th></tr></thead>
+          <thead><tr><th>Golpe</th><th>Carga</th><th>Cada tiro</th><th>Hierro, driver</th><th>Driver de lejos, putter de cerca</th><th>Wedge</th></tr></thead>
           <tbody id="dps"></tbody>
         </table>
         <p class="note" id="dpsnote"></p>
