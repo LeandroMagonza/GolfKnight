@@ -7,6 +7,21 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 13 de octubre
+
+**Las oleadas**
+- **El presupuesto de las oleadas**: cada enemigo vale los tiros que te pide (su vida, por lo que le hace su
+  poder), y las oleadas se arman con eso. Un común con poder ya no puede ser un monstruo (no más chamán
+  fantasma de 8 de vida ni orco gigante que se cura de 9); los poderes de una oleada tienen techo; el élite
+  fantasma o bendito, que pide el doble, hace que vengan uno o dos comunes menos; y cada marca de las olas
+  especiales suma a lo sumo un 10 %. En la oleada del élite, el élite es el tercero del cuerpo fuerte (eran
+  tres más él), y en la 6 viene un chamán. La 6 ya no salta sobre la 5, y la misma oleada varía la mitad
+  entre partidas. Detalle en docs/presupuesto.md. `1721cf0`
+
+**Para los que prueban**
+- El registro anota, por cuerpo, cuántos mueren en tiros que agarran a varios. Y `node tools/sorteo.mjs`
+  usa el mismo modelo que el juego. `1721cf0`
+
 ## 12 de octubre
 
 **Los enemigos**
