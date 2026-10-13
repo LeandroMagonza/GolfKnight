@@ -41,6 +41,9 @@
       th { color: #8d97a5; font-weight: 600; }
       td:first-child, th:first-child { text-align: left; }
       #said { font-size: 13px; color: #5be07a; }
+      .panel.dps { grid-column: 1 / -1; }
+      .panel.dps label.row { grid-template-columns: minmax(0, 320px) 86px 22px; }
+      .panel.dps td.best { color: #5be07a; font-weight: 700; }
       @media (max-width: 760px) { main { grid-template-columns: 1fr; } #pad { min-height: 300px; } }
     </style>
   </head>
@@ -76,6 +79,17 @@
         </table>
         <p class="note" id="offs"></p>
         <div class="buttons"><button type="button" id="reset">Empezar de cero</button></div>
+      </section>
+      <section class="panel dps">
+        <h2>Daño por segundo</h2>
+        <label class="row"><span>Entre tiros, sin la carga (moverte, apuntar, el swing)</span><input type="number" id="move" min="0" step="50" /><span class="u">ms</span></label>
+        <label class="row"><span>Tiros que pegan</span><input type="number" id="hit" min="10" max="100" step="1" /><span class="u">%</span></label>
+        <p class="note" id="movenote"></p>
+        <table>
+          <thead><tr><th>Golpe</th><th>Carga</th><th>Cada tiro</th><th>Daño</th><th>Daño por segundo</th></tr></thead>
+          <tbody id="dps"></tbody>
+        </table>
+        <p class="note" id="dpsnote"></p>
       </section>
     </main>
     <script type="module" src="/src/arco.ts"></script>

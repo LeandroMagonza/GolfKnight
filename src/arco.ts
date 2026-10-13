@@ -19,7 +19,11 @@ const PREFS_KEY = 'gk.simCarga2';
 /** Con el golpe 4, qué parte del 3 es el 4: el tercio del medio (Leandro). */
 const SPLIT = 1 / 3;
 
-/** Lo que se ajusta: los ms de cada golpe (el 3, toda la pasada por el rojo), el arco y el dibujo. */
+/**
+ * Lo que se ajusta: los ms de cada golpe (el 3, toda la pasada por el rojo), el arco y el dibujo. Para el
+ * daño por segundo (13/10, Leandro): `move`, los ms entre un tiro y el siguiente sin contar la carga, y `hit`,
+ * el % de tiros que pegan.
+ */
 interface Sim {
   fourth: boolean;
   t1: number;
@@ -28,11 +32,21 @@ interface Sim {
   span: number;
   border: number;
   zoom: number;
+  move: number;
+  hit: number;
 }
+
+/**
+ * Lo que tarda Leandro entre un tiro y el siguiente sin contar la carga (moverse entre puestos, apuntar, el
+ * swing y lo que espera a los enemigos), en ms: de sus partidas del nivel 10 del 11 al 13/10, las oleadas
+ * de 25 tiros o más, a lo que tarda cada tiro se le resta lo que carga con sus golpes (al medio de cada
+ * tramo). Con todas sus cargas dio lo mismo: 950 a 1070 ms. Y pega el 90 %.
+ */
+const MEASURED = { move: 1000, hit: 90 };
 
 /** Los del juego, en ms. */
 function fromGame(fourth: boolean): Sim {
-  return { fourth, t1: CHARGE.weak * 1000, t2: CHARGE.mid * 1000, t3: CHARGE.strong * 1000, span: fourth ? FOURTH_ARC.span : 90, border: 1.5, zoom: 2.4 };
+  return { fourth, t1: CHARGE.weak * 1000, t2: CHARGE.mid * 1000, t3: CHARGE.strong * 1000, span: fourth ? FOURTH_ARC.span : 90, border: 1.5, zoom: 2.4, ...MEASURED };
 }
 
 let sim: Sim = fromGame(false);
@@ -79,10 +93,42 @@ function draw(): void {
     ? `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo dura ${round(strongMs())} ms, partida en tres: 3 (${round(third)}), 4 (${round(third)}) y 3 (${round(third)}).`
     : `Hasta el tope son ${round(top)} ms. Cada pasada por el rojo (el 3) dura ${round(strongMs())} ms.`)
     + ` Si te pasás, el rojo vuelve a los ${round(back)} ms (baja hasta el borde y vuelve a subir).`;
+  drawDps();
+}
+
+/**
+ * El daño por segundo de cada golpe: cada tiro tarda lo de entre tiros más la carga hasta el medio de su
+ * tramo (el 1, la mitad del suyo; con el golpe 4, el 3 es el primer tercio del rojo y el 4 el del medio), y
+ * saca su número (el 4, uno más que el 3) en los que pegan.
+ */
+function drawDps(): void {
+  const third = sim.t3 / 3;
+  const rows: { q: number; charge: number }[] = [
+    { q: 1, charge: sim.t1 / 2 },
+    { q: 2, charge: sim.t1 + sim.t2 / 2 },
+    { q: 3, charge: sim.t1 + sim.t2 + (sim.fourth ? third / 2 : sim.t3 / 2) },
+    ...(sim.fourth ? [{ q: 4, charge: sim.t1 + sim.t2 + third + third / 2 }] : []),
+  ];
+  const shot = (r: { charge: number }) => (sim.move + r.charge) / 1000;
+  const dps = (r: { q: number; charge: number }) => ((r.q === 4 ? 3 + FOURTH.bonus : r.q) * (sim.hit / 100)) / shot(r);
+  const best = Math.max(...rows.map(dps));
+  el<HTMLElement>('dps').innerHTML = rows.map((r) => {
+    const d = dps(r);
+    return `<tr><td>${r.q}</td><td>${Math.round(r.charge)} ms</td><td>${shot(r).toFixed(2)} s</td><td>${r.q === 4 ? 3 + FOURTH.bonus : r.q}</td><td class="${d >= best - 1e-9 ? 'best' : ''}">${d.toFixed(2)}</td></tr>`;
+  }).join('');
+  // las que importan para el que se cura: llegar a la misma vida con un golpe o con varios
+  const t = (q: number) => shot(rows[q - 1]);
+  const vs = (a: string, ta: number, b: string, tb: number) => `${a}: ${ta.toFixed(2)} s, contra ${b}: ${tb.toFixed(2)} s`;
+  el<HTMLParagraphElement>('dpsnote').textContent = [
+    vs('un 2', t(2), 'dos 1', 2 * t(1)),
+    vs('un 3', t(3), 'un 2 y un 1', t(2) + t(1)),
+    vs('un 3 y un 2', t(3) + t(2), 'dos 2 y un 1', 2 * t(2) + t(1)),
+  ].join(' · ') + '. Sin contar los que no pegan.';
+  el<HTMLParagraphElement>('movenote').textContent = `Medido con tus partidas del nivel 10 (11 al 13/10): entre un tiro y el siguiente, sin la carga, ${MEASURED.move} ms (moverte entre puestos, apuntar, el swing y lo que esperás), y pegan el ${MEASURED.hit} %.`;
 }
 
 // los campos
-const fields: [keyof Sim, string][] = [['t1', 't1'], ['t2', 't2'], ['t3', 't3'], ['span', 'span'], ['border', 'border'], ['zoom', 'zoom']];
+const fields: [keyof Sim, string][] = [['t1', 't1'], ['t2', 't2'], ['t3', 't3'], ['span', 'span'], ['border', 'border'], ['zoom', 'zoom'], ['move', 'move'], ['hit', 'hit']];
 function paintFields(): void {
   for (const [k, id] of fields) el(id).value = String(round(sim[k] as number));
   el('fourth').checked = sim.fourth;
@@ -109,7 +155,7 @@ el('fourth').addEventListener('change', () => {
   draw();
 });
 el('defaults').addEventListener('click', () => {
-  sim = { ...fromGame(sim.fourth), border: sim.border, zoom: sim.zoom };
+  sim = { ...fromGame(sim.fourth), border: sim.border, zoom: sim.zoom, move: sim.move, hit: sim.hit };
   paintFields();
   save();
   draw();
