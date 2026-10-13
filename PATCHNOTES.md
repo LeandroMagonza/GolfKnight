@@ -21,6 +21,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **La pantalla de dificultad**
 - Sin barras de scroll: de costado ya no se corre, y para arriba y abajo se arrastra con el mouse. Los
   hechiceros ya no dicen que no hace falta matarlos. `a511711`
+- Todo esto, también en la app de Windows. `39fecf3`
 
 **Las oleadas**
 - **El presupuesto de las oleadas**: cada enemigo vale los tiros que te pide (su vida, por lo que le hace su
