@@ -7,6 +7,29 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 14 de octubre
+
+**Efectos y sonidos** (todo se puede apagar: panel B, Visual → Pulido; o `?pulido=0` para ver cómo era)
+- **Los golpes se sienten**: cada golpe tiene su impacto (el perfecto, un estallido con estrellas y una congelada
+  de un instante), el enemigo se aplasta al recibir, y el palo y la pelota tienen sonido propio. `89bac91`
+- **Fuego, hielo y auras**: llamas en los que se queman (con crepitar y chisporroteo), cristales en los
+  congelados que se rompen al soltarse, el aura del guante en el golfista, y la pelota de fuego deja estela.
+  Las explosiones tienen humo y dejan la marca quemada. `89bac91`
+- **La burbuja del bendito, nueva**: brilla en el borde, tiene hexágonos y tiembla; al romperla se disuelve y
+  al volver crece, cada una con su sonido. `89bac91`
+- **Más sonidos**: la voz de cada enemigo al morir, el élite y el jefe al entrar, metal al pegarle al
+  blindado y al escudo, el rebote en el intocable, la curación, la esquiva y su recarga, los hechiceros, la
+  oleada terminada y las cartas. `89bac91`
+
+**Los enemigos**
+- **El chamán curandero, nuevo**: llena su barra en 6 s y cura entero a todos los de su círculo (al élite y al
+  jefe, 5 como mucho). Hay que matarlo a él o a los de adentro antes de que se llene. `89bac91`
+
+**Para los que prueban**
+- **Pruebas directas con `?prueba=`**: golpes, fuego, hielo, auras, burbuja, blindado, escudo, intocable,
+  curacion, esquiva, hechiceros, muertes, jefe, explosiones. Sin oleadas, sin perder, y los enemigos vuelven a
+  salir. Qué mirar en cada una: docs/pruebas.md. `89bac91`
+
 ## 13 de octubre
 
 **La línea del tiro**
