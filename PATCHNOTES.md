@@ -19,6 +19,10 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   gruñe grave cada vez que le pegás. Las muertes son nuevas. `24bad60`
 - **La puerta suena a madera** y al caballero le pegan con armadura. Al perder, los que siguen golpeando la
   puerta ya no suenan. `24bad60`
+- **Explosiones nuevas**: la del hierro y el wedge suena a una explosión de verdad, y más baja. La de 8 bits
+  se fue. `ae362b6`
+- **Se pueden ajustar los volúmenes**: panel B, pestaña Sonido. Hay uno por grupo (música, palo, voces,
+  explosiones...) y uno por cada sonido, con un botón para escucharlo. `ae362b6`
 - **Cada poder suena a lo suyo**: los disparos, a su palo y su elemento; el carrito arranca, el hoyo se clava,
   la bandera vuela, la pólvora chisporrotea, y así cada uno. `24bad60`
 
@@ -35,6 +39,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   oleada terminada y las cartas. `89bac91`
 
 **Los enemigos**
+- **Si limpiás la cancha, el que sigue sale enseguida**: antes esperaba su turno y te podías quedar sin nadie a
+  quien pegarle. `ae362b6`
 - **El chamán curandero, nuevo**: llena su barra en 6 s y cura entero a todos los de su círculo (al élite y al
   jefe, 5 como mucho). Hay que matarlo a él o a los de adentro antes de que se llene. `89bac91`
 
