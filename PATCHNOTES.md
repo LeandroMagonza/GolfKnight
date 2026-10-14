@@ -18,6 +18,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
   se amontonaban en una raya, y costaba leer por dónde iba el tiro. El arco es el mismo. `d031794`
 
 **Los enemigos**
+- **El jefe goblin, el chamán y el caballero esqueleto, más grandes**: el jefe goblin pasa de 1,65 a 2 m (antes
+  se veía como un esqueleto), el chamán de 1,45 a 1,85 y el caballero de 2,2 a 2,6. Ocupan más, así que son
+  un poco más fáciles de pegarles y te atropellan desde un poco más lejos. `2e46e7a`
 - **El que se cura, más duro**: el ciclo arranca con el primer golpe y ahora alcanza justo para rematarlo
   con la combinación de golpes más rápida. Con 5 de vida, si abrís con un 3, te da para cargar un 2 y nada
   más. `9291207`
