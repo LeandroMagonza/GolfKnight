@@ -9,6 +9,19 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 14 de octubre
 
+**El sonido, segunda vuelta** (cada cosa se apaga aparte: panel B, Visual → Pulido)
+- **Ya no se satura ni llega tarde**: el golpe a la pelota suena justo al pegar (antes, una décima tarde), y
+  cuando suenan muchas cosas juntas ya no se recorta. `24bad60`
+- **El golpe de cada palo, grabado de verdad**: el putter hace tic, el hierro un click seco, el wedge suena con
+  más cuerpo y el driver el ping metálico. Afuera los sonidos de 8 bits. `24bad60`
+- **Los enemigos suenan a lo que son**: la pelota pega distinto en el cuerpo, en el hueso del esqueleto, en la
+  armadura del caballero y en la piedra del gólem. Se quejan al recibir, cada uno con su voz, y el élite
+  gruñe grave cada vez que le pegás. Las muertes son nuevas. `24bad60`
+- **La puerta suena a madera** y al caballero le pegan con armadura. Al perder, los que siguen golpeando la
+  puerta ya no suenan. `24bad60`
+- **Cada poder suena a lo suyo**: los disparos, a su palo y su elemento; el carrito arranca, el hoyo se clava,
+  la bandera vuela, la pólvora chisporrotea, y así cada uno. `24bad60`
+
 **Efectos y sonidos** (todo se puede apagar: panel B, Visual → Pulido; o `?pulido=0` para ver cómo era)
 - **Los golpes se sienten**: cada golpe tiene su impacto (el perfecto, un estallido con estrellas y una congelada
   de un instante), el enemigo se aplasta al recibir, y el palo y la pelota tienen sonido propio. `89bac91`
@@ -27,7 +40,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 **Para los que prueban**
 - **Pruebas directas con `?prueba=`**: golpes, fuego, hielo, auras, burbuja, blindado, escudo, intocable,
-  curacion, esquiva, hechiceros, muertes, jefe, explosiones. Sin oleadas, sin perder, y los enemigos vuelven a
+  curacion, esquiva, hechiceros, muertes, jefe, explosiones; y del sonido nuevo, palos, quejidos, disparos,
+  invocaciones, mejoras y refuerzos (`24bad60`). Sin oleadas, sin perder, y los enemigos vuelven a
   salir. Qué mirar en cada una: docs/pruebas.md. `89bac91`
 
 ## 13 de octubre
