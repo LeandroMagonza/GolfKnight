@@ -62,6 +62,8 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - En el panel, Visual → Línea del tiro: los puntos como antes (parejos en el campo), para comparar. `d031794`
 
 **Detrás de escena**
+- Revisados los 51 paquetes del Asset Store que hay para usar: qué sirve para efectos, sonidos, enemigos y
+  escenario, sin que el juego pese de más (docs/assets.md). `cffb339`
 - La portada de itch nueva: el caballero en lo alto del swing visto desde atrás y al costado de la pelota,
   el arco cayendo sobre el enemigo más cercano, la horda repartida por un campo con lomas, con luz de tarde
   y el título más grande. `bea53a6`
