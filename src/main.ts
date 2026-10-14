@@ -2046,6 +2046,7 @@ function makeDebugPanel(): DebugPanel {
     timing: currentTiming,
     tennis: TENNIS_ON,
     switchMode: () => switchMode(!TENNIS_ON),
+    sound: { preview: (n) => audio.preview(n), previewGroup: (g) => audio.previewGroup(g), apply: () => audio.applyVolumes() },
   });
 }
 

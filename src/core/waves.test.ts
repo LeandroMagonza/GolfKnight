@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BUDGET } from './budget';
 import { CHARGE } from './clubs';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, finishTime, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, finishTime, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, SPAWN_RUSH, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -622,6 +622,21 @@ describe('waves', () => {
     expect(log.filter((e) => e.type === 'spawn').length).toBe(6);
     expect(log.filter((e) => e.type === 'cleared').length).toBe(2);
     expect(log[log.length - 1].type).toBe('victory');
+  });
+
+  it('con la cancha vacía, el que sigue sale enseguida (SPAWN_RUSH)', () => {
+    const wave: Wave = { title: 'apuro', interval: 5, scenario: 0, groups: [{ kind: 'goblin', count: 3 }] };
+    const times = (alive: number) => {
+      const d = new WaveDirector([wave], 2);
+      const at: number[] = [];
+      for (let t = 0; t < 30; t += 0.05) for (const e of d.update(0.05, alive)) if (e.type === 'spawn') at.push(t);
+      return at;
+    };
+    // con uno vivo, cada 5 s; con la cancha vacía, a los SPAWN_RUSH.wait
+    const calm = times(1);
+    const rush = times(0);
+    expect(calm[2] - calm[1]).toBeGreaterThan(4.5);
+    expect(rush[2] - rush[1]).toBeLessThan(SPAWN_RUSH.wait + 0.1);
   });
 
   it('no da por terminada una oleada mientras quedan enemigos', () => {

@@ -36,6 +36,9 @@ Para comparar con lo de antes:
 | `?prueba=invocaciones` | Q W E R: el carrito arranca, el hoyo se clava (y el que cae suena), la bandera vuela y se clava, la pólvora chisporrotea. |
 | `?prueba=mejoras` | Q W E R: la lluvia de pelotas sube, el caddie brilla dorado, la lupa crece, el clon junta energía. |
 | `?prueba=refuerzos` | Q W E R: eco, potencia, fuerza y el palazo (suena al conectar: dejalos acercar). |
+| `?prueba=explosiones` con hierro y wedge | Las explosiones nuevas: un "boom" grabado (la chica) y uno más grave y largo (el golpe 3). |
+| Volúmenes | Panel B, pestaña **Sonido**: un volumen por grupo y uno por cada sonido, con ▶ para escucharlo. «Copiar configuración» y me lo pasás. |
+| Limpiar la cancha | En una partida normal: si matás a todos mientras la oleada sigue saliendo, el que sigue sale enseguida (antes esperaba su turno). Para comparar, `?ajuste=apuro.wait:99`. |
 | Perder una partida | Ya sin `?prueba`: cuando cae la puerta o el golfista, los que siguen pegándole a la puerta no suenan más. |
 | `?prueba=explosiones` | Grupos apretados para el hierro y el wedge: fogonazo, humo, rayas y la marca quemada en el piso. |
 

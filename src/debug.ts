@@ -21,7 +21,8 @@ import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { BUDGET, POWER_WEIGHT } from './core/budget';
 import { POLISH, setAllPolish, type PolishKey } from './core/polish';
-import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
+import { groupOf, SFX_NAMES, SFX_VOLUME, VOLUME, type VolumeGroup } from './audio/volumes';
+import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, SPAWN_RUSH, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
@@ -51,6 +52,11 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   click: TAP,
   // el pulido de efectos y sonidos (`pulido.bubble:0`; ver POLISH)
   pulido: POLISH,
+  // los volúmenes, por grupo y por sonido (`volumen.musica:0.5`, `sonidos.explosion-big:0.6`; ver audio/volumes)
+  volumen: VOLUME,
+  sonidos: SFX_VOLUME,
+  // el que sigue sale enseguida si no queda nadie (`apuro.wait:99` lo apaga; ver SPAWN_RUSH)
+  apuro: SPAWN_RUSH,
   // en qué cuerpos caen el fantasma y el bendito (`reparto.divine:1,reparto.giants:0`)
   reparto: POWER_BIAS,
   // el presupuesto de las oleadas (`presupuesto.on:0` lo apaga; ver core/budget)
@@ -149,6 +155,8 @@ export interface DebugHooks {
   /** ¿Se está en el modo tenis? Y pasar al otro modo (recarga la página). */
   tennis: boolean;
   switchMode(): void;
+  /** El sonido: escuchar un grabado o un grupo, y pasar los volúmenes tocados. */
+  sound?: { preview(name: string): void; previewGroup(group: VolumeGroup): void; apply(): void };
 }
 
 const STORE_KEY = BALANCE_KEY;
@@ -416,7 +424,7 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
 /** Los poderes de escenario, como se los nombra en las filas de velocidad. */
 const SPEED_NAMES: Record<ScenarioPower, string> = { shield: 'escudo', armor: 'blindado', ethereal: 'fantasma', divine: 'bendito', dodge: 'escurridizo', regen: 'que se cura', phase: 'intocable' };
 const TRIAL_KEY = 'gk.pruebaOla';
-const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Visual', 'Pruebas'] as const;
+const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Visual', 'Sonido', 'Pruebas'] as const;
 type Tab = (typeof TABS)[number];
 const TAB_KEY = 'gk.balanceTab';
 
@@ -572,6 +580,7 @@ export class DebugPanel {
     this.buildEnemies(this.pages.get('Enemigos')!);
     this.buildCourse(this.pages.get('Campo')!);
     this.buildVisual(this.pages.get('Visual')!);
+    this.buildSound(this.pages.get('Sonido')!);
     this.buildTests(this.pages.get('Pruebas')!);
     this.buildFooter(el);
     let first: Tab = 'Palos';
@@ -589,6 +598,55 @@ export class DebugPanel {
     try {
       localStorage.setItem(TAB_KEY, tab);
     } catch { /* no hace falta recordarla */ }
+  }
+
+  // ---- sonido: los volúmenes (14/10; ver audio/volumes) ----
+  private buildSound(el: HTMLElement): void {
+    const sound = this.hooks.sound;
+    const names: Record<VolumeGroup, string> = {
+      todo: 'Todo', musica: 'Música', carga: 'Carga (el arpegio)', bajas: 'Bajas (la campana)', palo: 'Palo, swing y pifia',
+      golpes: 'Pelota contra enemigos', explosiones: 'Explosiones', voces: 'Voces de los enemigos', poderes: 'Tus poderes',
+      enemigos: 'Poderes de los enemigos', golfista: 'Puerta y golfista', partida: 'Partida y botones',
+    };
+    const level = (v: number) => Math.min(2, Math.max(0, v));
+    const play = (onClick: () => void) => {
+      const b = this.button('▶', onClick, 'Escucharlo (con la partida empezada)');
+      b.style.padding = '0 8px';
+      return b;
+    };
+    el.append(heading('Volumen por grupo'), note('1 es como está, 0 lo apaga, 2 el doble. ▶ suena uno de ejemplo; anda con la partida empezada (el sonido arranca con el primer click).'));
+    const groups = document.createElement('table');
+    for (const g of Object.keys(VOLUME) as VolumeGroup[]) {
+      const r = groups.insertRow();
+      cell(r, names[g], 'l');
+      cell(r, this.field(() => VOLUME[g], (v) => { VOLUME[g] = level(v); sound?.apply(); }, 0.05));
+      cell(r, g === 'musica' ? '' : play(() => sound?.previewGroup(g)));
+    }
+    el.append(groups);
+    el.append(heading('Cada sonido'), note('Encima del volumen de su grupo. El ▶ lo suena al volumen con que lo pide el juego (el de la última vez que sonó en la partida).'));
+    for (const g of Object.keys(VOLUME) as VolumeGroup[]) {
+      const list = SFX_NAMES.filter((n) => groupOf(n) === g);
+      if (!list.length) continue;
+      const sub = document.createElement('p');
+      sub.className = 'note';
+      sub.textContent = names[g];
+      sub.style.fontWeight = 'bold';
+      const table = document.createElement('table');
+      for (const n of list) {
+        const r = table.insertRow();
+        cell(r, n, 'l');
+        cell(r, this.field(() => SFX_VOLUME[n], (v) => { SFX_VOLUME[n] = level(v); }, 0.05));
+        cell(r, play(() => sound?.preview(n)));
+      }
+      el.append(sub, table);
+    }
+    el.append(this.row(this.button('Todo en 1', () => {
+      for (const g of Object.keys(VOLUME) as VolumeGroup[]) VOLUME[g] = 1;
+      for (const n of SFX_NAMES) SFX_VOLUME[n] = 1;
+      sound?.apply();
+      this.save();
+      this.refresh();
+    })), note('Se guarda en este navegador. Cuando te guste, «Copiar configuración» y pasámelo: lo dejo así para todos.'));
   }
 
   // ---- palos: daño por banda de distancia y nivel de golpe, y las bandas ----
@@ -1543,7 +1601,13 @@ export class DebugPanel {
     lines.push('', 'habilidades (recarga en s, alcance en m):');
     for (const id of ABILITY_LIST) lines.push(`  ${id}: recarga ${ABILITIES[id].cooldown}, alcance ${ABILITIES[id].range}`);
     lines.push('', 'numeros de habilidades y mejoras ([nv1, nv2, nv3] donde van por nivel):');
-    for (const [name, table] of Object.entries(CONFIGS)) lines.push(`  ${name}: ${JSON.stringify(table)}`);
+    // los volúmenes de cada sonido son 83: solo los que no están en 1
+    for (const [name, table] of Object.entries(CONFIGS)) {
+      if (name === 'sonidos') continue;
+      lines.push(`  ${name}: ${JSON.stringify(table)}`);
+    }
+    const touched = Object.entries(SFX_VOLUME).filter(([, v]) => v !== 1);
+    lines.push(`  sonidos (los que no están en 1): ${touched.length ? JSON.stringify(Object.fromEntries(touched)) : 'ninguno'}`);
     lines.push('', `correrse cargando: modo ${SHIFT.mode}, alcance ${SHIFT.reach} m, paso ${SHIFT.step} m, velocidad ${SHIFT.speed} m/s`);
     lines.push(`efecto: ${CURVE.variant}, vuelve a cero al ${CURVE.reset}, curva max ${CURVE.max} m, escalon ${CURVE.step} m, crece a ${CURVE.rate} m/s`);
     lines.push('', 'enemigos (vida, velocidad, daño):');

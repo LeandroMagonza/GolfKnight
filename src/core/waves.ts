@@ -742,6 +742,13 @@ export interface RunRules {
 /** Segundos de descanso entre oleadas. */
 export const INTERMISSION = 6;
 
+/**
+ * Si matás a todos los que hay (o quedan `below` o menos) mientras la oleada sigue saliendo, el que sigue sale
+ * a los `wait` segundos como mucho, en vez de esperar su turno (14/10, Leandro: que no te quedes sin
+ * enemigos a los que pegarles). Con `wait` alto (99) queda como antes.
+ */
+export const SPAWN_RUSH = { wait: 0.5, below: 0 };
+
 /** Todo al máximo: lo que arma `buildRun()` sin reglas. */
 export const HARDEST: RunRules = {
   stack: true, specials: 2, supports: 2, hard: HARDEST_POWERS, speed: 1, share: 1 / 3, eliteHp: [0, 1, 2], escort: true, rest: INTERMISSION,
@@ -1307,6 +1314,8 @@ export class WaveDirector {
       events.push({ type: 'wave', index: this.index, wave });
     }
     if (this.phase === 'spawning') {
+      // la cancha vacía: el que sigue no espera su turno (SPAWN_RUSH)
+      if (alive <= SPAWN_RUSH.below) this.timer = Math.min(this.timer, SPAWN_RUSH.wait);
       while (this.timer <= 0 && this.queue.length) {
         const next = this.queue.shift()!;
         events.push({ type: 'spawn', kind: next.kind, ...(next.mods ? { mods: next.mods } : {}) });

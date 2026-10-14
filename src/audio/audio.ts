@@ -6,6 +6,7 @@
 import * as Tone from 'tone';
 import { polished, type PolishKey } from '../core/polish';
 import { SampleBank } from './samples';
+import { sampleVolume, SFX_NAMES, groupOf, VOLUME, type VolumeGroup } from './volumes';
 
 const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -46,7 +47,9 @@ function loadMuted(key = MUTE_KEY): boolean {
 }
 
 export class GameAudio {
-  private master!: Tone.ToneAudioNode;
+  /** La entrada de todo: el volumen general (`VOLUME.todo`), antes del limitador. */
+  private master!: Tone.Gain;
+  private limiter!: Tone.ToneAudioNode;
   private musicBus!: Tone.Gain;
   private click!: Tone.MembraneSynth;
   private thudSynth!: Tone.MembraneSynth;
@@ -79,6 +82,8 @@ export class GameAudio {
   private quietWorld = false;
   /** Para las pruebas: lo que sale, para medir picos (ver `tap`). */
   private probe: AnalyserNode | null = null;
+  /** A qué volumen pidió el juego cada grabado la última vez: el ▶ del panel lo suena igual. */
+  private readonly asked = new Map<string, number>();
 
   private readonly lastTime = new Map<object, number>();
 
@@ -88,7 +93,7 @@ export class GameAudio {
     const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat', 'unlock',
       'death', 'eliteAlert', 'bossAppear', 'bossThrow', 'bossRock', 'bubblePop', 'bubbleUp', 'armorHit', 'ricochet', 'phaseBounce', 'heal', 'dodge', 'dodgeReady',
       'casterCast', 'casterHit', 'burnTick', 'burning', 'waveClear', 'cardAppear', 'cardPick', 'uiClick', 'playerDies', 'hole', 'cast', 'trample',
-      'ballHit', 'groan', 'meleeHit', 'hush'] as const;
+      'ballHit', 'groan', 'meleeHit', 'hush', 'preview', 'previewGroup'] as const;
     for (const name of sfx) {
       const fn = (this[name] as (...args: unknown[]) => void).bind(this);
       (this as Record<string, unknown>)[name] = (...args: unknown[]) => {
@@ -136,11 +141,12 @@ export class GameAudio {
     // `Limiter` de Tone es un compresor con rodilla de 30 dB y suelta de 10 ms: con varios grabados juntos
     // casi no frenaba, la suma pasaba de 0 dB y recortaba a la salida (Leandro: «no sabés si está saturado»)
     const mix = polished('mix');
-    this.master = mix
+    this.limiter = mix
       ? new Tone.Compressor({ threshold: -3, ratio: 20, knee: 0, attack: 0.002, release: 0.15 }).toDestination()
       : new Tone.Limiter(-1).toDestination();
+    this.master = new Tone.Gain(VOLUME.todo).connect(this.limiter);
     const verb = new Tone.Freeverb({ roomSize: 0.7, dampening: 2500, wet: 0.25 }).connect(this.master);
-    this.musicBus = new Tone.Gain(this.muted ? 0 : 0.8).connect(verb);
+    this.musicBus = new Tone.Gain(this.musicLevel()).connect(verb);
 
     this.click = new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 2, envelope: { attack: 0.001, decay: 0.07, sustain: 0, release: 0.02 }, volume: -4 }).connect(this.master);
     this.thudSynth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }, volume: -8 }).connect(this.master);
@@ -180,7 +186,8 @@ export class GameAudio {
   /** Suena el grabado `name` si su llave (`key`) está prendida y ya llegó. Devuelve si sonó. */
   private sample(key: PolishKey, name: string, volume = 1, jitter = 0.05, ms = 40, delay = 0): boolean {
     if (!this.ready || !this.bank || !polished(key)) return false;
-    return this.bank.play(name, volume, jitter, ms, delay);
+    this.asked.set(name, volume);
+    return this.bank.play(name, volume * sampleVolume(name), jitter, ms, delay);
   }
 
   /** ¿Hay grabado para `name` con su llave prendida? (para no sonar dos veces lo mismo) */
@@ -194,7 +201,7 @@ export class GameAudio {
    */
   chargeTick(level: number): void {
     if (!this.ready) return;
-    this.chargeSynth.triggerAttackRelease(midiToFreq(arpeggioNote(level - 1)), 0.09, this.at(this.chargeSynth), 0.75);
+    this.chargeSynth.triggerAttackRelease(midiToFreq(arpeggioNote(level - 1)), 0.09, this.at(this.chargeSynth), 0.75 * VOLUME.carga);
   }
 
   /** Música de fondo: progresión modal en re dórico, arpegio de laúd y colchón. */
@@ -214,9 +221,47 @@ export class GameAudio {
     transport.start();
   }
 
+  /** El volumen de la música: apagada con M, y su perilla (`VOLUME.musica`). */
+  private musicLevel(): number {
+    return this.muted ? 0 : 0.8 * VOLUME.musica;
+  }
+
+  /** Pasa al sonido lo tocado en la pestaña Sonido (lo general y la música; lo demás se lee al sonar). */
+  applyVolumes(): void {
+    if (!this.ready) return;
+    this.master.gain.rampTo(VOLUME.todo, 0.05);
+    this.musicBus.gain.rampTo(this.musicLevel(), 0.05);
+  }
+
+  /** El ▶ del panel: suena `name` como lo pide el juego, sin el límite de ráfaga. */
+  preview(name: string): void {
+    if (!this.ready || !this.bank) return;
+    if (name === 'burn-loop') {
+      this.bank.loopAt(name, 0.2 * sampleVolume(name));
+      setTimeout(() => this.bank?.loopAt(name, 0), 1500);
+      return;
+    }
+    this.bank.play(name, (this.asked.get(name) ?? 0.6) * sampleVolume(name), 0, 0);
+  }
+
+  /** El ▶ de un grupo: la carga y las bajas, su arpegio; los demás, su primer grabado. */
+  previewGroup(group: VolumeGroup): void {
+    if (!this.ready) return;
+    if (group === 'carga') {
+      [1, 2, 3].forEach((l) => setTimeout(() => this.chargeTick(l), l * 220));
+      return;
+    }
+    if (group === 'bajas') {
+      [0, 1, 2, 3].forEach((s) => this.kill(s));
+      return;
+    }
+    const first = SFX_NAMES.find((n) => group === 'todo' || groupOf(n) === group);
+    if (first) this.preview(first);
+  }
+
   toggleMute(): boolean {
     this.muted = !this.muted;
-    this.musicBus.gain.rampTo(this.muted ? 0 : 0.8, 0.2);
+    this.musicBus.gain.rampTo(this.musicLevel(), 0.2);
     try {
       localStorage.setItem(MUTE_KEY, this.muted ? '1' : '0');
     } catch { /* sin localStorage: vale hasta recargar */ }
@@ -245,7 +290,7 @@ export class GameAudio {
   whoosh(power: number): void {
     if (!this.ok('whoosh')) return;
     this.whooshFilter.frequency.value = 600 + 1600 * power;
-    this.whooshNoise.triggerAttackRelease(0.2, this.at(this.whooshNoise));
+    this.whooshNoise.triggerAttackRelease(0.2, this.at(this.whooshNoise), VOLUME.palo);
   }
 
   /** La pifia: el palo pasa y la pelota no sale. Dos notas que caen, tipo «bwomp». */
@@ -266,15 +311,15 @@ export class GameAudio {
       return;
     }
     const t = this.at(this.click);
-    this.click.triggerAttackRelease(perfect ? 'G4' : 'D4', '32n', t);
-    if (perfect) this.bell.triggerAttackRelease([midiToFreq(86), midiToFreq(91)], 0.4, t + 0.02);
+    this.click.triggerAttackRelease(perfect ? 'G4' : 'D4', '32n', t, VOLUME.palo);
+    if (perfect) this.bell.triggerAttackRelease([midiToFreq(86), midiToFreq(91)], 0.4, t + 0.02, VOLUME.palo);
   }
 
   /** Un golpe sordo: la pelota que cae, el hoyo, el empujón. */
   thud(): void {
     if (!this.ok('thud')) return;
     if (this.sample('samples', 'hit-soft', 0.6, 0.08)) return;
-    this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth));
+    this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth), VOLUME.golpes);
   }
 
   /**
@@ -289,7 +334,7 @@ export class GameAudio {
     if (!this.ok('ballHit', 35)) return;
     const name = HIT_SOUND[kind] ?? (quality >= 3 ? 'hit-heavy' : 'ball-hit');
     if (this.sample('samples', name, quality >= 3 ? 0.85 : 0.7, 0.06, 35)) return;
-    this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth));
+    this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth), VOLUME.golpes);
   }
 
   /**
@@ -320,19 +365,19 @@ export class GameAudio {
     if (!this.ready) return;
     const t = Math.max(this.now(), this.killAt + KILL_STRUM);
     this.killAt = t;
-    this.killBell.triggerAttackRelease(midiToFreq(arpeggioNote(step)), 0.5, t, Math.min(1, 0.6 + 0.06 * step));
+    this.killBell.triggerAttackRelease(midiToFreq(arpeggioNote(step)), 0.5, t, Math.min(1, 0.6 + 0.06 * step) * VOLUME.bajas);
   }
 
   bounce(): void {
     if (!this.ok('bounce')) return;
-    this.click.triggerAttackRelease('A2', '64n', this.at(this.click), 0.35);
+    this.click.triggerAttackRelease('A2', '64n', this.at(this.click), 0.35 * VOLUME.golpes);
   }
 
   explosion(big = false): void {
     if (this.quietWorld || !this.ok('explosion', 120)) return;
-    if (this.sample('samples', big ? 'explosion-big' : 'explosion-small', big ? 0.9 : 0.75, 0.06)) return;
-    this.boom.triggerAttackRelease('C1', '4n', this.at(this.boom));
-    this.noise.triggerAttackRelease(0.4, this.at(this.noise));
+    if (this.sample('samples', big ? 'explosion-big' : 'explosion-small', big ? 0.7 : 0.55, 0.06)) return;
+    this.boom.triggerAttackRelease('C1', '4n', this.at(this.boom), VOLUME.explosiones);
+    this.noise.triggerAttackRelease(0.4, this.at(this.noise), VOLUME.explosiones);
   }
 
   zap(): void {
@@ -360,7 +405,7 @@ export class GameAudio {
   gateHit(): void {
     if (this.quietWorld || !this.ok('gateHit', 120)) return;
     if (this.sample('samples', 'gate-hit', 0.85)) return;
-    this.boom.triggerAttackRelease('E1', '8n', this.at(this.boom), 0.7);
+    this.boom.triggerAttackRelease('E1', '8n', this.at(this.boom), 0.7 * VOLUME.golfista);
   }
 
   /** Golpe que recibe el golfista. */
@@ -368,7 +413,7 @@ export class GameAudio {
     if (this.quietWorld || !this.ok('hurt')) return;
     if (this.sample('samples', 'hurt', 0.85)) return;
     // sin ruido: comparte instante con la explosión de un bombín, y NoiseSynth no admite dos disparos juntos
-    this.thudSynth.triggerAttackRelease('E2', '8n', this.at(this.thudSynth));
+    this.thudSynth.triggerAttackRelease('E2', '8n', this.at(this.thudSynth), VOLUME.golfista);
   }
 
   /** Cuerno que anuncia una oleada. */
@@ -494,7 +539,7 @@ export class GameAudio {
   burning(count: number): void {
     if (!this.ready || !this.bank) return;
     const on = polished('fireSounds') && count > 0;
-    this.bank.loopAt('burn-loop', on ? Math.min(0.32, 0.12 + 0.05 * count) : 0);
+    this.bank.loopAt('burn-loop', on ? Math.min(0.32, 0.12 + 0.05 * count) * sampleVolume('burn-loop') : 0);
   }
 
   /** Se terminó una oleada. */
@@ -562,7 +607,7 @@ export class GameAudio {
     if (!this.probe) {
       this.probe = Tone.getContext().createAnalyser();
       this.probe.fftSize = 4096;
-      Tone.connect(this.master, this.probe);
+      Tone.connect(this.limiter, this.probe);
     }
     return this.probe;
   }

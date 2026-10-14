@@ -201,5 +201,29 @@ Los que mira Abe (en red) ahora también oyen todo esto.
 
 **Peso.** `public/sfx` pasa de 0,66 a 1,2 MB, con 87 eventos en 118 archivos.
 
-**Quedan de PP, por ahora.** Las explosiones (`explosion-small` y `explosion-big`), el brillo de
-`bubble-pop` y la alerta del élite (`elite-alert`, que gustó). Si alguno suena a 8 bits, se cambia igual.
+**Quedan de PP, por ahora.** El brillo de `bubble-pop` y la alerta del élite (`elite-alert`, que gustó). Si
+alguno suena a 8 bits, se cambia igual.
+
+## Las explosiones y los volúmenes (14/10, tercera tanda)
+
+**Explosiones.** A Leandro la del hierro y el wedge le «sonó un poco rara». Eran `PP_Explosion`, de 8 bits:
+la chica con la onda cuadrada y la grande con un peine de frecuencias. Ahora salen de Freesound, CC0:
+- **La chica:** [535592](https://freesound.org/s/535592/) "BOOM IMPACT 2", a 0,8 s.
+- **La grande:** la misma, tres semitonos más grave, con el golpe sordo de
+  [431174](https://freesound.org/s/431174/) "Fireball Explosion" abajo, a 1,3 s.
+- **Volumen:** las dos suenan más bajas que antes (0,55 y 0,7).
+- **Descartada:** [182429](https://freesound.org/s/182429/), de qubodup, porque trae el arranque recortado.
+- **Descartadas también** las "explosionCrunch" de Kenney Sci-fi, que son ruido comprimido.
+
+**Volúmenes** (`src/audio/volumes.ts`). Hay dos tablas que se multiplican con lo que pide el código:
+- **por grupo:** todo, música, carga, bajas, palo, golpes, explosiones, voces, poderes, poderes de los
+  enemigos, puerta y golfista, partida;
+- **por sonido grabado:** los 83 de `public/sfx`.
+
+Se tocan en el panel B, en la pestaña **Sonido**, con un ▶ para escuchar cada uno. Se guardan con el balance
+y salen en «Copiar configuración» (de cada sonido, solo los que no están en 1). También se pueden pasar por
+la URL: `?ajuste=volumen.musica:0.5` o `?ajuste=sonidos.explosion-big:0.6`. Un test compara la lista con
+`sfx.json`.
+
+**Fuera.** Salieron cuatro grabados que no usaba nada: `fire`, `lightning`, `cart` y `ui-back`. Los
+disparos usan los `cast-*`.

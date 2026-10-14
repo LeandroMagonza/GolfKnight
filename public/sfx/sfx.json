@@ -29,17 +29,17 @@
     "files": [
       "explosion-small.mp3"
     ],
-    "seconds": 0.6,
-    "source": "W UI_SFX/Misc/PP_Explosion_1_4.wav",
-    "note": "Explosión chica del mapeo."
+    "seconds": 0.8,
+    "source": "F x535592.mp3",
+    "note": "Explosión chica (el hierro y el wedge al caer, las marcas): un \"boom\" de impacto real que se apaga solo (Freesound 535592, \"BOOM IMPACT 2\", CC0), a 0,8 s. Antes PP_Explosion_1_4, de 8 bits."
   },
   "explosion-big": {
     "files": [
       "explosion-big.mp3"
     ],
-    "seconds": 1.4,
-    "source": "W UI_SFX/Misc/PP_Explosion_1_3.wav",
-    "note": "Explosión grande del mapeo; 1,54 s recortado a 1,4 con fade."
+    "seconds": 1.3,
+    "source": "F x535592.mp3 + F x431174.mp3",
+    "note": "Explosión grande (golpe 3 del hierro y el wedge, kamikaze, pólvora, bola de fuego): el mismo \"boom\" tres semitonos más grave y largo, con un golpe sordo abajo (Freesound 431174, \"Fireball Explosion\", CC0). Antes PP_Explosion_1_3, de 8 bits."
   },
   "bubble-pop": {
     "files": [
@@ -284,22 +284,6 @@
     "source": "H Skill 8.wav",
     "note": "Hovl \"Ise attack\" desde el golpe fuerte: arranca a los 0,897 s del original (10 ms antes del ataque, que está en 0,907 s; se pierden los cristales del principio) y sigue 1,2 s con fade de ~0,2 s al final."
   },
-  "fire": {
-    "files": [
-      "fire.mp3"
-    ],
-    "seconds": 1.4,
-    "source": "H Skill 11.wav",
-    "note": "Hovl \"Meteor\": sube en 0,3 s y la meseta va de 0,4 a 1,3 s; recortado a 1,4 s con fade."
-  },
-  "lightning": {
-    "files": [
-      "lightning.mp3"
-    ],
-    "seconds": 1.5,
-    "source": "H Skill 2.wav",
-    "note": "Hovl \"Lightning strike\": el original tiene 1 s de carga casi muda antes del rayo; arranca a los 0,85 s (150 ms de chisporroteo y el rayo) y se corta a 1,5 s con fade."
-  },
   "lightning-chain": {
     "files": [
       "lightning-chain.mp3"
@@ -315,14 +299,6 @@
     "seconds": 1.19,
     "source": "W UI_SFX/Misc/LQ_Comedy_Drop.wav",
     "note": "Del mapeo."
-  },
-  "cart": {
-    "files": [
-      "cart.mp3"
-    ],
-    "seconds": 1.03,
-    "source": "P Game/Engine1_Idle.ogg",
-    "note": "Loop de motor del mapeo (1,03 s). El original ya empalma sin salto (la diferencia en la costura es como la de dos muestras seguidas), así que no se recorta ni se cruza: solo un fade de 5 ms en cada borde por el relleno del mp3. Si se nota el corte, usar loopStart/loopEnd."
   },
   "trample": {
     "files": [
@@ -362,14 +338,6 @@
     ],
     "seconds": 0.1,
     "source": "W UI_SFX/UI/LQ_Click_Button.wav",
-    "note": "Del mapeo."
-  },
-  "ui-back": {
-    "files": [
-      "ui-back.mp3"
-    ],
-    "seconds": 0.07,
-    "source": "W UI_SFX/UI/LQ_Back_Button.wav",
     "note": "Del mapeo."
   },
   "victory": {
