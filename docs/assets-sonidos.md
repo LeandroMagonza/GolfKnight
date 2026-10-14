@@ -101,3 +101,13 @@ varias bajas de un tiro `FA_Scale_End.wav`; regalo `FA_Power_Up_1_1.wav`.
 A ~96 kbps mono, unos 12 KB por segundo. La primera tanda (31 archivos, 38 s) ~0,6 MB; la segunda ~0,3 MB.
 Recortando las colas de silencio, todo junto 0,6–0,75 MB. Para variedad: dos variantes al azar y la velocidad
 ±5 % (`playbackRate`), con el límite de frecuencia que ya tiene `ok()`.
+
+## Lo que se trajo (14/10)
+
+53 eventos en `public/sfx/` (mp3 mono a 80 kbps, ~0,6 MB), con la lista en `public/sfx/sfx.json` (archivo, fuente
+y por qué). Sonoridad pareja: golpes e impactos a -14 LUFS, voces a -16, la partida a -18, la curación a -21 y
+el tic de la esquiva a -24. Los suena `src/audio/audio.ts` a través de `src/audio/samples.ts`; si falta uno, o
+su llave de POLISH está apagada, suena lo sintetizado de siempre. Los que se eligieron por aproximación y
+conviene escuchar: `bubble-pop` (no hay vidrio: un "bloop" con brillo), `ricochet` (el metal una quinta más
+agudo), `burn-tick` (un siseo), `card-pick` (dos notas que suben). `burn-loop` no estaba en ningún paquete: lo
+genera `tools/crepitar.py`. Los scripts de la conversión quedaron en `logs/sfx-work/` (no se suben).

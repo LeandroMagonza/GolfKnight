@@ -14,7 +14,9 @@ import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
 import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, phaseSlot, REGEN, regenPace, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { EF, r2, r3, type EnemySnap, type ProjSnap } from '../net/snapshot';
+import { polished } from '../core/polish';
 import { LayeredAnimator } from './animator';
+import { bubbleMaterial } from './bubble';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
 import { TEE_Z } from './tees';
@@ -71,10 +73,18 @@ export type HordeEvent =
   | { type: 'spellLanded'; pos: THREE.Vector3; hit: boolean }
   /** El aura de un curandero le devolvió vida. */
   | { type: 'healed'; enemy: Enemy; amount: number }
+  /** El curandero cumplió su ciclo y cura a los de su círculo (ver HEAL_AURA). */
+  | { type: 'healPulse'; enemy: Enemy }
   /** Un geomante empezó a levantar una loma, o terminó y la loma quedó para siempre. */
   | { type: 'mound'; enemy: Enemy; settled: boolean }
   /** La bandera se levantó (todos +1 de vida) o cayó. */
   | { type: 'banner'; up: boolean }
+  /** El bendito volvió a armar su burbuja. */
+  | { type: 'divineUp'; enemy: Enemy }
+  /** A uno que esquiva le volvió la esquiva. */
+  | { type: 'dodgeReady'; enemy: Enemy }
+  /** El fuego le hace daño (un mordisco, antes de restarle la vida). */
+  | { type: 'burnTick'; enemy: Enemy }
   /** Uno que esquiva saltó al costado. */
   | { type: 'dodged'; enemy: Enemy }
   /** El tutorial no lo dejó morir: no era el tiro que se estaba enseñando. */
@@ -444,6 +454,11 @@ const SILENCE_EMISSIVE = new THREE.Color(0x4a1a08);
 /** Suaviza entre 0 y 1. */
 const smooth = (u: number) => u * u * (3 - 2 * u);
 
+/** Cada cuánto cura el curandero: su ciclo con `full`, y si no, de a poco (ver HEAL_AURA). */
+function healPeriod(): number {
+  return HEAL_AURA.full ? HEAL_AURA.cycle : HEAL_AURA.every;
+}
+
 export class Enemy {
   /** Único en la partida. El espectador usa el del que juega (ver net/). */
   readonly id: number;
@@ -530,8 +545,17 @@ export class Enemy {
   readonly behavior: Behavior;
   /** Tiene el punto de vida de más de la abanderada. Lo pone y lo saca la horda. */
   bannered = false;
-  /** Reloj del aura de curación: cura cuando llega a HEAL_AURA.every. */
+  /** Reloj del aura de curación: cura cuando llega a su período (ver `healPeriod`). */
   healTimer = 0;
+  /**
+   * Aplastado al recibir un golpe (ver POLISH.squash): cuánto está aplastado (positivo, más bajo y más
+   * ancho) y a qué velocidad cambia. Un resorte que lo devuelve a su forma.
+   */
+  private squash = 0;
+  private squashVel = 0;
+  private baseScale = 1;
+  /** La burbuja nueva: cuánto se ve (de 0 a 1), para armarla y romperla de a poco. */
+  private bubbleShow = 1;
   /**
    * Geomante: camina, se planta y canaliza la loma (`raising`); si termina, la loma queda y él sigue a
    * la puerta (`done`).
@@ -608,13 +632,15 @@ export class Enemy {
     this.maxHp = this.hp = Math.max(1, stats.hp + (mods.hp ?? 0));
     this.divineReady = !!this.divineEvery;
     if (this.divineEvery) {
-      this.bubble = new THREE.Mesh(bubbleGeo, new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.22, depthWrite: false }));
+      // con el pulido, la burbuja nueva (ver game/bubble); si no, la de antes
+      this.bubble = new THREE.Mesh(bubbleGeo, polished('bubble') ? bubbleMaterial() : new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.22, depthWrite: false }));
       this.bubble.scale.set(stats.radius * 1.6, stats.height * 0.62, stats.radius * 1.6);
       this.bubble.position.y = stats.height * 0.5;
       this.group.add(this.bubble);
     }
     this.model = cloneSkinned(template.scene);
     this.model.scale.setScalar(template.scale);
+    this.baseScale = template.scale;
     this.model.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
@@ -970,8 +996,9 @@ export class Enemy {
     const slots = bar ? BOSS_BAR_SLOTS : Math.min(this.maxHp, PIP_LAYER);
     // los íconos van más grandes que los cuadraditos: tienen un número o una forma que leer de lejos
     const width = BADGE_PX * badges.length + 32 * slots;
-    // el que se cura y el intocable llevan debajo de la vida la barra de su ciclo
-    const regen = !!this.mods.regen && !bar;
+    // el que se cura, el intocable y el curandero llevan debajo de la vida la barra de su ciclo
+    const healer = this.auraKind === 'heal' && !!HEAL_AURA.full && !bar;
+    const regen = (!!this.mods.regen || healer) && !bar;
     const phase = !!this.mods.phase && !bar;
     const height = BADGE_PX + (regen || phase ? REGEN_BAR_PX : 0);
     if (p.canvas.width !== width || p.canvas.height !== height) {
@@ -1072,7 +1099,7 @@ export class Enemy {
       ctx.fill();
       const ph = this.phaseBar;
       const shut = phase && ph > 0;
-      const fill = this.silenced && phase ? 1 : phase ? (shut ? ph : 1 - Math.abs(ph)) : Math.min(1, this.regenProgress);
+      const fill = this.silenced && phase ? 1 : phase ? (shut ? ph : 1 - Math.abs(ph)) : Math.min(1, healer ? this.healProgress : this.regenProgress);
       ctx.fillStyle = this.silenced ? '#6b7480' : !phase ? REGEN_COLOR : shut ? PHASE_COLOR
         : PHASE_OPEN.clone().lerp(PHASE_CLOSING, THREE.MathUtils.smoothstep(fill, 0.35, 1)).getStyle();
       ctx.fillRect(x0, y, w * fill, h);
@@ -1104,7 +1131,7 @@ export class Enemy {
   /** Redibuja la vida si cambió algo de lo que muestra (la vida, la bandera, el silencio sobre la armadura). */
   refreshPipsIfChanged(): void {
     // (la barra del que se cura, en 24 pasos: redibujar el lienzo en cada cuadro sería caro)
-    const regen = this.mods.regen ? Math.floor(this.regenProgress * 24) : this.mods.phase ? Math.round(this.phaseBar * 24) : 0;
+    const regen = this.mods.regen ? Math.floor(this.regenProgress * 24) : this.mods.phase ? Math.round(this.phaseBar * 24) : this.auraKind === 'heal' && HEAL_AURA.full ? Math.floor(this.healProgress * 24) : 0;
     const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.silenced}/${this.bannered}/${this.divineReady}/${this.dodgeLeft > 0}/${this.alive && !this.passed}/${regen}`;
     if (key === this.pipKey) return;
     this.pipKey = key;
@@ -1272,6 +1299,17 @@ export class Enemy {
   }
 
   /** Cuánto lleva de su ciclo, de 0 a 1 (en el que mira, lo que dice la foto). */
+  /** Recibió un golpe (ver POLISH.squash): se aplasta, más cuanto más fuerte. */
+  punch(strength: number): void {
+    if (!polished('squash') || !this.alive) return;
+    this.squashVel += 3.2 + 1.4 * Math.min(4, strength);
+  }
+
+  /** El curandero (ver HEAL_AURA): cuánto lleva de su ciclo, de 0 a 1. */
+  get healProgress(): number {
+    return this.casting ? Math.min(1, this.healTimer / healPeriod()) : 0;
+  }
+
   get regenProgress(): number {
     if (!this.mods.regen) return 0;
     return this.remoteRegen >= 0 ? this.remoteRegen : Math.min(1, this.regenTime / this.regenPeriod);
@@ -1443,9 +1481,15 @@ export class Enemy {
     // silenciado, lo que recarga no recarga: arranca cuando se le pasa
     if (!this.divineReady && this.divineEvery && !this.silenced) {
       this.divineTimer -= dt;
-      if (this.divineTimer <= 0) this.divineReady = true;
+      if (this.divineTimer <= 0) {
+        this.divineReady = true;
+        if (this.alive && !this.passed) horde.emit({ type: 'divineUp', enemy: this });
+      }
     }
-    if (this.dodgeLeft > 0 && !this.silenced) this.dodgeLeft = Math.max(0, this.dodgeLeft - dt);
+    if (this.dodgeLeft > 0 && !this.silenced) {
+      this.dodgeLeft = Math.max(0, this.dodgeLeft - dt);
+      if (this.dodgeLeft === 0 && this.alive && !this.passed) horde.emit({ type: 'dodgeReady', enemy: this });
+    }
     // el que se cura: el ciclo se llena y al llenarse se cura entero, con su brillo verde. Desde el 11/10
     // arranca con el primer golpe y sano no corre (ver REGEN.onHit); antes corría siempre, y brillaba
     // aunque estuviera sano, así se le leía el ritmo. Silenciado el ciclo no corre
@@ -1931,8 +1975,27 @@ export class Enemy {
     const powder = this.powderTimer > 0 ? 0.5 + 0.5 * Math.sin(this.age * 5) : 0;
     if (this.bubble) {
       // silenciado, la burbuja no protege: tampoco se ve
-      this.bubble.visible = this.divineReady && this.alive && !this.passed && !this.silenced;
-      (this.bubble.material as THREE.MeshBasicMaterial).opacity = 0.16 + 0.08 * Math.sin(this.age * 4);
+      const up = this.divineReady && this.alive && !this.passed && !this.silenced;
+      const mat = this.bubble.material;
+      if (mat instanceof THREE.ShaderMaterial) {
+        // la nueva: al romperse se disuelve en 0.3 s, al volver crece en 0.35 s
+        this.bubbleShow = up ? Math.min(1, this.bubbleShow + dt / 0.35) : Math.max(0, this.bubbleShow - dt / 0.3);
+        this.bubble.visible = this.bubbleShow > 0.001;
+        mat.uniforms.time.value += dt;
+        mat.uniforms.show.value = this.bubbleShow;
+        mat.uniforms.popping.value = up ? 0 : 1;
+      } else {
+        this.bubble.visible = up;
+        (mat as THREE.MeshBasicMaterial).opacity = 0.16 + 0.08 * Math.sin(this.age * 4);
+      }
+    }
+    // el aplastado del golpe: un resorte que vuelve a su forma
+    if (this.squash !== 0 || this.squashVel !== 0) {
+      this.squashVel += (-260 * this.squash - 16 * this.squashVel) * dt;
+      this.squash += this.squashVel * dt;
+      if (Math.abs(this.squash) < 0.002 && Math.abs(this.squashVel) < 0.02) this.squash = this.squashVel = 0;
+      const s = THREE.MathUtils.clamp(this.squash, -0.35, 0.35);
+      this.model.scale.set(this.baseScale * (1 + 0.55 * s), this.baseScale * (1 - s), this.baseScale * (1 + 0.55 * s));
     }
     // recién curado: brilla verde y se apaga
     const healed = this.regenGlow > 0 ? Math.min(1, this.regenGlow / REGEN_GLOW_SECONDS) : 0;
@@ -2597,18 +2660,22 @@ export class Horde {
    * otra: dos curanderos juntos no se sostendrían entre ellos.
    */
   private updateHeals(dt: number): void {
+    const period = healPeriod();
     for (const c of this.enemies) {
       if (!c.casting || c.auraKind !== 'heal') {
         c.healTimer = 0;
         continue;
       }
       c.healTimer += dt;
-      if (c.healTimer < HEAL_AURA.every) continue;
-      c.healTimer -= HEAL_AURA.every;
+      if (c.healTimer < period) continue;
+      c.healTimer -= period;
+      this.emit({ type: 'healPulse', enemy: c });
       for (const e of this.enemies) {
         if (!e.alive || e.passed || e.auraKind || e.hp >= e.maxHp) continue;
         if (Math.hypot(e.position.x - c.position.x, e.position.z - c.position.z) > HEAL_AURA.radius + e.radius) continue;
-        const amount = Math.min(HEAL_AURA.amount, e.maxHp - e.hp);
+        // con `full`, entero (el élite y el jefe, a lo sumo `bigCap`); si no, de a `amount`
+        const big = !!e.mods.size || !!e.stats.boss;
+        const amount = Math.min(HEAL_AURA.full ? (big ? HEAL_AURA.bigCap : Infinity) : HEAL_AURA.amount, e.maxHp - e.hp);
         e.hp += amount;
         this.emit({ type: 'healed', enemy: e, amount });
       }
@@ -2874,6 +2941,7 @@ export class Horde {
       e.burnTick -= dt;
       if (e.burnTick <= 0) {
         e.burnTick += ELEMENTS.burnTick;
+        this.emit({ type: 'burnTick', enemy: e });
         this.withSource(e.burnBy, () => this.damage(e, ELEMENTS.burnDamage, null, 0, true));
       }
     }

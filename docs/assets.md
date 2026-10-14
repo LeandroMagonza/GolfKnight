@@ -246,6 +246,12 @@ W = `Assets/Game Music Stingers and UI SFX Pack 2/`, C = `Assets/Monster Sounds 
 
 ## Por dónde empezar
 
+**Hecho el 14/10** (los puntos 1 a 3, con la curación y los sonidos que pidió Leandro): el atlas de efectos
+(`public/fx/atlas.webp`, 52 KB, armado con `tools/vfx_atlas.py`), las partículas (`src/game/particles.ts`,
+`src/game/fx.ts`), la burbuja (`src/game/bubble.ts`, `public/fx/bubble.webp`), 53 sonidos en `public/sfx/`
+(~0,6 MB; el crepitar del fuego lo arma `tools/crepitar.py`), todo con llaves para prender y apagar (POLISH en
+`src/core/polish.ts`) y pruebas con `?prueba=` (ver [pruebas.md](pruebas.md)).
+
 Lo que más se siente por cada KB:
 
 1. **Los golpes**: impactos de CFXR por golpe, hit-stop en el perfecto, squash & stretch del enemigo al recibir

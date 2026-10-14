@@ -9,7 +9,7 @@ import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from 
 import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, SPLIT, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, isTap, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, TAP, TAP_MODES, type Club, type ClubId, type TapMode } from './core/clubs';
-import { buildRun, ENEMIES, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WAVE_MODS, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower, type WaveMod } from './core/waves';
+import { buildRun, ENEMIES, HEAL_AURA, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WAVE_MODS, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower, type WaveMod } from './core/waves';
 import { choiceAt, earnLevel, hillsOn, LADDER, ladderFrom, loadProgress, MAX_LEVEL, picksOf, rulesFor, saveProgress, setLevel, TALENTS, type Picks, type Progress, type TalentId } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, fourthArc, timingWith } from './core/swing';
@@ -19,8 +19,11 @@ import { RICOCHET } from './core/shield';
 import { MoundView } from './game/mounds';
 import { Scuffs } from './game/scuffs';
 import { Effects } from './game/effects';
+import { Fx } from './game/fx';
+import { PRUEBAS } from './pruebas';
+import { polished, setAllPolish } from './core/polish';
 import { GroundRing } from './game/groundRing';
-import { badgeImage, Horde, SCENARIO_ICONS, shadowMat, SHIELD_MODELS, SHIELD_PROPS } from './game/enemies';
+import { badgeImage, Horde, SCENARIO_ICONS, shadowMat, SHIELD_MODELS, SHIELD_PROPS, type Enemy } from './game/enemies';
 import { BALLS, TEE_Z, Tees } from './game/tees';
 import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
@@ -104,6 +107,9 @@ let gameCourse = pickCourse(params.has('plano') || TENNIS_ON ? 'plano' : params.
 const savedBalance: SavedExtras = DEV_TOOLS ? loadBalance() : {};
 // ?ajuste=: números de prueba para esta visita, encima de lo guardado (ver applyTweaks)
 if (DEV_TOOLS && params.has('ajuste')) console.info('ajuste:', applyTweaks(params.get('ajuste') ?? '').join(', ') || 'nada');
+// ?pulido=0: sin los efectos y sonidos nuevos del 14/10 (ver POLISH), para comparar con lo de antes. Va también sin
+// las herramientas de prueba, para mandárselo a otros
+if (params.get('pulido') === '0') setAllPolish(false);
 // el campo en trapecio (ver core/field): con ?trapecio se prende para esta visita. El tenis, siempre en el
 // rectángulo: la cancha tiene sus paredes
 if (params.has('trapecio')) FIELD_SHAPE.trapezoid = true;
@@ -123,6 +129,16 @@ const world = new World(scene);
 loadVisual(params);
 const visuals = new Visuals(renderer, scene, camera, world.sun, world.hemi, shadowMat);
 const effects = new Effects(scene);
+/** Los efectos del pulido (14/10, ver game/fx y POLISH): impactos, fuego, hielo, auras, la burbuja que se rompe. */
+const fx = new Fx(scene);
+effects.fx = fx;
+/**
+ * La congelada del golpe perfecto (ver POLISH.hitstop): mientras dura, el juego anda a `HITSTOP.scale` de su
+ * velocidad. `seconds` lo que dura; no se repite antes de `every`.
+ */
+const HITSTOP = { seconds: 0.07, scale: 0.05, every: 0.35 };
+let hitStop = 0;
+let hitStopAt = -1;
 const horde = new Horde(scene);
 const balls = new Balls(scene, horde, effects);
 /** Las lomas del geomante, a la vista (la altura ya la leen todos de core/terrain). */
@@ -383,6 +399,14 @@ function tutorialDone(): boolean {
 const tutorialFirst = !BOT && (params.has('tutorial') || (!tutorialDone() && !navigator.webdriver));
 /** Trucos del panel de balance: el golfista o la puerta no reciben daño. */
 const godMode = { godPlayer: false, godGate: false };
+/**
+ * Las pruebas del pulido (`?prueba=golpes`, ver src/pruebas.ts y docs/pruebas.md): sin oleadas, los enemigos de
+ * la prueba delante, y vuelven a salir al caer. Solo con las herramientas de prueba.
+ */
+const TEST = DEV_TOOLS ? PRUEBAS[params.get('prueba') ?? ''] ?? null : null;
+let testGroup: Enemy[] = [];
+let testWait = 0;
+let testFreeze = 0;
 /** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
 const disabledKinds = new Set<EnemyKind>((savedBalance.disabled ?? []) as EnemyKind[]);
 
@@ -974,6 +998,7 @@ horde.onEvent = (e) => {
         // la de un tiro de palo suena desde las pelotas (evento 'kill'), que saben el nivel del golpe y
         // cuántas lleva; las demás (fuego, carrito, hoyo...) suenan acá, como la baja de un golpe 1 (3ra)
         if (!horde.shot) audio.kill(1);
+        audio.death(e.enemy.stats.kind);
         kills++;
         score += e.enemy.stats.score;
       }
@@ -982,9 +1007,25 @@ horde.onEvent = (e) => {
     case 'divine': {
       const s = toScreen(e.enemy.position, e.enemy.height);
       hud.float(s.x, s.y, '✦', 'hurt');
-      audio.bounce();
+      audio.bubblePop();
+      if (polished('bubble')) fx.bubblePop(e.enemy.position, e.enemy.height, e.enemy.radius);
       break;
     }
+    case 'divineUp':
+      audio.bubbleUp();
+      if (polished('bubble')) fx.bubbleUp(e.enemy.position, e.enemy.height, e.enemy.radius);
+      break;
+    case 'dodgeReady':
+      audio.dodgeReady();
+      break;
+    case 'burnTick':
+      audio.burnTick();
+      if (polished('burning')) fx.burnTick(e.enemy);
+      break;
+    case 'healPulse':
+      audio.heal();
+      if (polished('heals')) fx.healPulse(e.enemy.position, HEAL_AURA.radius);
+      break;
     case 'detonate': {
       // la marca de Abe: estalla en su color (su daño, un golpe aparte, flota con su propio número)
       effects.explosion(e.enemy.position.clone().setY(e.enemy.position.y + e.enemy.height * 0.5), 0.9, BOLT_INFO.color);
@@ -1004,11 +1045,11 @@ horde.onEvent = (e) => {
     }
     case 'powder':
       effects.explosion(e.pos, e.radius, ABILITIES.powder.color);
-      audio.explosion();
+      audio.explosion(true);
       break;
     case 'fireBlast':
       effects.explosion(e.pos, e.radius, ELEMENT_INFO.fire.color);
-      audio.explosion();
+      audio.explosion(true);
       break;
     case 'zap':
       effects.lightning(e.from, e.to);
@@ -1024,6 +1065,7 @@ horde.onEvent = (e) => {
       shake = Math.max(shake, e.enemy?.grabbing ? 0.1 : 0.3);
       const s = toScreen(player.position, 2);
       hud.float(s.x, s.y, Number.isFinite(e.amount) ? `-${e.amount}` : '☠', 'hurt');
+      if (!player.alive) audio.playerDies();
       if (!player.alive) {
         const elite = (e.enemy?.size ?? 1) > 1;
         const cause = elite ? 'Te atropelló el élite' : 'Valdehoyo se quedó sin golfista'; // i18n-ok: el registro, en español
@@ -1063,7 +1105,7 @@ horde.onEvent = (e) => {
     }
     case 'explosion':
       effects.explosion(e.pos, e.radius, 0xffa03c);
-      audio.explosion();
+      audio.explosion(true);
       if (e.pos.distanceTo(player.position) < 14) shake = Math.max(shake, 0.25);
       break;
     case 'immune': {
@@ -1088,19 +1130,22 @@ horde.onEvent = (e) => {
       audio.whoosh(0.6);
       break;
     case 'dodged':
-      audio.whoosh(0.5);
+      audio.dodge();
+      if (polished('impacts')) fx.dodge(e.enemy.position, e.enemy.height);
       break;
     case 'rockThrown':
-      audio.growl();
+      audio.bossThrow();
       break;
     case 'spellCast':
-      audio.zap();
+      audio.casterCast();
       break;
     case 'spellLanded':
+      audio.casterHit();
       effects.explosion(e.pos, RANGED.radius, 0xd24dff);
       if (e.hit) shake = Math.max(shake, 0.25);
       break;
     case 'rockLanded':
+      audio.bossRock();
       effects.explosion(e.pos, 2.2, 0x9a958a);
       shake = Math.max(shake, 0.15);
       break;
@@ -1109,6 +1154,8 @@ horde.onEvent = (e) => {
       hud.float(s.x, s.y, `+${e.amount}`, 'heal');
       // el que se cura entero: un destello verde (el cuerpo ya brilla), que se vea que perdiste lo hecho
       if (e.enemy.mods.regen) effects.blink(e.enemy.position.clone(), 0x3ee07a);
+      audio.heal();
+      if (polished('heals')) fx.heal(e.enemy.position, e.enemy.height, e.amount);
       break;
     }
     case 'mound':
@@ -1150,14 +1197,25 @@ function prepareShields(gltf: GLTF): void {
 balls.onEvent = (e) => {
   if (e.type === 'settled' && !e.ability) tutorial?.onShotDone();
   switch (e.type) {
-    case 'hit':
+    case 'hit': {
       // el número de daño lo saca el evento 'damage' de la horde, que vale para todas las formas de
       // pegar. Poner otro acá hacía aparecer dos números por golpe.
-      audio.thud();
+      const perfect = e.quality >= topQuality();
+      if (polished('impacts')) fx.impact(e.pos, e.quality, perfect);
+      if (e.damage > 0) e.enemy.punch(e.damage);
+      // la congelada del perfecto, no más de una cada tanto (la cruz y el eco pegan varias juntas)
+      if (perfect && polished('hitstop') && gameClock - hitStopAt > HITSTOP.every) {
+        hitStop = HITSTOP.seconds;
+        hitStopAt = gameClock;
+      }
+      // el blindado suena a metal
+      if (e.enemy.armor > 0) audio.armorHit();
+      else audio.thud();
       break;
+    }
     case 'land':
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
-      audio.explosion();
+      audio.explosion(e.quality >= 3);
       audio.thud();
       if (e.pos.distanceTo(player.position) < 16) shake = Math.max(shake, 0.2);
       if (e.hits > 1) hud.feedback(L(`¡Le pegó a ${e.hits}!`, `Hit ${e.hits} at once!`), 'good');
@@ -1175,7 +1233,15 @@ balls.onEvent = (e) => {
       audio.bounce();
       break;
     case 'blocked': {
-      audio.bounce();
+      // el intocable y el aura del chamán rebotan distinto que el escudo
+      const at = e.enemy.position.clone().setY(e.enemy.position.y + e.enemy.height * 0.55);
+      if (e.warded) {
+        audio.phaseBounce();
+        if (polished('impacts')) fx.repel(at, e.enemy.mods.phase ? 0xb26bff : 0xd24dff);
+      } else {
+        audio.ricochet();
+        if (polished('impacts')) fx.sparks(at);
+      }
       const s = toScreen(e.enemy.position, e.enemy.height);
       hud.float(s.x, s.y, e.warded ? L('inmune', 'immune') : L('¡Bloqueado!', 'Blocked!'), 'hurt');
       break;
@@ -1228,7 +1294,7 @@ balls.onEvent = (e) => {
 abilities.onEvent = (e) => {
   switch (e.type) {
     case 'cast':
-      audio.whoosh(0.7);
+      audio.cast();
       break;
     case 'mark':
       recorder?.affected(e.id, e.hits);
@@ -1434,6 +1500,13 @@ function nextSkippedCard(): void {
   if (skippedCards > 0 && !cardOpen && offerChoice()) skippedCards--;
 }
 
+/** Dónde van las pelotas de fuego (para su estela: ver Fx). */
+function fireBallsNow(): THREE.Vector3[] {
+  const out: THREE.Vector3[] = [];
+  for (const b of balls.list) if (!b.done && b.element === 'fire') out.push(new THREE.Vector3(b.state.pos.x, b.state.pos.y, b.state.pos.z));
+  return out;
+}
+
 function offerChoice(): boolean {
   const cards = drawCards(build());
   if (!cards.length) return false;
@@ -1443,6 +1516,7 @@ function offerChoice(): boolean {
   player.cancelSwing();
   const b = build();
   hud.showChoice(cards.map((c) => describe(c, b)), director.nextTitle);
+  cards.forEach((_, i) => audio.cardAppear(i));
   return true;
 }
 
@@ -1455,6 +1529,7 @@ function pickCard(i: number): void {
   cardOpen = false;
   hud.hideChoice();
   recorder?.picked(cardKey(card));
+  audio.cardPick();
   applyCard(card);
   nextSkippedCard();
 }
@@ -1829,6 +1904,10 @@ async function startGame(withTutorial = false, quiet = false): Promise<void> {
     audio.startMusic();
   }
   overlay.hidden = true;
+  if (TEST) {
+    setupTest();
+    return;
+  }
   if (withTutorial && !TENNIS_ON) {
     tutorial = new Tutorial({
       horde,
@@ -2267,7 +2346,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
       shots++;
       // el perfecto es el golpe más alto que hay: el 3, o el 4 con su talento
       recorder?.shot(shot.quality >= QUALITY_LEVELS, shot.quality, tennis ? undefined : releaseOff);
-      audio.tock(shot.quality >= topQuality());
+      audio.tock(shot.quality >= topQuality(), shot.quality);
       if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? L('¡Golpe 4!', 'Hit 4!') : L('¡Golpe perfecto!', 'Perfect hit!'), 'good');
       const range = shotRange(shot.club);
       // la potencia y el herrero van en este tiro, y el eco lo repite igual (con eso incluido). El herrero
@@ -3252,7 +3331,56 @@ function updateCamera(dt: number): void {
 
 // De a dos, la partida no espera a que Abe elija su hechizo (6/10, pedido de Leandro): lo que no elige le
 // queda guardado para cuando quiera (ver Abe.grantPick)
+/** Arranca la prueba (ver TEST): el golfista y la puerta no pierden, las habilidades y el guante, y los enemigos. */
+function setupTest(): void {
+  if (!TEST) return;
+  godMode.godPlayer = godMode.godGate = true;
+  for (const id of TEST.learn ?? []) abilities.learn(id);
+  if (TEST.glove) glove = { element: TEST.glove, level: 3, left: Infinity };
+  spawnTestGroup();
+  hud.showBanner(TEST.title, '', 4);
+  hud.feedback(TEST.hint, 'neutral');
+}
+
+function spawnTestGroup(): void {
+  if (!TEST) return;
+  const p = player.anchor;
+  const d = player.aimDir;
+  testGroup = TEST.enemies.map((t) => {
+    const x = p.x + d.x * t.at[0] - d.z * t.at[1];
+    const z = p.z + d.z * t.at[0] + d.x * t.at[1];
+    const e = horde.spawn(t.kind, new THREE.Vector3(x, 0, z), { ...t.mods, speed: (t.mods?.speed ?? 1) * (TEST.pace ?? 1) });
+    if (TEST.burn) e.burn(9999);
+    if (t.mods?.size) audio.eliteAlert();
+    if (ENEMIES[t.kind].boss) audio.bossAppear();
+    return e;
+  });
+}
+
+/** La prueba en cada cuadro: el guante no se gasta, se congelan cada tanto, y al caer todos vuelven. */
+function updateTest(dt: number): void {
+  if (!TEST) return;
+  if (TEST.glove && glove) glove.left = Infinity;
+  if (TEST.freezeEvery && (testFreeze += dt) >= TEST.freezeEvery) {
+    testFreeze = 0;
+    for (const e of testGroup) if (e.alive && !e.passed) horde.freeze(e);
+  }
+  if (testGroup.some((e) => e.alive && !e.passed)) return;
+  if (testWait === 0) {
+    audio.waveClear();
+    if (TEST.cards) offerChoice();
+  }
+  testWait += dt;
+  if (testWait < 1.6 || cardOpen) return;
+  testWait = 0;
+  spawnTestGroup();
+}
+
 function updateWaves(dt: number): void {
+  if (TEST) {
+    updateTest(dt);
+    return;
+  }
   for (const e of director.update(dt, horde.aliveCount)) {
     switch (e.type) {
       case 'wave': {
@@ -3291,9 +3419,14 @@ function updateWaves(dt: number): void {
           recorder?.spawned(powerTags(mods));
         }
         // el élite cierra su escenario: que se note cuando entra
-        if ((e.mods?.size ?? 1) > 1) hud.showBanner(L('¡Llega el élite!', 'Here comes the elite!'), ENEMIES[e.kind].name, 2.5);
+        if ((e.mods?.size ?? 1) > 1) {
+          hud.showBanner(L('¡Llega el élite!', 'Here comes the elite!'), ENEMIES[e.kind].name, 2.5);
+          audio.eliteAlert();
+        }
+        if (ENEMIES[e.kind].boss) audio.bossAppear();
         break;
       case 'cleared':
+        audio.waveClear();
         // al terminar un escenario: la puerta se arregla un poco y el golfista recupera toda su vida
         if (director.list[e.index + 1] && director.list[e.index + 1].scenario !== director.list[e.index].scenario) scenarioHeal();
         if (e.index + 1 < director.waveCount && !offerChoice()) hud.showBanner(L('¡Oleada despejada!', 'Wave cleared!'), '', 2.5);
@@ -3314,7 +3447,12 @@ function frame(): void {
     lightFrame();
     return;
   }
-  const dt = Math.min(timer.getDelta(), 0.05);
+  let dt = Math.min(timer.getDelta(), 0.05);
+  // la congelada del perfecto: el cuadro se dibuja igual, pero el juego casi no avanza
+  if (hitStop > 0) {
+    hitStop -= dt;
+    dt *= HITSTOP.scale;
+  }
   const nowMs = performance.now();
   frameTimes.push(nowMs);
   if (frameTimes.length > 240) frameTimes = frameTimes.filter((t) => nowMs - t < 1000);
@@ -3421,6 +3559,8 @@ function playFrame(dt: number, nowMs: number): void {
       traps.update(dt);
     }
     effects.update(dt);
+    fx.update(dt, horde.enemies, player.alive ? player.position : null, glove?.element ?? null, fireBallsNow());
+    audio.burning(polished('burning') || polished('fireSounds') ? horde.enemies.filter((x) => x.alive && x.burning).length : 0);
     world.update(dt);
     updateCamera(dt);
     updatePreview();
@@ -3474,6 +3614,10 @@ if (DEV_TOOLS) (window as any).__gk = {
   /** La cámara de Three.js (las imágenes de promoción le cierran el ángulo: ver tools/promo.mjs). */
   get view() { return camera; },
   get balls() { return balls; },
+  /** Cuántas partículas del pulido hay en el aire (ver game/fx). */
+  fxCount: () => fx.particles.count,
+  get effects() { return effects; },
+  get fx() { return fx; },
   get director() { return director; },
   get gateHp() { return gateHp; },
   set gateHp(v: number) { gateHp = v; },

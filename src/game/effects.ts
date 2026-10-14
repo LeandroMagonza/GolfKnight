@@ -1,6 +1,8 @@
 // Efectos visuales de corta vida: explosiones, rayos, escarcha, chispas de impacto.
 import * as THREE from 'three';
+import { polished } from '../core/polish';
 import { heightAt } from '../core/terrain';
+import type { Fx } from './fx';
 
 interface Effect {
   object: THREE.Object3D;
@@ -14,6 +16,8 @@ const ringGeo = new THREE.RingGeometry(0.82, 1, 40);
 
 export class Effects {
   private readonly list: Effect[] = [];
+  /** Los efectos del pulido (ver game/fx): con su llave prendida, las explosiones son las nuevas. */
+  fx: Fx | null = null;
 
   constructor(private readonly scene: THREE.Scene) {}
 
@@ -35,6 +39,10 @@ export class Effects {
   }
 
   explosion(pos: THREE.Vector3, radius: number, color = 0xff7a3c): void {
+    if (this.fx && polished('explosions')) {
+      this.fx.explosion(pos, radius, color);
+      return;
+    }
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false });
     const ball = new THREE.Mesh(sphereGeo, mat);
     ball.position.set(pos.x, Math.max(heightAt(pos.x, pos.z) + 0.3, pos.y), pos.z);

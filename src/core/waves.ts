@@ -221,12 +221,14 @@ export const GOLEM_HOLD_Z = 22;
 export const SHAMAN_WARD_RADIUS = 8;
 
 /**
- * Aura de curación: cada «every» segundos, los que están a «radius» metros del curandero recuperan
- * «amount» (sin pasar de su vida). Con el ritmo de tiro de hoy (un tiro cada 1.5 s, más o menos) cada 3 s
- * es un punto cada dos tiros: al que se mata en uno o dos tiros seguidos no llega a curarlo, pero al
- * caballero o a un grupo que se deja a medias sí. Cada 2 s ya empata casi con el daño a un solo blanco.
+ * Aura de curación del chamán curandero, para los que están a `radius` metros.
+ * - **Con `full` (desde el 14/10, Leandro: que cure como el que se curaba a sí mismo antes)**: un reloj de
+ *   `cycle` segundos, que se ve en la barra debajo de su vida; al llenarse, **cura entero** a todos los de su
+ *   círculo, salvo al élite y al jefe, que recuperan a lo sumo `bigCap`. Hay que matar lo que está adentro
+ *   antes de que se llene, o al curandero.
+ * - Sin `full` (lo de antes): cada `every` segundos, `amount` de vida a cada uno.
  */
-export const HEAL_AURA = { radius: 6, every: 3, amount: 1 };
+export const HEAL_AURA = { radius: 6, every: 3, amount: 1, full: 1, cycle: 6, bigCap: 5 };
 
 /** La abanderada se planta a esta z: unos 42 m de la línea de los puestos, en la banda larga. */
 export const BANNER_HOLD_Z = 51;

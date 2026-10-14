@@ -1,6 +1,9 @@
-// Audio del juego con Tone.js: todo sintetizado. Swing, impactos, encantamientos, monstruos, y
-// una música de fondo simple que corre sobre el transporte.
+// Audio del juego con Tone.js: sintetizado (swing, impactos, encantamientos, monstruos, y una música de
+// fondo simple que corre sobre el transporte) y, desde el 14/10, sonidos grabados (ver audio/samples y
+// POLISH en core/polish): con su llave prendida y el archivo bajado suena el grabado; si no, el de siempre.
 import * as Tone from 'tone';
+import { polished, type PolishKey } from '../core/polish';
+import { SampleBank } from './samples';
 
 const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -47,6 +50,8 @@ export class GameAudio {
   private pad!: Tone.PolySynth;
   private chargeSynth!: Tone.Synth;
   private killBell!: Tone.PolySynth<Tone.FMSynth>;
+  /** Los grabados (ver SampleBank). */
+  private bank: SampleBank | null = null;
   /** Cuándo sonó la última baja: la siguiente no sale antes de `KILL_STRUM` después. */
   private killAt = 0;
   ready = false;
@@ -61,7 +66,9 @@ export class GameAudio {
   constructor() {
     // Un error de audio nunca tiene que cortar el cuadro del juego: los efectos se llaman desde el
     // medio del update de pelotas y enemigos.
-    const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat', 'unlock'] as const;
+    const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat', 'unlock',
+      'death', 'eliteAlert', 'bossAppear', 'bossThrow', 'bossRock', 'bubblePop', 'bubbleUp', 'armorHit', 'ricochet', 'phaseBounce', 'heal', 'dodge', 'dodgeReady',
+      'casterCast', 'casterHit', 'burnTick', 'burning', 'waveClear', 'cardAppear', 'cardPick', 'uiClick', 'playerDies', 'element', 'hole', 'cast', 'trample'] as const;
     for (const name of sfx) {
       const fn = (this[name] as (...args: unknown[]) => void).bind(this);
       (this as Record<string, unknown>)[name] = (...args: unknown[]) => {
@@ -127,7 +134,22 @@ export class GameAudio {
       modulationEnvelope: { attack: 0.002, decay: 0.15, sustain: 0, release: 0.1 },
       volume: -9,
     }).connect(verb);
+    // los grabados van directo al limitador, sin la reverb de los sintetizados
+    const sampleBus = new Tone.Gain(0.9).connect(this.master);
+    this.bank = new SampleBank(sampleBus);
+    void this.bank.load();
     this.ready = true;
+  }
+
+  /** Suena el grabado `name` si su llave (`key`) está prendida y ya llegó. Devuelve si sonó. */
+  private sample(key: PolishKey, name: string, volume = 1, jitter = 0.05, ms = 40, delay = 0): boolean {
+    if (!this.ready || !this.bank || !polished(key)) return false;
+    return this.bank.play(name, volume, jitter, ms, delay);
+  }
+
+  /** ¿Hay grabado para `name` con su llave prendida? (para no sonar dos veces lo mismo) */
+  private hasSample(key: PolishKey, name: string): boolean {
+    return this.ready && !!this.bank && polished(key) && this.bank.has(name);
   }
 
   /**
@@ -193,14 +215,20 @@ export class GameAudio {
   /** La pifia: el palo pasa y la pelota no sale. Dos notas que caen, tipo «bwomp». */
   duff(): void {
     if (!this.ok('duff', 150)) return;
+    if (this.sample('samples', 'duff', 0.8)) return;
     const t = this.at(this.growlSynth);
     this.growlSynth.triggerAttackRelease(220, 0.32, t);
     this.growlSynth.frequency.exponentialRampToValueAtTime(90, t + 0.32);
   }
 
   /** Impacto del palo con la pelota. */
-  tock(perfect: boolean): void {
+  tock(perfect: boolean, quality = 0): void {
     if (!this.ok('tock')) return;
+    // grabado: el golpe del palo según el nivel, y la estrellita del perfecto encima
+    if (quality >= 1 && this.sample('samples', `club-${Math.min(3, quality)}`, 0.9)) {
+      if (perfect) this.sample('samples', 'perfect', 0.7, 0.02, 40, 0.03);
+      return;
+    }
     const t = this.at(this.click);
     this.click.triggerAttackRelease(perfect ? 'G4' : 'D4', '32n', t);
     if (perfect) this.bell.triggerAttackRelease([midiToFreq(86), midiToFreq(91)], 0.4, t + 0.02);
@@ -209,6 +237,7 @@ export class GameAudio {
   /** La pelota le pega a un enemigo. */
   thud(): void {
     if (!this.ok('thud')) return;
+    if (this.sample('samples', 'ball-hit', 0.85, 0.08)) return;
     this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth));
   }
 
@@ -229,14 +258,16 @@ export class GameAudio {
     this.click.triggerAttackRelease('A2', '64n', this.at(this.click), 0.35);
   }
 
-  explosion(): void {
+  explosion(big = false): void {
     if (!this.ok('explosion', 120)) return;
+    if (this.sample('samples', big ? 'explosion-big' : 'explosion-small', big ? 0.9 : 0.75, 0.06)) return;
     this.boom.triggerAttackRelease('C1', '4n', this.at(this.boom));
     this.noise.triggerAttackRelease(0.4, this.at(this.noise));
   }
 
   zap(): void {
     if (!this.ok('zap')) return;
+    if (this.sample('samples', 'lightning-chain', 0.6, 0.06)) return;
     const t = this.at(this.zapSynth);
     this.zapSynth.triggerAttackRelease(1800, 0.12, t);
     this.zapSynth.frequency.exponentialRampToValueAtTime(300, t + 0.12);
@@ -244,6 +275,7 @@ export class GameAudio {
 
   frost(): void {
     if (!this.ok('frost')) return;
+    if (this.sample('samples', 'ice', 0.7)) return;
     this.bell.triggerAttackRelease([midiToFreq(88), midiToFreq(95), midiToFreq(100)], 0.5, Tone.now(), 0.6);
   }
 
@@ -257,12 +289,14 @@ export class GameAudio {
   /** Golpe contra la puerta de la ciudad. */
   gateHit(): void {
     if (!this.ok('gateHit', 120)) return;
+    if (this.sample('samples', 'gate-hit', 0.85)) return;
     this.boom.triggerAttackRelease('E1', '8n', this.at(this.boom), 0.7);
   }
 
   /** Golpe que recibe el golfista. */
   hurt(): void {
     if (!this.ok('hurt')) return;
+    if (this.sample('samples', 'hurt', 0.85)) return;
     // sin ruido: comparte instante con la explosión de un bombín, y NoiseSynth no admite dos disparos juntos
     this.thudSynth.triggerAttackRelease('E2', '8n', this.at(this.thudSynth));
   }
@@ -276,6 +310,7 @@ export class GameAudio {
   }
 
   victory(): void {
+    if (this.sample('samples', 'victory', 0.8, 0)) return;
     const t = Tone.now();
     [62, 66, 69, 74].forEach((m, i) => this.bell.triggerAttackRelease(midiToFreq(m + 12), 0.6, t + i * 0.16));
   }
@@ -295,7 +330,144 @@ export class GameAudio {
   }
 
   defeat(): void {
+    if (this.sample('samples', 'defeat', 0.8, 0)) return;
     const t = Tone.now();
     [57, 53, 50].forEach((m, i) => this.horn.triggerAttackRelease(midiToFreq(m - 12), 0.8, t + i * 0.45));
+  }
+
+  // ---- los grabados nuevos (14/10): si no hay archivo o la llave está apagada, no suenan (o suena lo de siempre) ----
+
+  /** La voz de muerte de un enemigo (`kind`: goblin, orc, knight...). */
+  death(kind: string): void {
+    // el gólem jefe tiene la suya, más larga
+    if (kind === 'golem') this.sample('voices', 'boss-death', 0.9, 0, 500);
+    else this.sample('voices', `death-${kind}`, 0.6, 0.07, 90);
+  }
+
+  /** Aparece un élite. */
+  eliteAlert(): void {
+    this.sample('voices', 'elite-alert', 0.8, 0, 500);
+  }
+
+  /** El jefe: aparece, tira la roca, la roca cae. */
+  bossAppear(): void {
+    this.sample('voices', 'boss-appear', 0.9, 0, 1000);
+  }
+
+  bossThrow(): void {
+    if (!this.sample('voices', 'boss-throw', 0.7, 0.05, 300)) this.growl();
+  }
+
+  bossRock(): void {
+    this.sample('voices', 'boss-rock', 0.8, 0.05, 150);
+  }
+
+  /** Se revienta la burbuja del bendito. Si no hay grabado, el rebote de siempre. */
+  bubblePop(): void {
+    if (!this.sample('powerSounds', 'bubble-pop', 0.75, 0.06, 60)) this.bounce();
+  }
+
+  /** La burbuja se vuelve a armar. */
+  bubbleUp(): void {
+    this.sample('powerSounds', 'bubble-up', 0.45, 0.05, 120);
+  }
+
+  /** La pelota pega en un blindado: metal. Si no, el golpe de siempre. */
+  armorHit(): void {
+    if (!this.sample('powerSounds', 'armor-hit', 0.7, 0.08, 50)) this.thud();
+  }
+
+  /** La pelota rebota en un escudo. */
+  ricochet(): void {
+    if (!this.sample('powerSounds', 'ricochet', 0.65, 0.08, 50)) this.bounce();
+  }
+
+  /** La pelota rebota contra un intocable o un protegido por el chamán. */
+  phaseBounce(): void {
+    if (!this.sample('powerSounds', 'phase-bounce', 0.65, 0.06, 50)) this.bounce();
+  }
+
+  /** Uno se cura. */
+  heal(): void {
+    this.sample('powerSounds', 'heal', 0.5, 0.05, 150);
+  }
+
+  /** Uno esquiva. Si no, el whoosh de siempre. */
+  dodge(): void {
+    if (!this.sample('powerSounds', 'dodge', 0.6, 0.08, 60)) this.whoosh(0.5);
+  }
+
+  /** A uno le volvió la esquiva: muy bajito. */
+  dodgeReady(): void {
+    this.sample('powerSounds', 'dodge-ready', 0.3, 0.05, 150);
+  }
+
+  /** Un hechicero enemigo tira y su hechizo cae. Si no, el zap y nada. */
+  casterCast(): void {
+    if (!this.sample('powerSounds', 'caster-cast', 0.5, 0.06, 120)) this.zap();
+  }
+
+  casterHit(): void {
+    this.sample('powerSounds', 'caster-hit', 0.55, 0.06, 80);
+  }
+
+  /** El fuego le hace daño a uno. */
+  burnTick(): void {
+    this.sample('fireSounds', 'burn-tick', 0.35, 0.12, 90);
+  }
+
+  /** Cuántos se están quemando: el crepitar sube con ellos (0, se apaga). */
+  burning(count: number): void {
+    if (!this.ready || !this.bank) return;
+    const on = polished('fireSounds') && count > 0;
+    this.bank.loopAt('burn-loop', on ? Math.min(0.32, 0.12 + 0.05 * count) : 0);
+  }
+
+  /** Se terminó una oleada. */
+  waveClear(): void {
+    this.sample('uiSounds', 'wave-clear', 0.6, 0, 500);
+  }
+
+  /** Aparecen las cartas, y se elige una. */
+  cardAppear(i = 0): void {
+    this.sample('uiSounds', 'card-appear', 0.45, 0.04, 30, i * 0.09);
+  }
+
+  cardPick(): void {
+    this.sample('uiSounds', 'card-pick', 0.7, 0, 200);
+  }
+
+  uiClick(): void {
+    this.sample('uiSounds', 'ui-click', 0.5, 0, 60);
+  }
+
+  /** Cae el golfista. */
+  playerDies(): void {
+    this.sample('samples', 'player-dies', 0.8, 0, 500);
+  }
+
+  /** Un tiro con elemento que sale (fuego, rayo, viento). */
+  element(name: 'fire' | 'lightning' | 'wind'): void {
+    this.sample('samples', name, 0.55, 0.06, 120);
+  }
+
+  /** Uno cae al hoyo. */
+  hole(): boolean {
+    return this.sample('samples', 'hole', 0.7, 0, 120);
+  }
+
+  /** Se tira una habilidad. Si no, el whoosh de siempre. */
+  cast(): void {
+    if (!this.sample('samples', 'cast', 0.55, 0.05, 120)) this.whoosh(0.7);
+  }
+
+  /** El carrito atropella a uno. */
+  trample(): boolean {
+    return this.sample('samples', 'trample', 0.6, 0.06, 80);
+  }
+
+  /** ¿El grabado de `name` va a sonar? (para no sumarle el sintetizado) */
+  willSample(key: PolishKey, name: string): boolean {
+    return this.hasSample(key, name);
   }
 }

@@ -1,0 +1,431 @@
+{
+ "ball-hit": {
+  "files": [
+   "ball-hit.mp3",
+   "ball-hit-2.mp3"
+  ],
+  "seconds": 0.5,
+  "source": "W UI_SFX/Misc/FA_Funny_Impact_1_1.wav | W UI_SFX/Misc/FA_Funny_Impact_1_3.wav",
+  "note": "El \"bonk\" cartoon del mapeo, dos variantes; recortados a 0,5 s con fade."
+ },
+ "club-1": {
+  "files": [
+   "club-1.mp3"
+  ],
+  "seconds": 0.18,
+  "source": "W UI_SFX/Misc/PP_Small_Impact_1_1.wav",
+  "note": "Golpe 1 del mapeo (provisorio hasta tener un \"tock\" de golf)."
+ },
+ "club-2": {
+  "files": [
+   "club-2.mp3"
+  ],
+  "seconds": 0.31,
+  "source": "W UI_SFX/Misc/PP_Small_Impact_1_3.wav",
+  "note": "Golpe 2 del mapeo."
+ },
+ "club-3": {
+  "files": [
+   "club-3.mp3"
+  ],
+  "seconds": 0.4,
+  "source": "W UI_SFX/Misc/PP_Small_Impact_1_4.wav",
+  "note": "Golpe 3 del mapeo; dura 0,5 s, recortado a 0,4 con fade."
+ },
+ "perfect": {
+  "files": [
+   "perfect.mp3"
+  ],
+  "seconds": 0.64,
+  "source": "W Stingers_Jingles/Fantasy/TD_Collect_Star_01.wav",
+  "note": "Estrellita del mapeo; va encima de club-3. A -16 LUFS para que no tape el golpe."
+ },
+ "duff": {
+  "files": [
+   "duff.mp3"
+  ],
+  "seconds": 0.45,
+  "source": "W UI_SFX/Stinger/CGM3_Funny_Negative_Feedback_02_1.wav",
+  "note": "Pifia del mapeo."
+ },
+ "explosion-small": {
+  "files": [
+   "explosion-small.mp3"
+  ],
+  "seconds": 0.6,
+  "source": "W UI_SFX/Misc/PP_Explosion_1_4.wav",
+  "note": "Explosión chica del mapeo."
+ },
+ "explosion-big": {
+  "files": [
+   "explosion-big.mp3"
+  ],
+  "seconds": 1.4,
+  "source": "W UI_SFX/Misc/PP_Explosion_1_3.wav",
+  "note": "Explosión grande del mapeo; 1,54 s recortado a 1,4 con fade."
+ },
+ "bubble-pop": {
+  "files": [
+   "bubble-pop.mp3"
+  ],
+  "seconds": 0.4,
+  "source": "W UI_SFX/UI/CGM3_Bubble_Button_01_6.wav + W UI_SFX/Collect Item/PP_Collect_Item_1_2.wav",
+  "note": "No hay vidrio en los paquetes: el \"bloop\" de burbuja más agudo de W (sube de 1,6 a 2,5 kHz) con un brillo que sube encima (PP_Collect_Item_1_2, -7 dB). Romper la burbuja es un logro del jugador, así que el brillo \"de premio\" cuadra."
+ },
+ "bubble-up": {
+  "files": [
+   "bubble-up.mp3"
+  ],
+  "seconds": 0.8,
+  "source": "W UI_SFX/Misc/FA_Power_Up_1_3.wav",
+  "note": "Arpegio de power-up que sube (200 Hz a 1,4 kHz) con entrada suave (~125 ms) y eco; FA_Power_Up_1_1 quedaba para el regalo según el mapeo."
+ },
+ "armor-hit": {
+  "files": [
+   "armor-hit.mp3",
+   "armor-hit-2.mp3"
+  ],
+  "seconds": 0.5,
+  "source": "P Game/MetalCollision.ogg | W UI_SFX/Misc/PP_Small_Impact_1_2.wav",
+  "note": "1: el choque metálico de P (parciales inarmónicos que suenan en la cola, 0,8-1,7 kHz), recortado a 0,5 s. 2: el único golpe de W con cola metálica (1,3/1,9/2,1 kHz, inarmónicos)."
+ },
+ "ricochet": {
+  "files": [
+   "ricochet.mp3"
+  ],
+  "seconds": 0.3,
+  "source": "P Game/MetalCollision.ogg",
+  "note": "No hay un ricochet propiamente dicho: el MetalCollision subido una quinta (+7 semitonos), sin graves (pasa-altos 500 Hz) y cortado a 0,3 s: el mismo metal, más agudo y corto que armor-hit."
+ },
+ "phase-bounce": {
+  "files": [
+   "phase-bounce.mp3"
+  ],
+  "seconds": 0.37,
+  "source": "W UI_SFX/Misc/FA_Cute_Jump.wav + P Game/RubberCollision.ogg",
+  "note": "\"Boing\" tonal de W (dos tonos, ~480 y ~900 Hz, sin metal) sobre el golpe de goma hueco de P (-4 dB): rebote amortiguado, se distingue del metal."
+ },
+ "heal": {
+  "files": [
+   "heal.mp3"
+  ],
+  "seconds": 0.75,
+  "source": "W Stingers_Jingles/Fantasy/FA_Time_Extend_1_1.wav",
+  "note": "Brillo mágico (notas sueltas de 1,3 a 4 kHz que se asientan en 2 kHz), 0,7 s, ataque blando; a -21 LUFS para que no tape. Alternativa: TD_Star_01_02 (campanita de dos notas, pero es de la misma familia que perfect)."
+ },
+ "dodge": {
+  "files": [
+   "dodge.mp3",
+   "dodge-2.mp3"
+  ],
+  "seconds": 0.19,
+  "source": "W UI_SFX/Misc/FA_Cute_Dash_1_2.wav | W UI_SFX/Misc/FA_Cute_Dash_1_3.wav",
+  "note": "\"Dash\" cartoon de 0,19 s (zumbido corto que sube): se lee como esquive y no se confunde con los whoosh del swing (PP_Whoosh / FA_Whoosh). Dos variantes, la 2 más aguda."
+ },
+ "dodge-ready": {
+  "files": [
+   "dodge-ready.mp3"
+  ],
+  "seconds": 0.07,
+  "source": "W UI_SFX/UI/CGM3_Cute_Chirpy_Button_01_1.wav",
+  "note": "Blip de 0,06 s (3,5 kHz), a -24 LUFS: chiquito y suave. No uso PP_UI_Select, que es el hover de la UI en el mapeo."
+ },
+ "caster-cast": {
+  "files": [
+   "caster-cast.mp3"
+  ],
+  "seconds": 0.7,
+  "source": "C Ancient Language/Ancient Language 1_16.wav",
+  "note": "Conjuro del mapeo (Ancient Language 1_16, 0,8 s activos), recortado a 0,7 s con fade."
+ },
+ "caster-hit": {
+  "files": [
+   "caster-hit.mp3"
+  ],
+  "seconds": 0.58,
+  "source": "H Hit Skill9.wav",
+  "note": "Impacto mágico de Hovl (prefab \"Magic hit\")."
+ },
+ "burn-tick": {
+  "files": [
+   "burn-tick.mp3"
+  ],
+  "seconds": 0.3,
+  "source": "C Hissing/Hiss 3_5.wav",
+  "note": "No hay chisporroteo; el siseo más corto y más ruidoso de C (casi ruido puro, centroide 12 kHz, 0,32 s activos) hace de \"fsss\", recortado a 0,3 s."
+ },
+ "death-goblin": {
+  "files": [
+   "death-goblin.mp3",
+   "death-goblin-2.mp3"
+  ],
+  "seconds": 0.26,
+  "source": "C Humanoid Small 1/Humanoid Small - Short 4.wav | C Humanoid Small 1/Humanoid Small - Short 3.wav",
+  "note": "Voces del mapeo (Short 4 y Short 3); las voces van a -16 LUFS porque suenan seguido y encima de la campana de baja."
+ },
+ "death-goblina": {
+  "files": [
+   "death-goblina.mp3"
+  ],
+  "seconds": 0.4,
+  "source": "C Humanoid Small 3/Humanoid Small 3 - Short 03.wav",
+  "note": "Voz del mapeo (no hay voz femenina; es la más aguda de las chicas)."
+ },
+ "death-orc": {
+  "files": [
+   "death-orc.mp3",
+   "death-orc-2.mp3"
+  ],
+  "seconds": 0.57,
+  "source": "C Humanoid Large 2/Humanoid Large 2 - Short 2.wav | C Humanoid Large 2/Humanoid Large 2 - Short 9.wav",
+  "note": "Voces del mapeo (Short 2 y Short 9)."
+ },
+ "death-skeleton": {
+  "files": [
+   "death-skeleton.mp3"
+  ],
+  "seconds": 0.94,
+  "source": "C Zombie 2/Zombie 2_22.wav + W UI_SFX/Misc/PP_Destroy_1_1.wav",
+  "note": "Voz Zombie 2_22 con el derrumbe PP_Destroy_1_1 (-3 dB, entra a los 50 ms), mezclados."
+ },
+ "death-warchief": {
+  "files": [
+   "death-warchief.mp3"
+  ],
+  "seconds": 0.54,
+  "source": "C Humanoid Large 4/Humanoid Large 4 - Short 4.wav",
+  "note": "Voz del mapeo."
+ },
+ "death-shaman": {
+  "files": [
+   "death-shaman.mp3"
+  ],
+  "seconds": 0.25,
+  "source": "C Humanoid Small 4/Humanoid Small 4 - Short 20.wav",
+  "note": "Voz del mapeo."
+ },
+ "death-knight": {
+  "files": [
+   "death-knight.mp3"
+  ],
+  "seconds": 0.84,
+  "source": "C Demon 3/Demon 3 - Short 05.wav + P Game/MetalCollision.ogg",
+  "note": "Voz Demon 3 Short 05 con el MetalCollision bajito (-8 dB, a los 120 ms) como armadura que cae."
+ },
+ "death-stoneling": {
+  "files": [
+   "death-stoneling.mp3"
+  ],
+  "seconds": 1.0,
+  "source": "C Large Creature 01/Large Creature 1 - Short 1.wav + W UI_SFX/Misc/PP_Destroy_1_4.wav",
+  "note": "Voz Large Creature 1 Short 1 con el derrumbe de piedra PP_Destroy_1_4 (-3 dB, a los 100 ms); recortado a 1 s con fade."
+ },
+ "death-wraith": {
+  "files": [
+   "death-wraith.mp3"
+  ],
+  "seconds": 1.2,
+  "source": "W UI_SFX/Misc/PP_Monster_Dissipate.wav",
+  "note": "Disipación del mapeo; dura 3,4 s y sube hasta los 0,5 s: recortado a 1,2 s con fade largo."
+ },
+ "elite-alert": {
+  "files": [
+   "elite-alert.mp3"
+  ],
+  "seconds": 0.8,
+  "source": "W UI_SFX/Misc/PP_Monster_Alert_1_1.wav + C Demon 1/Demon 1 - Laugh 04.wav",
+  "note": "Alerta PP_Monster_Alert_1_1 y la risa Demon 1 Laugh 04 entrando a los 0,22 s, en un archivo; a -16 LUFS (aviso, pero importante)."
+ },
+ "boss-appear": {
+  "files": [
+   "boss-appear.mp3"
+  ],
+  "seconds": 2.5,
+  "source": "C Large Creature 09/Large Creature 9 - Long 6.wav",
+  "note": "Rugido del mapeo (Large Creature 9 Long 6), recortado a 2,5 s con fade."
+ },
+ "boss-death": {
+  "files": [
+   "boss-death.mp3"
+  ],
+  "seconds": 2.5,
+  "source": "C Large Creature 09/Large Creature 9 - Long 8.wav",
+  "note": "Muerte del mapeo (Large Creature 9 Long 8), recortada a 2,5 s con fade."
+ },
+ "boss-throw": {
+  "files": [
+   "boss-throw.mp3"
+  ],
+  "seconds": 1.0,
+  "source": "C Large Creature 09/Large Creature 9 - Short 1.wav",
+  "note": "Gruñido del mapeo (Large Creature 9 Short 1, la misma voz que aparecer y morir; 1,28 s activos, la cola recortada a 1 s con fade)."
+ },
+ "boss-rock": {
+  "files": [
+   "boss-rock.mp3"
+  ],
+  "seconds": 0.95,
+  "source": "D SFX_Dino_Stomp.ogg",
+  "note": "Pisotón del mapeo; casi todo graves, por eso mide menos LUFS aunque el pico esté arriba."
+ },
+ "gate-hit": {
+  "files": [
+   "gate-hit.mp3"
+  ],
+  "seconds": 0.75,
+  "source": "W UI_SFX/Misc/PP_Heavy_Impact_1_1.wav",
+  "note": "Del mapeo."
+ },
+ "hurt": {
+  "files": [
+   "hurt.mp3"
+  ],
+  "seconds": 0.6,
+  "source": "W UI_SFX/Misc/PP_Heavy_Impact_1_2.wav",
+  "note": "Del mapeo."
+ },
+ "player-dies": {
+  "files": [
+   "player-dies.mp3"
+  ],
+  "seconds": 0.46,
+  "source": "W UI_SFX/Misc/PP_Player_Dies_1_1.wav",
+  "note": "Del mapeo."
+ },
+ "ice": {
+  "files": [
+   "ice.mp3"
+  ],
+  "seconds": 1.2,
+  "source": "H Skill 8.wav",
+  "note": "Hovl \"Ise attack\" desde el golpe fuerte: arranca a los 0,897 s del original (10 ms antes del ataque, que está en 0,907 s; se pierden los cristales del principio) y sigue 1,2 s con fade de ~0,2 s al final."
+ },
+ "fire": {
+  "files": [
+   "fire.mp3"
+  ],
+  "seconds": 1.4,
+  "source": "H Skill 11.wav",
+  "note": "Hovl \"Meteor\": sube en 0,3 s y la meseta va de 0,4 a 1,3 s; recortado a 1,4 s con fade."
+ },
+ "lightning": {
+  "files": [
+   "lightning.mp3"
+  ],
+  "seconds": 1.5,
+  "source": "H Skill 2.wav",
+  "note": "Hovl \"Lightning strike\": el original tiene 1 s de carga casi muda antes del rayo; arranca a los 0,85 s (150 ms de chisporroteo y el rayo) y se corta a 1,5 s con fade."
+ },
+ "lightning-chain": {
+  "files": [
+   "lightning-chain.mp3"
+  ],
+  "seconds": 0.8,
+  "source": "H Skill 10.wav",
+  "note": "Hovl \"Electro splash\", recortado a 0,8 s con fade."
+ },
+ "wind": {
+  "files": [
+   "wind.mp3"
+  ],
+  "seconds": 0.77,
+  "source": "W UI_SFX/Misc/FA_Whoosh_1_3.wav",
+  "note": "Del mapeo."
+ },
+ "hole": {
+  "files": [
+   "hole.mp3"
+  ],
+  "seconds": 1.19,
+  "source": "W UI_SFX/Misc/LQ_Comedy_Drop.wav",
+  "note": "Del mapeo."
+ },
+ "cart": {
+  "files": [
+   "cart.mp3"
+  ],
+  "seconds": 1.03,
+  "source": "P Game/Engine1_Idle.ogg",
+  "note": "Loop de motor del mapeo (1,03 s). El original ya empalma sin salto (la diferencia en la costura es como la de dos muestras seguidas), así que no se recorta ni se cruza: solo un fade de 5 ms en cada borde por el relleno del mp3. Si se nota el corte, usar loopStart/loopEnd."
+ },
+ "trample": {
+  "files": [
+   "trample.mp3"
+  ],
+  "seconds": 0.8,
+  "source": "P Game/EngineMuscle_Backfire.ogg + W UI_SFX/Misc/FA_Funny_Impact_1_2.wav",
+  "note": "Petardeo del motor con el FA_Funny_Impact_1_2 (-2 dB, a los 20 ms), mezclados."
+ },
+ "cast": {
+  "files": [
+   "cast.mp3"
+  ],
+  "seconds": 0.56,
+  "source": "W UI_SFX/Misc/PP_Summon.wav",
+  "note": "Del mapeo."
+ },
+ "wave-clear": {
+  "files": [
+   "wave-clear.mp3"
+  ],
+  "seconds": 1.26,
+  "source": "W UI_SFX/Stinger/LQ_Stage Clear.wav",
+  "note": "Del mapeo."
+ },
+ "card-appear": {
+  "files": [
+   "card-appear.mp3"
+  ],
+  "seconds": 0.2,
+  "source": "W UI_SFX/Misc/LQ_Swipe.wav",
+  "note": "Del mapeo; el original está muy bajo (pico -25 dBFS), subido."
+ },
+ "card-pick": {
+  "files": [
+   "card-pick.mp3"
+  ],
+  "seconds": 0.4,
+  "source": "W UI_SFX/Misc/FA_Lap_Complete_1_2.wav",
+  "note": "Más festivo que FA_Select_Button_1_4 (que es un tono solo de 0,25 s): dos notas que suben (880 a 1,5 kHz), 0,57 s, de la misma familia FA."
+ },
+ "ui-click": {
+  "files": [
+   "ui-click.mp3"
+  ],
+  "seconds": 0.1,
+  "source": "W UI_SFX/UI/LQ_Click_Button.wav",
+  "note": "Del mapeo."
+ },
+ "ui-back": {
+  "files": [
+   "ui-back.mp3"
+  ],
+  "seconds": 0.07,
+  "source": "W UI_SFX/UI/LQ_Back_Button.wav",
+  "note": "Del mapeo."
+ },
+ "victory": {
+  "files": [
+   "victory.mp3"
+  ],
+  "seconds": 4.32,
+  "source": "W Stingers_Jingles/Fantasy/TD_Win_Stinger_01_01.wav",
+  "note": "Del mapeo, entero."
+ },
+ "defeat": {
+  "files": [
+   "defeat.mp3"
+  ],
+  "seconds": 4.07,
+  "source": "W Stingers_Jingles/Fantasy/TD_Lose Stinger_01_01.wav",
+  "note": "Del mapeo, entero."
+ },
+ "burn-loop": {
+  "files": [
+   "burn-loop.mp3"
+  ],
+  "seconds": 2.0,
+  "source": "tools/crepitar.py",
+  "note": "Generado: ningún paquete trae un crepitar de fuego."
+ }
+}

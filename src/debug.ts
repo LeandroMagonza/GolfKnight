@@ -20,6 +20,7 @@ import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { BUDGET, POWER_WEIGHT } from './core/budget';
+import { POLISH, setAllPolish, type PolishKey } from './core/polish';
 import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
@@ -48,6 +49,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   'golpe 4': FOURTH as unknown as Record<string, number>, 'arco golpe 4': FOURTH_ARC,
   // el click, el principio del golpe 1 (`click.mode:1` pifia, `click.mode:2` pega 1; ver TAP)
   click: TAP,
+  // el pulido de efectos y sonidos (`pulido.bubble:0`; ver POLISH)
+  pulido: POLISH,
   // en qué cuerpos caen el fantasma y el bendito (`reparto.divine:1,reparto.giants:0`)
   reparto: POWER_BIAS,
   // el presupuesto de las oleadas (`presupuesto.on:0` lo apaga; ver core/budget)
@@ -1279,6 +1282,26 @@ export class DebugPanel {
       this.button('Todo apagado (como antes)', () => { Object.assign(VISUAL, VISUAL_OFF); applied(); paintAll(); }, 'Sin sombras, sin corrección de color, sol de mediodía, sin contorno ni brillo'),
     );
     el.append(heading('Visual'), fps, all, note('Nada de esto cambia cómo se juega. Se guarda aparte del balance: «Restaurar» de abajo no lo toca.'));
+
+    // el pulido del 14/10 (ver POLISH): cada cosa con su llave
+    const polishNames: Record<PolishKey, string> = {
+      impacts: 'Impactos por golpe', hitstop: 'Congelada del perfecto', squash: 'Aplastado al recibir', explosions: 'Explosiones nuevas',
+      auras: 'Aura del guante', burning: 'Llamas del quemado', frozen: 'Cristales del congelado', bubble: 'Burbuja nueva del bendito',
+      heals: 'Brillo de la curación', samples: 'Sonidos grabados', voices: 'Voces de los enemigos', powerSounds: 'Sonidos de los poderes',
+      uiSounds: 'Sonidos de la partida', fireSounds: 'Sonido del fuego',
+    };
+    const polishRow = this.row();
+    for (const key of Object.keys(POLISH) as PolishKey[]) {
+      const b = this.button(polishNames[key], () => { POLISH[key] = POLISH[key] ? 0 : 1; this.save(); paintAll(); });
+      paints.push(() => b.classList.toggle('on', POLISH[key] > 0));
+      polishRow.append(b);
+    }
+    polishRow.style.flexWrap = 'wrap';
+    el.append(heading('Pulido (14/10)'), polishRow, this.row(
+      this.button('Todo prendido', () => { setAllPolish(true); this.save(); paintAll(); }),
+      this.button('Todo apagado (como antes)', () => { setAllPolish(false); this.save(); paintAll(); }),
+    ), note('Los efectos y sonidos nuevos, cada uno con su llave. La burbuja nueva vale para los benditos que salgan después de prenderla. '
+      + 'Para comparar sin el panel: ?pulido=0 apaga todo, y ?ajuste=pulido.bubble:0 apaga uno. Las pruebas, con ?prueba= (ver docs/pruebas.md).'));
 
     el.append(heading('Barra de arriba'), this.row(toggle('Puerta con íconos', 'gateIcons')), note(
       'La vida de la puerta como una puerta por punto (las perdidas, rotas y apagadas), en el medio entre los corazones y la oleada. '

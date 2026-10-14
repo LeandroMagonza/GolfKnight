@@ -8,10 +8,10 @@ import { looksSpanish, scanCode, scanHtml } from './i18n.scan';
 // no lo ve nunca (un id, un registro), marcar la línea con un comentario i18n-ok.
 
 /**
- * Lo que el jugador no ve: el panel de balance (B) y el simulador de la carga (arco.html) son herramientas
- * para quien balancea, solo en español.
+ * Lo que el jugador no ve: el panel de balance (B), el simulador de la carga (arco.html) y las pruebas del
+ * pulido (?prueba=) son herramientas para quien balancea, solo en español.
  */
-const SKIP = new Set(['./debug.ts', './arco.ts', './i18n.ts', './i18n.scan.ts']);
+const SKIP = new Set(['./debug.ts', './arco.ts', './i18n.ts', './i18n.scan.ts', './pruebas.ts']);
 
 const sources = import.meta.glob<string>(['./**/*.ts', '!./**/*.test.ts'], { query: '?raw', import: 'default', eager: true });
 
