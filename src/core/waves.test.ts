@@ -98,7 +98,7 @@ describe('waves', () => {
     expect(elite(2, 'ethereal').kind).toBe('knight');
     expect(elite(0, 'shield').kind).toBe('warchief');
     // el tamaño depende del modelo: el jefe goblin, chico, crece mucho más que el caballero
-    expect(elite(0, 'shield').mods!.size!).toBeGreaterThan(elite(1, 'shield').mods!.size! + 0.3);
+    expect(elite(0, 'shield').mods!.size!).toBeGreaterThan(elite(1, 'shield').mods!.size! + 0.2);
   });
 
   it('en prueba (12/10): el fantasma y el bendito, más en los chicos y sin agrandarse (POWER_BIAS)', legacy(() => {

@@ -155,14 +155,17 @@ export const GOLEM_THROW_EVERY = 4;
  * Los cuerpos, por vida: una escalera de 1 a 10 que se lee por el tamaño. El chamán es un cuerpo más: el
  * aura es un poder, y le puede tocar a cualquiera.
  */
+// los tamaños del jefe goblin, el chamán y el caballero, más grandes desde el 13/10 (Leandro: el jefe goblin sin ser
+// élite quedaba muy chico, el chamán olvidable, y el caballero tenía que imponer): eran 1.65, 1.45 y 2.2 m, y el
+// radio creció igual
 export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   goblin: { ...base, kind: 'goblin', name: 'Goblin', mesh: 'Character_Goblin_Male', height: 1.25, radius: 0.45, hp: 1, speed: 3.6, runs: true, damage: 1, gateDamage: 1, score: 10 },
   goblina: { ...base, kind: 'goblina', name: L('Goblina', 'Goblin Lass'), mesh: 'Character_Goblin_Female', height: 1.25, radius: 0.45, hp: 2, speed: 3.3, runs: true, damage: 1, gateDamage: 1, score: 15 },
   orc: { ...base, kind: 'orc', name: L('Orco', 'Orc'), mesh: 'Character_Goblin_Warrior_Male', height: 1.55, radius: 0.6, hp: 3, speed: 2.6, damage: 2, gateDamage: 2, score: 20 },
   skeleton: { ...base, kind: 'skeleton', name: L('Esqueleto', 'Skeleton'), mesh: 'Character_Skeleton_Soldier_01', height: 1.8, radius: 0.55, hp: 4, speed: 2.1, damage: 2, gateDamage: 2, score: 25 },
-  warchief: { ...base, kind: 'warchief', name: L('Jefe goblin', 'Goblin Chief'), mesh: 'Character_Goblin_WarChief', height: 1.65, radius: 0.62, hp: 5, speed: 2.3, damage: 2, gateDamage: 2, score: 30 },
-  shaman: { ...base, kind: 'shaman', name: L('Chamán goblin', 'Goblin Shaman'), mesh: 'Character_Goblin_Shaman', height: 1.45, radius: 0.5, hp: 6, speed: 2.2, damage: 2, gateDamage: 2, score: 40 },
-  knight: { ...base, kind: 'knight', name: L('Caballero esqueleto', 'Skeleton Knight'), mesh: 'Character_Skeleton_Knight', height: 2.2, radius: 0.85, hp: 8, speed: 1.5, damage: 3, gateDamage: 3, heavy: true, score: 50 },
+  warchief: { ...base, kind: 'warchief', name: L('Jefe goblin', 'Goblin Chief'), mesh: 'Character_Goblin_WarChief', height: 2.0, radius: 0.75, hp: 5, speed: 2.3, damage: 2, gateDamage: 2, score: 30 },
+  shaman: { ...base, kind: 'shaman', name: L('Chamán goblin', 'Goblin Shaman'), mesh: 'Character_Goblin_Shaman', height: 1.85, radius: 0.64, hp: 6, speed: 2.2, damage: 2, gateDamage: 2, score: 40 },
+  knight: { ...base, kind: 'knight', name: L('Caballero esqueleto', 'Skeleton Knight'), mesh: 'Character_Skeleton_Knight', height: 2.6, radius: 1.0, hp: 8, speed: 1.5, damage: 3, gateDamage: 3, heavy: true, score: 50 },
   stoneling: { ...base, kind: 'stoneling', name: L('Gólem chico', 'Small Golem'), mesh: 'Character_Rock_Golem', height: 2.1, radius: 0.95, hp: 10, speed: 1.4, damage: 3, gateDamage: 3, heavy: true, score: 70 },
   wraith: { ...base, kind: 'wraith', name: L('Alma en pena', 'Wraith'), mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
   golem: { ...base, kind: 'golem', name: L('Gólem de roca', 'Rock Golem'), mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, attackEvery: GOLEM_THROW_EVERY, score: 500 },
