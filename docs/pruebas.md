@@ -30,6 +30,13 @@ Para comparar con lo de antes:
 | `?prueba=hechiceros` | Suena cuando conjuran y cuando cae el hechizo. |
 | `?prueba=muertes` | Uno de cada tipo, cada uno con su voz al morir. Al caer todos suena la oleada terminada y salen las cartas: suenan al aparecer y al elegir. |
 | `?prueba=jefe` | Entra un élite, con aviso y risa. Después el gólem: rugido al entrar, la roca que tira y la que cae, y su muerte. |
+| `?prueba=palos` | El golpe de cada palo (1 2 3 4): el putter un tic, el hierro un click, el wedge con más cuerpo, el driver el ping metálico. Más fuerte cuanto mejor el golpe, y justo cuando el palo toca la pelota. |
+| `?prueba=quejidos` | Uno de cada tipo con mucha vida: cada uno se queja con su voz al recibir, y el golpe suena según de qué está hecho (cuerpo, hueso, armadura, piedra, fantasma). El élite del medio gruñe grave cada vez que le pegás. |
+| `?prueba=disparos` | Q W E R: driver de fuego, hierro de hielo, wedge de rayo y putter fantasma. Cada uno suena a su palo y a su elemento. |
+| `?prueba=invocaciones` | Q W E R: el carrito arranca, el hoyo se clava (y el que cae suena), la bandera vuela y se clava, la pólvora chisporrotea. |
+| `?prueba=mejoras` | Q W E R: la lluvia de pelotas sube, el caddie brilla dorado, la lupa crece, el clon junta energía. |
+| `?prueba=refuerzos` | Q W E R: eco, potencia, fuerza y el palazo (suena al conectar: dejalos acercar). |
+| Perder una partida | Ya sin `?prueba`: cuando cae la puerta o el golfista, los que siguen pegándole a la puerta no suenan más. |
 | `?prueba=explosiones` | Grupos apretados para el hierro y el wedge: fogonazo, humo, rayas y la marca quemada en el piso. |
 
 ## Las llaves
@@ -47,8 +54,12 @@ Las llaves están en `POLISH`, en `src/core/polish.ts`.
 | `frozen` | Los cristales del congelado |
 | `bubble` | La burbuja nueva del bendito (vale para los que salen después de tocarla) |
 | `heals` | Las cruces y el círculo de la curación |
-| `samples` | Los sonidos grabados de golpes, explosiones, puerta, victoria y derrota (vuelven los sintetizados) |
+| `samples` | Los sonidos grabados del palo, de la pelota contra el enemigo, explosiones, puerta, daño, victoria y derrota (vuelven los sintetizados) |
 | `voices` | Las voces de muerte, el élite y el jefe |
 | `powerSounds` | Burbuja, metal, rebotes, curación, esquiva y hechiceros |
 | `uiSounds` | La oleada terminada y las cartas |
 | `fireSounds` | El crepitar y el chisporroteo |
+| `groans` | Los quejidos al recibir, y el gruñido del élite |
+| `abilitySounds` | El sonido de cada poder (vuelve el whoosh de antes para todos) |
+| `mix` | La mezcla sin saturar: vuelve el limitador de antes, que dejaba recortar con varios sonidos juntos. Se nota al recargar |
+| `onTime` | Los sonidos en el acto: vuelven a sonar una décima tarde, como antes |

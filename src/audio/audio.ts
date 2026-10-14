@@ -1,6 +1,8 @@
 // Audio del juego con Tone.js: sintetizado (swing, impactos, encantamientos, monstruos, y una música de
 // fondo simple que corre sobre el transporte) y, desde el 14/10, sonidos grabados (ver audio/samples y
 // POLISH en core/polish): con su llave prendida y el archivo bajado suena el grabado; si no, el de siempre.
+// La segunda tanda del 14/10 (docs/assets-sonidos.md): el golpe de cada palo, la pelota según de qué está
+// hecho el enemigo, sus quejidos, un sonido por tipo de poder, y la mezcla sin saturar ni retraso.
 import * as Tone from 'tone';
 import { polished, type PolishKey } from '../core/polish';
 import { SampleBank } from './samples';
@@ -22,6 +24,16 @@ const arpeggioNote = (step: number) => BASE_NOTE + ARPEGGIO[Math.min(ARPEGGIO.le
  */
 const KILL_STRUM = 0.06;
 
+/**
+ * El golpe del palo: un grabado por palo, más fuerte cuanto mejor el golpe (niveles 1, 2 y 3). El nivel ya
+ * se oye en la nota de la carga; esto es el contacto.
+ */
+const CLUB_VOLUME = [0.55, 0.75, 0.95];
+/** De qué suena cada enemigo al recibir la pelota. El resto, golpe seco en el cuerpo (`ball-hit`, `hit-heavy`). */
+const HIT_SOUND: Record<string, string> = {
+  skeleton: 'hit-bone', knight: 'hit-armor', stoneling: 'hit-stone', golem: 'hit-stone', wraith: 'hit-soft',
+};
+
 const MUTE_KEY = 'gk-music-muted';
 /** Todo el sonido apagado (N): música y efectos. */
 const ALL_KEY = 'gk-all-muted';
@@ -34,7 +46,7 @@ function loadMuted(key = MUTE_KEY): boolean {
 }
 
 export class GameAudio {
-  private master!: Tone.Limiter;
+  private master!: Tone.ToneAudioNode;
   private musicBus!: Tone.Gain;
   private click!: Tone.MembraneSynth;
   private thudSynth!: Tone.MembraneSynth;
@@ -60,6 +72,13 @@ export class GameAudio {
   /** Todo silenciado con N (música y efectos), en el que juega y en el que mira. También se guarda. */
   allMuted = loadMuted(ALL_KEY);
   private readonly lastPlayed = new Map<string, number>();
+  /**
+   * Perdiste: la horda sigue moviéndose detrás del cartel, pero ya no suena (la puerta, los golpes, los
+   * gruñidos). Pedido de Leandro (14/10). Lo pone `hush`.
+   */
+  private quietWorld = false;
+  /** Para las pruebas: lo que sale, para medir picos (ver `tap`). */
+  private probe: AnalyserNode | null = null;
 
   private readonly lastTime = new Map<object, number>();
 
@@ -68,7 +87,8 @@ export class GameAudio {
     // medio del update de pelotas y enemigos.
     const sfx = ['chargeTick', 'duff', 'whoosh', 'tock', 'thud', 'kill', 'bounce', 'explosion', 'zap', 'frost', 'growl', 'gateHit', 'hurt', 'waveHorn', 'victory', 'defeat', 'unlock',
       'death', 'eliteAlert', 'bossAppear', 'bossThrow', 'bossRock', 'bubblePop', 'bubbleUp', 'armorHit', 'ricochet', 'phaseBounce', 'heal', 'dodge', 'dodgeReady',
-      'casterCast', 'casterHit', 'burnTick', 'burning', 'waveClear', 'cardAppear', 'cardPick', 'uiClick', 'playerDies', 'element', 'hole', 'cast', 'trample'] as const;
+      'casterCast', 'casterHit', 'burnTick', 'burning', 'waveClear', 'cardAppear', 'cardPick', 'uiClick', 'playerDies', 'hole', 'cast', 'trample',
+      'ballHit', 'groan', 'meleeHit', 'hush'] as const;
     for (const name of sfx) {
       const fn = (this[name] as (...args: unknown[]) => void).bind(this);
       (this as Record<string, unknown>)[name] = (...args: unknown[]) => {
@@ -86,9 +106,18 @@ export class GameAudio {
    * dos sonidos en cuadros seguidos pueden caer en el mismo instante, cosa que Tone rechaza con una excepcion.
    */
   private at(synth: object, delay = 0): number {
-    const t = Math.max(Tone.now() + delay, (this.lastTime.get(synth) ?? 0) + 0.03);
+    const t = Math.max(this.now() + delay, (this.lastTime.get(synth) ?? 0) + 0.03);
     this.lastTime.set(synth, t);
     return t;
+  }
+
+  /**
+   * El instante de ahora para los efectos. `Tone.now()` le suma el adelanto con que Tone agenda la música
+   * (0,1 s): todo sonaba una décima tarde, y el golpe del palo se oía después del golpe (Leandro: «sale a
+   * destiempo»). Con `POLISH.onTime` suenan en el acto; la música sigue con su adelanto.
+   */
+  private now(): number {
+    return polished('onTime') ? Tone.immediate() : Tone.now();
   }
 
   /** Limita cada efecto a un disparo cada `ms`, para que una ráfaga de impactos no sature. */
@@ -103,7 +132,13 @@ export class GameAudio {
   async start(): Promise<void> {
     await Tone.start();
     Tone.getDestination().mute = this.allMuted;
-    this.master = new Tone.Limiter(-1).toDestination();
+    // el final de todo (POLISH.mix): un limitador de verdad, de rodilla dura y que suelta en 150 ms. El
+    // `Limiter` de Tone es un compresor con rodilla de 30 dB y suelta de 10 ms: con varios grabados juntos
+    // casi no frenaba, la suma pasaba de 0 dB y recortaba a la salida (Leandro: «no sabés si está saturado»)
+    const mix = polished('mix');
+    this.master = mix
+      ? new Tone.Compressor({ threshold: -3, ratio: 20, knee: 0, attack: 0.002, release: 0.15 }).toDestination()
+      : new Tone.Limiter(-1).toDestination();
     const verb = new Tone.Freeverb({ roomSize: 0.7, dampening: 2500, wet: 0.25 }).connect(this.master);
     this.musicBus = new Tone.Gain(this.muted ? 0 : 0.8).connect(verb);
 
@@ -134,9 +169,10 @@ export class GameAudio {
       modulationEnvelope: { attack: 0.002, decay: 0.15, sustain: 0, release: 0.1 },
       volume: -9,
     }).connect(verb);
-    // los grabados van directo al limitador, sin la reverb de los sintetizados
-    const sampleBus = new Tone.Gain(0.9).connect(this.master);
-    this.bank = new SampleBank(sampleBus);
+    // los grabados van directo al limitador, sin la reverb de los sintetizados; con la mezcla nueva, más
+    // bajos: vienen normalizados a -1 dB de pico y varios juntos se suman
+    const sampleBus = new Tone.Gain(mix ? 0.6 : 0.9).connect(this.master);
+    this.bank = new SampleBank(sampleBus, () => this.now());
     void this.bank.load();
     this.ready = true;
   }
@@ -221,11 +257,11 @@ export class GameAudio {
     this.growlSynth.frequency.exponentialRampToValueAtTime(90, t + 0.32);
   }
 
-  /** Impacto del palo con la pelota. */
-  tock(perfect: boolean, quality = 0): void {
+  /** Impacto del palo con la pelota: el de ese palo (`club`), más fuerte cuanto mejor el golpe. */
+  tock(perfect: boolean, quality = 0, club = ''): void {
     if (!this.ok('tock')) return;
-    // grabado: el golpe del palo según el nivel, y la estrellita del perfecto encima
-    if (quality >= 1 && this.sample('samples', `club-${Math.min(3, quality)}`, 0.9)) {
+    // grabado: el golpe del palo, y la estrellita del perfecto encima
+    if (quality >= 1 && club && this.sample('samples', `club-${club}`, CLUB_VOLUME[Math.min(3, quality) - 1], 0.04)) {
       if (perfect) this.sample('samples', 'perfect', 0.7, 0.02, 40, 0.03);
       return;
     }
@@ -234,11 +270,45 @@ export class GameAudio {
     if (perfect) this.bell.triggerAttackRelease([midiToFreq(86), midiToFreq(91)], 0.4, t + 0.02);
   }
 
-  /** La pelota le pega a un enemigo. */
+  /** Un golpe sordo: la pelota que cae, el hoyo, el empujón. */
   thud(): void {
     if (!this.ok('thud')) return;
-    if (this.sample('samples', 'ball-hit', 0.85, 0.08)) return;
+    if (this.sample('samples', 'hit-soft', 0.6, 0.08)) return;
     this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth));
+  }
+
+  /**
+   * La pelota le pega a un enemigo (`kind`): según de qué está hecho, y más pesado con el golpe 3. El
+   * blindado, a metal.
+   */
+  ballHit(kind: string, quality: number, armored: boolean): void {
+    if (armored) {
+      this.armorHit();
+      return;
+    }
+    if (!this.ok('ballHit', 35)) return;
+    const name = HIT_SOUND[kind] ?? (quality >= 3 ? 'hit-heavy' : 'ball-hit');
+    if (this.sample('samples', name, quality >= 3 ? 0.85 : 0.7, 0.06, 35)) return;
+    this.thudSynth.triggerAttackRelease('A1', '16n', this.at(this.thudSynth));
+  }
+
+  /**
+   * Un enemigo se queja al recibir sin morir: cada tipo con su voz, un toque después del golpe para que se
+   * oiga primero el impacto. El élite gruñe grave cada vez que le pegan (Leandro, 14/10), y el jefe con la
+   * suya.
+   */
+  groan(kind: string, elite: boolean, boss: boolean): void {
+    if (this.quietWorld) return;
+    if (boss) {
+      this.sample('groans', 'hurt-golem', 0.7, 0.04, 400, 0.05);
+      return;
+    }
+    if (elite) {
+      this.sample('groans', 'elite-hurt', 0.8, 0.04, 220, 0.05);
+      return;
+    }
+    if (!this.ok('groan', 70)) return;
+    this.sample('groans', `hurt-${kind}`, 0.42, 0.08, 110, 0.05);
   }
 
   /**
@@ -248,7 +318,7 @@ export class GameAudio {
    */
   kill(step: number): void {
     if (!this.ready) return;
-    const t = Math.max(Tone.now(), this.killAt + KILL_STRUM);
+    const t = Math.max(this.now(), this.killAt + KILL_STRUM);
     this.killAt = t;
     this.killBell.triggerAttackRelease(midiToFreq(arpeggioNote(step)), 0.5, t, Math.min(1, 0.6 + 0.06 * step));
   }
@@ -259,7 +329,7 @@ export class GameAudio {
   }
 
   explosion(big = false): void {
-    if (!this.ok('explosion', 120)) return;
+    if (this.quietWorld || !this.ok('explosion', 120)) return;
     if (this.sample('samples', big ? 'explosion-big' : 'explosion-small', big ? 0.9 : 0.75, 0.06)) return;
     this.boom.triggerAttackRelease('C1', '4n', this.at(this.boom));
     this.noise.triggerAttackRelease(0.4, this.at(this.noise));
@@ -276,11 +346,11 @@ export class GameAudio {
   frost(): void {
     if (!this.ok('frost')) return;
     if (this.sample('samples', 'ice', 0.7)) return;
-    this.bell.triggerAttackRelease([midiToFreq(88), midiToFreq(95), midiToFreq(100)], 0.5, Tone.now(), 0.6);
+    this.bell.triggerAttackRelease([midiToFreq(88), midiToFreq(95), midiToFreq(100)], 0.5, this.now(), 0.6);
   }
 
   growl(): void {
-    if (!this.ok('growl', 120)) return;
+    if (this.quietWorld || !this.ok('growl', 120)) return;
     const t = this.at(this.growlSynth);
     this.growlSynth.triggerAttackRelease(80, 0.22, t);
     this.growlSynth.frequency.exponentialRampToValueAtTime(52, t + 0.22);
@@ -288,14 +358,14 @@ export class GameAudio {
 
   /** Golpe contra la puerta de la ciudad. */
   gateHit(): void {
-    if (!this.ok('gateHit', 120)) return;
+    if (this.quietWorld || !this.ok('gateHit', 120)) return;
     if (this.sample('samples', 'gate-hit', 0.85)) return;
     this.boom.triggerAttackRelease('E1', '8n', this.at(this.boom), 0.7);
   }
 
   /** Golpe que recibe el golfista. */
   hurt(): void {
-    if (!this.ok('hurt')) return;
+    if (this.quietWorld || !this.ok('hurt')) return;
     if (this.sample('samples', 'hurt', 0.85)) return;
     // sin ruido: comparte instante con la explosión de un bombín, y NoiseSynth no admite dos disparos juntos
     this.thudSynth.triggerAttackRelease('E2', '8n', this.at(this.thudSynth));
@@ -304,14 +374,14 @@ export class GameAudio {
   /** Cuerno que anuncia una oleada. */
   waveHorn(): void {
     if (!this.ok('waveHorn')) return;
-    const t = Tone.now();
+    const t = this.now();
     this.horn.triggerAttackRelease([midiToFreq(50), midiToFreq(57)], 0.7, t);
     this.horn.triggerAttackRelease([midiToFreq(53), midiToFreq(60)], 1.0, t + 0.75);
   }
 
   victory(): void {
     if (this.sample('samples', 'victory', 0.8, 0)) return;
-    const t = Tone.now();
+    const t = this.now();
     [62, 66, 69, 74].forEach((m, i) => this.bell.triggerAttackRelease(midiToFreq(m + 12), 0.6, t + i * 0.16));
   }
 
@@ -321,7 +391,7 @@ export class GameAudio {
    */
   unlock(max: boolean): void {
     if (!this.ready) return;
-    const t = Tone.now();
+    const t = this.now();
     this.boom.triggerAttackRelease(max ? 'A0' : 'C1', '2n', this.at(this.boom));
     this.noise.triggerAttackRelease(0.7, this.at(this.noise));
     const low = max ? 36 : 38;
@@ -331,7 +401,7 @@ export class GameAudio {
 
   defeat(): void {
     if (this.sample('samples', 'defeat', 0.8, 0)) return;
-    const t = Tone.now();
+    const t = this.now();
     [57, 53, 50].forEach((m, i) => this.horn.triggerAttackRelease(midiToFreq(m - 12), 0.8, t + i * 0.45));
   }
 
@@ -355,10 +425,12 @@ export class GameAudio {
   }
 
   bossThrow(): void {
+    if (this.quietWorld) return;
     if (!this.sample('voices', 'boss-throw', 0.7, 0.05, 300)) this.growl();
   }
 
   bossRock(): void {
+    if (this.quietWorld) return;
     this.sample('voices', 'boss-rock', 0.8, 0.05, 150);
   }
 
@@ -404,10 +476,12 @@ export class GameAudio {
 
   /** Un hechicero enemigo tira y su hechizo cae. Si no, el zap y nada. */
   casterCast(): void {
+    if (this.quietWorld) return;
     if (!this.sample('powerSounds', 'caster-cast', 0.5, 0.06, 120)) this.zap();
   }
 
   casterHit(): void {
+    if (this.quietWorld) return;
     this.sample('powerSounds', 'caster-hit', 0.55, 0.06, 80);
   }
 
@@ -446,19 +520,51 @@ export class GameAudio {
     this.sample('samples', 'player-dies', 0.8, 0, 500);
   }
 
-  /** Un tiro con elemento que sale (fuego, rayo, viento). */
-  element(name: 'fire' | 'lightning' | 'wind'): void {
-    this.sample('samples', name, 0.55, 0.06, 120);
-  }
-
   /** Uno cae al hoyo. */
   hole(): boolean {
     return this.sample('samples', 'hole', 0.7, 0, 120);
   }
 
-  /** Se tira una habilidad. Si no, el whoosh de siempre. */
-  cast(): void {
-    if (!this.sample('samples', 'cast', 0.55, 0.05, 120)) this.whoosh(0.7);
+  /**
+   * Se tira una habilidad: cada tipo con lo suyo (`POLISH.abilitySounds`, Leandro: «que los poderes hagan
+   * ruidos distintos según el tipo»). Los disparos ya suenan a palo (el hook llama a `tock`) y acá se les
+   * suma su elemento; el guante, un brillo y su elemento bajito; el palazo suena al conectar (`meleeHit`).
+   * Sin la llave, o sin grabado, el whoosh de siempre.
+   */
+  cast(a?: { kind: string; element?: string }): void {
+    if (!this.ok('cast', 80)) return;
+    if (a && polished('abilitySounds')) {
+      if (a.kind === 'melee') return;
+      if (a.kind === 'shot' && this.sample('abilitySounds', `cast-${a.element}`, 0.55, 0.05, 80, 0.02)) return;
+      if (a.kind === 'split' && this.sample('abilitySounds', 'cast-wind', 0.5, 0.05, 80, 0.02)) return;
+      if (a.kind === 'glove' && this.sample('abilitySounds', 'cast-glove', 0.6, 0, 200)) {
+        this.sample('abilitySounds', `cast-${a.element}`, 0.3, 0.05, 80, 0.15);
+        return;
+      }
+      if (this.sample('abilitySounds', `cast-${a.kind}`, 0.6, 0.04, 80)) return;
+    }
+    this.whoosh(0.7);
+  }
+
+  /** El palazo conecta. */
+  meleeHit(): void {
+    if (!this.sample('abilitySounds', 'cast-melee', 0.8, 0.05, 100)) this.thud();
+  }
+
+  /** Perdiste: la horda que sigue detrás del cartel deja de sonar (`false` al volver a jugar). */
+  hush(on: boolean): void {
+    this.quietWorld = on;
+  }
+
+  /** Para las pruebas (__gk): un analizador conectado a la salida, para medir picos. */
+  tap(): AnalyserNode | null {
+    if (!this.ready) return null;
+    if (!this.probe) {
+      this.probe = Tone.getContext().createAnalyser();
+      this.probe.fftSize = 4096;
+      Tone.connect(this.master, this.probe);
+    }
+    return this.probe;
   }
 
   /** El carrito atropella a uno. */

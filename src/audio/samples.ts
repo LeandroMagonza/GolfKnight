@@ -12,7 +12,8 @@ export class SampleBank {
   private readonly last = new Map<string, number>();
   private loop: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
 
-  constructor(private readonly out: Tone.ToneAudioNode) {}
+  /** `now`: el instante de ahora en el reloj de audio (ver `GameAudio.now`). */
+  constructor(private readonly out: Tone.ToneAudioNode, private readonly now: () => number = () => Tone.now()) {}
 
   /** Baja la lista y los archivos. No espera: cada uno queda listo cuando llega. */
   async load(): Promise<void> {
@@ -58,7 +59,7 @@ export class SampleBank {
     gain.gain.value = volume;
     src.connect(gain);
     Tone.connect(gain, this.out);
-    src.start(Tone.now() + delay);
+    src.start(this.now() + delay);
     src.onended = () => gain.disconnect();
     return true;
   }

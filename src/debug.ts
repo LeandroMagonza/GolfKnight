@@ -1289,6 +1289,7 @@ export class DebugPanel {
       auras: 'Aura del guante', burning: 'Llamas del quemado', frozen: 'Cristales del congelado', bubble: 'Burbuja nueva del bendito',
       heals: 'Brillo de la curación', samples: 'Sonidos grabados', voices: 'Voces de los enemigos', powerSounds: 'Sonidos de los poderes',
       uiSounds: 'Sonidos de la partida', fireSounds: 'Sonido del fuego',
+      groans: 'Quejidos al recibir', abilitySounds: 'Sonido por tipo de poder', mix: 'Mezcla sin saturar (al recargar)', onTime: 'Sonidos en el acto',
     };
     const polishRow = this.row();
     for (const key of Object.keys(POLISH) as PolishKey[]) {

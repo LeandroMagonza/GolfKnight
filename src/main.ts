@@ -952,6 +952,8 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   endCause = cause;
   if (ended) return;
   ended = result;
+  // la horda sigue detrás del cartel, pero callada (Leandro: que dejen de sonar los que le pegan a la puerta)
+  if (result === 'defeat') audio.hush(true);
   player.cancelSwing();
   // ya no hay a quién tirarle: el gólem y los hechiceros bajan los brazos
   horde.ceaseFire = true;
@@ -1001,6 +1003,11 @@ horde.onEvent = (e) => {
         audio.death(e.enemy.stats.kind);
         kills++;
         score += e.enemy.stats.score;
+      } else if (e.amount > 0) {
+        // se queja; el fuego no, que muerde seguido (salvo el élite y el jefe, que se quejan siempre)
+        const elite = e.enemy.size > 1;
+        const boss = !!e.enemy.stats.boss;
+        if (!e.dot || elite || boss) audio.groan(e.enemy.stats.kind, elite, boss);
       }
       break;
     }
@@ -1093,6 +1100,7 @@ horde.onEvent = (e) => {
       break;
     case 'trample': {
       // lo atropelló y murió en el choque: ese enemigo ya no llega a la puerta
+      audio.trample();
       effects.explosion(new THREE.Vector3(e.enemy.position.x, 0.8, e.enemy.position.z), 1.4, 0xd96b5b);
       break;
     }
@@ -1208,9 +1216,8 @@ balls.onEvent = (e) => {
         hitStop = HITSTOP.seconds;
         hitStopAt = gameClock;
       }
-      // el blindado suena a metal
-      if (e.enemy.armor > 0) audio.armorHit();
-      else audio.thud();
+      // según de qué está hecho (el blindado, a metal)
+      audio.ballHit(e.enemy.stats.kind, e.quality, e.enemy.armor > 0);
       break;
     }
     case 'land':
@@ -1293,9 +1300,12 @@ balls.onEvent = (e) => {
 
 abilities.onEvent = (e) => {
   switch (e.type) {
-    case 'cast':
-      audio.cast();
+    case 'cast': {
+      // cada tipo con su sonido: los disparos, su elemento; el carrito, el hoyo, la bandera... el suyo
+      const a = ABILITIES[e.id];
+      audio.cast({ kind: a.kind, element: a.element });
       break;
+    }
     case 'mark':
       recorder?.affected(e.id, e.hits);
       lastLanding = [+e.pos.x.toFixed(1), +e.pos.z.toFixed(1), e.hits];
@@ -1303,7 +1313,7 @@ abilities.onEvent = (e) => {
       if (e.hits) hud.feedback(`${ABILITIES[e.id].name} ×${e.hits}`, e.hits > 2 ? 'good' : 'neutral');
       break;
     case 'swallow':
-      audio.thud();
+      if (!audio.hole()) audio.thud();
       hud.feedback(L('¡Al hoyo!', 'Hole in one!'), 'good');
       break;
     case 'bump':
@@ -1745,7 +1755,7 @@ function fireEchoes(): void {
     const e = echoQueue[i];
     if (e.at > gameClock) continue;
     echoQueue.splice(i, 1);
-    audio.tock(e.shot.quality >= topQuality());
+    audio.tock(e.shot.quality >= topQuality(), e.shot.quality, e.shot.club.id);
     effects.blink(e.shot.from.clone(), ABILITIES.echo.color);
     balls.fire(e.shot, e.range, e.lift);
   }
@@ -1784,7 +1794,7 @@ if (!ABE_ONLY) abilities.hooks = {
     const range = shotRange(club);
     // el wedge saltea la pifia: su nivel 1 sale con el golpe 2
     const quality = shotQuality(clubId, level);
-    audio.tock(quality >= QUALITY_LEVELS);
+    audio.tock(quality >= QUALITY_LEVELS, quality, clubId);
     balls.fire({ club, quality, level, power: 1, curve: 0, element, ability: true, tags: [`${clubId}-${element}`], from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
   },
   fireSplit(level: number) {
@@ -1792,7 +1802,7 @@ if (!ABE_ONLY) abilities.hooks = {
     player.teePosition(tee);
     const range = shotRange(club);
     const quality = shotQuality('driver', level);
-    audio.tock(quality >= QUALITY_LEVELS);
+    audio.tock(quality >= QUALITY_LEVELS, quality, 'driver');
     balls.fire({ club, quality, level, power: 1, curve: 0, ability: true, split: lv(SPLIT.range, level), tags: ['driver-split'], from: tee.clone(), dir: player.aimDir.clone() }, range, shotLift(club, range));
   },
   fillSpots() {
@@ -1990,6 +2000,7 @@ function makeDebugPanel(): DebugPanel {
       // si ya habías perdido (o ganado), la partida vuelve: el golfista se levanta y la puerta se arregla
       if (ended) {
         ended = null;
+        audio.hush(false);
         horde.ceaseFire = false;
         hud.hideEnd();
         player.revive();
@@ -2346,7 +2357,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
       shots++;
       // el perfecto es el golpe más alto que hay: el 3, o el 4 con su talento
       recorder?.shot(shot.quality >= QUALITY_LEVELS, shot.quality, tennis ? undefined : releaseOff);
-      audio.tock(shot.quality >= topQuality(), shot.quality);
+      audio.tock(shot.quality >= topQuality(), shot.quality, shot.club.id);
       if (shot.quality >= topQuality()) hud.feedback(shot.quality > QUALITY_LEVELS ? L('¡Golpe 4!', 'Hit 4!') : L('¡Golpe perfecto!', 'Perfect hit!'), 'good');
       const range = shotRange(shot.club);
       // la potencia y el herrero van en este tiro, y el eco lo repite igual (con eso incluido). El herrero
@@ -2420,7 +2431,7 @@ async function makePlayer(skin: Skin): Promise<Player> {
         e.stagger(lv(PALAZO.stagger, meleeLevel));
       }
       if (targets.length) {
-        audio.thud();
+        audio.meleeHit();
         shake = Math.max(shake, 0.12);
         hud.feedback(targets.length > 1 ? L(`¡Palazo! ×${targets.length}`, `Whack! ×${targets.length}`) : L('¡Palazo!', 'Whack!'), 'neutral');
       }

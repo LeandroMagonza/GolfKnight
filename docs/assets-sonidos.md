@@ -111,3 +111,95 @@ su llave de POLISH está apagada, suena lo sintetizado de siempre. Los que se el
 conviene escuchar: `bubble-pop` (no hay vidrio: un "bloop" con brillo), `ricochet` (el metal una quinta más
 agudo), `burn-tick` (un siseo), `card-pick` (dos notas que suben). `burn-loop` no estaba en ningún paquete: lo
 genera `tools/crepitar.py`. Los scripts de la conversión quedaron en `logs/sfx-work/` (no se suben).
+
+## La segunda tanda (14/10)
+
+Leandro, después de probar la primera: el golpe y la muerte del enemigo «parecen salidos de Atari», suenan
+saturados, y el golpe a la pelota «sale a destiempo». También le parecieron feos la puerta y el golpe al
+caballero.
+
+### Por qué sonaba así
+
+- **A destiempo.** Todo se agendaba con `Tone.now()`, que le suma el adelanto con que Tone agenda la música:
+  0,1 s. Los grabados y los sintetizados sonaban una décima tarde. Ahora los efectos van con
+  `Tone.immediate()` y la música sigue con su adelanto.
+- **Saturado.** El final de la mezcla era el `Limiter` de Tone: un compresor con rodilla de 30 dB y suelta de
+  10 ms. Casi no frenaba y, con varios grabados juntos, la suma pasaba de 0 dB y recortaba a la salida.
+  Medido en el navegador con `logs/check-sonido.mjs`, tirando con los cuatro palos contra la fila:
+  - antes, pico 1,56 (+3,9 dB) y 11 cuadros recortados;
+  - ahora, pico 0,93 y ninguno.
+
+  El limitador nuevo es de rodilla dura y suelta en 150 ms, y los grabados entran más bajos (0,6 en vez de 0,9).
+- **«Atari».** Todo lo `PP_` de WOW es de estilo pixel (8 bits): el golpe del palo, la puerta, el daño, la
+  muerte del golfista y los derrumbes del esqueleto y del gólem chico.
+
+### Lo nuevo
+
+**Fuentes.** Las dos son CC0 (dominio público): se pueden vender sin dar crédito. Están anotadas por archivo
+en `public/sfx/sfx.json`.
+- **Kenney "Impact Sounds"** ([kenney.nl/assets/impact-sounds](https://kenney.nl/assets/impact-sounds)):
+  puñetazos, madera, chapa, golpes blandos.
+- **Freesound**, grabaciones de palos de golf de verdad:
+  - [408260](https://freesound.org/s/408260/) "putt.wav";
+  - [622414](https://freesound.org/s/622414/) "golf ball hits";
+  - [21877](https://freesound.org/s/21877/) "golf_hitting_ball";
+  - [593483](https://freesound.org/s/593483/) "Driver hitting golf ball".
+
+**El palo contra la pelota.** Hay uno por palo: el putter hace un tic, el hierro un click seco, el wedge
+suena con más cuerpo y el driver da el ping de la cabeza de titanio. El nivel del golpe lo da el volumen,
+y el arpegio de la carga y de las bajas sigue igual. Los golpes están cortados en el ataque: no hay
+silencio adelante.
+
+**La pelota contra el enemigo**, según de qué está hecho:
+
+| Enemigo | Sonido | Fuente |
+|---|---|---|
+| goblins, orcos, chamán | golpe seco en el cuerpo (con el golpe 3, uno más pesado) | Kenney impactPunch |
+| esqueleto | toc de hueso | Kenney impactPlank |
+| caballero | chapa | Kenney impactPlate |
+| gólems | golpe macizo | impactPunch_heavy cuatro semitonos abajo, más impactWood_heavy |
+| alma en pena | golpe blando | Kenney impactSoft |
+| blindado | metal, como antes | |
+
+**Quejidos.** Al recibir sin morir, cada tipo se queja con su voz de Cafofo. Son voces cortas, distintas de
+las de muerte, y el fuego no las dispara. El élite gruñe grave cada vez que le pegan: es la voz de su risa
+(Demon 1), dos semitonos abajo. El gólem jefe se queja con la suya.
+
+**Muertes.** Son otras: las "Long" de cada voz, que caen de tono. El esqueleto se desarma con toc de madera
+y al caballero se le cae la armadura (chapa). El gólem chico cae con un golpe sordo y el alma en pena se va
+con un lamento. Ya no hay derrumbes PP.
+
+**La puerta y el golfista.**
+- **La puerta:** madera pesada y la tabla que cruje.
+- **Al caballero le pegan:** golpe pesado y la armadura.
+- **Cae:** chapa, el cuerpo contra el piso y la armadura que rebota.
+- **Al perder,** la horda que sigue detrás del cartel ya no suena (`audio.hush`).
+
+**Los poderes, por tipo:**
+
+| Poder | Sonido |
+|---|---|
+| Disparos | el golpe de su palo más su elemento (fuego, hielo, rayo, viento, fantasma, silencio) |
+| Driver en cruz | el del driver y el viento |
+| Guantes | un brillo y su elemento bajito |
+| Carrito | arranca |
+| Hoyo | se clava en la tierra; el que cae, la caída cómica |
+| Bandera | vuela y se clava |
+| Pólvora | la mecha |
+| Lluvia | una subida |
+| Caddie | brillo dorado |
+| Lupa | algo que crece |
+| Clon | energía que sube |
+| Eco | pulsos |
+| Potencia | power-up corto |
+| Fuerza | power-up largo |
+| Palazo | golpe pesado al conectar |
+
+Los que mira Abe (en red) ahora también oyen todo esto.
+
+**Llaves nuevas.** `groans`, `abilitySounds`, `mix` y `onTime` (ver [pruebas.md](pruebas.md)).
+
+**Peso.** `public/sfx` pasa de 0,66 a 1,2 MB, con 87 eventos en 118 archivos.
+
+**Quedan de PP, por ahora.** Las explosiones (`explosion-small` y `explosion-big`), el brillo de
+`bubble-pop` y la alerta del élite (`elite-alert`, que gustó). Si alguno suena a 8 bits, se cambia igual.

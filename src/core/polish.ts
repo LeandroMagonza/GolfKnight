@@ -33,6 +33,15 @@ export const POLISH = {
   uiSounds: 1,
   /** El fuego: el crepitar de los que se queman y el chisporroteo de cada quemadura. */
   fireSounds: 1,
+  // ---- la segunda tanda de sonido (14/10, Leandro: el golpe y la muerte «parecen salidos de Atari», saturados y a destiempo) ----
+  /** El enemigo se queja al recibir (cada tipo con su voz), y el élite gruñe grave cada vez que le pegan. */
+  groans: 1,
+  /** Un sonido por tipo de poder: los disparos suenan a su elemento, y el carrito, el hoyo, la bandera, el clon... cada uno el suyo. */
+  abilitySounds: 1,
+  /** La mezcla: un limitador de verdad al final y más margen para los grabados. Apagada, vuelve el de antes, que dejaba saturar cuando suenan varios juntos (se aplica al recargar). */
+  mix: 1,
+  /** Los efectos suenan en el acto. Apagada, vuelven a sonar 0,1 s tarde, como antes (el adelanto con que Tone agenda la música). */
+  onTime: 1,
 };
 export type PolishKey = keyof typeof POLISH;
 

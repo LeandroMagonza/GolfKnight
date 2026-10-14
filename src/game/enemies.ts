@@ -38,7 +38,7 @@ export type EnemyState = 'walk' | 'attack' | 'dying' | 'gone';
 
 export type HordeEvent =
   /** `crit`: rompió un congelado y pegó `ELEMENTS.breakBonus` más. */
-  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean; mark?: boolean; by?: readonly string[] }
+  | { type: 'damage'; enemy: Enemy; amount: number; killed: boolean; crit?: boolean; swallowed?: boolean; mark?: boolean; by?: readonly string[]; dot?: boolean }
   /** El escudo divino se comió el golpe. */
   | { type: 'divine'; enemy: Enemy }
   /** Un golpe del caballero detonó la marca de Abe (ver ABE_BOLT). */
@@ -2316,7 +2316,7 @@ export class Horde {
     if (dealt > 0 && !killed && enemy.divineEvery && !ghost && !enemy.silenced) enemy.divineReady = true;
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
-    if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit, by: this.by });
+    if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit, by: this.by, dot: !!dot });
     if (killed) this.died(enemy, hadPowder, wasBurning);
     // la explosión de la pólvora pasa por acá con otros enemigos: lo que se lee después es de este golpe
     this.lastDealt = dealt;
