@@ -7,7 +7,7 @@ export type Vec3 = [number, number, number];
 /** Quién puede aparecer: personajes animados o utilería armada por código. */
 export type Cast = Record<string, CastEntry>;
 export type CastEntry =
-  | { kind: 'character'; model: 'dungeon' | 'mage'; mesh?: string; height: number; look?: Look }
+  | { kind: 'character'; model: 'dungeon'; mesh?: string; height: number; look?: Look }
   | { kind: 'prop'; build: PropKind };
 /**
  * Variar a un personaje de Synty para que no parezca un clon. Los colores se aplican sobre su copia del

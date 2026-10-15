@@ -43,12 +43,11 @@ async function load(url: string): Promise<GLTF> {
   return gltf;
 }
 
-const [dungeon, mage, club] = await Promise.all([
+const [dungeon, club] = await Promise.all([
   load(`${MODELS}cine-dungeon.glb`),
-  load(`${MODELS}mage.glb`),
   loader.loadAsync(`${MODELS}club.glb`).then((g) => g.scene).catch(() => null),
 ]);
-const player = new CinePlayer(INTRO, { dungeon, mage, club }, $('layer'));
+const player = new CinePlayer(INTRO, { dungeon, club }, $('layer'));
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(player.scene, player.camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.6, 0.4, 1.0);

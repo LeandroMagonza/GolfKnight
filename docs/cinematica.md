@@ -38,7 +38,8 @@ Unos 40 segundos. Al terminar pasa al juego.
   bolsa de golf, círculo de runas dibujado, columnas con antorchas, luna y estrellas. Cada uno con su
   luz y su cielo.
 - **Personajes**: el caballero y la horda salen de PolygonDungeon (`cine-dungeon.glb`, con los clips
-  nuevos retargeteados); el mago es Abe, de Mixamo (`mage.glb`). El palo en la mano es el `club.glb`
+  nuevos retargeteados). Desde el 14/10 el mago también: `Character_Mage`, armado por
+  `tools/synty_mage.py` sobre el mismo esqueleto (antes era Abe, de Mixamo). El palo en la mano es el `club.glb`
   del juego.
 - Imagen con franjas de cine (2.2:1), sombras, corrección ACES y brillo.
 
@@ -135,10 +136,31 @@ junto a las carpas. Para que no parezcan clones, cada uno lleva `look` en el gui
 
 ## Lo que falta o conviene mejorar
 
-- El mago es de otro estilo (Mixamo pintado) que los de Synty. Se nota poco con la luz de noche, pero
-  queda pendiente pasarlo a la paleta de Synty (idea de `tools/synty_style.py`) o reemplazarlo.
+- ~~El mago es de otro estilo que los de Synty~~: hecho el 14/10, ver "El mago de Synty" abajo.
 - No hay clip de agarrar: abrir el baúl y sacar la bolsa se actúan con `Pointing` (estirar el brazo), y
   la bolsa y el palo llegan a su lugar solos.
 - El auto que atropella entra de costado y casi no se ve antes del destello: a propósito (el chiste es
   que no lo ve venir), pero se puede mostrar más.
 - Formato de redes: una segunda cámara por plano para 9:16, y el render a mp4 cuadro por cuadro.
+
+## El mago de Synty (14/10)
+
+Leandro pidió un mago en el estilo del caballero y con su mismo esqueleto, para que use las
+animaciones de la cinemática sin retargetear nada aparte. `tools/synty_mage.py` lo arma con:
+
+- **Manos y pies** del Hero_Knight_Male (manos color piel, botas de cuero) y **la cabeza** de la
+  Hero_Knight_Female, el único personaje humano con cara del pack: el pelo y las cejas pasan a canoso,
+  la tiara al color del pelo, los labios a piel, se le saca la colita y las orejas de elfa se achican.
+- **Túnica** violeta con franja dorada al frente y en el ruedo, **mangas acampanadas**, **cinturón** con
+  hebilla, **sombrero de punta** con la punta doblada y **barba larga** con bigote: anillos de pocos
+  lados con un poco de ruido, para que las caras queden facetadas como las del pack.
+- **Colores**: los de la paleta del atlas (cada cara apunta su UV a un cuadrito), así que el material es
+  el mismo que el de todos los personajes.
+- **Pesos**: la túnica y las mangas copian los del cuerpo de la caballera (vértices más cercanos); de la
+  cadera para abajo la falda se reparte entre la cadera y la pierna de cada lado, para que acompañe el
+  paso sin partirse al medio. Barba y sombrero van enteros a la cabeza.
+
+Entra en `cine-dungeon.glb` con `--mage` en `retarget_to_glb.py` (el comando está en el README). En el
+guion es `mesh: 'Character_Mage'` con `height: 2.0` (la altura cuenta el sombrero), y su reposo es
+`Idle 2`, el mismo clip de 10 s que usaba Abe. Sin bastón: los clips no están hechos para sostener uno y
+quedaría flotando en los gestos.

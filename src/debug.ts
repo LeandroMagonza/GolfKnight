@@ -27,6 +27,7 @@ import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
 import { playerId } from './telemetry';
+import { CLASSIC, listBosses, RANDOM } from './game/bosses/registry';
 import { FOURTH_ARC, FOURTH_ARCS, type FourthArc } from './core/swing';
 import { AIM_DOTS, LIGHTS, METER_SPOTS, resetVisual, saveVisual, setLight, SHADOW_SIZES, TONES, VISUAL, VISUAL_OFF, type AimDots, type LightName, type MeterSpot, type Tone } from './game/visuals';
 
@@ -614,6 +615,14 @@ export class DebugPanel {
       b.style.padding = '0 8px';
       return b;
     };
+    // las canciones (15/10, ver audio/music): se escuchan y se eligen en su página, que guarda lo elegido en
+    // este navegador; el juego lo lee al cambiar de escenario, al entrar un élite y con el jefe
+    const songs = document.createElement('a');
+    songs.href = 'musica.html';
+    songs.target = '_blank';
+    songs.textContent = 'Abrir la página de la música';
+    songs.style.color = '#ffd66b';
+    el.append(heading('Música'), this.row(songs), note('Ahí se escucha cada canción y se elige cuál suena en cada escenario, con un élite en la cancha y con el jefe. Lo elegido vale para las partidas de este navegador.'));
     el.append(heading('Volumen por grupo'), note('1 es como está, 0 lo apaga, 2 el doble. ▶ suena uno de ejemplo; anda con la partida empezada (el sonido arranca con el primer click).'));
     const groups = document.createElement('table');
     for (const g of Object.keys(VOLUME) as VolumeGroup[]) {
@@ -1428,6 +1437,7 @@ export class DebugPanel {
     for (let i = 0; i < list.length; i++) waves.append(this.button(`Oleada ${i + 1}`, () => this.hooks.goToWave(i), list[i].title));
     el.append(toggles, waves, note('La oleada infinita repite la composición de la oleada en curso: no se termina nunca.'));
     this.buildTrial(el);
+    this.buildBosses(el);
     el.append(heading('Bot'));
     // prendido es que está andando de verdad: sin ?bot no está cargado, y tocarlo lo arranca
     const bot = this.hooks.bot;
@@ -1533,6 +1543,72 @@ export class DebugPanel {
     });
     el.append(this.row(this.toggleButton('La juega el bot', () => trial.bot, (v) => { trial.bot = v; keep(); }), start, normal),
       note('Arranca directo en esa oleada, con la dificultad que tengas elegida: antes te ofrece las cartas de las oleadas salteadas, una por oleada (el bot las elige solo). Los escenarios en «al azar» se sortean entre los poderes que no elegiste. La ola especial de cada escenario (la segunda oleada) y su marca, que sigue en las oleadas de después: «al azar» es la que diga la dificultad, y lo elegido manda aunque la dificultad no traiga especiales. No desbloquea niveles. «Partida normal» vuelve a la de siempre.'));
+  }
+
+  /**
+   * Los jefes nuevos (14/10, ver src/game/bosses y docs/jefes.md): un botón por jefe que arranca directo en
+   * la última oleada con ese jefe (con las cartas de las anteriores, como «Probar una oleada»), y cuál va en
+   * las partidas normales de este navegador. Se cargan al abrir: el que tiene un error sale en rojo.
+   */
+  private buildBosses(el: HTMLElement): void {
+    el.append(heading('Jefes'));
+    const BOSS_KEY = 'gk.jefe';
+    const BOT_KEY = 'gk.jefe.bot';
+    const read = (k: string) => {
+      try {
+        return localStorage.getItem(k);
+      } catch {
+        return null;
+      }
+    };
+    const write = (k: string, v: string | null) => {
+      try {
+        if (v === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, v);
+      } catch { /* sin localStorage: vale hasta recargar */ }
+    };
+    const params = new URLSearchParams(location.search);
+    let withBot = read(BOT_KEY) === '1';
+    const list = document.createElement('div');
+    list.className = 'note';
+    list.textContent = 'cargando…';
+    const last = this.hooks.director.list.length;
+    const go = (id: string) => {
+      const url = new URL(location.href);
+      url.searchParams.set('ola', String(last));
+      url.searchParams.set('jefe', id);
+      if (withBot) url.searchParams.set('bot', 'humano');
+      else url.searchParams.delete('bot');
+      sessionStorage.setItem('gk.autostart', '1');
+      location.href = url.toString();
+    };
+    el.append(this.row(this.toggleButton('Con el bot', () => withBot, (v) => { withBot = v; write(BOT_KEY, v ? '1' : null); })), list);
+    void listBosses().then((families) => {
+      list.textContent = '';
+      list.className = '';
+      const now = params.get('jefe');
+      for (const f of families) {
+        if (f.error) {
+          const bad = document.createElement('div');
+          bad.className = 'note';
+          bad.style.color = '#ff7a6b';
+          bad.textContent = `${f.family}: no carga (${f.error})`;
+          list.append(bad);
+          continue;
+        }
+        const row = this.row();
+        for (const b of f.bosses) {
+          const btn = this.button(b.id === now ? `▶ ${b.id}` : b.id, () => go(b.id), `${b.name}: ${b.blurb}`);
+          if (b.id === now) btn.classList.add('on');
+          row.append(btn);
+        }
+        list.append(row);
+      }
+      const ids = [CLASSIC, RANDOM, ...families.flatMap((f) => f.bosses.map((b) => b.id))];
+      const titles = Object.fromEntries(ids.map((id) => [id, id === CLASSIC ? 'el gólem que tira piedras, como siempre' : id === RANDOM ? 'uno nuevo al azar en cada partida' : ''])) as Record<string, string>;
+      list.append(this.choiceRow('En las partidas', ids, () => read(BOSS_KEY) ?? CLASSIC, (v) => write(BOSS_KEY, v === CLASSIC ? null : v), titles),
+        note('Cada botón arranca en la última oleada con ese jefe (antes, las cartas de las oleadas salteadas). Pasá el mouse para ver qué tiene cada versión. «En las partidas» es el jefe de las partidas normales en este navegador; ?jefe= en la dirección le gana. Qué jefe salió queda en el registro de la partida (boss).'));
+    });
   }
 
   // ---- copiar y restaurar: fuera de las pestañas, siempre a mano ----

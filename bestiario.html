@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Knight · Bestiario</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0c1219; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #e4e9f0; }
+      canvas { display: block; }
+      #bar { position: fixed; top: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: rgba(8, 12, 18, .82); z-index: 5; font-size: 14px; }
+      #bar h1 { margin: 0 12px 0 0; font-size: 20px; color: #ffd66b; }
+      #bar .group { display: flex; gap: 6px; align-items: center; }
+      #bar .sep { width: 1px; height: 24px; background: #2c3644; margin: 0 6px; }
+      button { font: inherit; padding: 6px 12px; border-radius: 7px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      button:hover { border-color: #ffd66b; }
+      button.on { background: #5be07a; border-color: #5be07a; color: #102; font-weight: 600; }
+      #labels { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
+      .tag { position: absolute; transform: translate(-50%, 0); text-align: center; white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+      .tag b { display: block; font-size: 14px; }
+      .tag small { display: block; font-size: 11px; line-height: 1.25; color: #c9d2de; }
+      .tag.new b { color: #ffd66b; }
+      #note { position: fixed; left: 14px; bottom: 10px; font-size: 12.5px; color: #8d97a5; z-index: 5; }
+      #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #9aa4b2; }
+    </style>
+  </head>
+  <body>
+    <div id="bar">
+      <h1>Bestiario</h1>
+      <div class="group" id="clips"></div>
+      <span class="sep"></span>
+      <div class="group" id="who"></div>
+      <span class="sep"></span>
+      <div class="group"><button id="move">Avanzan</button></div>
+    </div>
+    <div id="labels"></div>
+    <div id="loading">Cargando modelos…</div>
+    <div id="note">Arrastrá para girar, rueda para acercar. En amarillo, los nuevos (todavía no salen en las oleadas).</div>
+    <script type="module" src="/src/bestiary.ts"></script>
+  </body>
+</html>

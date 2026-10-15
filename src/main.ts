@@ -9,7 +9,7 @@ import { heightAt, mounds, pickCourse, raycastTerrain, relief, terrainOn } from 
 import { ABILITIES, ABILITY_KEYS, ABILITY_LIST, ECHO, ELEMENT_INFO, ELEMENTS, elementTotal, lv, MIGHT, PALAZO, shotQuality, SLOTS, SPLIT, type AbilityId, type Element } from './core/abilities';
 import { describe, drawCards, HEALS, mixPartners, PERK_LIST, PERK_NUMBERS, PERKS, type Build, type Card, type PerkId } from './core/cards';
 import { areaDamageFor, bandOf, BAND_NAMES, CLUB_ORDER, CLUBS, damageFor, FOURTH, ironMode, isTap, setIronMode, spreadFor, isLob, QUALITY_LEVELS, qualityMarks, qualityOf, rollFrictionFor, topQuality, CHARGE, SHIFT, CURVE, TAP, TAP_MODES, type Club, type ClubId, type TapMode } from './core/clubs';
-import { buildRun, ENEMIES, HEAL_AURA, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WAVE_MODS, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower, type WaveMod } from './core/waves';
+import { buildRun, ENEMIES, HEAL_AURA, NEW_KINDS, RANGED, REGEN, SCENARIO_POWERS, SHIELD_WALL, WAVE_MODS, WaveDirector, type EnemyKind, type EnemyMods, type RunRules, type ScenarioPower, type WaveMod } from './core/waves';
 import { choiceAt, earnLevel, hillsOn, LADDER, ladderFrom, loadProgress, MAX_LEVEL, picksOf, rulesFor, saveProgress, setLevel, TALENTS, type Picks, type Progress, type TalentId } from './core/difficulty';
 import type { EndInfo, EndStat } from './endscreen';
 import { arcLayout, fourthArc, timingWith } from './core/swing';
@@ -29,6 +29,9 @@ import { Traps } from './game/traps';
 import { analyzeSwing, sampleHand } from './game/golfClips';
 import { CLUB_LENGTH } from './game/swingPose';
 import { Player, type Shot } from './game/player';
+import { CLASSIC, listBosses, loadBoss, RANDOM } from './game/bosses/registry';
+import type { BossCtx, BossDef, BossFight } from './game/bosses/types';
+import type { MusicSlot } from './audio/music/types';
 import { FIELD_HALF_WIDTH, GATE_Z, GUARD_POSTS, WALL_FRONT_Z, WALL_TOP, World } from './game/world';
 import { loadVisual, VISUAL, Visuals } from './game/visuals';
 import { keepOnlyMesh, skinnedHeight, stripRootMotion } from './game/models';
@@ -187,6 +190,15 @@ FOURTH.on = rules.fourth && !TENNIS_ON;
 hud.refreshClubDamage();
 let run = buildRun(Math.random, rules);
 const director = new WaveDirector(run.waves, rules.rest);
+/** El jefe de la última oleada si no es el gólem de siempre (ver `prepareBoss` y src/game/bosses). */
+let bossDef: BossDef | null = null;
+/** La pelea con ese jefe, desde que empieza la última oleada. */
+let fight: BossFight | null = null;
+let fightClock = 0;
+let fightBroke = false;
+/** Los modelos propios del jefe (`BossDef.models`), a medida que cargan. */
+const bossModels = new Map<string, GLTF>();
+let dungeonGltf: GLTF | null = null;
 const POWER_NAMES: Record<ScenarioPower, string> = L(
   { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura', phase: 'Intocable' },
   { shield: 'Shield', armor: 'Armor', ethereal: 'Ghost', divine: 'Divine shield', dodge: 'Dodge', regen: 'Regenerates', phase: 'Untouchable' },
@@ -203,7 +215,7 @@ const abeAndWatchers = L((others: number) => `🧙 Abe y ${others} mirando`, (ot
 function showRun(): void {
   hud.setRun([
     ...run.powers.map((p, i) => ({ src: badgeImage(SCENARIO_ICONS[p]), title: stageTitle(i + 1, POWER_NAMES[p]) })),
-    { src: badgeImage('skull'), title: BOSS_TITLE },
+    { src: badgeImage('skull'), title: bossDef ? `${BOSS_TITLE}: ${bossDef.name}` : BOSS_TITLE },
   ]);
 }
 showRun();
@@ -323,7 +335,7 @@ function buildForLog(): unknown {
 }
 // la partida que se deja por la mitad (se cierra la pestaña, o R desde la pausa) queda como abandonada
 addEventListener('pagehide', () => {
-  if (recorder && !recorder.finished && !ended) recorder.finish('abandoned', { score, hp: player?.hp ?? 0, gate: gateHp, build: buildForLog(), bot: botStarted || undefined });
+  if (recorder && !recorder.finished && !ended) recorder.finish('abandoned', { score, hp: player?.hp ?? 0, gate: gateHp, build: buildForLog(), bot: botStarted || undefined, bossLog: fightLog() });
 });
 let player: Player;
 let gateHp = GATE_MAX;
@@ -978,7 +990,9 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   if (result === 'victory') setTimeout(() => { if (ended === 'victory') hud.showEnd(info); }, VICTORY_CARD_DELAY_MS);
   else hud.showEnd(info);
   // si el bot jugó un rato (prendido desde el panel), queda marcada: no es una partida de una persona
-  recorder?.finish(result, { cause, score, hp: player.hp, gate: gateHp, build: buildForLog(), bot: botStarted || undefined });
+  recorder?.finish(result, { cause, score, hp: player.hp, gate: gateHp, build: buildForLog(), bot: botStarted || undefined, bossLog: fightLog() });
+  fight?.dispose?.();
+  Player.blockStep = null;
   if (result === 'victory') audio.victory();
   else audio.defeat();
 }
@@ -1899,6 +1913,7 @@ async function startGame(withTutorial = false, quiet = false): Promise<void> {
   started = true;
   difficultyMenu.hide();
   if (difficultyMenu.dirty) rebuildRun();
+  await prepareBoss();
   // la recarga de las habilidades, con la dificultad («Recarga lenta»); el tenis no tiene dificultad
   abilities.cooldownScale = TENNIS_ON ? 1 : rules.cooldown;
   if (quiet) {
@@ -2481,6 +2496,7 @@ async function loadModels(): Promise<void> {
   // el palo y los guardias son opcionales: si faltan, el juego sigue con el palo de primitivas y sin guardias
   const optional = (url: string) => loader.loadAsync(url).catch(() => null);
   const [clubGltf, guardGltf, dungeon, shieldsGltf] = await Promise.all([optional(`${MODELS}club.glb`), loadGltf(`${MODELS}guard.glb`).catch(() => null), loadGltf(`${MODELS}dungeon.glb`), optional(`${MODELS}shields.glb`)]);
+  dungeonGltf = dungeon;
   if (shieldsGltf) prepareShields(shieldsGltf);
   clubModel = clubGltf?.scene ?? null;
   player = await makePlayer(SKINS[skinIndex]).catch(() => {
@@ -2496,7 +2512,23 @@ async function loadModels(): Promise<void> {
     tees.guards = GUARD_POSTS.map(([x, z]) => new THREE.Vector3(x, 0, z));
   }
   if (pocket) pocket.guards = GUARD_POSTS.map(([x, z]) => new THREE.Vector3(x, 0, z));
-  for (const k of kinds) measured[k] = +horde.register(k, dungeon).toFixed(3);
+  // los bichos que no usan el esqueleto de PolygonDungeon traen su propio GLB (`model` en ENEMIES). Los
+  // monstruos nuevos todavía no salen en las oleadas: si falta su modelo, ese tipo no se registra y listo
+  const own = new Map<string, GLTF | null>();
+  for (const m of new Set(kinds.map((k) => ENEMIES[k].model).filter((m): m is string => !!m))) {
+    own.set(m, await loadGltf(`${MODELS}${m}`).catch(() => null));
+  }
+  for (const k of kinds) {
+    const m = ENEMIES[k].model;
+    const gltf = m ? own.get(m) : dungeon;
+    if (!gltf) continue;
+    try {
+      measured[k] = +horde.register(k, gltf).toFixed(3);
+    } catch (e) {
+      if (!(NEW_KINDS as string[]).includes(k)) throw e;
+      console.warn(`[gk] ${k}: ${(e as Error).message}`);
+    }
+  }
   hud.setClub(player.club);
   hud.setSkin(SKINS[skinIndex].name);
   hud.onSkinClick = () => void cycleSkin();
@@ -3388,12 +3420,128 @@ function updateTest(dt: number): void {
   spawnTestGroup();
 }
 
+// ---- el jefe (14/10; ver src/game/bosses y docs/jefes.md) ----
+
+/** Qué jefe va en la última oleada (ver el panel B, Pruebas > Jefes, y `?jefe=`). */
+const BOSS_KEY = 'gk.jefe';
+function bossChoice(): string {
+  // por ahora solo con las herramientas de prueba: la que se vende sigue con el gólem de siempre
+  if (!DEV_TOOLS) return CLASSIC;
+  const asked = params.get('jefe');
+  if (asked) return asked;
+  try {
+    return localStorage.getItem(BOSS_KEY) || CLASSIC;
+  } catch {
+    return CLASSIC;
+  }
+}
+
+/**
+ * Elige el jefe de esta partida y le arma la última oleada: sin el gólem de siempre, con su nombre y su
+ * escolta. Sus modelos empiezan a cargar ya (la última oleada llega en unos diez minutos).
+ */
+async function prepareBoss(): Promise<void> {
+  const want = bossChoice();
+  if (want === CLASSIC || TENNIS_ON || TEST) return;
+  let def: BossDef | null = null;
+  if (want === RANDOM) {
+    const all = (await listBosses()).flatMap((f) => f.bosses);
+    def = all[Math.floor(Math.random() * all.length)] ?? null;
+  } else def = await loadBoss(want);
+  if (!def) {
+    console.warn(`[gk] no hay jefe ${want}: va el de siempre`);
+    return;
+  }
+  bossDef = def;
+  const last = run.waves[run.waves.length - 1];
+  last.groups = last.groups.filter((g) => g.kind !== 'golem');
+  last.title = def.name;
+  def.escort?.(last);
+  for (const m of def.models ?? []) {
+    loadGltf(`${MODELS}${m}`).then((g) => bossModels.set(m, g)).catch(() => console.warn(`[gk] ${def.id}: falta ${m}`));
+  }
+  showRun();
+}
+
+/** Arranca la pelea, al empezar la última oleada. Si el jefe se rompe, la oleada sigue sin él. */
+function startFight(): void {
+  const def = bossDef!;
+  fightClock = 0;
+  const ctx: BossCtx = {
+    scene, horde, tees, balls, effects, audio,
+    player: () => player,
+    dungeon: dungeonGltf!,
+    models: bossModels,
+    rng: Math.random,
+    level: currentLevel(),
+    bonusHp: rules.bossHp ?? 0,
+    clock: () => fightClock,
+    over: () => !!ended,
+    hitGate: (amount, source) => horde.emit({ type: 'gateHit', enemy: source, amount }),
+    hitPlayer: (amount, from, source) => {
+      if (!player.alive || player.invulnerable) return;
+      player.hit(amount, from);
+      horde.emit({ type: 'playerHit', enemy: source, amount });
+    },
+    banner: (title, sub = '', seconds = 2.5) => hud.showBanner(title, sub, seconds),
+    feedback: (text) => hud.feedback(text, 'neutral'),
+    spots: () => tees.spots.map((s) => s.x),
+  };
+  try {
+    fight = def.start(ctx);
+  } catch (err) {
+    console.error(`[gk] el jefe ${def.id} no arrancó:`, err);
+    fight = null;
+    return;
+  }
+  Player.blockStep = (from, to) => !!fight?.blocks?.(from, to);
+  audio.bossAppear();
+}
+
+function updateFight(dt: number): void {
+  fightClock += dt;
+  try {
+    fight!.update(dt);
+  } catch (err) {
+    // una vez por partida: si no, llena la consola
+    if (!fightBroke) console.error(`[gk] el jefe ${bossDef?.id} falló:`, err);
+    fightBroke = true;
+  }
+}
+
+/**
+ * La música sigue a la partida (15/10, ver audio/music): la canción de cada escenario, la del élite mientras
+ * hay uno en la cancha, y la del jefe en la última oleada. Y le dice qué tan tensa está la cosa: la puerta
+ * baja, y cuántos vienen ya cerca de la línea.
+ */
+function updateMusic(): void {
+  const wave = director.list[Math.max(0, director.index)];
+  const scenario = wave?.scenario ?? 0;
+  const elite = horde.enemies.some((e) => e.alive && !e.passed && e.size > 1);
+  const slot: MusicSlot = scenario >= 3 || fight ? 'jefe' : elite ? 'elite' : (`escenario${scenario + 1}` as MusicSlot);
+  audio.music.setSlot(slot);
+  let near = 0;
+  for (const e of horde.enemies) if (e.alive && !e.passed && e.position.z < 30) near++;
+  audio.music.intensity(Math.min(1, near / 12 + (1 - gateHp / GATE_MAX) * 0.6));
+}
+
+/** Lo del jefe para el registro de la partida. */
+function fightLog(): Record<string, number | string> | undefined {
+  if (!fight?.log) return undefined;
+  try {
+    return { ...fight.log(), seconds: Math.round(fightClock) };
+  } catch {
+    return undefined;
+  }
+}
+
 function updateWaves(dt: number): void {
   if (TEST) {
     updateTest(dt);
     return;
   }
-  for (const e of director.update(dt, horde.aliveCount)) {
+  // el jefe que todavía no perdió cuenta como uno vivo: la oleada no termina hasta ganarle
+  for (const e of director.update(dt, horde.aliveCount + (fight && !fight.done ? 1 : 0))) {
     switch (e.type) {
       case 'wave': {
         // se anota siempre (los números del cartel del final salen de acá), pero solo se manda con RECORD
@@ -3401,13 +3549,14 @@ function updateWaves(dt: number): void {
           recorder = new RunRecorder({
             version: DEMO ? `${__BUILD__} demo` : __BUILD__, level: currentLevel(), picks: currentPicks(), points: progress.unlocked,
             ladder: testPicks ? undefined : LADDER.slice(0, progress.level).map((options, i) => { const o = options[choiceAt(progress, i)]; return o.add === undefined ? o.id : `${o.id}+${o.add}`; }),
-            powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(),
+            powers: run.powers, supports: run.supports, specials: run.specials, mode: TENNIS_ON ? 'tenis' : 'golf', course: courseNumber(), boss: bossDef?.id ?? CLASSIC,
             ...(START_WAVE > 1 ? { from: START_WAVE } : {}),
             charge: { weak: CHARGE.weak, mid: CHARGE.mid, strong: CHARGE.strong, ...(FOURTH.on ? { fourth: FOURTH.share } : {}), ...(TAP.mode ? { click: TAP_MODES[TAP.mode], clickPart: TAP.part } : {}) },
             tuned: tunedForLog(),
           }, RECORD);
         }
         recorder?.wave(e.index + 1, e.wave.title, e.wave.mod);
+        if (bossDef && !fight && e.index === director.waveCount - 1) startFight();
         audio.waveHorn();
         hud.showBanner(waveTitle(e.index + 1), `${e.wave.scenario < 3 ? L(`Escenario ${e.wave.scenario + 1}`, `Stage ${e.wave.scenario + 1}`) : BOSS_TITLE} · ${e.wave.title}`);
         // el día avanza con la partida: la primera oleada es de mañana y la última al atardecer
@@ -3557,6 +3706,8 @@ function playFrame(dt: number, nowMs: number): void {
     else if (active) updateWaves(dt);
     if (started) {
       horde.update(dt, player);
+      if (fight && active) updateFight(dt);
+      if (active && audio.ready && !LIGHT && !tutorial) updateMusic();
       moundView.update();
       balls.update(dt);
       abilities.update(dt);
@@ -3631,6 +3782,8 @@ if (DEV_TOOLS) (window as any).__gk = {
   get effects() { return effects; },
   get fx() { return fx; },
   get director() { return director; },
+  /** La pelea con el jefe nuevo, si hay (ver src/game/bosses): el bot lee `fight.bot` y `fight.blocks`. */
+  get boss() { return fight && bossDef ? { id: bossDef.id, fight, log: fightLog } : null; },
   get gateHp() { return gateHp; },
   set gateHp(v: number) { gateHp = v; },
   /** Termina la partida en el acto, para las pruebas. */

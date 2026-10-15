@@ -5,6 +5,7 @@
 // hecho el enemigo, sus quejidos, un sonido por tipo de poder, y la mezcla sin saturar ni retraso.
 import * as Tone from 'tone';
 import { polished, type PolishKey } from '../core/polish';
+import { MusicPlayer } from './music/player';
 import { SampleBank } from './samples';
 import { sampleVolume, SFX_NAMES, groupOf, VOLUME, type VolumeGroup } from './volumes';
 
@@ -61,8 +62,8 @@ export class GameAudio {
   private bell!: Tone.PolySynth;
   private growlSynth!: Tone.Synth;
   private horn!: Tone.PolySynth;
-  private pluck!: Tone.PolySynth;
-  private pad!: Tone.PolySynth;
+  /** La música: qué canción suena en cada lugar de la partida (ver audio/music). */
+  readonly music = new MusicPlayer(() => (this.ready ? this.musicBus : null));
   private chargeSynth!: Tone.Synth;
   private killBell!: Tone.PolySynth<Tone.FMSynth>;
   /** Los grabados (ver SampleBank). */
@@ -165,8 +166,6 @@ export class GameAudio {
     this.horn = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.08, decay: 0.2, sustain: 0.8, release: 0.5 }, volume: -16 });
     this.horn.chain(new Tone.Filter(900, 'lowpass'), verb);
 
-    this.pluck = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.003, decay: 0.3, sustain: 0.05, release: 0.3 }, volume: -20 }).connect(this.musicBus);
-    this.pad = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.6, decay: 0.4, sustain: 0.7, release: 1.6 }, volume: -24 }).connect(this.musicBus);
     this.chargeSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.002, decay: 0.16, sustain: 0, release: 0.08 }, volume: -11 }).connect(verb);
     // campana de FM: el «tin» lo da la modulación, que se apaga enseguida, y la nota queda sonando
     this.killBell = new Tone.PolySynth(Tone.FMSynth, {
@@ -204,21 +203,13 @@ export class GameAudio {
     this.chargeSynth.triggerAttackRelease(midiToFreq(arpeggioNote(level - 1)), 0.09, this.at(this.chargeSynth), 0.75 * VOLUME.carga);
   }
 
-  /** Música de fondo: progresión modal en re dórico, arpegio de laúd y colchón. */
+  /**
+   * Arranca la música: la canción del lugar de la partida (al empezar, el primer escenario). Desde el 15/10
+   * las canciones viven en audio/music; la de siempre es songs/clasica.ts.
+   */
   startMusic(): void {
-    const transport = Tone.getTransport();
-    transport.bpm.value = 112;
-    const chords = [[50, 57, 62, 65], [48, 55, 60, 64], [53, 57, 60, 65], [55, 59, 62, 67]];
-    const pattern = [0, 2, 1, 3, 2, 1, 3, 2];
-    let step = 0;
-    transport.scheduleRepeat((time) => {
-      const bar = Math.floor(step / 8) % chords.length;
-      const chord = chords[bar];
-      if (step % 8 === 0) this.pad.triggerAttackRelease(chord.slice(0, 3).map((m) => midiToFreq(m - 12)), '1m', time);
-      this.pluck.triggerAttackRelease(midiToFreq(chord[pattern[step % 8]] + 12), '8n', time, step % 4 === 0 ? 0.9 : 0.55);
-      step++;
-    }, '8n', 0);
-    transport.start();
+    Tone.getTransport().start();
+    this.music.refresh();
   }
 
   /** El volumen de la música: apagada con M, y su perilla (`VOLUME.musica`). */

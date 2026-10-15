@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Knight · Música</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; min-height: 100%; background: #0c1219; color: #e4e9f0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      main { width: min(1000px, 100%); box-sizing: border-box; margin: 0 auto; padding: 20px 16px 40px; }
+      h1 { margin: 0 0 4px; font-size: 26px; color: #ffd66b; }
+      h2 { margin: 26px 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: #8d97a5; }
+      .note { margin: 0 0 12px; font-size: 13.5px; line-height: 1.45; color: #9aa4b2; }
+      .song { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: #111923; border: 1px solid #263140; margin-bottom: 8px; }
+      .song.on { border-color: #5be07a; }
+      .song b { display: block; font-size: 15px; }
+      .song small { display: block; font-size: 12.5px; color: #9aa4b2; margin-top: 2px; }
+      .song code { font-size: 11.5px; color: #6f7b8a; }
+      .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9px; background: #26303d; color: #c9d2de; margin-left: 6px; }
+      button { font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 7px; border: 1px solid #4a5666; background: #26303d; color: #e4e9f0; cursor: pointer; }
+      button:hover { border-color: #ffd66b; }
+      button.play { width: 44px; height: 44px; padding: 0; font-size: 18px; }
+      .song.on button.play { background: #5be07a; color: #102; border: 0; }
+      select { font: inherit; font-size: 13px; padding: 5px 6px; border-radius: 6px; border: 1px solid #3a4452; background: #0c1219; color: #e4e9f0; }
+      .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+      .slots label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #9aa4b2; }
+      .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+      .bad { color: #ff7a6b; font-size: 13px; }
+      input[type=range] { width: 200px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Música</h1>
+      <p class="note">Las canciones del juego, para escucharlas y elegir cuál va en cada momento de la partida. Cambiar de una a otra hace el mismo fundido que en el juego. Lo elegido abajo se guarda en este navegador y es lo que suena al jugar (también se elige en el panel B, pestaña Sonido).</p>
+      <div class="bar">
+        <button id="stop">■ Parar</button>
+        <label>Tensión <input id="tension" type="range" min="0" max="1" step="0.05" value="0" /> <span id="tval">0</span></label>
+        <span class="note" style="margin:0">La tensión es lo que el juego le pasa a la canción: sube con los enemigos cerca de la línea y la puerta baja. No todas la usan.</span>
+      </div>
+      <h2>En la partida</h2>
+      <div class="slots" id="slots"></div>
+      <h2>Las canciones</h2>
+      <div id="list">cargando…</div>
+    </main>
+    <script type="module" src="/src/musicLab.ts"></script>
+  </body>
+</html>

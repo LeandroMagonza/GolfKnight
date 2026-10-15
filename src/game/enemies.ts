@@ -95,6 +95,27 @@ interface Template {
   clips: THREE.AnimationClip[];
   /** Factor de escala para que el modelo mida stats.height. */
   scale: number;
+  /** Lo que mide el modelo sin escalar: para armar uno de otra altura con la misma plantilla. */
+  height: number;
+}
+
+/**
+ * Lo que maneja un jefe (ver src/game/bosses): un enemigo con guion propio. Es un enemigo de verdad (las
+ * pelotas, las habilidades y el bot lo ven como a cualquiera), pero se mueve y ataca como dice el guion.
+ */
+export interface EnemyScript {
+  /**
+   * En cada cuadro, después de los relojes de siempre (frío, silencio, congelado...). Devuelve true si ya
+   * lo movió él: entonces no camina solo (ni atropella, ni ataca, ni se planta) y solo se termina el
+   * cuadro (`finishFrame`: giro, animación y gesto). False: sigue como un enemigo común.
+   */
+  update?(e: Enemy, dt: number): boolean;
+  /** Antes de las defensas: cuánto le entra de `amount` (por ejemplo 0 mientras es inmune). */
+  filter?(e: Enemy, amount: number, shot: Horde['shot']): number;
+  /** Después de cada golpe que le entra (`dealt` > 0, o si murió). */
+  onDamage?(e: Enemy, dealt: number, killed: boolean): void;
+  /** Al morir, antes de su animación. */
+  onDeath?(e: Enemy): void;
 }
 
 interface Spell {
@@ -596,6 +617,81 @@ export class Enemy {
     this.animator.setLocomotion('Idle', 1);
     this.barBg.visible = this.barFill.visible = false;
   }
+
+  // ---- para los jefes (ver EnemyScript y src/game/bosses) ----
+
+  /** El guion del jefe que lo maneja, si es parte de un jefe. */
+  script: EnemyScript | null = null;
+  /** Gesto de brazos por código que pide el guion (0..1, el mismo golpe de arriba abajo de los comunes). */
+  scriptGesture = 0;
+  /**
+   * En qué punto del golpe va (0 preparando, 1 el impacto, 1.25 el brazo abajo), con `scriptGesture` en 1.
+   * Null: el brazo arriba.
+   */
+  scriptSwing: number | null = null;
+  /** Hacia dónde mira, en radianes (0 = +z). */
+  get heading(): number {
+    return this.yaw;
+  }
+  set heading(v: number) {
+    this.yaw = v;
+  }
+  /** El modelo, para tocarle huesos, materiales o la escala desde un guion. */
+  get body(): THREE.Object3D {
+    return this.model;
+  }
+  /** Aturdido por un golpe (los comunes no caminan mientras dura). */
+  get stunned(): boolean {
+    return this.stunTimer > 0;
+  }
+  /** Gira hacia (x, z), suave. */
+  faceToward(x: number, z: number, dt: number, rate = 8): void {
+    const dx = x - this.position.x;
+    const dz = z - this.position.z;
+    if (Math.hypot(dx, dz) < 0.05) return;
+    let d = (Math.atan2(dx, dz) - this.yaw) % (Math.PI * 2);
+    if (d > Math.PI) d -= Math.PI * 2;
+    if (d < -Math.PI) d += Math.PI * 2;
+    this.yaw += d * (1 - Math.exp(-rate * dt));
+  }
+  /**
+   * Camina (o corre, con `run`) hacia (x, z) a `speed` m/s, mirando hacia ahí y con la animación al paso,
+   * como los comunes. El frío lo frena igual que a ellos. Devuelve true si ya llegó (a menos de `reach`).
+   */
+  walkToward(x: number, z: number, speed: number, dt: number, run = false, reach = 0.3): boolean {
+    const dx = x - this.position.x;
+    const dz = z - this.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist <= reach) {
+      this.animator.setLocomotion('Idle', 1);
+      return true;
+    }
+    const v = speed * (this.chilled ? ELEMENTS.chillSlow : 1);
+    const step = Math.min(v * dt, dist);
+    this.position.x += (dx / dist) * step;
+    this.position.z += (dz / dist) * step;
+    this.position.y = heightAt(this.position.x, this.position.z);
+    const stride = this.height / 1.8;
+    this.animator.setLocomotion(run ? 'Running' : 'Walking', run ? v / (4 * stride) : v / (1.5 * stride));
+    this.faceToward(x, z, dt);
+    return false;
+  }
+  /** Le pone otra vida (y otro tope, si se pasa), y redibuja la barra. */
+  setHp(hp: number, max = this.maxHp): void {
+    this.maxHp = Math.max(1, max);
+    this.hp = Math.max(0, Math.min(this.maxHp, hp));
+    this.refreshBar();
+    this.refreshPipsIfChanged();
+  }
+  /** Lo saca del juego ya, sin animación de morir (el guion hace su propio efecto). */
+  remove(): void {
+    this.state = 'gone';
+  }
+  /** Lo aturde `seconds` s (los comunes no caminan ni atacan; los guiones lo leen en `stunned`). */
+  stunFor(seconds: number): void {
+    this.stunTimer = Math.max(this.stunTimer, seconds);
+  }
+
   /** Cuenta regresiva de la explosión de un kamikaze. */
   private fuse = -1;
   /** Reloj del chamán (cura) y del gólem (piedras). */
@@ -1532,6 +1628,12 @@ export class Enemy {
       (this.aura.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.2 * Math.sin(this.age * 3);
     }
 
+    // parte de un jefe: lo mueve su guion (ver EnemyScript)
+    if (this.script?.update && !this.passed && this.script.update(this, dt)) {
+      this.finishFrame(dt, this.scriptGesture);
+      return;
+    }
+
     if (this.grabbing) {
       this.updateGrab(dt, player, horde);
       return;
@@ -1893,7 +1995,9 @@ export class Enemy {
    * adelante y arriba.
    */
   private applyGesture(): void {
-    const u = this.attackHitAt > 0 ? this.attackTime / this.attackHitAt : 1;
+    // un guion de jefe lleva el golpe a mano: `scriptSwing` va de 0 (preparando) a 1 (el impacto) y sigue
+    // hasta 1.25 (el brazo baja)
+    const u = this.script && this.scriptSwing !== null ? this.scriptSwing : this.attackHitAt > 0 ? this.attackTime / this.attackHitAt : 1;
     let angle: number;
     let lean: number;
     if (this.behavior === 'shaman' || this.behavior === 'geomancer') {
@@ -1927,6 +2031,11 @@ export class Enemy {
     const windup = this.target === 'player' ? PLAYER_WINDUP : 0.45;
     this.attackHitAt = this.behavior === 'kamikaze' ? KAMIKAZE_FUSE : windup * slowSwing;
     this.attackEnd = this.attackHitAt + 0.45 * slowSwing;
+    // los bichos sin brazos (huargo, araña, limo) traen su propio clip: el golpe del clip, al 45 %,
+    // tiene que caer justo en el impacto
+    if (this.animator.has('Attack') && this.behavior !== 'kamikaze') {
+      this.animator.playOneShot('Attack', (0.45 * this.animator.clipDuration('Attack')) / this.attackHitAt);
+    }
   }
 
   /** Resuelve el impacto del ataque. Devuelve true si el enemigo dejó de existir (kamikaze). */
@@ -2082,8 +2191,58 @@ export class Horde {
     });
     const box = new THREE.Box3().setFromObject(scene, true);
     const height = box.max.y - Math.min(0, box.min.y);
-    this.templates.set(kind, { scene, clips: gltf.animations, scale: stats.height / height });
+    this.templates.set(kind, { scene, clips: gltf.animations, scale: stats.height / height, height });
     return height;
+  }
+
+  // ---- para los jefes (ver src/game/bosses) ----
+
+  /** Plantillas de los jefes: modelos propios (de cajas, o de otro GLB), por nombre. */
+  private readonly looks = new Map<string, Template>();
+
+  /**
+   * Arma una plantilla con cualquier modelo: uno hecho por código (una piedra, un huevo) o la malla de un
+   * GLB (con `mesh`, se queda con esa sola, como `register`). Los pies en y = 0. Devuelve lo que mide.
+   */
+  addLook(key: string, scene: THREE.Object3D, clips: THREE.AnimationClip[] = [], mesh?: string): number {
+    const root = cloneSkinned(scene);
+    if (mesh) {
+      const drop: THREE.Object3D[] = [];
+      root.traverse((o) => {
+        if ((o as THREE.SkinnedMesh).isSkinnedMesh && o.name !== mesh) drop.push(o);
+      });
+      for (const o of drop) o.parent?.remove(o);
+    }
+    root.updateMatrixWorld(true);
+    root.traverse((o) => {
+      const sm = o as THREE.SkinnedMesh;
+      if (sm.isSkinnedMesh) sm.skeleton.update();
+    });
+    const box = new THREE.Box3().setFromObject(root, true);
+    const height = Math.max(0.05, box.max.y - Math.min(0, box.min.y));
+    this.looks.set(key, { scene: root, clips, scale: 1, height });
+    return height;
+  }
+
+  hasLook(key: string): boolean {
+    return this.looks.has(key) || this.templates.has(key as EnemyKind);
+  }
+
+  /**
+   * Una parte de un jefe: un enemigo con sus propios números (`stats`, que puede ser una copia de los de un
+   * tipo con otros valores) y el modelo `look` (una plantilla de `addLook`, o la de un tipo ya registrado),
+   * escalado a `stats.height`. Con `script`, lo maneja ese guion. Cuenta como vivo para terminar la oleada.
+   */
+  spawnCustom(stats: EnemyStats, look: string, x: number, z: number, mods: EnemyMods = {}, script: EnemyScript | null = null): Enemy {
+    const base = this.looks.get(look) ?? this.templates.get(look as EnemyKind);
+    if (!base) throw new Error(`falta el modelo ${look}`);
+    const template: Template = { ...base, scale: stats.height / base.height };
+    const enemy = new Enemy(stats, template, mods);
+    enemy.script = script;
+    enemy.position.set(x, heightAt(x, z), z);
+    this.scene.add(enemy.group);
+    this.enemies.push(enemy);
+    return enemy;
   }
 
   emit(e: HordeEvent): void {
@@ -2278,6 +2437,8 @@ export class Horde {
     // La vida va en enteros: todo golpe que entra saca al menos 1. Después la armadura le resta lo suyo:
     // al acorazado un golpe de 1 no le hace nada
     let dealt = raw > 0 ? Math.max(1, Math.round(raw)) : 0;
+    // parte de un jefe: su guion decide cuánto le entra (inmune un rato, blindaje propio...)
+    if (enemy.script?.filter) dealt = Math.max(0, Math.round(enemy.script.filter(enemy, dealt, this.shot)));
     // la armadura (hasta 3): el silencio se la saca mientras dura. Al fuego, al rayo y al golpe
     // fantasma no les resta
     const armor = dot || armorless || ghost ? 0 : enemy.armor;
@@ -2317,6 +2478,7 @@ export class Horde {
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit, by: this.by, dot: !!dot });
+    if (dealt > 0 || killed) enemy.script?.onDamage?.(enemy, dealt, killed);
     if (killed) this.died(enemy, hadPowder, wasBurning);
     // la explosión de la pólvora pasa por acá con otros enemigos: lo que se lee después es de este golpe
     this.lastDealt = dealt;
@@ -2327,6 +2489,7 @@ export class Horde {
 
   /** Lo que pasa cuando un golpe lo mata: la baja del tiro, y la pólvora o el fuego que explotan. */
   private died(enemy: Enemy, hadPowder: boolean, wasBurning: boolean): void {
+    enemy.script?.onDeath?.(enemy);
     if (this.shot) {
       this.shot.kills++;
       // para el registro: qué cuerpos caen en tiros que agarran a varios (ver RunRecorder.kinds)

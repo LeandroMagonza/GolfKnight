@@ -10,6 +10,7 @@
     "build:demo": "node tools/build.mjs demo",
     "build:abe": "node tools/build.mjs abe",
     "preview": "vite preview",
+    "local": "node tools/local.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "deploy": "node tools/deploy.mjs",

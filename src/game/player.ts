@@ -576,7 +576,26 @@ export class Player {
       this.bufferLeft = STEP_BUFFER;
       return;
     }
-    this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, this.spotIndex + delta));
+    this.stepTo(this.spotIndex + delta);
+  }
+
+  /** Va al puesto `to` si un jefe no lo traba (ver `blockStep` y `pin`). */
+  private stepTo(to: number): void {
+    const next = Math.min(this.spotXs.length - 1, Math.max(0, to));
+    if (next === this.spotIndex || this.pinnedFor > 0) return;
+    if (Player.blockStep?.(this.spotIndex, next)) return;
+    this.spotIndex = next;
+  }
+
+  /**
+   * Un jefe que traba puestos (la telaraña): true si no se puede ir del puesto `from` al `to` (de a uno por
+   * vez). Lo pone el jefe al empezar y lo saca al terminar.
+   */
+  static blockStep: ((from: number, to: number) => boolean) | null = null;
+  /** Pegado al piso: no cambia de puesto mientras dura, pero puede pegar (la telaraña). */
+  pinnedFor = 0;
+  pin(seconds: number): void {
+    this.pinnedFor = Math.max(this.pinnedFor, seconds);
   }
 
   /** Está en medio de un tiro o no se puede mover por otra razón. */
@@ -702,6 +721,7 @@ export class Player {
     }
     this.meter.update(dt);
     if (this.blinkTimer > 0) this.blinkTimer -= dt;
+    if (this.pinnedFor > 0) this.pinnedFor = Math.max(0, this.pinnedFor - dt);
     if (this.grabbedBy && (!this.grabbedBy.alive || !this.grabbedBy.grabbing)) this.grabbedBy = null;
     // el tiro terminó o se canceló (por el jugador o por un golpe recibido): entra el palo en cola
     if (this.mode === 'free' && this.pendingClub) this.applyClub(this.pendingClub);
@@ -709,7 +729,7 @@ export class Player {
     if (this.bufferLeft > 0) {
       this.bufferLeft -= dt;
       if (!this.busy) {
-        this.spotIndex = Math.min(this.spotXs.length - 1, Math.max(0, this.spotIndex + this.bufferedStep));
+        this.stepTo(this.spotIndex + this.bufferedStep);
         this.bufferLeft = 0;
       }
     }

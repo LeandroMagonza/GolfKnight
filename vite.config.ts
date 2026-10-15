@@ -32,7 +32,7 @@ export default defineConfig({
     // la completa en dist/, y las otras adentro, cada una en su carpeta: dist/demo/ y dist/abe/
     outDir: process.env.GK_OUT ?? (EDITION === 'full' ? 'dist' : `dist/${EDITION}`),
     // la cinemática es una página aparte (cine.html), mientras sea una prueba. Abe no la ve. El simulador
-    // de la carga (arco.html), solo con las herramientas de prueba
-    rollupOptions: { input: EDITION === 'abe' ? { main: 'index.html' } : { main: 'index.html', cine: 'cine.html', ...(DEV_TOOLS ? { arco: 'arco.html' } : {}) } },
+    // de la carga (arco.html), el bestiario (bestiario.html) y la música (musica.html), solo con las herramientas de prueba
+    rollupOptions: { input: EDITION === 'abe' ? { main: 'index.html' } : { main: 'index.html', cine: 'cine.html', ...(DEV_TOOLS ? { arco: 'arco.html', bestiario: 'bestiario.html', musica: 'musica.html' } : {}) } },
   },
 });

@@ -18,7 +18,7 @@ const PRUNE = {
   // el modelo del campesino no lo usa nadie todavía
   demo: ['models/player-peasant.glb'],
   // Abe no ve la cinemática: ni su escenario, ni el mago, ni las voces
-  abe: ['models/player-peasant.glb', 'models/cine-dungeon.glb', 'models/mage.glb', 'voices'],
+  abe: ['models/player-peasant.glb', 'models/cine-dungeon.glb', 'voices'],
 };
 
 /**

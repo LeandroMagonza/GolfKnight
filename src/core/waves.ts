@@ -19,7 +19,9 @@ import { L } from '../i18n';
 import { BUDGET, shotsFor } from './budget';
 import { CHARGE, FOURTH } from './clubs';
 
-export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'knight' | 'stoneling' | 'wraith' | 'golem';
+export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'knight' | 'stoneling' | 'wraith' | 'golem' | NewKind;
+/** Los monstruos nuevos (14/10): ya tienen modelo y animaciones, pero todavía no salen en las oleadas. */
+export type NewKind = 'ogre' | 'minotaur' | 'lizardman' | 'warg' | 'spider' | 'slime';
 
 /**
  * melee: camina y pega. kamikaze: corre y explota. shaman: se planta cerca de la puerta y sostiene su
@@ -92,8 +94,13 @@ export interface EnemyMods {
 export interface EnemyStats {
   kind: EnemyKind;
   name: string;
-  /** Malla del personaje dentro de dungeon.glb. */
+  /** Malla del personaje dentro de dungeon.glb (o de `model`). */
   mesh: string;
+  /**
+   * Los que no comparten el esqueleto de PolygonDungeon (los bichos de cuatro patas, la araña, el limo)
+   * traen su propio GLB con sus clips: el nombre del archivo en public/models.
+   */
+  model?: string;
   behavior: Behavior;
   /** Altura a la que se escala el modelo, en metros. */
   height: number;
@@ -167,9 +174,22 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   shaman: { ...base, kind: 'shaman', name: L('Chamán goblin', 'Goblin Shaman'), mesh: 'Character_Goblin_Shaman', height: 1.85, radius: 0.64, hp: 6, speed: 2.2, damage: 2, gateDamage: 2, score: 40 },
   knight: { ...base, kind: 'knight', name: L('Caballero esqueleto', 'Skeleton Knight'), mesh: 'Character_Skeleton_Knight', height: 2.6, radius: 1.0, hp: 8, speed: 1.5, damage: 3, gateDamage: 3, heavy: true, score: 50 },
   stoneling: { ...base, kind: 'stoneling', name: L('Gólem chico', 'Small Golem'), mesh: 'Character_Rock_Golem', height: 2.1, radius: 0.95, hp: 10, speed: 1.4, damage: 3, gateDamage: 3, heavy: true, score: 70 },
-  wraith: { ...base, kind: 'wraith', name: L('Alma en pena', 'Wraith'), mesh: 'Character_Tormented_Soul', behavior: 'grabber', height: 1.9, radius: 0.5, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
+  wraith: { ...base, kind: 'wraith', name: L('Huargo', 'Warg'), mesh: 'Character_Warg', model: 'warg.glb', behavior: 'grabber', height: 1.4, radius: 0.7, hp: 2, speed: 5.8, runs: true, damage: 1, gateDamage: 0, score: 40 },
   golem: { ...base, kind: 'golem', name: L('Gólem de roca', 'Rock Golem'), mesh: 'Character_Rock_Golem', behavior: 'golem', height: 4.0, radius: 1.7, hp: 80, speed: 1.3, damage: 2, gateDamage: 1, heavy: true, boss: true, attackEvery: GOLEM_THROW_EVERY, score: 500 },
+  // Los nuevos: no están en LADDER ni en HEAVY, así que el director no los manda. Los números son de
+  // partida, para probarlos en el bestiario (bestiario.html) o soltándolos con __gk.spawn.
+  // Los humanoides van en dungeon.glb (tools/monster_*.py); los otros, cada uno en su GLB (tools/beast_*.py).
+  // La altura cuenta los cuernos del minotauro y la cresta del lagarto, por eso van un poco más altos.
+  ogre: { ...base, kind: 'ogre', name: L('Ogro', 'Ogre'), mesh: 'Character_Ogre', height: 2.8, radius: 1.05, hp: 9, speed: 1.5, damage: 3, gateDamage: 3, heavy: true, score: 60 },
+  minotaur: { ...base, kind: 'minotaur', name: L('Minotauro', 'Minotaur'), mesh: 'Character_Minotaur', height: 2.8, radius: 0.95, hp: 7, speed: 2.0, damage: 3, gateDamage: 3, heavy: true, score: 55 },
+  lizardman: { ...base, kind: 'lizardman', name: L('Hombre lagarto', 'Lizardman'), mesh: 'Character_Lizardman', height: 2.0, radius: 0.55, hp: 3, speed: 3.8, runs: true, damage: 2, gateDamage: 2, score: 25 },
+  warg: { ...base, kind: 'warg', name: L('Huargo', 'Warg'), mesh: 'Character_Warg', model: 'warg.glb', height: 1.4, radius: 0.7, hp: 2, speed: 5.0, runs: true, damage: 1, gateDamage: 1, score: 20 },
+  spider: { ...base, kind: 'spider', name: L('Araña gigante', 'Giant Spider'), mesh: 'Character_Spider', model: 'spider.glb', height: 1.1, radius: 0.9, hp: 4, speed: 3.4, runs: true, damage: 2, gateDamage: 2, score: 30 },
+  slime: { ...base, kind: 'slime', name: L('Limo venenoso', 'Poison Slime'), mesh: 'Character_Slime', model: 'slime.glb', height: 1.2, radius: 0.8, hp: 5, speed: 1.6, damage: 2, gateDamage: 2, score: 35 },
 };
+
+/** Los monstruos nuevos, en el orden del bestiario. */
+export const NEW_KINDS: NewKind[] = ['ogre', 'minotaur', 'lizardman', 'warg', 'spider', 'slime'];
 
 /** Los poderes que cambian cómo se mueve: solo los recibe un cuerpo que camina y pega. */
 const BEHAVIOR_POWERS = ['explode', 'dig', 'banner', 'ranged', 'aura'] as const;

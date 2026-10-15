@@ -12,7 +12,12 @@ Two kinds of base file:
   code that looks bones up by name works unchanged, and all characters get the pack's atlas texture.
   At runtime the game keeps the one character mesh it wants and drops the rest.
 
-usage: blender -b --python tools/retarget_to_glb.py -- <base.fbx> <atlas.png | -> <out.glb> "Name=clip.fbx" ...
+With --with=<module> (Synty base only) it also builds a new character on the same rig before
+retargeting, so it gets every clip like the rest: the module's build(arm, atlas_image) makes one more
+Character_* mesh (tools/synty_mage.py for the cinematic's wizard, tools/monster_*.py for the horde).
+--mage is short for --with=synty_mage.
+
+usage: blender -b --python tools/retarget_to_glb.py -- <base.fbx> <atlas.png | -> <out.glb> [--with=module ...] "Name=clip.fbx" ...
 """
 import bpy, sys, os, time
 from mathutils import Vector, Matrix
@@ -21,7 +26,10 @@ from mt_blender import *
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 src, atlas, out = argv[0], argv[1], argv[2]
-clips = argv[3:]
+clips = [c for c in argv[3:] if not c.startswith("--")]
+extra = [c[len("--with="):] for c in argv[3:] if c.startswith("--with=")]
+if "--mage" in argv[3:]:
+    extra.append("synty_mage")
 
 M = "mixamorig:"
 BONE_MAP = {
@@ -74,6 +82,11 @@ arm.animation_data_create()
 for pb in arm.pose.bones:   # the base file may come posed by its own take
     pb.matrix_basis = Matrix.Identity(4)
 bpy.context.view_layer.update()
+
+for name in extra:
+    import importlib
+    built = importlib.import_module(name).build(arm, bpy.data.images.load(atlas, check_existing=True))
+    print(f"{name}: {built.name}, {len(built.data.vertices)} verts")
 
 if synty:
     for old, mix in BONE_MAP.items():
@@ -199,6 +212,11 @@ for a in list(bpy.data.actions):
     if a not in keep:
         bpy.data.actions.remove(a)
 print("actions to export:", [a.name for a in bpy.data.actions])
+# only the UV layer the material reads: Synty's extra ones (map11, lightmapUV) went out as TEXCOORD_1/2
+# and weighed 1.6 MB of dungeon.glb that nothing uses
+for o in chars:
+    for lay in [l for l in o.data.uv_layers if not l.active_render]:
+        o.data.uv_layers.remove(lay)
 bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', export_animation_mode='ACTIONS',
                           export_anim_single_armature=True, export_frame_range=False,
                           export_apply=False, export_yup=True)

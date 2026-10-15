@@ -195,6 +195,8 @@ export interface RunInfo {
   charge?: { weak: number; mid: number; strong: number; fourth?: number; click?: string; clickPart?: number };
   /** Lo que estaba tocado en el panel B (lo guardado en el navegador), si algo: la partida no es de fábrica. */
   tuned?: string[];
+  /** El jefe de la última oleada (14/10): `clasico` es el gólem de siempre; si no, el id del jefe (ver src/game/bosses). */
+  boss?: string;
   /** Arrancó en esta oleada, con ?ola (para probar una oleada): no es una partida entera. */
   from?: number;
 }
@@ -381,7 +383,7 @@ export class RunRecorder {
   }
 
   /** Terminó (o se dejó): queda en la cola y se intenta mandar. */
-  finish(result: Row['result'], extra: { cause?: string; score: number; hp: number; gate: number; build: unknown; bot?: boolean }): void {
+  finish(result: Row['result'], extra: { cause?: string; score: number; hp: number; gate: number; build: unknown; bot?: boolean; bossLog?: Record<string, number | string> }): void {
     if (this.done) return;
     this.done = true;
     this.closeWave();

@@ -27,7 +27,6 @@ interface Actor {
 
 export interface Models {
   dungeon: GLTF;
-  mage: GLTF;
   club: THREE.Object3D | null;
 }
 
@@ -65,8 +64,7 @@ export class CinePlayer {
         this.actors.set(id, { id, root, height: 1, prop });
         continue;
       }
-      const gltf = entry.model === 'mage' ? models.mage : models.dungeon;
-      const model = cloneSkinned(gltf.scene);
+      const model = cloneSkinned(models.dungeon.scene);
       if (entry.mesh) keepOnlyMesh(model, entry.mesh);
       model.traverse((o) => {
         const m = o as THREE.Mesh;
@@ -84,7 +82,7 @@ export class CinePlayer {
       root.add(model);
       const mixer = new THREE.AnimationMixer(model);
       const actions = new Map<string, THREE.AnimationAction>();
-      for (const clip of gltf.animations) {
+      for (const clip of models.dungeon.animations) {
         const a = mixer.clipAction(clip);
         a.play();
         a.setEffectiveWeight(0);

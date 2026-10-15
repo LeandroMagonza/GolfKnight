@@ -9,7 +9,9 @@ import type { Script } from './types';
 export const INTRO: Script = {
   cast: {
     knight: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Male', height: 1.8 },
-    mage: { kind: 'character', model: 'mage', height: 1.68 },
+    // el mago de PolygonDungeon (tools/synty_mage.py): la altura cuenta el sombrero; así queda un poco
+    // más bajo que el caballero
+    mage: { kind: 'character', model: 'dungeon', mesh: 'Character_Mage', height: 2.0 },
     // otros disfrazados de la feria, «sospechosamente buenos»: el mismo caballero del protagonista y su
     // versión femenina (la Caballera del juego), cada uno con otros colores y otro cuerpo
     k1: { kind: 'character', model: 'dungeon', mesh: 'Character_Hero_Knight_Male', height: 1.8, look: { armor: 0xc9a54a, accent: 0x2e5fa8, scale: [1.14, 1, 1.12] } },
@@ -154,7 +156,7 @@ export const INTRO: Script = {
         mage: {
           path: [{ at: 0, x: 2.4, z: 1.9, face: -125 }],
           anim: [
-            { at: 0, clip: 'Idle', loop: true },
+            { at: 0, clip: 'Idle 2', loop: true },
             { at: 2.2, clip: 'Rallying', fade: 0.3 },
             { at: 5.6, clip: 'Talking', fade: 0.4, loop: true },
           ],
@@ -216,7 +218,7 @@ export const INTRO: Script = {
         driver: { path: [{ at: 0, x: 0, z: 0 }], hold: 'knight' },
         mage: {
           path: [{ at: 0, x: 0.95, z: 0.2, face: 5 }],
-          anim: [{ at: 0, clip: 'Idle', loop: true }, { at: 0.8, clip: 'Pointing', fade: 0.3 }, { at: 3.6, clip: 'Talking', fade: 0.4, loop: true }],
+          anim: [{ at: 0, clip: 'Idle 2', loop: true }, { at: 0.8, clip: 'Pointing', fade: 0.3 }, { at: 3.6, clip: 'Talking', fade: 0.4, loop: true }],
         },
         g1: { path: [{ at: 0, x: -10, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: 6, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true }] },
         g2: { path: [{ at: 0, x: -13, y: 3.6, z: 25, face: 90 }, { at: 8.5, x: 3, y: 3.6, z: 25 }], anim: [{ at: 0, clip: 'Walking', loop: true, from: 0.3 }] },

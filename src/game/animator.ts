@@ -83,8 +83,10 @@ export class LayeredAnimator {
     const key = `${name}:${layer}`;
     let a = this.actions.get(key);
     if (!a) {
-      const base = this.clips.get(name);
-      if (!base) throw new Error(`clip "${name}" no existe`);
+      // un modelo sin ese clip (las partes de los jefes: una piedra, un huevo) se queda quieto en vez de
+      // romper: un clip vacío no mueve nada. No cuenta para `has`
+      const base = this.clips.get(name) ?? new THREE.AnimationClip(name, 1, []);
+      if (!this.clips.has(name) && this.clips.size) console.warn(`[gk] clip "${name}" no existe`);
       const clip = layer === 'full' ? base : subClip(base, (n) => this.upper.has(n) === (layer === 'upper'), ':' + layer);
       a = this.mixer.clipAction(clip);
       a.setEffectiveWeight(0);

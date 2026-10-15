@@ -280,7 +280,7 @@ no siempre es el mismo bicho el que viene con el mismo poder.
 | Chamán goblin | 6 | un cuerpo más: el aura es un poder y le puede tocar a cualquiera |
 | Caballero esqueleto | 8 | pesado; cae justo con el mejor golpe |
 | Gólem chico | 10 | pesado; el único, además del jefe, que aguanta el mejor golpe |
-| Alma en pena | 2 | la única que va por vos: si te agarra te saca 1 y te deja congelado 1.5 s, y se esfuma |
+| Huargo | 2 | el único que va por vos: si te agarra te saca 1 y te deja congelado 1.5 s, y se esfuma. Hasta el 14/10 era el alma en pena (el tipo sigue siendo `wraith`): su cuerpo quedó para el espectro hechicero |
 | Gólem de roca | 80 | el jefe: tira piedras a la puerta desde lejos. No recibe poderes |
 
 | Poder | Qué hace |
@@ -545,10 +545,17 @@ La historia y el plan están en `docs/cinematica.md`.
   quedaron fuera del juego, porque para venderlo Leandro prefiere voces de software. Se corren con el
   Python del asistente (`E:sistente\.venv\Scripts\python.exe`); las líneas están en
   `tools/voces_lineas.py`. Cada globo dice la suya con `voice`, y la música baja mientras alguien habla.
-- Modelos propios: `cine-dungeon.glb` (los personajes de PolygonDungeon con los clips de la
-  cinemática: Hit By Car, Getting Up, Looking Around, Pointing, Rallying, Reacting, Talking) y
-  `mage.glb` (el mago, un personaje de Mixamo, con las texturas bajadas a 1024 con
-  `fbx_to_glb.py --max-texture=1024`).
+- Modelos propios: `cine-dungeon.glb`, los personajes de PolygonDungeon más el mago, con los clips de
+  la cinemática (Idle a Idle 5, Walking, Running, Hit By Car, Getting Up, Looking Around, Pointing,
+  Rallying, Reacting, Talking y Talking 2). El mago (`Character_Mage`) lo arma `tools/synty_mage.py`
+  sobre el mismo esqueleto: manos y pies del caballero, la cabeza de la caballera con el pelo canoso, y
+  túnica, mangas, sombrero y barba low-poly con los colores del atlas. Desde el 14/10 reemplaza a Abe
+  (`mage.glb`, de Mixamo, 6 MB). Para rearmar (`PACK` = `MonsterTamer/web/assets/mixamo/action-adventure-pack`,
+  `M` = `assets/mixamo`):
+
+  ```
+  blender -b --python tools/retarget_to_glb.py -- "<PolygonDungeon>/Models/Characters.fbx" "<PolygonDungeon>/Textures/Dungeons_Texture_01.png" public/models/cine-dungeon.glb --mage "Idle=$PACK/idle.fbx" "Idle 2=$PACK/idle (2).fbx" "Idle 3=$PACK/idle (3).fbx" "Idle 4=$PACK/idle (4).fbx" "Idle 5=$PACK/idle (5).fbx" "Walking=$PACK/walking.fbx" "Running=$PACK/running.fbx" "Hit By Car=$M/Hit By Car.fbx" "Getting Up=$M/Getting Up.fbx" "Looking Around=$M/Looking Around.fbx" "Pointing=$M/Pointing.fbx" "Rallying=$M/Rallying.fbx" "Reacting=$M/Reacting.fbx" "Talking=$M/Talking.fbx" "Talking 2=$M/Talking (1).fbx"
+  ```
 
 ## Publicar
 
@@ -662,6 +669,9 @@ hook `.githooks/pre-push` frena el push si falta alguno (`npm install` lo deja c
   - `retarget_to_glb.py`: retargetea clips de Mixamo a otro esqueleto (los personajes de PolygonDungeon, o un
     personaje Mixamo cuya pose de reposo no coincide con la de los clips).
   - `fbx_to_glb.py`, `mt_blender.py`, `inspect_fbx.py`, `glb-info.mjs`: pipeline de modelos (Blender CLI).
+  - `synty_kit.py`, `kit_preview.py`: piezas para armar personajes nuevos en el estilo de PolygonDungeon y
+    su hoja de vista previa. Los usan `synty_mage.py` (el mago de la cinemática), `monster_*.py` y
+    `beast_*.py` (los monstruos, ver `docs/monstruos.md`).
 
 `window.__gk` expone el estado del juego en la consola (spawn de enemigos, tiro exacto, `unlockAll()`, etc.).
 
@@ -675,7 +685,7 @@ necesita en cada caso (`mesh` en `ENEMIES`, `src/core/waves.ts`). El putter ya n
 `Golf Putt` queda sin uso por ahora (serviría para animar el tiro del portal). Para rearmarlo:
 
 ```
-blender -b --python tools/retarget_to_glb.py -- "<PolygonDungeon>/Models/Characters.fbx" "<PolygonDungeon>/Textures/Dungeons_Texture_01.png" public/models/dungeon.glb "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "Golf Drive=assets/mixamo/Golf Drive.fbx" "Golf Chip=assets/mixamo/Golf Chip.fbx" "Golf Putt=assets/mixamo/Golf Putt.fbx" "Dropping=assets/mixamo/Dropping.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx" "Rallying=assets/mixamo/Rallying.fbx"
+blender -b --python tools/retarget_to_glb.py -- "<PolygonDungeon>/Models/Characters.fbx" "<PolygonDungeon>/Textures/Dungeons_Texture_01.png" public/models/dungeon.glb --with=monster_ogre --with=monster_minotaur --with=monster_lizardman "Idle=<pack>/idle.fbx" "Running=<pack>/running.fbx" "Walking=<pack>/walking.fbx" "Falling To Roll=<pack>/falling to roll.fbx" "Hard Landing=<pack>/hard landing.fbx" "Golf Drive=assets/mixamo/Golf Drive.fbx" "Golf Chip=assets/mixamo/Golf Chip.fbx" "Golf Putt=assets/mixamo/Golf Putt.fbx" "Dropping=assets/mixamo/Dropping.fbx" "Strafe Left=<extra>/Left Strafe Walking.fbx" "Strafe Right=<extra>/Right Strafe Walking.fbx" "Rallying=assets/mixamo/Rallying.fbx"
 ```
 
 Sumar un enemigo es agregar una entrada en `ENEMIES` con la malla del personaje (quedan sin usar
@@ -683,6 +693,17 @@ fantasmas, jefe goblin, goblin hembra guerrera y esqueletos esclavo y soldado 02
 se normaliza sola. Los clips solo cubren la locomoción: el golpe, las manos en alto del chamán, el
 agarre del alma en pena y el lanzamiento del gólem se arman por código sobre los brazos (`applyGesture` en `src/game/enemies.ts`),
 y la muerte reusa `Hard Landing`. Si algún día hay clips de ataque de Mixamo, entran por el mismo script.
+
+`<pack>` es `MonsterTamer/web/assets/mixamo/action-adventure-pack` y `<extra>`, `MonsterTamer/web/assets/mixamo/extra`.
+
+**Los monstruos nuevos** (14/10; todo en `docs/monstruos.md`): ogro, minotauro y hombre lagarto se arman
+sobre el mismo esqueleto con `tools/monster_*.py` y entran en `dungeon.glb` con los `--with` de arriba (le
+suman 0.3 MB, con las capas de UV que nadie usa ya afuera); huargo, araña gigante y limo venenoso tienen su propio esqueleto y sus clips (`Idle`,
+`Walking`, `Running`, `Attack` y la muerte como `Hard Landing`), cada uno en su GLB:
+`blender -b --python tools/beast_warg.py -- public/models/warg.glb` (y `beast_spider.py`, `beast_slime.py`).
+Todos usan `tools/synty_kit.py` (paleta del atlas, piezas low-poly, pesos) y se miran sin abrir Blender
+con `blender -b --python tools/kit_preview.py -- <módulo> <salida.png>`. En el juego se ven en
+`bestiario.html`; todavía no salen en las oleadas.
 
 Los bichos del pack cute (lobos, caparazón, bombín, dragón) ya no se usan; sus GLB quedaron en
 `assets/models-cute/`.

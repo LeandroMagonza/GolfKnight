@@ -578,6 +578,9 @@ export function startBot(): BotStats {
     else if (e.behavior === 'grabber' || e.behavior === 'kamikaze') w = 2;
     // abierto ahora: silenciado con escudo o blindaje (dura poco: hay que aprovecharlo)
     if (e.silenced && (e.hasShield || e.armorLevel > 0)) w *= 2;
+    // el jefe nuevo dice qué le importa (ver src/game/bosses): sus partes pueden apurar más, o no valer nada
+    const boss = gk.boss?.fight?.bot?.weight;
+    if (boss) w *= boss(e);
     return w;
   }
 
@@ -1121,7 +1124,7 @@ export function startBot(): BotStats {
     }
     let best: Plan | null = null;
     for (let i = 0; i < tees.spots.length; i++) {
-      if (!tees.hasBall(i)) continue;
+      if (!tees.hasBall(i) || !reachable(here, i)) continue;
       const p = bestFrom(i, walkTime(Math.abs(i - here)), times);
       // ¿llega sin cruzarse con nadie, y termina el golpe antes de que le caiga algo o le pasen por encima?
       if (p && skill.evade && !pathSafe(here, i, busyFor(p, 0), true, aimOf(p, i))) continue;
@@ -1141,7 +1144,7 @@ export function startBot(): BotStats {
    * Con `aim`, tirando hacia ahí: el cuerpo se para donde lo pone el juego para ese tiro.
    */
   function safeFor(x: number, busy: number, aim?: { x: number; z: number }): boolean {
-    return !incoming(x) && trampleAt(x, busy + 0.25, 0, true, aim ? stanceAt(x, aim) : undefined) === Infinity;
+    return !incoming(x, busy + 0.25) && trampleAt(x, busy + 0.25, 0, true, aim ? stanceAt(x, aim) : undefined) === Infinity;
   }
 
   /** Hacia dónde va el tiro `p` desde el puesto `spot`: adonde está ahora su blanco. */
@@ -1177,8 +1180,18 @@ export function startBot(): BotStats {
    * nada en el de llegada, y que nadie le pase por encima en el camino ni en el de llegada (ver
    * `walkDanger`).
    */
+  /** ¿Se puede ir del puesto `here` al `to`? Un jefe puede trabar puestos (la telaraña: `BossFight.blocks`). */
+  function reachable(here: number, to: number): boolean {
+    const blocks = gk.boss?.fight?.blocks;
+    if (!blocks) return true;
+    const dir = Math.sign(to - here);
+    for (let i = here; i !== to; i += dir) if (blocks(i, i + dir)) return false;
+    return true;
+  }
+
   function pathSafe(here: number, to: number, stay: number, shoots = true, aim?: { x: number; z: number }): boolean {
     const spots = gk.tees.spots;
+    if (!reachable(here, to)) return false;
     if (to === here) return safeFor(spots[here].x, stay, shoots ? aim : undefined);
     if (incoming(spots[to].x)) return false;
     return walkDanger(here, to, stay, shoots, aim) === Infinity;
@@ -1283,7 +1296,7 @@ export function startBot(): BotStats {
     // nada seguro: donde más tarde le llegue alguien, contando el camino (si quedarse es lo mejor, se queda)
     let later = trampleAt(tees.spots[here].x, 3, 0, false);
     for (const i of near) {
-      if (incoming(tees.spots[i].x)) continue;
+      if (incoming(tees.spots[i].x) || !reachable(here, i)) continue;
       const t = walkDanger(here, i, 3, false);
       if (t > later) {
         best = i;
@@ -1580,8 +1593,10 @@ export function startBot(): BotStats {
    * Lo que cae del cielo en el puesto de `x`: los hechizos (marcan el piso) y las pelotas que devolvió un
    * escudo (la marca roja, quieta donde estaba el caballero cuando rebotó). Adónde no estar.
    */
-  function incoming(x: number): boolean {
+  function incoming(x: number, within = 1.5): boolean {
     const z = gk.player.anchor.z;
+    // lo que avisa el jefe nuevo: algo va a caer o a pasar por ese puesto
+    if (gk.boss?.fight?.bot?.danger?.(x, within)) return true;
     if ((gk.horde.flying ?? []).some((f: any) => f.marker && Math.abs(f.marker.position.x - x) < RANGED.radius + 0.7 && Math.abs(f.marker.position.z - z) < RANGED.radius + 1)) return true;
     return (gk.balls.list as any[]).some((b) => b.ricochet && !b.done && Math.abs(b.ricochet.to.x - x) < RICOCHET.radius + 0.7 && Math.abs(b.ricochet.to.z - z) < RICOCHET.radius + 1);
   }

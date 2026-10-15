@@ -132,6 +132,8 @@ async function play(job) {
           // lo de cada poder de los enemigos: cuántos salieron, mataste, golpes y puerta (ver PowerLog)
           perPower: log?.perPower ?? null,
           perKind: log?.perKind ?? null,
+          // el jefe nuevo, si hay (?jefe=, ver src/game/bosses): cuál, si se le ganó, y sus números
+          boss: g.boss ? { id: g.boss.id, done: g.boss.fight.done, ...g.boss.log() } : null,
         };
       });
       if (r.ended || r.clock > maxGameSeconds) break;
@@ -145,7 +147,7 @@ async function play(job) {
   appendFileSync(out, `${JSON.stringify(row)}\n`);
   results.push(row);
   const mins = ((Date.now() - t0) / 60000).toFixed(1);
-  console.log(`${String(results.length).padStart(3)}/${total} ${mins} min · ${job.config} · ${job.skill} #${job.n}: ${row.result} en la oleada ${row.wave ?? '?'}/${row.waves ?? '?'} · puerta ${row.gate ?? '?'} · vida ${row.hp ?? '?'} · ${row.realSeconds} s${errors.length ? ` · ERRORES: ${errors[0]}` : ''}`);
+  console.log(`${String(results.length).padStart(3)}/${total} ${mins} min · ${job.config} · ${job.skill} #${job.n}: ${row.result} en la oleada ${row.wave ?? '?'}/${row.waves ?? '?'} · puerta ${row.gate ?? '?'} · vida ${row.hp ?? '?'} · ${row.realSeconds} s${row.boss ? ` · jefe ${JSON.stringify(row.boss)}` : ''}${errors.length ? ` · ERRORES: ${errors[0]}` : ''}`);
 }
 
 console.log(`${total} partidas, de a ${parallel}, a velocidad ${speed} → ${out}`);
