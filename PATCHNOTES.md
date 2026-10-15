@@ -7,6 +7,19 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 15 de octubre
+
+**Jefes nuevos para probar, monstruos y música**
+- **El alma en pena ahora es un huargo**: el lobo que corre y te agarra. Hace lo mismo que antes. `e2e7f78`
+- **62 jefes nuevos para probar** (14 familias: araña, caballero negro, espectro, gólem de las piedras, gusano,
+  hidra, lagarto, limo, minotauro, nigromante, ogro, rey ladrón, ritmo y torre). En las partidas sigue el
+  gólem de siempre; los nuevos salen desde el panel B, Pruebas → Jefes. `e2e7f78`
+- **Seis monstruos nuevos** (ogro, minotauro, hombre lagarto, huargo, araña gigante y limo venenoso), por
+  ahora solo en el bestiario. `e2e7f78`
+- **El mago de la intro, nuevo**: hecho con el mismo estilo que el caballero. `e2e7f78`
+- **Música nueva para elegir** en la pestaña Sonido del panel B (musica.html): canciones para cada
+  escenario, para cuando hay un élite y para el jefe. Por defecto suena la de siempre. `e2e7f78`
+
 ## 14 de octubre
 
 **El sonido, segunda vuelta** (cada cosa se apaga aparte: panel B, Visual → Pulido)
