@@ -9,6 +9,11 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 15 de octubre
 
+**Poder nuevo: los invisibles** (en la versión completa)
+- **Se esfuman al rato de aparecer** y, mientras no los ves, caminan cruzados hacia otro lado de la cancha sin frenar su avance. A los pocos segundos vuelven a aparecer, y después otra vez. Pegarles a la vista los hace esfumarse en el acto. `bce1941`
+- **El golpe los delata**: si una pelota le llega a uno escondido, suena el pelotazo y su silueta brilla blanca un instante. El wedge sirve para buscarlos. Cerca de tu línea aparecen y ya no se esconden; el silencio también los hace aparecer. `bce1941`
+- Sale en el sorteo de los escenarios, con su élite (más rato escondido). `bce1941`
+
 **Golpes, sonidos y poderes**
 - **El golpe suena a swing**: un palo cortando el aire justo antes de pegar, y el golpe con más cuerpo y menos vidrio. `d489b0c`
 - **Perder se escucha**: la puerta que se rompe o el quejido del caballero, y un silencio antes de la música. `d489b0c`
@@ -33,6 +38,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 - **El mago de la intro, nuevo**: hecho con el mismo estilo que el caballero. `e2e7f78`
 - **Música nueva para elegir** en la pestaña Sonido del panel B (musica.html): canciones para cada
   escenario, para cuando hay un élite y para el jefe. Por defecto suena la de siempre. `e2e7f78`
+
+**Detrás de escena**
+- En el panel B, el ancho de la cancha, cuántos puestos hay y cuántos de las puntas quedan sin pelota se cambian en vivo; también las esperas de los guardias y hacia dónde sale el tiro partido. Lo de siempre no cambia. `11e7462` `6c28ebd`
 
 ## 14 de octubre
 
