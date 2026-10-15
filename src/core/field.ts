@@ -14,9 +14,10 @@
 import { BALANCE_KEY } from '../balanceStore';
 
 /**
- * El ancho de adelante y los puestos (15/10, para probar desde el panel B → Campo): lo arma todo una sola
- * vez, al cargar, así que el panel los guarda y valen al recargar. Se leen acá, antes que nadie, del
- * balance guardado (ver src/debug.ts): solo existe con las herramientas de prueba.
+ * El ancho de adelante y los puestos (15/10, para probar desde el panel B → Campo). Cambian en el acto
+ * (`setFieldLayout`, y el campo y los puestos se rearman), y el panel los guarda. Se leen acá, antes que
+ * nadie, del balance guardado (ver src/debug.ts), para que lo que se calcula al cargar ya nazca con ellos:
+ * solo existe con las herramientas de prueba.
  */
 export const FIELD_LAYOUT_DEFAULTS = {
   /** El medio ancho de adelante, el de la línea de los puestos. */
@@ -49,7 +50,7 @@ function savedLayout(): FieldLayout {
   return fixLayout(out);
 }
 
-/** Con lo que arrancó esta carga. El panel compara contra esto para saber si hay que recargar. */
+/** El de ahora. Se cambia con `setFieldLayout`, que también mueve FIELD_HALF_WIDTH. */
 export const FIELD_LAYOUT: Readonly<FieldLayout> = savedLayout();
 
 /**
@@ -57,8 +58,14 @@ export const FIELD_LAYOUT: Readonly<FieldLayout> = savedLayout();
  * en game/tees para que las marcas del campo no puedan quedar desfasadas de los puestos.
  */
 export const TEE_LINE_Z = 9;
-/** El medio ancho del campo, adelante (y en todo el largo, si es un rectángulo). */
-export const FIELD_HALF_WIDTH = FIELD_LAYOUT.frontHalf;
+/** El medio ancho del campo, adelante (y en todo el largo, si es un rectángulo). Lo cambia `setFieldLayout`. */
+export let FIELD_HALF_WIDTH = FIELD_LAYOUT.frontHalf;
+
+/** Cambia el ancho y los puestos. Después hay que rearmar el campo y los puestos (ver el panel B). */
+export function setFieldLayout(l: Partial<FieldLayout>): void {
+  Object.assign(FIELD_LAYOUT, fixLayout({ ...FIELD_LAYOUT, ...l }));
+  FIELD_HALF_WIDTH = FIELD_LAYOUT.frontHalf;
+}
 /** Dónde aparecen las oleadas (en el trapecio, el medio del arco). */
 export const SPAWN_Z = 68;
 /** Lo que se deja libre contra cada borde al repartir dónde aparecen y por dónde llegan. */

@@ -2053,6 +2053,11 @@ function makeDebugPanel(): DebugPanel {
     reshapeField() {
       if (TENNIS_ON) FIELD_SHAPE.trapezoid = false;
       world.rebuildField();
+      // el ancho y los puestos (FIELD_LAYOUT): el caballero queda en el puesto nuevo más cercano
+      if (tees.relayout() && player) {
+        player.spotXs = tees.spots.map((s) => s.x);
+        player.placeAt(tees.nearest(player.anchor.x));
+      }
     },
     offerChoice() {
       if (!cardOpen) offerChoice();

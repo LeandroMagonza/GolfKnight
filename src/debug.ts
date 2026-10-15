@@ -15,7 +15,7 @@ import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from '.
 import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, FOURTH, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, TAP, TAP_MODES, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
-import { FIELD_HALF_WIDTH, FIELD_LAYOUT, FIELD_LAYOUT_DEFAULTS, FIELD_SHAPE, fixLayout, type FieldLayout } from './core/field';
+import { FIELD_HALF_WIDTH, FIELD_LAYOUT, FIELD_LAYOUT_DEFAULTS, FIELD_SHAPE, setFieldLayout, type FieldLayout } from './core/field';
 import { BALLS, REFILL } from './game/tees';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
@@ -444,8 +444,6 @@ export class DebugPanel {
   /** Lo que se repinta al abrir el panel, además de los campos: las teclas de cada habilidad. */
   private readonly onOpen: (() => void)[] = [];
   private camLine: HTMLElement | null = null;
-  /** El ancho y los puestos que se guardan para la próxima carga (los de esta, en FIELD_LAYOUT). */
-  private layout: FieldLayout = { ...FIELD_LAYOUT };
   private fpsLine: HTMLElement | null = null;
   /** Las casillas que muestran cuánto dura cada nivel del golpe: no se escriben, se calculan. */
   /** La línea que muestra los tiempos con las mejoras de ahora. */
@@ -511,7 +509,7 @@ export class DebugPanel {
   /** Guarda el balance tocado, con lo que vive fuera de CLUBS y ENEMIES. */
   save(): void {
     const c = this.hooks.camera();
-    saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled], field: { ...FIELD_SHAPE, ...this.layout } });
+    saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled], field: { ...FIELD_SHAPE, ...FIELD_LAYOUT } });
   }
 
   private button(label: string, onClick: (b: HTMLButtonElement) => void, title = ''): HTMLButtonElement {
@@ -1310,37 +1308,27 @@ export class DebugPanel {
       ['arco (las puntas, más cerca)', () => FIELD_SHAPE.arc, (v) => { FIELD_SHAPE.arc = Math.max(0, v); reshape(); }, 1, 'm'],
     ]);
     el.append(this.row(this.toggleButton('Trapecio', () => FIELD_SHAPE.trapezoid, (v) => { FIELD_SHAPE.trapezoid = v; reshape(); })), shape.table, note(
-      `Adelante, donde estás, igual que siempre (${FIELD_HALF_WIDTH} m de cada lado); el fondo, más ancho. Los enemigos salen sobre un arco `
+      'Adelante, donde estás, el ancho de abajo («medio ancho de adelante»); el fondo, más ancho. Los enemigos salen sobre un arco '
       + '(los de las puntas, más cerca) y cada uno camina por su fila hacia un punto detrás de la muralla: el del medio derecho, los de las puntas en diagonal, '
       + 'y cada punto del arco llega a su punto de la línea de los puestos. Al que empujás sigue la fila de donde quedó. '
-      + `Con el fondo de ${FIELD_HALF_WIDTH} m o menos, es el rectángulo de siempre. También se prende con ?trapecio en la dirección.`,
+      + 'Con el fondo igual o más angosto que adelante, es el rectángulo de siempre. También se prende con ?trapecio en la dirección.',
     ));
 
-    // el ancho de adelante y los puestos (ver FIELD_LAYOUT): se arman una sola vez, así que se guardan y
-    // valen al recargar. El botón se pinta mientras lo guardado no es lo que se ve
-    el.append(heading('Ancho y puestos (al recargar)'));
-    const reload = this.button('Recargar para verlo', () => location.reload(), 'Recarga la página con el ancho y los puestos de arriba');
-    reload.className = 'wide';
-    const paintReload = () => {
-      const changed = (Object.keys(FIELD_LAYOUT) as (keyof FieldLayout)[]).some((k) => this.layout[k] !== FIELD_LAYOUT[k]);
-      reload.classList.toggle('pending', changed);
-      reload.textContent = changed ? 'Recargar para verlo (hay cambios sin ver)' : 'Recargar para verlo';
-    };
+    // el ancho de adelante y los puestos (ver FIELD_LAYOUT): también en el acto, como la forma
+    el.append(heading('Ancho y puestos'));
     const relayout = (k: keyof FieldLayout, v: number) => {
-      this.layout = fixLayout({ ...this.layout, [k]: v });
-      this.save();
-      paintReload();
+      setFieldLayout({ [k]: v });
+      reshape();
     };
     const layout = this.numbers([
-      ['medio ancho de adelante (la línea de los puestos)', () => this.layout.frontHalf, (v) => relayout('frontHalf', v), 1, 'm'],
-      ['puestos', () => this.layout.tees, (v) => relayout('tees', v), 1, ''],
-      ['puestos sin pelota en cada punta', () => this.layout.quietCorners, (v) => relayout('quietCorners', v), 1, ''],
+      ['medio ancho de adelante (la línea de los puestos)', () => FIELD_LAYOUT.frontHalf, (v) => relayout('frontHalf', v), 1, 'm'],
+      ['puestos', () => FIELD_LAYOUT.tees, (v) => relayout('tees', v), 1, ''],
+      ['puestos sin pelota en cada punta', () => FIELD_LAYOUT.quietCorners, (v) => relayout('quietCorners', v), 1, ''],
     ]);
-    paintReload();
-    el.append(layout.table, this.row(reload), note(
+    el.append(layout.table, note(
       `De fábrica: ${FIELD_LAYOUT_DEFAULTS.frontHalf} m, ${FIELD_LAYOUT_DEFAULTS.tees} puestos y ${FIELD_LAYOUT_DEFAULTS.quietCorners} sin pelota en cada punta. Los puestos se reparten parejos a lo ancho, a 2 m de cada borde. `
       + 'En las puntas sin pelota los guardias no tiran: ahí la ponés vos con la reserva. Queda por lo menos un par de puestos con pelota. '
-      + 'Se arma una sola vez al cargar: el botón se pinta de naranja cuando hay cambios que todavía no estás viendo. «Restaurar» de abajo lo vuelve a lo de fábrica.',
+      + 'Cambia en el acto: el caballero queda en el puesto nuevo más cercano y las pelotas que esperaban, también. «Restaurar» de abajo lo vuelve a lo de fábrica.',
     ));
 
     // la reposición de las pelotas (ver REFILL): cambia en el acto

@@ -13,17 +13,14 @@ import { TEE_LINE_Z } from './world';
 export const TEE_Z = TEE_LINE_Z;
 /**
  * Cuántos puestos hay y cuántos de cada punta quedan sin pelotas de los guardias: los de FIELD_LAYOUT
- * (9 y 2 de fábrica; el panel B → Campo los cambia, al recargar). Los puestos se reparten parejos a lo
- * ancho de adelante, a TEE_EDGE de cada borde: con los 18 m de siempre, uno cada 4 m, de -16 a +16.
+ * (9 y 2 de fábrica; el panel B → Campo los cambia en el acto, ver `relayout`). Los puestos se reparten
+ * parejos a lo ancho de adelante, a TEE_EDGE de cada borde: con los 18 m de siempre, uno cada 4 m, de -16 a +16.
  *
  * **Las puntas quedan afuera**: desde ahí casi todo el campo es un tiro cruzado, y mandar una pelota allá era
  * obligarte a un viaje de cuatro puestos para ir a buscarla. Siguen estando y se puede ir igual, pero
  * la pelota la ponés vos con la reserva (tecla S): son puestos que se eligen, no que te tocan.
  */
-const TEE_COUNT = FIELD_LAYOUT.tees;
-const QUIET_CORNERS = FIELD_LAYOUT.quietCorners;
 const TEE_EDGE = 2;
-export const TEE_SPACING = (2 * (FIELD_LAYOUT.frontHalf - TEE_EDGE)) / (TEE_COUNT - 1);
 /** Cuántas pelotas mantienen los guardias esperando. La mejora «Pelota extra» lo sube. */
 export const BALLS = { max: 3 };
 /**
@@ -78,20 +75,29 @@ export class Tees {
   private readonly ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff1b8, emissiveIntensity: 0.9 });
   private readonly goldMat = new THREE.MeshStandardMaterial({ color: 0xffd66b, emissive: 0xffb300, emissiveIntensity: 1.1, metalness: 0.4, roughness: 0.35 });
   private readonly ringMat = new THREE.MeshBasicMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
+  private readonly stickMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cf, roughness: 0.8 });
+  private readonly flagMat = new THREE.MeshStandardMaterial({ color: 0xd8413a, side: THREE.DoubleSide, roughness: 0.9 });
+  private readonly quietFlagMat = new THREE.MeshStandardMaterial({ color: 0x6b5a58, side: THREE.DoubleSide, roughness: 0.95 });
+  private propsVisible = true;
 
   constructor(private readonly scene: THREE.Scene) {
-    const stickMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cf, roughness: 0.8 });
-    const flagMat = new THREE.MeshStandardMaterial({ color: 0xd8413a, side: THREE.DoubleSide, roughness: 0.9 });
-    const quietFlagMat = new THREE.MeshStandardMaterial({ color: 0x6b5a58, side: THREE.DoubleSide, roughness: 0.95 });
-    const half = (TEE_COUNT - 1) / 2;
-    for (let i = 0; i < TEE_COUNT; i++) {
-      const x = (i - half) * TEE_SPACING;
-      const spawns = Math.min(i, TEE_COUNT - 1 - i) >= QUIET_CORNERS;
+    this.build();
+  }
+
+  /** Arma los puestos de FIELD_LAYOUT. */
+  private build(): void {
+    const { scene } = this;
+    const count = FIELD_LAYOUT.tees;
+    const spacing = (2 * (FIELD_LAYOUT.frontHalf - TEE_EDGE)) / (count - 1);
+    const half = (count - 1) / 2;
+    for (let i = 0; i < count; i++) {
+      const x = (i - half) * spacing;
+      const spawns = Math.min(i, count - 1 - i) >= FIELD_LAYOUT.quietCorners;
       // el palito va un paso atrás del puesto, para no tapar ni el tiro ni al golfista
-      const stick = new THREE.Mesh(stickGeo, stickMat);
+      const stick = new THREE.Mesh(stickGeo, this.stickMat);
       stick.position.set(x, 0.45, TEE_Z - 1.1);
       // adonde no llegan las pelotas, la bandera va apagada: se ve de una que ese puesto es tuyo
-      const flag = new THREE.Mesh(flagGeo, spawns ? flagMat : quietFlagMat);
+      const flag = new THREE.Mesh(flagGeo, spawns ? this.flagMat : this.quietFlagMat);
       flag.position.set(x + 0.19, 0.78, TEE_Z - 1.1);
       // la pelota y su anillo van **exactamente** en el puesto: es desde donde sale el tiro y desde
       // donde se miden las distancias. Estaban 0.7 m adelante, así que al empezar a cargar la pelota
@@ -103,14 +109,42 @@ export class Tees {
       ring.rotation.x = -Math.PI / 2;
       ring.position.set(x, 0.05, TEE_Z);
       ring.visible = false;
+      stick.visible = flag.visible = this.propsVisible;
       scene.add(stick, flag, ballMesh, ring);
       this.props.push(stick, flag);
       this.spots.push({ x, spawns, ball: false, golden: false, bonus: false, incoming: false, ballMesh, ring });
     }
   }
 
+  /**
+   * Los vuelve a armar con el FIELD_LAYOUT de ahora (el panel B, con la partida andando). Las pelotas que
+   * esperaban pasan al puesto nuevo más cercano; las que venían en el aire se pierden y el guardia repone.
+   * Devuelve false si no cambió nada.
+   */
+  relayout(): boolean {
+    const count = FIELD_LAYOUT.tees;
+    const spacing = (2 * (FIELD_LAYOUT.frontHalf - TEE_EDGE)) / (count - 1);
+    const same = this.spots.length === count && Math.abs(this.spots[1].x - this.spots[0].x - spacing) < 1e-6
+      && this.spots.every((s, i) => s.spawns === Math.min(i, count - 1 - i) >= FIELD_LAYOUT.quietCorners);
+    if (same) return false;
+    const waiting = this.spots.filter((s) => s.ball).map((s) => ({ x: s.x, golden: s.golden, bonus: s.bonus }));
+    for (const t of this.tosses) this.scene.remove(t.mesh);
+    this.tosses.length = 0;
+    for (const s of this.spots) this.scene.remove(s.ballMesh, s.ring);
+    for (const o of this.props) this.scene.remove(o);
+    this.spots.length = 0;
+    this.props.length = 0;
+    this.build();
+    for (const w of waiting) {
+      const i = this.nearest(w.x);
+      if (!this.spots[i].ball) this.place(i, w.golden, w.bonus);
+    }
+    return true;
+  }
+
   /** Muestra u oculta los puestos (el modo tenis no los usa). */
   setVisible(on: boolean): void {
+    this.propsVisible = on;
     for (const o of this.props) o.visible = on;
   }
 
