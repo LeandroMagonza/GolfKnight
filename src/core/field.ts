@@ -11,13 +11,54 @@
 // Todo sale de acá: el pasto, las rayas y los árboles (game/world), por dónde caminan y aparecen
 // (game/enemies), y hasta dónde llegan el carrito y los hechizos de Abe.
 
+import { BALANCE_KEY } from '../balanceStore';
+
+/**
+ * El ancho de adelante y los puestos (15/10, para probar desde el panel B → Campo): lo arma todo una sola
+ * vez, al cargar, así que el panel los guarda y valen al recargar. Se leen acá, antes que nadie, del
+ * balance guardado (ver src/debug.ts): solo existe con las herramientas de prueba.
+ */
+export const FIELD_LAYOUT_DEFAULTS = {
+  /** El medio ancho de adelante, el de la línea de los puestos. */
+  frontHalf: 18,
+  /** Cuántos puestos hay. */
+  tees: 9,
+  /** Cuántos de cada punta quedan sin pelotas de los guardias (ahí la ponés vos con la reserva). */
+  quietCorners: 2,
+};
+export type FieldLayout = typeof FIELD_LAYOUT_DEFAULTS;
+
+/** Lo que se puede pedir, para que un número cualquiera no rompa el campo. */
+export function fixLayout(l: FieldLayout): FieldLayout {
+  const tees = Math.round(Math.min(25, Math.max(3, l.tees)));
+  return {
+    frontHalf: Math.min(40, Math.max(6, l.frontHalf)),
+    tees,
+    // por lo menos dos puestos con pelota: nunca cae una donde estás parado
+    quietCorners: Math.round(Math.min(Math.floor((tees - 2) / 2), Math.max(0, l.quietCorners))),
+  };
+}
+
+function savedLayout(): FieldLayout {
+  const out = { ...FIELD_LAYOUT_DEFAULTS };
+  try {
+    if (!__DEV_TOOLS__ || typeof localStorage === 'undefined') return out;
+    const field = JSON.parse(localStorage.getItem(BALANCE_KEY) ?? '{}')?.field ?? {};
+    for (const k of Object.keys(out) as (keyof FieldLayout)[]) if (typeof field[k] === 'number') out[k] = field[k];
+  } catch { /* sin guardado, los de siempre */ }
+  return fixLayout(out);
+}
+
+/** Con lo que arrancó esta carga. El panel compara contra esto para saber si hay que recargar. */
+export const FIELD_LAYOUT: Readonly<FieldLayout> = savedLayout();
+
 /**
  * La línea de los puestos: desde acá se pega, así que es el 0 de las marcas de distancia. Vive acá y no
  * en game/tees para que las marcas del campo no puedan quedar desfasadas de los puestos.
  */
 export const TEE_LINE_Z = 9;
 /** El medio ancho del campo, adelante (y en todo el largo, si es un rectángulo). */
-export const FIELD_HALF_WIDTH = 18;
+export const FIELD_HALF_WIDTH = FIELD_LAYOUT.frontHalf;
 /** Dónde aparecen las oleadas (en el trapecio, el medio del arco). */
 export const SPAWN_Z = 68;
 /** Lo que se deja libre contra cada borde al repartir dónde aparecen y por dónde llegan. */

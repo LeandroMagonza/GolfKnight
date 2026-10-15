@@ -5,7 +5,7 @@
 // no llevan poder: las habilidades van con su propia pelota (ver game/abilities).
 import * as THREE from 'three';
 import { applySpin, BALL_RADIUS, launch, launchWith, ROLL_FRICTION, spinFor, stepBall, type BallState, type BounceParams, type Spin } from '../core/ballistics';
-import { burnSeconds, effectOnly, ELEMENT_INFO, ELEMENTS, freezeFrom, lv, type Element } from '../core/abilities';
+import { burnSeconds, effectOnly, ELEMENT_INFO, ELEMENTS, freezeFrom, lv, SPLIT, type Element } from '../core/abilities';
 import { areaDamageFor, damageFor, hasArea, rollFrictionFor, spreadFor, type Club, type ClubId } from '../core/clubs';
 import type { Effects } from './effects';
 import type { Enemy, Horde } from './enemies';
@@ -504,14 +504,15 @@ export class Balls {
 
   /**
    * El driver en cruz (ver SPLIT): desde el enemigo que tocó salen dos más, uno a cada costado del tiro,
-   * con el mismo golpe, que no se vuelven a abrir ni le pegan otra vez a ese enemigo.
+   * con el mismo golpe, que no se vuelven a abrir ni le pegan otra vez a ese enemigo. Con `SPLIT.field`,
+   * a los costados de la cancha en vez de a los del tiro.
    */
   private split(ball: Ball, enemy: Enemy): void {
     const range = ball.split;
     ball.split = 0;
     const from = new THREE.Vector3(enemy.position.x, 0, enemy.position.z);
     for (const side of [1, -1]) {
-      const dir = new THREE.Vector3(-ball.dir.z * side, 0, ball.dir.x * side);
+      const dir = SPLIT.field > 0 ? new THREE.Vector3(side, 0, 0) : new THREE.Vector3(-ball.dir.z * side, 0, ball.dir.x * side);
       const child = this.fire({ club: ball.club, quality: ball.quality, level: ball.level, power: 1, curve: 0, ability: ball.ability, tags: ball.tags, from, dir }, range);
       child.hitIds.add(enemy.id);
     }

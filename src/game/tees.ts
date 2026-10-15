@@ -6,26 +6,33 @@
 // acumula. Nunca caen en el puesto donde está parado el golfista: después de cada tiro hay que moverse.
 import * as THREE from 'three';
 import { BALL_RADIUS } from '../core/ballistics';
+import { FIELD_LAYOUT } from '../core/field';
 import { TEE_LINE_Z } from './world';
 
-/** Línea de los puestos, y separación entre ellos. La define world: es el 0 de las marcas del campo. */
+/** Línea de los puestos. La define world: es el 0 de las marcas del campo. */
 export const TEE_Z = TEE_LINE_Z;
-export const TEE_SPACING = 4;
-/** Puestos a cada lado del central: 4 y 4, o sea 9 en total, de -16 a +16 m. */
-const SPOTS_PER_SIDE = 4;
 /**
- * Hasta qué puesto llegan las pelotas de los guardias, contando desde el centro. **Los dos de cada
- * punta quedan afuera**: desde ahí casi todo el campo es un tiro cruzado, y mandar una pelota allá era
+ * Cuántos puestos hay y cuántos de cada punta quedan sin pelotas de los guardias: los de FIELD_LAYOUT
+ * (9 y 2 de fábrica; el panel B → Campo los cambia, al recargar). Los puestos se reparten parejos a lo
+ * ancho de adelante, a TEE_EDGE de cada borde: con los 18 m de siempre, uno cada 4 m, de -16 a +16.
+ *
+ * **Las puntas quedan afuera**: desde ahí casi todo el campo es un tiro cruzado, y mandar una pelota allá era
  * obligarte a un viaje de cuatro puestos para ir a buscarla. Siguen estando y se puede ir igual, pero
  * la pelota la ponés vos con la reserva (tecla S): son puestos que se eligen, no que te tocan.
  */
-const SPAWN_PER_SIDE = 2;
+const TEE_COUNT = FIELD_LAYOUT.tees;
+const QUIET_CORNERS = FIELD_LAYOUT.quietCorners;
+const TEE_EDGE = 2;
+export const TEE_SPACING = (2 * (FIELD_LAYOUT.frontHalf - TEE_EDGE)) / (TEE_COUNT - 1);
 /** Cuántas pelotas mantienen los guardias esperando. La mejora «Pelota extra» lo sube. */
 export const BALLS = { max: 3 };
-/** Segundos hasta que sale la próxima pelota, según cuántas hay (contando las que vienen en el aire). */
-const REFILL_DELAY = [0.2, 0.7, 1.5];
-/** Cuánto tarda en llegar una pelota tirada por un guardia. */
-const TOSS_TIME = 0.4;
+/**
+ * La reposición (panel B → Campo → Pelotas). `delay`: segundos hasta que sale la próxima, según cuántas
+ * hay (contando las que vienen en el aire). El reloj corre solo mientras falta alguna: con las tres
+ * esperando está en 0, así que al pegar desde lleno la que repone tarda `delay[2]`. `toss`: lo que tarda
+ * en llegar la que tira el guardia. Todo en 0, sale en el mismo cuadro en que pegás.
+ */
+export const REFILL = { delay: [0.2, 0.7, 1.5], toss: 0.4 };
 /** La pelota nueva cae, si puede, a esta cantidad de puestos del golfista como mucho. */
 const NEAR_STEPS = 3;
 
@@ -76,11 +83,10 @@ export class Tees {
     const stickMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cf, roughness: 0.8 });
     const flagMat = new THREE.MeshStandardMaterial({ color: 0xd8413a, side: THREE.DoubleSide, roughness: 0.9 });
     const quietFlagMat = new THREE.MeshStandardMaterial({ color: 0x6b5a58, side: THREE.DoubleSide, roughness: 0.95 });
-    const count = SPOTS_PER_SIDE * 2 + 1;
-    const half = (count - 1) / 2;
-    for (let i = 0; i < count; i++) {
+    const half = (TEE_COUNT - 1) / 2;
+    for (let i = 0; i < TEE_COUNT; i++) {
       const x = (i - half) * TEE_SPACING;
-      const spawns = Math.abs(i - half) <= SPAWN_PER_SIDE;
+      const spawns = Math.min(i, TEE_COUNT - 1 - i) >= QUIET_CORNERS;
       // el palito va un paso atrás del puesto, para no tapar ni el tiro ni al golfista
       const stick = new THREE.Mesh(stickGeo, stickMat);
       stick.position.set(x, 0.45, TEE_Z - 1.1);
@@ -108,8 +114,9 @@ export class Tees {
     for (const o of this.props) o.visible = on;
   }
 
+  /** Con una cantidad par de puestos, el de la derecha de los dos del medio. */
   get centerIndex(): number {
-    return (this.spots.length - 1) / 2;
+    return Math.round((this.spots.length - 1) / 2);
   }
 
   /** Pelotas esperando en el campo (sin contar las que vienen en el aire). */
@@ -191,7 +198,7 @@ export class Tees {
     const pending = this.counted + this.tosses.length;
     if (pending < BALLS.max) {
       this.timer += dt;
-      if (this.timer >= REFILL_DELAY[Math.min(pending, REFILL_DELAY.length - 1)]) {
+      if (this.timer >= REFILL.delay[Math.min(pending, REFILL.delay.length - 1)]) {
         this.timer = 0;
         const to = this.pickSpot(playerSpot);
         if (to >= 0) this.toss(to);
@@ -202,7 +209,7 @@ export class Tees {
 
     for (let i = this.tosses.length - 1; i >= 0; i--) {
       const t = this.tosses[i];
-      t.t += dt / TOSS_TIME;
+      t.t = REFILL.toss > 0 ? t.t + dt / REFILL.toss : 1;
       const u = Math.min(1, t.t);
       const s = this.spots[t.spot];
       t.mesh.position.set(t.from.x + (s.x - t.from.x) * u, t.from.y * (1 - u) + BALL_RADIUS * 1.35 * u + Math.sin(u * Math.PI) * 2.4, t.from.z + (TEE_Z - t.from.z) * u);

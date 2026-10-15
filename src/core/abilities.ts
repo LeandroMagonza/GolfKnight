@@ -221,8 +221,12 @@ export const BOOST = { bonus: [1, 2, 3] };
  * Driver en cruz (13/10, idea de Leandro): un disparo de driver instantáneo, cargado al nivel de la
  * habilidad, que al pegarle al primero sale también hacia los dos costados: dos drivers más, desde ese
  * enemigo, de `range` metros, que no se vuelven a abrir.
+ *
+ * `field` (15/10, para probar): 0, los dos salen a 90° del tiro, así que de un tiro cruzado uno va para
+ * el fondo y el otro vuelve para tu lado; 1, salen siempre a los costados de la cancha, paralelos a la
+ * línea de los puestos, como si le hubieras pegado de frente.
  */
-export const SPLIT = { range: [14, 18, 22] };
+export const SPLIT = { range: [14, 18, 22], field: 0 };
 /**
  * Fuerza (4/10, pedido de Leandro): durante `seconds`, todos tus tiros pegan por lo menos `floor` (el
  * putter, que ya pega 2 de cerca, `putter`). También los de habilidad, y los de efecto, que solos no

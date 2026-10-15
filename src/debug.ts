@@ -15,7 +15,8 @@ import { HEALS, PERK_LIST, PERK_NUMBERS, PERKS, type Card, type PerkId } from '.
 import { BAND_LIMITS, BAND_NAMES, CHARGE, CLUB_ORDER, CLUBS, FOURTH, hasArea, IRON_MODES, ironMode, QUALITY_FROM, QUALITY_LEVELS, setIronMode, SHIFT, SHIFT_MODES, CURVE, CURVE_VARIANTS, CURVE_RESETS, TAP, TAP_MODES, type Club, type IronMode, type ShiftMode } from './core/clubs';
 import type { ChargeTimes } from './core/swing';
 import { RICOCHET } from './core/shield';
-import { FIELD_HALF_WIDTH, FIELD_SHAPE } from './core/field';
+import { FIELD_HALF_WIDTH, FIELD_LAYOUT, FIELD_LAYOUT_DEFAULTS, FIELD_SHAPE, fixLayout, type FieldLayout } from './core/field';
+import { BALLS, REFILL } from './game/tees';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
@@ -47,6 +48,8 @@ const SPELL_KEYS: Record<SpellId, string> = { hail: 'granizo', whirl: 'remolino'
 const CONFIGS: Record<string, Record<string, number | number[]>> = {
   ...ABILITY_CONFIG, niveles: LEVELS, vulnerable: VULNERABLE, mejoras: PERK_NUMBERS, curarse: HEALS,
   carga: CHARGE as unknown as Record<string, number>,
+  // cuánto tardan los guardias en reponer la pelota (`pelotas.delay.2:0,pelotas.toss:0`; ver REFILL)
+  pelotas: REFILL,
   // el golpe 4 (qué parte del fuerte es el 4, y cuánto pega de más) y su arco: los deja también el simulador de la carga (arco.html)
   'golpe 4': FOURTH as unknown as Record<string, number>, 'arco golpe 4': FOURTH_ARC,
   // el click, el principio del golpe 1 (`click.mode:1` pifia, `click.mode:2` pega 1; ver TAP)
@@ -222,7 +225,7 @@ export interface SavedExtras {
   camera?: { pitch: number; rise: number; auto?: boolean; margin?: number };
   disabled?: string[];
   /** La forma del campo (ver core/field): rectángulo o trapecio, y sus números. */
-  field?: Partial<typeof FIELD_SHAPE>;
+  field?: Partial<typeof FIELD_SHAPE & FieldLayout>;
 }
 
 type Saved = SavedExtras & {
@@ -398,7 +401,7 @@ function note(text: string): HTMLElement {
 /** Cómo se llama cada número de las tablas de habilidades, en el panel. Si falta, se muestra la clave. */
 const LABELS: Record<string, string> = {
   radius: 'radio m', chillSlow: 'con frío, velocidad ×', chillFloor: 'pero no menos de m/s', chillLeast: 'y por lo menos ×',
-  halfWidth: 'ancho a cada lado m', push: 'los corre hasta m', core: 'centro quieto (fracción)', silence: 'silencio s',
+  field: '1 a los costados de la cancha, 0 a 90° del tiro', halfWidth: 'ancho a cada lado m', push: 'los corre hasta m', core: 'centro quieto (fracción)', silence: 'silencio s',
   damage: 'daño', speed: 'velocidad m/s', width: 'ancho m', swallows: 'se traga', life: 'dura s',
   seconds: 'dura s', blast: 'radio de la explosión m', reach: 'alcance m', hitRadius: 'radio del golpe m',
   scale: 'crecen ×', shots: 'tiros repetidos', ghostHit: 'al fantasma, hasta por golpe', eliteSilence: 'al élite, silencio ×', silenceSeconds: 'silencio s',
@@ -441,6 +444,8 @@ export class DebugPanel {
   /** Lo que se repinta al abrir el panel, además de los campos: las teclas de cada habilidad. */
   private readonly onOpen: (() => void)[] = [];
   private camLine: HTMLElement | null = null;
+  /** El ancho y los puestos que se guardan para la próxima carga (los de esta, en FIELD_LAYOUT). */
+  private layout: FieldLayout = { ...FIELD_LAYOUT };
   private fpsLine: HTMLElement | null = null;
   /** Las casillas que muestran cuánto dura cada nivel del golpe: no se escriben, se calculan. */
   /** La línea que muestra los tiempos con las mejoras de ahora. */
@@ -506,7 +511,7 @@ export class DebugPanel {
   /** Guarda el balance tocado, con lo que vive fuera de CLUBS y ENEMIES. */
   save(): void {
     const c = this.hooks.camera();
-    saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled], field: { ...FIELD_SHAPE } });
+    saveBalance({ camera: { pitch: c.pitch, rise: c.rise, auto: c.auto, margin: c.margin }, disabled: [...this.hooks.disabled], field: { ...FIELD_SHAPE, ...this.layout } });
   }
 
   private button(label: string, onClick: (b: HTMLButtonElement) => void, title = ''): HTMLButtonElement {
@@ -1311,6 +1316,47 @@ export class DebugPanel {
       + `Con el fondo de ${FIELD_HALF_WIDTH} m o menos, es el rectángulo de siempre. También se prende con ?trapecio en la dirección.`,
     ));
 
+    // el ancho de adelante y los puestos (ver FIELD_LAYOUT): se arman una sola vez, así que se guardan y
+    // valen al recargar. El botón se pinta mientras lo guardado no es lo que se ve
+    el.append(heading('Ancho y puestos (al recargar)'));
+    const reload = this.button('Recargar para verlo', () => location.reload(), 'Recarga la página con el ancho y los puestos de arriba');
+    reload.className = 'wide';
+    const paintReload = () => {
+      const changed = (Object.keys(FIELD_LAYOUT) as (keyof FieldLayout)[]).some((k) => this.layout[k] !== FIELD_LAYOUT[k]);
+      reload.classList.toggle('pending', changed);
+      reload.textContent = changed ? 'Recargar para verlo (hay cambios sin ver)' : 'Recargar para verlo';
+    };
+    const relayout = (k: keyof FieldLayout, v: number) => {
+      this.layout = fixLayout({ ...this.layout, [k]: v });
+      this.save();
+      paintReload();
+    };
+    const layout = this.numbers([
+      ['medio ancho de adelante (la línea de los puestos)', () => this.layout.frontHalf, (v) => relayout('frontHalf', v), 1, 'm'],
+      ['puestos', () => this.layout.tees, (v) => relayout('tees', v), 1, ''],
+      ['puestos sin pelota en cada punta', () => this.layout.quietCorners, (v) => relayout('quietCorners', v), 1, ''],
+    ]);
+    paintReload();
+    el.append(layout.table, this.row(reload), note(
+      `De fábrica: ${FIELD_LAYOUT_DEFAULTS.frontHalf} m, ${FIELD_LAYOUT_DEFAULTS.tees} puestos y ${FIELD_LAYOUT_DEFAULTS.quietCorners} sin pelota en cada punta. Los puestos se reparten parejos a lo ancho, a 2 m de cada borde. `
+      + 'En las puntas sin pelota los guardias no tiran: ahí la ponés vos con la reserva. Queda por lo menos un par de puestos con pelota. '
+      + 'Se arma una sola vez al cargar: el botón se pinta de naranja cuando hay cambios que todavía no estás viendo. «Restaurar» de abajo lo vuelve a lo de fábrica.',
+    ));
+
+    // la reposición de las pelotas (ver REFILL): cambia en el acto
+    el.append(heading('Pelotas'));
+    const refill = this.numbers([
+      ['espera con 0 esperando', () => REFILL.delay[0], (v) => { REFILL.delay[0] = Math.max(0, v); this.save(); }, 0.1, 's'],
+      ['espera con 1 esperando', () => REFILL.delay[1], (v) => { REFILL.delay[1] = Math.max(0, v); this.save(); }, 0.1, 's'],
+      ['espera con 2 esperando', () => REFILL.delay[2], (v) => { REFILL.delay[2] = Math.max(0, v); this.save(); }, 0.1, 's'],
+      ['vuelo de la que tira el guardia', () => REFILL.toss, (v) => { REFILL.toss = Math.max(0, v); this.save(); }, 0.1, 's'],
+    ]);
+    el.append(refill.table, note(
+      `Los guardias mantienen hasta ${BALLS.max} esperando (la mejora «Pelota extra» suma). Mientras falta alguna corre un reloj y, al llegar a la espera que toca `
+      + 'según cuántas hay (contando las que vienen en el aire), tiran una a un puesto libre, que llega después del vuelo. Con todas esperando el reloj está en 0: '
+      + 'al pegar desde lleno, la que repone tarda la espera de «2 esperando» más el vuelo. Todo en 0: la nueva aparece en el mismo cuadro en que soltás el golpe. Cambia en el acto.',
+    ));
+
     el.append(heading('Cámara'));
     const camLine = document.createElement('p');
     camLine.className = 'note';
@@ -1672,6 +1718,8 @@ export class DebugPanel {
     const lines = [
       '// Golf Knight · balance',
       `campo: ${COURSES[this.hooks.courseIndex()].name}`,
+      `ancho y puestos: medio ancho ${FIELD_LAYOUT.frontHalf} m, ${FIELD_LAYOUT.tees} puestos, ${FIELD_LAYOUT.quietCorners} sin pelota en cada punta`,
+      `pelotas: espera ${REFILL.delay.join(' / ')} s, vuelo ${REFILL.toss} s`,
       `forma: ${FIELD_SHAPE.trapezoid ? `trapecio, fondo ${FIELD_SHAPE.backHalf} m de cada lado, arco ${FIELD_SHAPE.arc} m` : 'rectangulo'}`,
       `camara: pitch ${c.pitch.toFixed(0)}, rise ${c.rise.toFixed(1)}, dist ${c.dist.toFixed(1)}, encuadre ${c.auto ? `automatico a ${c.margin} px de las barras` : 'fijo'}`,
       `bandas: corta <= ${BAND_LIMITS[0]} m, media <= ${BAND_LIMITS[1]} m`,
