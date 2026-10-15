@@ -78,6 +78,10 @@ export interface EnemyMods {
   phase?: number;
   /** Intocable: qué parte del ciclo está abierto (la mitad; con poca dificultad, dos tercios). */
   phaseOpen?: number;
+  /** Invisible: cada tanto se esfuma y camina cruzado hasta que vuelve a aparecer (ver STEALTH). */
+  stealth?: boolean;
+  /** Segundos a la vista entre una vez y la siguiente, si no son los de STEALTH (con poca dificultad, más). */
+  stealthEvery?: number;
   /** Vida de más o de menos sobre la del cuerpo. */
   hp?: number;
   /**
@@ -281,6 +285,24 @@ export const RANGED = { holdZ: 34, every: 4.5, flight: 1.6, radius: 1.4, damage:
 export const DODGE = { cooldown: 5, distance: 3.2, aimWidth: 2.2, hop: 0.6, hopTime: 0.35 };
 
 /**
+ * **El invisible** (15/10, idea de Leandro): a los `first` s de aparecer se esfuma (un destello y un soplido
+ * donde estaba) y, mientras no se lo ve, **camina cruzado**: elige un ángulo de `minAngle` a `maxAngle`
+ * grados de su camino, para un lado o el otro, y se corre de costado **sin perder lo que avanza**: lo de
+ * costado se suma (no se normaliza), así llega a la línea cuando llegaría a la vista. Si ese punto queda
+ * afuera de la cancha prueba el otro lado, y si tampoco entra se queda en el borde (`margin` m antes).
+ * A los `hidden` s (el élite, `eliteHidden`) vuelve a aparecer y sigue derecho; a los `visible` s, otra vez.
+ *
+ * - `onHit`: 1, el golpe que le entra a la vista lo esconde en el acto; 0, solo el reloj.
+ * - El golpe que le llega escondido (también el que no le saca nada: el blindaje, la burbuja, el muro)
+ *   **lo delata**: el pelotazo, el ruido y un destello blanco del cuerpo por `ping` s. No cambia su camino:
+ *   dos golpes dicen para dónde va. Lo que muerde solo (el fuego) no lo delata, pero sus llamas se ven.
+ * - A `line` m de la línea del golfista aparece y ya no se esconde (como el intocable y el que se cura).
+ * - Silenciado aparece, y el reloj se queda quieto hasta que se le pasa.
+ * - `fade`: lo que tarda en desvanecerse o en aparecer.
+ */
+export const STEALTH = { first: 1.5, visible: 3, hidden: 3, eliteHidden: 4, onHit: 1, minAngle: 25, maxAngle: 70, margin: 1, line: 6, ping: 0.45, fade: 0.25 };
+
+/**
  * Alma en pena: va solo por el golfista. Cuando lo agarra le saca `damage` de una y lo deja congelado
  * `hold` segundos (no puede moverse, ni tirar, ni usar habilidades). Después se esfuma: agarra una vez y
  * se va. No hay forma de soltarse antes: la defensa es pegarle antes de que llegue.
@@ -309,7 +331,7 @@ export interface WaveGroup {
 }
 
 /** Los poderes que se reparten al azar. */
-export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner' | 'regen' | 'phase';
+export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal' | 'ethereal' | 'ward' | 'dodge' | 'divine' | 'banner' | 'regen' | 'phase' | 'stealth';
 
 /**
  * Qué tan duros salen los poderes, según la dificultad (el talento «Poderes más duros», 7/10: toca a
@@ -317,7 +339,8 @@ export type PowerKey = 'shield' | 'armor' | 'explode' | 'ranged' | 'dig' | 'heal
  * - `cap`: hasta qué nivel llega el escudo.
  * - `armorRolls`: el blindaje (que no pasa de ARMOR_MAX) sale con el mayor de tantos sorteos: con 2, el
  *   blindaje 1 sale mucho menos.
- * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar.
+ * - `recharge`: por cuánto se multiplica lo que tardan el escurridizo y el bendito en recargar, y lo que el
+ *   invisible pasa a la vista entre una vez y la siguiente.
  * - `regen`: por cuánto se multiplica el margen del que se cura (más margen, más tarda en curarse).
  * - `timings`: en cuántos tiempos va el ritmo de los intocables (3; con poca dificultad, 2).
  * - `phaseOpen`: qué parte del ciclo está abierto cada intocable (la mitad; con poca dificultad, dos
@@ -380,7 +403,7 @@ export const POWER_BIAS = { ethereal: 0, divine: 0, giants: 1 };
  * 12/10: «todos los fantasmas un 10 % más lentos, siempre, me parece razonable; y después el talento le suma
  * uno de vida»). 1 es la de siempre; en prueba.
  */
-export const POWER_SPEED: Record<ScenarioPower, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1, dodge: 1, regen: 1, phase: 1 };
+export const POWER_SPEED: Record<ScenarioPower, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1, dodge: 1, regen: 1, phase: 1, stealth: 1 };
 
 /**
  * Cuántos salen con cada poder de escenario, sobre los que le tocarían (el que lo presenta y el élite,
@@ -388,7 +411,7 @@ export const POWER_SPEED: Record<ScenarioPower, number> = { shield: 1, armor: 1,
  * 12/10 para el bendito, que cuesta el doble de tiros y no tiene palo que lo resuelva (la burbuja se come
  * también el área). 1 es todos.
  */
-export const POWER_COUNT: Record<ScenarioPower, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1, dodge: 1, regen: 1, phase: 1 };
+export const POWER_COUNT: Record<ScenarioPower, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1, dodge: 1, regen: 1, phase: 1, stealth: 1 };
 
 /** A cuál de `free` le toca el poder `mods`: parejo, salvo el fantasma y el bendito (ver POWER_BIAS). */
 function pickBody(free: Spawn[], mods: EnemyMods, rand: () => number): Spawn {
@@ -524,6 +547,11 @@ function dodgeMods(hard: PowerHardness): EnemyMods {
   return hard.recharge === 1 ? { dodge: true } : { dodge: true, dodgeEvery: DODGE.cooldown * hard.recharge };
 }
 
+/** El invisible: con poca dificultad pasa más rato a la vista. */
+function stealthMods(hard: PowerHardness): EnemyMods {
+  return hard.recharge === 1 ? { stealth: true } : { stealth: true, stealthEvery: STEALTH.visible * hard.recharge };
+}
+
 /** El blindaje de un común: de 1 en el primer escenario, y después 1 o 2 (el mayor de `armorRolls` sorteos). */
 function armorLevel(tier: number, rand: () => number, hard: PowerHardness): number {
   let best = 0;
@@ -554,6 +582,7 @@ export const POWERS: Record<PowerKey, (tier: number, rand: () => number, hard?: 
   regen: (_tier, _rand, hard = HARDEST_POWERS) => ({ regen: REGEN.margin * hard.regen, hp: REGEN.hp }),
   // con poca dificultad, dos tiempos en vez de tres: el mismo ciclo, abierto la mitad
   phase: (_tier, _rand, hard = HARDEST_POWERS) => phaseMods(hard),
+  stealth: (_tier, _rand, hard = HARDEST_POWERS) => stealthMods(hard),
 };
 
 /** El intocable: en cuántos tiempos va el ritmo y cuánto está abierto, según la dificultad. El mismo para todos los tamaños. */
@@ -565,7 +594,7 @@ function phaseMods(hard: PowerHardness): EnemyMods {
  * **Los poderes de escenario**: cada partida sortea tres de estos, uno por escenario. Son los que se
  * defienden de los golpes; los que cambian cómo se mueve el que los lleva van aparte (SUPPORT_POWERS).
  */
-export const SCENARIO_POWERS = ['shield', 'armor', 'ethereal', 'divine', 'dodge', 'regen', 'phase'] as const;
+export const SCENARIO_POWERS = ['shield', 'armor', 'ethereal', 'divine', 'dodge', 'regen', 'phase', 'stealth'] as const;
 export type ScenarioPower = (typeof SCENARIO_POWERS)[number];
 
 /**
@@ -600,6 +629,8 @@ export const BOSS_POWERS: Record<ScenarioPower, (tier: number, hard?: PowerHardn
   regen: (_tier, hard = HARDEST_POWERS) => ({ regen: REGEN.eliteMargin * hard.regen }),
   // el mismo ritmo que los comunes (11/10): se turna con ellos
   phase: (_tier, hard = HARDEST_POWERS) => phaseMods(hard),
+  // el mismo reloj, pero más rato escondido (STEALTH.eliteHidden: lo lee el enemigo por ser élite)
+  stealth: (_tier, hard = HARDEST_POWERS) => stealthMods(hard),
 };
 
 /** Qué parte de los enemigos de una oleada sale con poder, y de esos, cuántos con el del escenario. */
@@ -777,20 +808,20 @@ export const HARDEST: RunRules = {
 
 const TITLES: Record<ScenarioPower, string> = L({
   shield: 'Escudos al frente', armor: 'Acorazados', ethereal: 'Fantasmas', divine: 'Los benditos', dodge: 'Los escurridizos',
-  regen: 'Los que se curan', phase: 'Los intocables',
+  regen: 'Los que se curan', phase: 'Los intocables', stealth: 'Los invisibles',
 }, {
   shield: 'Shields Up', armor: 'Armored Up', ethereal: 'Ghosts', divine: 'The Blessed', dodge: 'The Slippery Ones',
-  regen: 'The Regenerators', phase: 'The Untouchables',
+  regen: 'The Regenerators', phase: 'The Untouchables', stealth: 'The Unseen',
 });
 /** El título de la oleada del élite: «Élite: caballero esqueleto blindado». En inglés el poder va adelante. */
 const BOSS_TITLES: Record<ScenarioPower, (enemy: string) => string> = L({
   shield: (e: string) => `${e} con la calavera`, armor: (e: string) => `${e} blindado`, ethereal: (e: string) => `${e} fantasma`,
   divine: (e: string) => `${e} bendito`, dodge: (e: string) => `${e} escurridizo`, regen: (e: string) => `${e} que se cura`,
-  phase: (e: string) => `${e} intocable`,
+  phase: (e: string) => `${e} intocable`, stealth: (e: string) => `${e} invisible`,
 }, {
   shield: (e: string) => `${e} with the skull`, armor: (e: string) => `armored ${e}`, ethereal: (e: string) => `ghost ${e}`,
   divine: (e: string) => `blessed ${e}`, dodge: (e: string) => `slippery ${e}`, regen: (e: string) => `regenerating ${e}`,
-  phase: (e: string) => `untouchable ${e}`,
+  phase: (e: string) => `untouchable ${e}`, stealth: (e: string) => `invisible ${e}`,
 });
 
 /** La escalera de vida, de menor a mayor. */

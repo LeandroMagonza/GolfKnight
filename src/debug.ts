@@ -23,7 +23,7 @@ import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId 
 import { BUDGET, POWER_WEIGHT } from './core/budget';
 import { POLISH, setAllPolish, type PolishKey } from './core/polish';
 import { groupOf, METRONOME, SFX_NAMES, SFX_VOLUME, SONG_VOLUME, VOLUME, type VolumeGroup } from './audio/volumes';
-import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, SPAWN_RUSH, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
+import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, SPAWN_RUSH, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, STEALTH, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
 import { BOT_PREFS, saveBotPrefs } from './botPrefs';
@@ -76,7 +76,7 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   paso: POWER_SPEED,
   // cuántos salen con cada poder, sobre los que tocaban (`cuantos.divine:0.7`)
   cuantos: POWER_COUNT,
-  curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, intocable: PHASE, divino: DIVINE,
+  curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, intocable: PHASE, divino: DIVINE, invisible: STEALTH,
   // la vida del élite, fija desde el 12/10 (ver ELITE.hp)
   élite: ELITE as unknown as Record<string, number | number[]>,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
@@ -431,7 +431,7 @@ const PERK_FIELDS: Partial<Record<PerkId, [Record<string, number | number[]>, st
 
 /** Lo elegido en «Probar una oleada» (ver buildTrial). */
 /** Los poderes de escenario, como se los nombra en las filas de velocidad. */
-const SPEED_NAMES: Record<ScenarioPower, string> = { shield: 'escudo', armor: 'blindado', ethereal: 'fantasma', divine: 'bendito', dodge: 'escurridizo', regen: 'que se cura', phase: 'intocable' };
+const SPEED_NAMES: Record<ScenarioPower, string> = { shield: 'escudo', armor: 'blindado', ethereal: 'fantasma', divine: 'bendito', dodge: 'escurridizo', regen: 'que se cura', phase: 'intocable', stealth: 'invisible' };
 const TRIAL_KEY = 'gk.pruebaOla';
 const TABS = ['Palos', 'Carga', 'Tiro', 'Habilidades', 'Mejoras', 'Enemigos', 'Campo', 'Visual', 'Sonido', 'Pruebas'] as const;
 type Tab = (typeof TABS)[number];
@@ -1286,6 +1286,21 @@ export class DebugPanel {
       ...(Object.entries(SPEED_NAMES) as [ScenarioPower, string][]).map(([p, name]) => [`velocidad del ${name}, siempre`, () => POWER_SPEED[p], (v: number) => { POWER_SPEED[p] = Math.min(2, Math.max(0.3, v)); }, 0.05, '×'] as [string, () => number, (v: number) => void, number, string]),
     ]);
     el.append(regen.table, note('El que se cura se cura entero cada tanto: el ciclo alcanza para matarlo con golpes medios (cuántos le hacen falta por su vida, uno cada tanto) y sobra el margen. Con poca dificultad el margen y la burbuja se multiplican por la recarga de arriba. Al bendito, además, cada golpe que le entra le devuelve la burbuja. Los intocables van en tres grupos que se turnan (sin el punto, dos), en el mismo ciclo: en cada pulso hay uno abierto. Vale desde la próxima partida.'));
+
+    el.append(heading('El invisible'));
+    const stealth = this.numbers([
+      ['a la vista al aparecer', () => STEALTH.first, (v) => { STEALTH.first = Math.max(0, v); }, 0.25, 's'],
+      ['a la vista entre una y otra', () => STEALTH.visible, (v) => { STEALTH.visible = Math.max(0.25, v); }, 0.25, 's'],
+      ['escondido', () => STEALTH.hidden, (v) => { STEALTH.hidden = Math.max(0.25, v); }, 0.25, 's'],
+      ['escondido, el élite', () => STEALTH.eliteHidden, (v) => { STEALTH.eliteHidden = Math.max(0.25, v); }, 0.25, 's'],
+      ['el golpe a la vista lo esconde', () => STEALTH.onHit, (v) => { STEALTH.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 solo el reloj'],
+      ['ángulo mínimo', () => STEALTH.minAngle, (v) => { STEALTH.minAngle = Math.min(STEALTH.maxAngle, Math.max(0, v)); }, 5, '°'],
+      ['ángulo máximo', () => STEALTH.maxAngle, (v) => { STEALTH.maxAngle = Math.min(85, Math.max(STEALTH.minAngle, v)); }, 5, '°'],
+      ['aparece a', () => STEALTH.line, (v) => { STEALTH.line = Math.max(0, v); }, 1, 'm de la línea'],
+      ['destello del golpe', () => STEALTH.ping, (v) => { STEALTH.ping = Math.max(0.05, v); }, 0.05, 's'],
+      ['fundido', () => STEALTH.fade, (v) => { STEALTH.fade = Math.max(0.02, v); }, 0.05, 's'],
+    ]);
+    el.append(stealth.table, note('Escondido camina cruzado, a un ángulo al azar entre el mínimo y el máximo, para un lado o el otro: lo de costado se suma a lo que avanza (no se normaliza), así llega a la línea cuando llegaría a la vista. Si el punto queda afuera de la cancha prueba el otro lado. Un golpe que le llega escondido lo delata (destello blanco) sin cambiarle el camino. Silenciado aparece. Vale en el acto.'));
   }
 
   // ---- campo y cámara ----
@@ -1533,7 +1548,7 @@ export class DebugPanel {
   private buildTrial(el: HTMLElement): void {
     el.append(heading('Probar una oleada'));
     const names: Record<string, ScenarioPower | ''> = {
-      'al azar': '', escudo: 'shield', blindaje: 'armor', fantasma: 'ethereal', bendito: 'divine', escurridizo: 'dodge', 'se cura': 'regen', intocable: 'phase',
+      'al azar': '', escudo: 'shield', blindaje: 'armor', fantasma: 'ethereal', bendito: 'divine', escurridizo: 'dodge', 'se cura': 'regen', intocable: 'phase', invisible: 'stealth',
     };
     const labels = Object.keys(names);
     const params = new URLSearchParams(location.search);

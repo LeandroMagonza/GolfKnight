@@ -27,6 +27,7 @@ Para comparar con lo de antes:
 | `?prueba=intocable` | Mientras está cerrado, la pelota rebota con otro sonido y un anillo violeta. |
 | `?prueba=curacion` | El chamán curandero nuevo. Llena su barra (6 s) y cura entero a todos los de su círculo: el élite y el jefe recuperan 5 como mucho. Se ve un círculo de runas verde, cruces que suben y un sonido. A los costados hay dos enemigos que se curan solos. |
 | `?prueba=esquiva` | El salto del escurridizo suena y deja rayas. Cuando le vuelve la esquiva, suena un tic chiquito. |
+| `?prueba=invisible` | Los invisibles se esfuman (nube y soplido) y caminan cruzados; el golpe que les llega escondidos los delata con un destello blanco. El caballero grande es el élite (más rato escondido). |
 | `?prueba=hechiceros` | Suena cuando conjuran y cuando cae el hechizo. |
 | `?prueba=muertes` | Uno de cada tipo, cada uno con su voz al morir. Al caer todos suena la oleada terminada y salen las cartas: suenan al aparecer y al elegir. |
 | `?prueba=jefe` | Entra un élite, con aviso y risa. Después el gólem: rugido al entrar, la roca que tira y la que cae, y su muerte. |

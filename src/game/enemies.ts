@@ -12,7 +12,7 @@ import { fieldHalfAt, laneX, spawnAt, trapezoidOn, vanishZ } from '../core/field
 import { ABE_BOLT, BOLT_INFO } from '../coop/spells';
 import { behindShield, shieldFaces, SHIELD_FRONT } from '../core/shield';
 import { heightAt, mounds } from '../core/terrain';
-import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, phaseSlot, REGEN, regenPace, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
+import { BANNER_HOLD_Z, behaviorOf, DODGE, ELITE, type ScenarioPower, ENEMIES, GEOMANCER, GRAB, RANGED, SHIELD_WALL, type Behavior, GOLEM_HOLD_Z, GOLEM_THROW_EVERY, HEAL_AURA, PHASE, phaseSlot, REGEN, regenPace, regenPeriod, SHAMAN_HOLD_Z, SHAMAN_WARD_RADIUS, SPEED_SPREAD, STEALTH, type Aura, type EnemyKind, type EnemyMods, type EnemyStats } from '../core/waves';
 import { EF, r2, r3, type EnemySnap, type ProjSnap } from '../net/snapshot';
 import { polished } from '../core/polish';
 import { LayeredAnimator } from './animator';
@@ -88,6 +88,8 @@ export type HordeEvent =
   | { type: 'burnTick'; enemy: Enemy }
   /** Uno que esquiva saltó al costado. */
   | { type: 'dodged'; enemy: Enemy }
+  /** El invisible se esfumó (`hidden`) o volvió a aparecer. */
+  | { type: 'stealth'; enemy: Enemy; hidden: boolean }
   /** El tutorial no lo dejó morir: no era el tiro que se estaba enseñando. */
   | { type: 'spared'; enemy: Enemy }
   /**
@@ -205,10 +207,12 @@ const BOSS_BAR_HP = 10;
 /** Lo ancho de la vida del jefe, en cuadraditos: el número y la barra. */
 const BOSS_BAR_SLOTS = 13;
 
-export type BadgeIcon = 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge' | 'skull' | 'regen' | 'phase';
+export type BadgeIcon = 'shield' | 'wall' | 'armor' | 'ward' | 'heal' | 'banner' | 'ethereal' | 'divine' | 'bomb' | 'dig' | 'spell' | 'dodge' | 'skull' | 'regen' | 'phase' | 'stealth';
 
 /** El ícono de cada poder de escenario, para la fila del recorrido de la partida. */
-export const SCENARIO_ICONS: Record<ScenarioPower, BadgeIcon> = { shield: 'shield', armor: 'armor', ethereal: 'ethereal', divine: 'divine', dodge: 'dodge', regen: 'regen', phase: 'phase' };
+export const SCENARIO_ICONS: Record<ScenarioPower, BadgeIcon> = { shield: 'shield', armor: 'armor', ethereal: 'ethereal', divine: 'divine', dodge: 'dodge', regen: 'regen', phase: 'phase', stealth: 'stealth' };
+/** El invisible: su ícono (un ojo tachado). */
+const STEALTH_COLOR = '#9aa7ff';
 /** El verde de la cura: la barra del que se cura y el brillo del cuerpo al curarse. */
 const REGEN_COLOR = '#3ee07a';
 const REGEN_GLOW = new THREE.Color(0x1f9a4a);
@@ -262,7 +266,7 @@ const TIER_RIM = ['', '', '#eef3f8', '#ffc61a'];
 /** El color de cada poder, para el destello de cuando lo gana (anillos, brillo del cuerpo). */
 export const POWER_COLORS: Record<PowerName, number> = {
   shield: 0xff8a1f, armor: 0x5b9bff, ward: 0xb26bff, heal: 0x2fd05a, banner: 0xffd34d, ethereal: 0xcfe6ff, divine: 0xffe14d,
-  bomb: 0xff7a2e, dig: 0x9a6a3a, spell: 0xff4fa3, dodge: 0x10c9b4, skull: 0xff4d4d, regen: 0x3ee07a, phase: 0xb26bff, warded: 0xb26bff,
+  bomb: 0xff7a2e, dig: 0x9a6a3a, spell: 0xff4fa3, dodge: 0x10c9b4, skull: 0xff4d4d, regen: 0x3ee07a, phase: 0xb26bff, stealth: 0x9aa7ff, warded: 0xb26bff,
 };
 
 /** El ícono de un poder, solo y grande (para el que salta cuando lo gana): `px` de lado. */
@@ -520,6 +524,14 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.closePath();
       ctx.fillStyle = PHASE_COLOR;
       break;
+    case 'stealth':
+      // invisible: un ojo (la pupila y la tachadura van encima, ver más abajo)
+      ctx.moveTo(cx - 14, 16);
+      ctx.quadraticCurveTo(cx, 1, cx + 14, 16);
+      ctx.quadraticCurveTo(cx, 31, cx - 14, 16);
+      ctx.closePath();
+      ctx.fillStyle = STEALTH_COLOR;
+      break;
     case 'banner':
       ctx.rect(cx - 10, 3, 3, 26);
       ctx.moveTo(cx - 7, 4);
@@ -543,6 +555,23 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
   ctx.fill();
   ctx.stroke();
   if (tier > 1) drawTierMarks(ctx, cx, b.icon, tier);
+  if (b.icon === 'stealth') {
+    // la pupila, y una raya que tacha el ojo de punta a punta
+    ctx.beginPath();
+    ctx.arc(cx, 16, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#1b2240';
+    ctx.fill();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#0b0f14';
+    ctx.beginPath();
+    ctx.moveTo(cx - 11, 27);
+    ctx.lineTo(cx + 11, 5);
+    ctx.stroke();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#eef0ff';
+    ctx.stroke();
+  }
   // el dibujo de adentro: el número, o un símbolo para los que no llevan número
   const mark = b.value !== undefined ? String(b.value) : b.icon === 'wall' ? '∞' : '';
   if (mark && tier > 1) {
@@ -670,6 +699,18 @@ export class Enemy {
   /** Esquiva: segundos hasta que puede volver a saltar, y cuánto le queda al salto en el aire. */
   dodgeLeft = 0;
   private hopLeft = 0;
+  /**
+   * El invisible (ver STEALTH): si está escondido ahora, cuánto le falta para cambiar (a la vista, para
+   * esfumarse; escondido, para volver), cuánto se corre de costado por metro que avanza mientras no se lo
+   * ve, y lo que le queda al destello blanco del golpe que lo delata. `cloak` es lo que se ve, de 0 (entero)
+   * a 1 (nada), para el fundido; `cloakMats`, si los materiales están en modo transparente por eso.
+   */
+  hidden = false;
+  private stealthLeft = STEALTH.first;
+  private stealthDrift = 0;
+  stealthPing = 0;
+  private cloak = 0;
+  private cloakMats = false;
   /** Bajo el aura de un chamán: inmune a todo daño. Lo recalcula la horda en cada cuadro. */
   warded = false;
   /**
@@ -831,6 +872,8 @@ export class Enemy {
   private readonly materials: { mat: THREE.MeshStandardMaterial; color: THREE.Color }[] = [];
   private readonly barBg: THREE.Sprite;
   private readonly barFill: THREE.Sprite;
+  /** La sombra redonda en el piso (el invisible la esconde). */
+  private readonly shadow: THREE.Mesh;
   /** Cuánto hielo le queda, debajo de la barra de vida. */
   private readonly chillBg: THREE.Sprite;
   private readonly chillFill: THREE.Sprite;
@@ -936,6 +979,7 @@ export class Enemy {
     shadow.position.y = 0.03;
     shadow.scale.setScalar(stats.radius * 1.15);
     this.group.add(shadow);
+    this.shadow = shadow;
 
     const barWidth = Math.max(1, stats.radius * 2.2);
     this.barBg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x111111, transparent: true, opacity: 0.7, depthTest: false }));
@@ -1199,6 +1243,7 @@ export class Enemy {
     if (this.mods.dodge) out.push({ icon: 'dodge', off: this.dodgeLeft > 0, mutes: true });
     if (this.mods.regen) out.push({ icon: 'regen', mutes: true });
     if (this.mods.phase) out.push({ icon: 'phase', off: !this.phaseShut, mutes: true });
+    if (this.mods.stealth) out.push({ icon: 'stealth', mutes: true });
     return out;
   }
 
@@ -1361,7 +1406,7 @@ export class Enemy {
       ctx.stroke();
     }
     p.tex.needsUpdate = true;
-    p.sprite.visible = this.alive && !this.passed;
+    p.sprite.visible = this.alive && !this.passed && this.cloak < 0.5;
   }
 
   /** Redibuja la vida si cambió algo de lo que muestra (la vida, la bandera, el silencio sobre la armadura). */
@@ -1377,7 +1422,7 @@ export class Enemy {
 
   /** Lo que se mira de sus poderes, junto (ver `updatePowers`). */
   private get powerSig(): string {
-    return `${this.shieldLevel}/${this.armorLevel}/${this.auraKind}/${this.ethereal}/${this.divineEvery > 0}/${!!this.mods.dodge}/${!!this.mods.regen}/${!!this.mods.phase}/${this.size}`;
+    return `${this.shieldLevel}/${this.armorLevel}/${this.auraKind}/${this.ethereal}/${this.divineEvery > 0}/${!!this.mods.dodge}/${!!this.mods.regen}/${!!this.mods.phase}/${!!this.mods.stealth}/${this.size}`;
   }
 
   /**
@@ -1456,6 +1501,8 @@ export class Enemy {
       this.state = 'dying';
       this.dyingTime = 0;
       this.grabbing = false;
+      // el invisible cae a la vista
+      this.hidden = false;
       // la pólvora y el fuego los lee la horda después de este golpe: por eso no se borran acá
       this.chillTimer = 0;
       this.silenceTimer = 0;
@@ -1711,6 +1758,64 @@ export class Enemy {
     this.hopLeft = DODGE.hopTime;
   }
 
+  /**
+   * ¿Puede estar escondido ahora? Tiene el poder, no está silenciado, no pasó, no lo tienen quieto en un
+   * lugar (el tutorial, las pruebas) y le falta para llegar a la línea (ver STEALTH.line).
+   */
+  private get canHide(): boolean {
+    return !!this.mods.stealth && this.alive && !this.passed && !this.silenced && !this.hold && !this.script
+      && this.position.z - TEE_Z > STEALTH.line;
+  }
+
+  /**
+   * Se esfuma: elige hacia dónde caminar cruzado mientras no se lo ve (ver STEALTH). El ángulo es sobre lo
+   * que avanza, que no cambia: lo de costado se suma. Si el punto al que llegaría queda afuera de la cancha,
+   * prueba el otro lado; si tampoco entra, va hasta el borde.
+   */
+  hideNow(horde: Horde): void {
+    if (this.hidden || !this.canHide) return;
+    this.hidden = true;
+    this.stealthLeft = this.size > 1 ? STEALTH.eliteHidden : STEALTH.hidden;
+    const lo = Math.min(STEALTH.minAngle, STEALTH.maxAngle);
+    const deg = lo + Math.random() * (STEALTH.maxAngle - lo);
+    const tan = Math.tan(THREE.MathUtils.degToRad(Math.min(85, deg)));
+    // lo que avanza escondido, y cuánto le queda a cada lado hasta el borde (donde es más angosta)
+    const ahead = Math.min(this.pace, this.paceCap) * this.stealthLeft;
+    const half = Math.min(fieldHalfAt(this.position.z), fieldHalfAt(Math.max(TEE_Z, this.position.z - ahead))) - STEALTH.margin;
+    const room = (side: number) => Math.max(0, side > 0 ? half - this.position.x : half + this.position.x);
+    const want = tan * ahead;
+    let side = Math.random() < 0.5 ? -1 : 1;
+    if (want > room(side) && room(-side) > room(side)) side = -side;
+    this.stealthDrift = ahead > 0.01 ? (side * Math.min(want, room(side))) / ahead : 0;
+    horde.emit({ type: 'stealth', enemy: this, hidden: true });
+  }
+
+  /** Vuelve a aparecer y sigue derecho; el reloj arranca de nuevo (con poca dificultad, más largo). */
+  private showNow(horde: Horde | null): void {
+    if (!this.hidden) return;
+    this.hidden = false;
+    this.stealthDrift = 0;
+    this.stealthLeft = this.mods.stealthEvery ?? STEALTH.visible;
+    if (this.alive) horde?.emit({ type: 'stealth', enemy: this, hidden: false });
+  }
+
+  /** El reloj del invisible. Silenciado se queda quieto (y aparece, si estaba escondido). */
+  private updateStealth(dt: number, horde: Horde): void {
+    if (!this.canHide) {
+      this.showNow(horde);
+      return;
+    }
+    this.stealthLeft -= dt;
+    if (this.stealthLeft > 0) return;
+    if (this.hidden) this.showNow(horde);
+    else this.hideNow(horde);
+  }
+
+  /** Un golpe le llegó escondido (le haya sacado o no): lo delata con un destello blanco (ver STEALTH). */
+  ping(): void {
+    if (this.hidden) this.stealthPing = STEALTH.ping;
+  }
+
   /** Suelta al golfista (si lo tenía) y queda aturdida un rato. */
   letGo(stun: number): void {
     if (!this.grabbing) return;
@@ -1803,6 +1908,7 @@ export class Enemy {
     if (this.regenGlow > 0) this.regenGlow = Math.max(0, this.regenGlow - dt);
     // el intocable: el ritmo es el de todos (lo corre la horda); acá, si va llegando a la línea
     if (this.mods.phase && !this.passed) this.updatePhase();
+    if (this.mods.stealth) this.updateStealth(dt, horde);
     if (this.hopLeft > 0) {
       this.hopLeft = Math.max(0, this.hopLeft - dt);
       this.model.position.y = Math.sin(Math.PI * (1 - this.hopLeft / DODGE.hopTime)) * DODGE.hop;
@@ -1990,6 +2096,12 @@ export class Enemy {
       this.position.x += (dx / dist) * step;
       this.position.z += (dz / dist) * step;
       if (!lured && this.target === 'gate') this.towardLine = THREE.MathUtils.clamp(-dz / dist, 0.2, 1);
+      // el invisible, escondido, se corre de costado por lo que avanza (sin perder nada de lo que avanza)
+      if (this.hidden && !lured && this.target === 'gate' && dz < 0) {
+        const ahead = (-dz / dist) * step;
+        this.position.x += this.stealthDrift * ahead;
+        lookX += this.stealthDrift * -dz;
+      }
       // los clips de Mixamo avanzan ~1.5 m/s caminando y ~4 m/s corriendo a velocidad 1, para un modelo de 1.8 m.
       // Con la altura que se ve: el élite y el gigante dan pasos más largos, así que mueven las piernas más
       // despacio (antes el élite agrandado caminaba a los saltitos)
@@ -2024,8 +2136,9 @@ export class Enemy {
     const f = (this.frozen ? EF.frozen : 0) | (this.burning ? EF.burning : 0) | (this.powderTimer > 0 ? EF.powder : 0)
       | (this.warded ? EF.warded : 0) | (this.divineReady ? EF.divine : 0) | (this.dodgeLeft > 0 ? EF.dodgeCooling : 0)
       | (this.passed ? EF.passed : 0) | (this.flashTimer > 0 ? EF.flash : 0) | (this.bannered ? EF.bannered : 0)
-      | (this.regenGlow > 0 ? EF.regenGlow : 0);
+      | (this.regenGlow > 0 ? EF.regenGlow : 0) | (this.hidden ? EF.hidden : 0);
     return {
+      ...(this.stealthPing > 0 ? { pg: r2(this.stealthPing) } : {}),
       ...(this.mods.regen ? { rg: r2(this.regenProgress) } : {}),
       ...(this.markTimer > 0 ? { mk: r2(this.markTimer) } : {}),
       ...(this.mods.phase ? { ph: r2(this.phaseBar) } : {}),
@@ -2066,6 +2179,8 @@ export class Enemy {
     // el que se cura: la barra y el brillo, como en el del que juega
     if (s.rg !== undefined) this.remoteRegen = s.rg;
     if (s.ph !== undefined) this.remotePhase = s.ph;
+    this.hidden = !!(s.f & EF.hidden);
+    if (s.pg !== undefined && s.pg > this.stealthPing) this.stealthPing = s.pg;
     // la marca: lo que le queda; si recién aparece, de cuánto era
     if (s.mk && s.mk > this.markTimer + 0.05) this.markMax = s.mk;
     this.markTimer = s.mk ?? 0;
@@ -2273,6 +2388,11 @@ export class Enemy {
     if (this.wallMat) this.wallMat.emissive.setRGB(0.45, 0.12, 0.8).multiplyScalar(0.22 + 0.14 * Math.sin(this.age * 6));
     if (this.flashTimer > 0) this.flashTimer -= dt;
     const flash = this.flashTimer > 0;
+    // el invisible: se desvanece o aparece de a poco, y el golpe que lo delata lo pinta de blanco
+    if (this.stealthPing > 0) this.stealthPing = Math.max(0, this.stealthPing - dt);
+    const veil = this.hidden && this.alive && !this.passed ? 1 : 0;
+    if (this.cloak !== veil) this.cloak = veil > this.cloak ? Math.min(1, this.cloak + dt / STEALTH.fade) : Math.max(0, this.cloak - dt / STEALTH.fade);
+    const pinged = this.cloak > 0.5 && this.stealthPing > 0;
     // el kamikaze late en rojo, cada vez más rápido cuando ya encendió la mecha
     const fuseOn = this.behavior === 'kamikaze' && this.state === 'attack';
     const pulse = this.behavior === 'kamikaze' ? 0.5 + 0.5 * Math.sin(this.age * (fuseOn ? 40 : 9)) : 0;
@@ -2309,7 +2429,7 @@ export class Enemy {
     // recién ganó un poder: brilla del color del poder (ver updatePowers)
     const gained = this.gainFx.glow;
     for (const { mat, color } of this.materials) {
-      if (flash) mat.emissive.setHex(0xffffff);
+      if (flash || pinged) mat.emissive.setHex(0xffffff);
       else if (gained) mat.emissive.copy(this.gainFx.glowColorNow).multiplyScalar(0.9 * gained);
       else if (healed) mat.emissive.copy(REGEN_GLOW).multiplyScalar(0.4 + 1.2 * healed);
       else if (this.frozen) mat.emissive.setHex(0x3a7fa8);
@@ -2321,16 +2441,42 @@ export class Enemy {
       // el fantasma brilla apenas celeste, así se lo ve aunque sea casi transparente
       else if (this.ethereal && !pulse) mat.emissive.setRGB(0.12, 0.2, 0.3);
       else mat.emissive.setRGB(pulse * 0.7, pulse * 0.08, 0);
-      mat.emissiveIntensity = flash ? 0.6 : 1;
-      if (this.frozen) mat.color.copy(color).lerp(FROZEN_TINT, 0.7);
+      mat.emissiveIntensity = pinged ? 1.3 : flash ? 0.6 : 1;
+      if (pinged) mat.color.setRGB(1, 1, 1);
+      else if (this.frozen) mat.color.copy(color).lerp(FROZEN_TINT, 0.7);
       else if (this.chilled) mat.color.copy(color).lerp(CHILL_TINT, 0.45);
       else mat.color.copy(color);
     }
+    if (this.mods.stealth) this.applyCloak();
+  }
+
+  /**
+   * Lo que se ve del invisible: el cuerpo se funde (con el destello del golpe que lo delata, una silueta
+   * blanca que se apaga), y escondido no lleva sombra, ni íconos, ni vida, ni barritas.
+   */
+  private applyCloak(): void {
+    const ping = this.cloak > 0.5 && this.stealthPing > 0 ? smooth(this.stealthPing / STEALTH.ping) : 0;
+    const show = Math.max(1 - this.cloak, ping);
+    const shown = this.cloak < 0.5;
+    this.model.visible = show > 0.01;
+    this.shadow.visible = shown;
+    if (this.pips) this.pips.sprite.visible = shown && this.alive && !this.passed;
+    const fading = show < 0.999;
+    if (fading !== this.cloakMats) {
+      this.cloakMats = fading;
+      for (const { mat } of this.materials) {
+        mat.transparent = fading || this.passed || this.ethereal;
+        mat.needsUpdate = true;
+      }
+    }
+    const base = this.passed ? 0.4 : this.ethereal ? 0.28 : 1;
+    for (const { mat } of this.materials) mat.opacity = base * show;
   }
 
   /** Las dos barritas de estado, debajo de la vida: el frío y el silencio. */
   private refreshChill(): void {
-    const cold = this.chilled && this.alive;
+    // (al invisible escondido no se le ven: lo delatarían)
+    const cold = this.chilled && this.alive && this.cloak < 0.5;
     this.chillBg.visible = this.chillFill.visible = cold;
     if (cold) this.chillFill.scale.x = Math.max(0.001, this.chillBg.scale.x * (this.chillTimer / this.chillMax));
     const mute = this.silenced && this.alive;
@@ -2610,6 +2756,9 @@ export class Horde {
     this.lastStopped = false;
     this.lastArmored = false;
     if (!enemy.alive || enemy.passed) return false;
+    // el invisible escondido: el golpe lo delata, le saque o no (lo que muerde solo, como el fuego, no)
+    if (!dot) enemy.ping();
+    const hiddenBefore = enemy.hidden;
     // la marca de Abe: el golpe del caballero (una pelota, no el fuego ni el rayo) la detona, y eso es un
     // golpe aparte, antes que este (ver `detonate`). Si lo mata, este ya no pega
     if (!dot && this.detonate(enemy)) {
@@ -2677,6 +2826,8 @@ export class Horde {
     // y al bendito, igual con la burbuja (5/10, primero al élite y después a todos): cada golpe que le
     // entra se la devuelve, así que hay que romperla antes de cada golpe. Sigue recargando sola, también
     if (dealt > 0 && !killed && enemy.divineEvery && !ghost && !enemy.silenced) enemy.divineReady = true;
+    // y al invisible que se le pega a la vista, se esconde en el acto (STEALTH.onHit). El fuego no
+    if (dealt > 0 && !killed && !dot && !hiddenBefore && STEALTH.onHit && enemy.mods.stealth) enemy.hideNow(this);
     // un golpe de cero sí empuja, pero no es daño: sin esto, un palo con la tabla en 0 llenaba la
     // pantalla de «0» flotando encima de cada enemigo
     if (dealt > 0 || killed) this.emit({ type: 'damage', enemy, amount: dealt, killed, crit, by: this.by, dot: !!dot });
@@ -2780,6 +2931,7 @@ export class Horde {
    */
   touch(enemy: Enemy, guard = 0, hush = false): boolean {
     if (!enemy.alive || enemy.passed) return false;
+    enemy.ping();
     // la marca de Abe: el toque también la detona, y eso sí pega (ver `detonate`)
     if (this.detonate(enemy)) return false;
     // el silencio (`hush`) no lo para la burbuja: la apaga (ver Enemy.silence)

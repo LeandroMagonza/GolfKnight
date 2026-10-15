@@ -42,7 +42,7 @@ export const DEV_TOOLS = __DEV_TOOLS__;
  * Steam para devolver el juego; el que quiere más, sube la dificultad, y eso es la completa.
  */
 export const DEMO_LOCKS: { powers: ScenarioPower[]; elements: Element[]; gloves: boolean; perks: PerkId[] } = {
-  powers: ['armor', 'divine', 'regen'],
+  powers: ['armor', 'divine', 'regen', 'stealth'],
   elements: ['ghost', 'wind'],
   gloves: true,
   perks: ['rhythm', 'hotStreak', 'masonStreak', 'smithStreak', 'giftPerfect', 'mixIceFire', 'mixIceLightning', 'mixFireLightning', 'mixWindIce', 'mixWindFire', 'mixWindLightning'],

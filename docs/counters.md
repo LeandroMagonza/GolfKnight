@@ -203,8 +203,9 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
 | 9 | **Élite 3**. Apoyo 2 en 2 enemigos |
 | 10 | **El Gólem de roca**, con los tres poderes, los dos apoyos (uno de cada uno) y **alma en pena ×1** |
 
-- **Poderes de escenario** (7; cada partida sortea 3): escudo, blindaje, fantasma, divino, esquiva, y
-  desde el 5/10 **el que se cura** y **el intocable**.
+- **Poderes de escenario** (8; cada partida sortea 3): escudo, blindaje, fantasma, divino, esquiva,
+  desde el 5/10 **el que se cura** y **el intocable**, y desde el 15/10 **el invisible** (en prueba; no en
+  la demo).
   - **El que se cura** (2 de vida de más): se cura entero cada tanto; hay que meterle todo el daño entre
     una cura y la siguiente (con golpes medios seguidos alcanza, con flojos no). Lo resuelven el silencio
     (no se cura mientras dure), y todo lo que mete más daño en poco tiempo: fuerza, potencia, lupa,
@@ -214,6 +215,15 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
     abiertos a la línea. Lo
     resuelven el golpe fantasma (le entra siempre), el silencio (vulnerable mientras dure) y lo que mete
     mucho daño en la ventana: fuerza, potencia, lupa, eco, clon, y el driver, que llega rápido.
+  - **El invisible** (15/10, idea de Leandro): a los 1.5 s de aparecer se esfuma; escondido camina
+    cruzado (de 25 a 70° de su camino, para un lado o el otro, sin perder lo que avanza: lo de costado se
+    suma) y a los 3 s aparece y sigue derecho; 3 s a la vista y otra vez. El golpe que le entra a la vista
+    lo esconde en el acto. El que le llega escondido (también el que no le saca nada) lo delata: el
+    pelotazo, el ruido y la silueta blanca un instante, sin cambiarle el camino. A 6 m de la línea
+    aparece para quedarse. Lo resuelven las áreas (el wedge, para buscarlo y para sacarle data), el
+    silencio (aparece mientras dure), el fuego (las llamas se ven), y pegarle fuerte en la ventana a la
+    vista. Escondido no lleva sombra, ni íconos, ni deja pisadas, la línea de puntería no frena en él y
+    el bot no lo ve. Los números, en el panel B (El invisible) y en `STEALTH` (core/waves).
   - Los tiempos, en `tiempos-poderes.md`.
   Un tercio de cada oleada trae poder: la mitad el del escenario, la otra mitad los anteriores. En
   «todos con poder», todos.
@@ -230,6 +240,7 @@ Los números están en `core/waves.ts` (`STAMPEDE`, `GIANTS`, `POWERED`).
 | Fantasma | 7 a 12 de vida: 7 a 12 golpes, o menos con lupa, fantasma nivel 2 o silencio |
 | Divino | La burbuja vuelve a los 3 s, y desde el 5/10 **cada golpe que le entra se la devuelve** (como el que esquiva). El golpe fantasma la pasa; el silencio se la apaga |
 | Esquiva | Igual; desde el escenario 2 es un cuerpo pesado y el palazo no lo aturde |
+| Invisible | Más rato escondido: 4 s en vez de 3 |
 
 A todos los élites el silencio les dura la mitad, y el hoyo no los traga.
 

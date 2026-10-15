@@ -764,13 +764,13 @@ export class GameAudio {
       const NOTES: Record<string, number[]> = {
         armor: [43, 50, 55], shield: [48, 55, 60], divine: [72, 76, 79, 84], dodge: [69, 76, 81], regen: [65, 69, 72],
         heal: [65, 69, 72], ethereal: [62, 69, 74], phase: [62, 69, 74], skull: [40, 43, 47], banner: [58, 65, 70],
-        warded: [64, 71, 76], ward: [64, 71, 76],
+        warded: [64, 71, 76], ward: [64, 71, 76], stealth: [74, 69, 62],
       };
       const base = NOTES[power] ?? [60, 67];
       const shift = Math.max(0, Math.min(3, (level >= 10 ? 3 : level) - 1)) * 2;
       const notes = up ? base.map((m) => m + shift) : [base[base.length - 1] + shift, base[0] + shift];
       const t = this.at(this.gainBell);
-      const gap = power === 'ethereal' || power === 'phase' ? 0.11 : 0.07;
+      const gap = power === 'ethereal' || power === 'phase' || power === 'stealth' ? 0.11 : 0.07;
       notes.forEach((m, i) => this.gainBell!.triggerAttackRelease(midiToFreq(m), 0.22, t + i * gap, up ? 0.8 - i * 0.08 : 0.4));
       if (!up) return;
       // el grabado del poder, bajito, debajo del arpegio

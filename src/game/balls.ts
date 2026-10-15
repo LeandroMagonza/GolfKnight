@@ -540,6 +540,8 @@ export class Balls {
       const dz = s.pos.z - e.position.z;
       const r = e.radius + BALL_RADIUS;
       if (dx * dx + dz * dz > r * r) continue;
+      // al invisible escondido, la pelota que le llega lo delata, rebote o no (ver Enemy.ping)
+      e.ping();
       // El escudo, o el aura de un chamán, devuelven **cualquier** pelota que les llegue de frente, no
       // solo la que atraviesa: si no, el hierro reventaba contra el escudo y lo mataba igual. Lo único
       // que lo pasa es lo que cae casi a plomo, que es el globo del wedge (ver Enemy.blocks).

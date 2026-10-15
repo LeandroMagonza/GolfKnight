@@ -108,6 +108,12 @@ export const PRUEBAS: Record<string, Prueba> = {
     enemies: row('goblina', 4, 16, 3.5, { ...POWERS.dodge(2, Math.random, hard), hp: 6 }),
     pace: 0.25,
   },
+  invisible: {
+    title: 'Prueba: los invisibles',
+    hint: 'Al rato de aparecer se esfuman (nube y soplido) y caminan cruzados. Pegales con el wedge donde creés que están: el golpe los delata con un destello blanco. A 6 m de la línea vuelven a aparecer.',
+    enemies: [...row('orc', 3, 34, 7, { ...POWERS.stealth(2, Math.random, hard), hp: 8 }), { kind: 'knight', mods: { ...POWERS.stealth(2, Math.random, hard), size: 1.35, hp: 6 }, at: [40, 0] }],
+    pace: 0.6,
+  },
   hechiceros: {
     title: 'Prueba: los hechiceros',
     hint: 'Se plantan lejos y te tiran: suena al conjurar y al caer el hechizo.',

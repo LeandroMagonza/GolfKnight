@@ -158,6 +158,7 @@ dificultad, hechizos) y frena si a alguno le queda un texto en español.
 | escudo divino / bendito / burbuja | divine shield / blessed / bubble | |
 | esquiva / escurridizo | dodge / slippery | |
 | se cura / intocable | regenerates / untouchable | |
+| invisible | invisible | el poder; la oleada, «Los invisibles» / «The Unseen» |
 | inmune / amparo (del chamán) | immune / ward | |
 | hechicero / curandero / abanderado | sorcerer / healer / standard-bearer | apoyos |
 | goblin / goblina / orco / esqueleto | goblin / goblin lass / orc / skeleton | |

@@ -45,7 +45,7 @@ export const BUDGET = { on: 1, perMin: 37.1, connect: 0.87, mix: [0.33, 0.34, 0.
  * - blindaje y escurridizo: con 1, 70 y 65 %; con 0.7, 78 y 67 % (el blindaje bien jugado casi no suma, así
  *   que el peso casi no lo mueve).
  */
-export const POWER_WEIGHT: Record<string, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1.4, dodge: 1, regen: 1, phase: 1 };
+export const POWER_WEIGHT: Record<string, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1.4, dodge: 1, regen: 1, phase: 1, stealth: 1 };
 
 /** Lo que le entra de un golpe que pega, en promedio, con lo que le resta su defensa (`cut`). */
 export function perHit(cut: (d: number) => number = (d) => d): number {

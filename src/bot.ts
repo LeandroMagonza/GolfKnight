@@ -512,7 +512,8 @@ export function startBot(): BotStats {
   /** Su reloj, en ms: el de la página, o en la partida liviana el de los pasos (ver `tick`). */
   let ms = 0;
 
-  const alive = (): Enemy[] => gk.horde.enemies.filter((e: Enemy) => e.alive && !e.passed);
+  // al invisible escondido no lo ve: no le apunta (ver STEALTH)
+  const alive = (): Enemy[] => gk.horde.enemies.filter((e: Enemy) => e.alive && !e.passed && !e.hidden);
   const has = (id: ClubId) => gk.player.unlocked?.has?.(id) ?? true;
 
   /** Mira a todos: dónde están y a qué velocidad van (promediando, para que un tropezón no lo engañe). */
@@ -521,6 +522,8 @@ export function startBot(): BotStats {
     for (const e of gk.horde.enemies) {
       if (!e.alive || e.passed) continue;
       seen.add(e.id);
+      // escondido no lo ve: se queda con lo último que vio
+      if (e.hidden) continue;
       const t = tracks.get(e.id);
       if (!t) {
         tracks.set(e.id, { x: e.position.x, z: e.position.z, t: now, vx: 0, vz: 0, fresh: true });
@@ -813,7 +816,7 @@ export function startBot(): BotStats {
     const path = terrainOn() && (club.id === 'driver' || club.id === 'putter') ? terrainPath(club, q, o, ux, uz) : null;
     const out: { e: Enemy; along: number; t: number }[] = [];
     for (const e of gk.horde.enemies) {
-      if (!e.alive || e.passed) continue;
+      if (!e.alive || e.passed || e.hidden) continue;
       const along0 = (e.position.x - o.x) * ux + (e.position.z - o.z) * uz;
       if (along0 < 0.5 || along0 > reach + 2) continue;
       // la esquiva salta con cualquier tiro que pase cerca (menos el fantasma, que no lo ve venir)

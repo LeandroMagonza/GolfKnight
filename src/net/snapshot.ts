@@ -72,6 +72,8 @@ export const EF = {
   bannered: 256,
   /** El que se cura, recién curado: brilla verde. */
   regenGlow: 512,
+  /** El invisible, escondido. */
+  hidden: 1024,
 } as const;
 
 export interface EnemySnap {
@@ -99,6 +101,8 @@ export interface EnemySnap {
   mk?: number;
   /** El intocable: invulnerable, lo que le queda de 1 a 0; en su ventana, de -1 a 0. */
   ph?: number;
+  /** El invisible: lo que le queda al destello del golpe que lo delató (ver Enemy.ping). */
+  pg?: number;
   /** El gesto de brazos por código: cuánto, y en qué punto del ataque va. */
   g: number;
   u: number;

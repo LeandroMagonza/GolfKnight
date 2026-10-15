@@ -124,12 +124,13 @@ export class Scuffs {
 
   /**
    * Las pisadas: cada uno que camina deja una cada paso, de un pie y del otro, del tamaño de su cuerpo.
-   * Los que flotan (el alma en pena) y los que ya pasaron la línea (corren, translúcidos), no.
+   * Los que flotan (el alma en pena), los que ya pasaron la línea (corren, translúcidos) y el invisible
+   * escondido (lo delatarían), no.
    */
   walk(enemies: readonly Enemy[]): void {
     this.frame++;
     for (const e of enemies) {
-      if (!e.alive || e.passed || e.behavior === 'grabber') continue;
+      if (!e.alive || e.passed || e.behavior === 'grabber' || e.hidden) continue;
       const w = this.walkers.get(e.id);
       if (!w) {
         this.walkers.set(e.id, { x: e.position.x, z: e.position.z, since: 0, left: false, seen: this.frame });

@@ -205,8 +205,8 @@ let bossDuff: string | null = null;
 const bossModels = new Map<string, GLTF>();
 let dungeonGltf: GLTF | null = null;
 const POWER_NAMES: Record<ScenarioPower, string> = L(
-  { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura', phase: 'Intocable' },
-  { shield: 'Shield', armor: 'Armor', ethereal: 'Ghost', divine: 'Divine shield', dodge: 'Dodge', regen: 'Regenerates', phase: 'Untouchable' },
+  { shield: 'Escudo', armor: 'Blindaje', ethereal: 'Fantasma', divine: 'Escudo divino', dodge: 'Esquiva', regen: 'Se cura', phase: 'Intocable', stealth: 'Invisible' },
+  { shield: 'Shield', armor: 'Armor', ethereal: 'Ghost', divine: 'Divine shield', dodge: 'Dodge', regen: 'Regenerates', phase: 'Untouchable', stealth: 'Invisible' },
 );
 /** Los títulos de las insignias de la partida: un escenario con su poder, y el jefe. */
 const stageTitle = L((n: number, power: string) => `Escenario ${n}: ${power}`, (n: number, power: string) => `Stage ${n}: ${power}`);
@@ -719,7 +719,8 @@ function impactRange(club: Club, range: number): number {
   const dz = player.aimDir.z;
   let best = Infinity;
   for (const e of horde.enemies) {
-    if (!e.alive || e.passed) continue;
+    // al invisible escondido la línea no lo marca: lo delataría
+    if (!e.alive || e.passed || e.hidden) continue;
     const ex = e.position.x - tee.x;
     const ez = e.position.z - tee.z;
     const along = ex * dx + ez * dz;
@@ -1162,6 +1163,11 @@ horde.onEvent = (e) => {
       // agarra una vez y se va
       effects.blink(e.enemy.position, 0xb8c4ff);
       audio.whoosh(0.6);
+      break;
+    case 'stealth':
+      // el invisible: una nube y un soplido donde se esfuma, o donde vuelve a aparecer
+      fx.poof(e.enemy.position.clone().setY(e.enemy.position.y + e.enemy.height * 0.3), e.enemy.height * 0.6, 0xc9ceff);
+      audio.whoosh(e.hidden ? 0.45 : 0.25);
       break;
     case 'dodged':
       audio.dodge();

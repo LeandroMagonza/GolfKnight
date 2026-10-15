@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BUDGET } from './budget';
 import { CHARGE } from './clubs';
 import { DIFFICULTY, rulesFor } from './difficulty';
-import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, finishTime, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, SPAWN_RUSH, spawnOrder, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
+import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, finishTime, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, SPAWN_RUSH, spawnOrder, STEALTH, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
 
 const seeded = (seed: number) => {
   let s = seed;
@@ -739,6 +739,19 @@ describe('waves', () => {
     // el élite y el jefe: el mismo ritmo que los comunes
     expect(elite(1, 'phase').mods!.phase).toBe(3);
     expect(elite(3, 'phase').mods!.phase).toBe(3);
+  });
+
+  it('el invisible: sale en el sorteo, con élite; con poca dificultad pasa más rato a la vista', () => {
+    expect(SCENARIO_POWERS).toContain('stealth');
+    expect(POWERS.stealth(0, () => 0)).toEqual({ stealth: true });
+    const easy = rulesFor({}).hard;
+    if (easy.recharge !== 1) expect(POWERS.stealth(0, () => 0, easy).stealthEvery).toBeCloseTo(STEALTH.visible * easy.recharge);
+    expect(elite(1, 'stealth').mods!.stealth).toBe(true);
+    // escondido camina cruzado, pero sin pasarse de lo que se puede ver venir
+    expect(STEALTH.maxAngle).toBeLessThanOrEqual(85);
+    expect(STEALTH.minAngle).toBeLessThanOrEqual(STEALTH.maxAngle);
+    const run = buildRun(Math.random, { ...HARDEST, order: ['stealth', 'dodge', 'phase'] });
+    expect(run.powers[0]).toBe('stealth');
   });
 
   it('el intocable: los grupos se turnan escalonados en el mismo ciclo, abiertos la parte que diga', () => {
