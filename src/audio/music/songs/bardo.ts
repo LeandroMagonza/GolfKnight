@@ -17,6 +17,7 @@
 // llenando por fase, con un colchón grave y el cuerno de guerra cada 4 compases.
 import * as Tone from 'tone';
 import { BeatGrid } from '../beat';
+import { METRONOME, songVolume } from '../../volumes';
 import type { Song, SongDef } from '../types';
 
 /** El tempo de cada fase (golpes por minuto). */
@@ -284,6 +285,25 @@ class Reloj {
   }
 }
 
+/**
+ * El metrónomo (Leandro, 15/10): un click de bloque de madera en cada negra, más agudo en el uno, desde la
+ * cuenta. Va por su propia ganancia, que deshace el volumen de la canción: así se regula aparte
+ * (`metronomo.volumen` en la pestaña Sonido) y se lee al sonar, sin rearmar nada.
+ */
+function metronomo(keep: Keep, out: Dest, id: string): (time: number, uno: boolean) => void {
+  const level = keep(new Tone.Gain(1)).connect(out);
+  const click = keep(new Tone.MembraneSynth({
+    pitchDecay: 0.008, octaves: 1.5, oscillator: { type: 'sine' },
+    envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.02 }, volume: -8,
+  })).connect(level);
+  return (time, uno) => {
+    const v = METRONOME.volumen / songVolume(id);
+    if (v <= 0) return;
+    level.gain.setValueAtTime(v, time);
+    click.triggerAttackRelease(uno ? 'C6' : 'G5', 0.03, time, uno ? 1 : 0.7);
+  };
+}
+
 function metal(out: Dest, transport: Transport): Song {
   const bolsa: { dispose(): unknown }[] = [];
   const keep: Keep = (n) => {
@@ -354,7 +374,9 @@ function metal(out: Dest, transport: Transport): Song {
     }
   }
 
+  const tick = metronomo(keep, out, 'bardo.metal');
   const reloj = new Reloj(transport, BARDO_TEMPOS, (s, time, paso, f) => {
+    if (s % 4 === 0) tick(time, s % 16 === 0);
     // cambió de fase: un crash y el compás arranca con todo
     if (f !== fase && s % 16 === 0 && s > 0) cym.crash(time, 1);
     fase = Math.min(RIFFS.length - 1, f);
@@ -472,7 +494,9 @@ function tambor(out: Dest, transport: Transport): Song {
   let fase = 0;
   let tension = 0;
 
+  const tick = metronomo(keep, out, 'bardo.tambor');
   const reloj = new Reloj(transport, TAMBOR_TEMPOS, (s, time, d, f) => {
+    if (s % 4 === 0) tick(time, s % 16 === 0);
     const bar = Math.floor(s / 16) - 1;
     const st = s % 16;
     const h = (v: number) => v * (0.9 + 0.1 * Math.random());

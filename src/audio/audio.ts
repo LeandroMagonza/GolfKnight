@@ -287,6 +287,7 @@ export class GameAudio {
     if (!this.ready) return;
     this.master.gain.rampTo(VOLUME.todo, 0.05);
     this.musicBus.gain.rampTo(this.musicLevel(), 0.05);
+    this.music.applyVolume();
   }
 
   /** El ▶ del panel: suena `name` como lo pide el juego, sin el límite de ráfaga. */

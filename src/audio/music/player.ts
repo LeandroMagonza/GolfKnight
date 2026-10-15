@@ -4,6 +4,7 @@
 // este navegador.
 import * as Tone from 'tone';
 import type { BeatGrid } from './beat';
+import { songVolume } from '../volumes';
 import { DEFAULT_SONG, loadSong } from './registry';
 import type { MusicSlot, Song } from './types';
 
@@ -84,6 +85,11 @@ export class MusicPlayer {
     return this.current?.id === id ? this.current.song.beat ?? null : null;
   }
 
+  /** Lo tocado en el volumen de la canción que suena (pestaña Sonido). */
+  applyVolume(): void {
+    if (this.current) this.current.gain.gain.rampTo(songVolume(this.current.id), 0.1);
+  }
+
   /** Qué tan tensa está la partida, de 0 a 1: se la pasa a la canción que suena (si le importa). */
   intensity(level: number): void {
     if (Math.abs(level - this.level) < 0.02) return;
@@ -114,7 +120,7 @@ export class MusicPlayer {
       gain.dispose();
       return;
     }
-    gain.gain.rampTo(1, FADE);
+    gain.gain.rampTo(songVolume(id), FADE);
     const old = this.current;
     this.current = { id, song, gain };
     this.wanted = '';

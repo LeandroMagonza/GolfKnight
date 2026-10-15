@@ -66,3 +66,25 @@ export function groupOf(name: string): VolumeGroup {
 export function sampleVolume(name: string): number {
   return VOLUME[groupOf(name)] * (SFX_VOLUME[name] ?? 1);
 }
+
+/**
+ * El volumen de cada canción (15/10, Leandro: «poneme un volumen específico por canción»), encima del de la
+ * música: 1 es como la armó su archivo. Las del bardo arrancan más fuertes: se medían ~2,5 dB más bajas que la
+ * de siempre y en esa pelea hay que oír el pulso. Una canción nueva tiene que estar en la lista para que se
+ * guarde lo que se le toca.
+ */
+export const SONG_VOLUME: Record<string, number> = {
+  'clasica.dorica': 1,
+  'folk.feria': 1, 'folk.marcha': 1, 'folk.asedio': 1,
+  'epica.llamado': 1, 'epica.marcha': 1, 'epica.asedio': 1,
+  'elite.tambores': 1, 'elite.galope': 1, 'elite.marcha': 1,
+  'jefe.requiem': 1, 'jefe.batalla': 1, 'jefe.tambores': 1,
+  'bardo.metal': 1.8, 'bardo.tambor': 1.8,
+};
+
+export function songVolume(id: string): number {
+  return SONG_VOLUME[id] ?? 1;
+}
+
+/** El metrónomo del jefe con música (Leandro, 15/10): un click en cada pulso, aparte de la canción. 0 lo apaga. */
+export const METRONOME = { volumen: 1 };

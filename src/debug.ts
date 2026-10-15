@@ -21,7 +21,7 @@ import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
 import { BUDGET, POWER_WEIGHT } from './core/budget';
 import { POLISH, setAllPolish, type PolishKey } from './core/polish';
-import { groupOf, SFX_NAMES, SFX_VOLUME, VOLUME, type VolumeGroup } from './audio/volumes';
+import { groupOf, METRONOME, SFX_NAMES, SFX_VOLUME, SONG_VOLUME, VOLUME, type VolumeGroup } from './audio/volumes';
 import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, SPAWN_RUSH, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, type EnemyKind, type WaveDirector } from './core/waves';
 import { DIFFICULTY, LADDER, MAX_LEVEL as TOP_DIFFICULTY, talent } from './core/difficulty';
 import { BALANCE_KEY, BALANCE_VERSION } from './balanceStore';
@@ -56,6 +56,9 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   // los volúmenes, por grupo y por sonido (`volumen.musica:0.5`, `sonidos.explosion-big:0.6`; ver audio/volumes)
   volumen: VOLUME,
   sonidos: SFX_VOLUME,
+  // el volumen de cada canción (en el panel: su id lleva punto, no va por ?ajuste) y el metrónomo del bardo (`metronomo.volumen:0`)
+  canciones: SONG_VOLUME,
+  metronomo: METRONOME,
   // el que sigue sale enseguida si no queda nadie (`apuro.wait:99` lo apaga; ver SPAWN_RUSH)
   apuro: SPAWN_RUSH,
   // en qué cuerpos caen el fantasma y el bendito (`reparto.divine:1,reparto.giants:0`)
@@ -625,6 +628,18 @@ export class DebugPanel {
     songs.textContent = 'Abrir la página de la música';
     songs.style.color = '#ffd66b';
     el.append(heading('Música'), this.row(songs), note('Ahí se escucha cada canción y se elige cuál suena en cada escenario, con un élite en la cancha y con el jefe. Lo elegido vale para las partidas de este navegador.'));
+    el.append(heading('Volumen por canción'), note('Encima del volumen de la música. 1 es como está; cambia la que suena en el acto. El metrónomo es el click en cada pulso del jefe con música (bardo), aparte de su canción: 0 lo apaga.'));
+    const loud = (v: number) => Math.min(4, Math.max(0, v));
+    const songTable = document.createElement('table');
+    for (const id of Object.keys(SONG_VOLUME)) {
+      const r = songTable.insertRow();
+      cell(r, id, 'l');
+      cell(r, this.field(() => SONG_VOLUME[id], (v) => { SONG_VOLUME[id] = loud(v); sound?.apply(); }, 0.05));
+    }
+    const metro = songTable.insertRow();
+    cell(metro, 'metrónomo (bardo)', 'l');
+    cell(metro, this.field(() => METRONOME.volumen, (v) => { METRONOME.volumen = loud(v); }, 0.05));
+    el.append(songTable);
     el.append(heading('Volumen por grupo'), note('1 es como está, 0 lo apaga, 2 el doble. ▶ suena uno de ejemplo; anda con la partida empezada (el sonido arranca con el primer click).'));
     const groups = document.createElement('table');
     for (const g of Object.keys(VOLUME) as VolumeGroup[]) {
