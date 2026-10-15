@@ -141,3 +141,28 @@ Revisado contra «mientras está vivo, puede romperte la puerta entera» (sin `b
   `rey.palanquin` y `gusano.puesto` le tiran solo **a vos**, nunca a la puerta. No se los puede ignorar para
   ganar (la oleada no termina sin matarlos, y te pueden matar), pero no rompen la puerta. Para cumplir la
   regla al pie de la letra habría que darles algo contra la puerta: es un cambio de diseño, no un número.
+
+## Segunda tanda del bot (15/10, después del feedback de Leandro)
+
+La misma tanda que la primera (una partida por versión, el bot «humano», tope de 4 minutos), después de los
+cambios del 15/10. Ningún error de la página en ninguna versión, y `ritmo.doble` ahora termina.
+
+| Familia | Ganó | Perdió en |
+|---|---|---|
+| Araña | 0 de 4 | todas (sin cambios: sigue difícil para el bot) |
+| Bardo (nuevo) | 2 de 2 | |
+| Caballero negro | 3 de 5 | `puerta`, `devuelve` |
+| Espectro | 4 de 5 | `ola` |
+| Gólem de las piedras | 2 de 4 | `crece`, `ventana` |
+| Gusano | 4 de 4 | |
+| Hidra | 3 de 4 | `siempre` |
+| Lagarto | 1 de 5 | todas menos `pasos` (el bot no se para a devolver lanzas) |
+| Limo | 5 de 5 | |
+| Minotauro | 3 de 5 | `billar`, `coraza` |
+| Nigromante | 4 de 4 | |
+| Ogro | 3 de 4 | `batea` |
+| Rey ladrón | 4 de 4 | (peleas más largas: 58–157 s, antes 50–70) |
+| Ritmo | 8 de 9 | `pulso-escolta` |
+| Torre | 1 de 3 | `arqueros`, `muralla` (el bot no tira globos a la plataforma) |
+
+El bot no juega como una persona en lagarto, torre y araña: ahí manda lo que diga Leandro jugando.

@@ -9,6 +9,19 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 ## 15 de octubre
 
+**Golpes, sonidos y poderes**
+- **El golpe suena a swing**: un palo cortando el aire justo antes de pegar, y el golpe con más cuerpo y menos vidrio. `d489b0c`
+- **Perder se escucha**: la puerta que se rompe o el quejido del caballero, y un silencio antes de la música. `d489b0c`
+- **Menos saturación** cuando suenan muchas cosas juntas. `d489b0c`
+- **El nivel del escudo y del blindaje se ve de lejos**: el ícono crece y cambia de borde con el nivel, con el número grande. Cuando un enemigo gana un poder, brilla y suena. `d489b0c`
+- **El wedge abarca un 20 % menos y la explosión del hierro un 10 % más.** `d489b0c`
+- **En el tutorial, el palo nuevo lo sacás vos** con su tecla. `d489b0c`
+
+**Jefes para probar** (panel B, Pruebas → Jefes; en las partidas sigue el gólem de siempre)
+- **Jefe nuevo con música**: el guitarrista de metal y el tamborilero. Mientras tocan, todo tiro que no sale en el pulso es pifia, y el tempo sube con la pelea. `d489b0c`
+- **Cambios en casi todos** según lo jugado: menos vida al gólem, al minotauro y al lagarto; torre, rey, ogro y ritmo más difíciles; el limo que llega a la puerta la tira entera; la hidra con cabezas bajas y separadas; espectro eterno, ritmo al azar y minotauro con coraza, nuevos. `d489b0c`
+- **Arreglos**: el ogro ya batea goblins, el palanquín del rey no flota sin cargadores, el roll del lagarto sale de donde está, y los jefes aturdidos se recuperan. `d489b0c`
+
 **Jefes nuevos para probar, monstruos y música**
 - **El alma en pena ahora es un huargo**: el lobo que corre y te agarra. Hace lo mismo que antes. `e2e7f78`
 - **62 jefes nuevos para probar** (14 familias: araña, caballero negro, espectro, gólem de las piedras, gusano,
