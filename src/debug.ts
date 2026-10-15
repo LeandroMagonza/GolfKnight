@@ -206,6 +206,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   18: ['mejoras.giftPerfect', 'elementos.burnTicks', 'elementos.burnTick'],
   // el silencio pasó a 2 s de base (2, 2.5, 3, 3.5 y 4; eran 5 a 10)
   19: ['elementos.silenceSeconds'],
+  // el área del wedge bajó un 20 % y la explosión del hierro subió un 10 % (Leandro, 15/10)
+  20: ['wedge.spread', 'iron.spread'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -1357,6 +1359,7 @@ export class DebugPanel {
       heals: 'Brillo de la curación', samples: 'Sonidos grabados', voices: 'Voces de los enemigos', powerSounds: 'Sonidos de los poderes',
       uiSounds: 'Sonidos de la partida', fireSounds: 'Sonido del fuego',
       groans: 'Quejidos al recibir', abilitySounds: 'Sonido por tipo de poder', mix: 'Mezcla sin saturar (al recargar)', onTime: 'Sonidos en el acto',
+      swing: 'Swing grabado', defeatPause: 'Silencio al perder', mixGuard: 'Tope de voces (al recargar)',
     };
     const polishRow = this.row();
     for (const key of Object.keys(POLISH) as PolishKey[]) {

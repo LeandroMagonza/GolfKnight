@@ -96,13 +96,14 @@ export function bodyLook(): THREE.Group {
  * Una cabeza de serpiente: el cráneo, el hocico, la mandíbula (`jaw`, que se abre), los ojos (`eye`), la
  * boca (`mouth`, que brilla mientras carga el escupitajo), los cuernos y la golilla. Todo dentro de `head`,
  * que se mueve entero (se echa atrás, se sacude) sobre la columna del enemigo: el enemigo está en el piso
- * debajo de la cabeza, y las pelotas le pegan a toda esa columna. `tint`: la cabeza fuerte, roja.
+ * debajo de la cabeza, y las pelotas le pegan a toda esa columna. `tint`: la cabeza fuerte, roja. `y`: a qué
+ * altura está la cabeza (la de los cuellos bajos, más abajo: así se mide más baja y la vida va encima).
  */
-export function headLook(tint = COLORS.scale): THREE.Group {
+export function headLook(tint = COLORS.scale, y = HEAD_Y): THREE.Group {
   const g = new THREE.Group();
   const head = new THREE.Group();
   head.name = 'head';
-  head.position.set(0, HEAD_Y, 0);
+  head.position.set(0, y, 0);
   g.add(head);
   const scale = flatMat(tint);
   const dark = flatMat(COLORS.dark);

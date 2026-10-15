@@ -25,6 +25,8 @@ export interface Variant {
   moundsFade: boolean;
   /** La tierra que se mueve encima de él también recibe golpes (y se los saca al gusano). */
   tunnel: boolean;
+  /** Por cuánto se multiplica lo que queda asomado (`WINDOW`); 1 si no se dice. */
+  window?: number;
 }
 
 /** De dónde sale al empezar (al fondo), y por dónde anda: entre qué z, y cuánto le deja a cada costado. */
@@ -55,6 +57,8 @@ const MOUND = { height: 1.5, rx: 2.6, rz: 2.2, grow: 0.6, cap: 10, life: 20 };
 /** El escupitajo a tu puesto (cae cuando se mete) y el de la puerta. */
 const SPIT = { flight: 0.8, radius: 1.6, arc: 4 };
 const GATE_SPIT = { flight: 1.2, arc: 7, damage: 1 };
+/** La muerte: cuánto se retuerce, cuánto tarda en desplomarse y cuánto en hundirse (s). */
+const DEATH = { writhe: 1.2, fall: 0.7, sink: 1.6 };
 /** El surco: un terrón cada `step` m, que dura `life` s (de un depósito de `pool`). */
 const TRAIL = { step: 0.45, life: 3.2, pool: 90 };
 
@@ -207,7 +211,7 @@ export function startWorm(ctx: BossCtx, v: Variant): BossFight {
   const stats = { asomadas: 0, golpeadas: 0, aPuerta: 0, aVos: 0, cortes: 0, lomas: 0, alTunel: 0 };
   const windowRing = new GroundMark(scene, 0xff3b30, false, 2.4).opacity(0);
   let dead = false;
-  let deathDecor: { obj: THREE.Object3D; t: number } | null = null;
+  let deathDecor: { obj: THREE.Object3D; t: number; heading: number; crashed: boolean; puffs: number } | null = null;
 
   /** El próximo lugar donde sale: a un viaje de donde está, adentro del campo, lejos de las lomas. */
   function pickNext(): void {
@@ -275,7 +279,7 @@ export function startWorm(ctx: BossCtx, v: Variant): BossFight {
     phaseT = 0;
     hitThisTime = false;
     stats.asomadas++;
-    windowLen = ramp(WINDOW, ctx.clock());
+    windowLen = ramp(WINDOW, ctx.clock()) * (v.window ?? 1);
     holes.push(to.clone());
     mole?.remove();
     mole = null;
@@ -351,11 +355,27 @@ export function startWorm(ctx: BossCtx, v: Variant): BossFight {
     }
   }
 
-  function die(): void {
+  /**
+   * Murió: el enemigo se va y queda un adorno con el mismo cuerpo, que hace la muerte (ver `DEATH`): se
+   * retuerce, se desploma hacia adelante levantando tierra y se hunde. `at`: dónde, si murió bajo tierra.
+   */
+  function die(at?: THREE.Vector3): void {
     if (dead) return;
     dead = true;
     phase = 'dead';
     phaseT = 0;
+    const where = at ?? worm?.position.clone() ?? pos.clone();
+    const obj = wormLook();
+    obj.position.set(where.x, heightAt(where.x, where.z), where.z);
+    obj.rotation.y = worm ? worm.heading : Math.atan2(ctx.player().position.x - where.x, ctx.player().position.z - where.z);
+    // muerto bajo tierra sale de golpe; asomado, sigue de donde estaba
+    poseWorm(obj, at ? 0.2 : 1, 0.3, 0, 0);
+    scene.add(obj);
+    deathDecor = { obj, t: 0, heading: obj.rotation.y, crashed: false, puffs: 0 };
+    worm?.remove();
+    worm = null;
+    ctx.effects.explosion(new THREE.Vector3(where.x, where.y + 0.6, where.z), 2.2, COLORS.dirt);
+    ctx.audio.death('golem');
     attack?.mark?.dispose();
     attack?.lane?.dispose();
     attack = null;
@@ -366,15 +386,64 @@ export function startWorm(ctx: BossCtx, v: Variant): BossFight {
     ctx.banner(L('¡Cayó el Gusano!', 'The Worm falls!'), '', 2.5);
   }
 
-  /** Muerto bajo tierra (la versión «túnel»): sale de golpe y se desploma. */
+  /** Muerto bajo tierra (la versión «túnel»): sale de golpe y hace la misma muerte. */
   function dieUnderground(at: THREE.Vector3): void {
-    const obj = wormLook();
-    obj.position.set(at.x, heightAt(at.x, at.z), at.z);
-    obj.rotation.y = Math.atan2(ctx.player().position.x - at.x, ctx.player().position.z - at.z);
-    scene.add(obj);
-    deathDecor = { obj, t: 0 };
-    ctx.effects.explosion(new THREE.Vector3(at.x, at.y + 0.5, at.z), 2.6, COLORS.dirt);
-    die();
+    die(at);
+  }
+
+  /** La muerte, cuadro a cuadro (el adorno de `die`). */
+  function updateDeath(dt: number): void {
+    const d = deathDecor;
+    if (!d) return;
+    d.t += dt;
+    const k = d.t;
+    const body = d.obj;
+    const x = body.position.x;
+    const z = body.position.z;
+    let rise: number;
+    let lean: number;
+    let sway: number;
+    if (k < DEATH.writhe) {
+      // se retuerce: sale entero, se mece fuerte y rápido y tira la boca para todos lados
+      const u = k / DEATH.writhe;
+      rise = Math.min(1, 0.2 + k / 0.3);
+      lean = 0.35 + 0.45 * Math.sin(k * 11);
+      sway = 1.3 * (1 - 0.3 * u);
+      body.rotation.y = d.heading + 0.45 * Math.sin(k * 7.5);
+      // terrones que salta al sacudirse
+      if (k > d.puffs * 0.45) {
+        d.puffs++;
+        ctx.effects.explosion(new THREE.Vector3(x, heightAt(x, z) + 0.3, z), 1.4, COLORS.dirt);
+      }
+    } else if (k < DEATH.writhe + DEATH.fall) {
+      // se desploma hacia adelante, como un árbol
+      const u = (k - DEATH.writhe) / DEATH.fall;
+      rise = 1 - 0.25 * u * u;
+      lean = 0.8 + 1.9 * u * u;
+      sway = 0.4 * (1 - u);
+      body.rotation.y += (d.heading - body.rotation.y) * Math.min(1, dt * 6);
+    } else {
+      // pega contra el piso y se hunde despacio, temblando
+      if (!d.crashed) {
+        d.crashed = true;
+        const ahead = new THREE.Vector3(Math.sin(d.heading), 0, Math.cos(d.heading)).multiplyScalar(4);
+        ctx.effects.explosion(new THREE.Vector3(x + ahead.x, heightAt(x + ahead.x, z + ahead.z) + 0.4, z + ahead.z), 3.4, COLORS.dirt);
+        ctx.audio.explosion(true);
+      }
+      const u = clamp01((k - DEATH.writhe - DEATH.fall) / DEATH.sink);
+      rise = 0.75 * (1 - ease(u));
+      lean = 2.7;
+      sway = 0.12 * (1 - u);
+    }
+    // la mece con un reloj propio, más rápido que el de asomado
+    poseWorm(body, rise, lean, sway, k * 3.2);
+    const throat = body.getObjectByName('throat') as THREE.Mesh | undefined;
+    const mat = throat?.material as THREE.MeshStandardMaterial | undefined;
+    if (mat) mat.emissive.setHex(0xff3b30).multiplyScalar(Math.max(0, 1 - k / (DEATH.writhe + DEATH.fall)) * (0.6 + 0.4 * Math.sin(k * 40)));
+    if (k > DEATH.writhe + DEATH.fall + DEATH.sink) {
+      scene.remove(body);
+      deathDecor = null;
+    }
   }
 
   /** Bajo tierra: la tierra se mueve hacia donde va a salir, dejando el surco. */
@@ -463,20 +532,9 @@ export function startWorm(ctx: BossCtx, v: Variant): BossFight {
         }
         break;
       }
-      case 'dead': {
-        // se desploma hacia adelante y se hunde (el enemigo muere solo; el adorno, si murió bajo tierra)
-        const body = e?.body ?? deathDecor?.obj;
-        const u = clamp01(phaseT / 2.2);
-        if (deathDecor) deathDecor.t += dt;
-        if (body) {
-          poseWorm(body, deathDecor ? Math.min(1, phaseT / 0.35) * (1 - ease((u - 0.5) * 2)) : 1 - ease((u - 0.45) * 1.8), 0.6 + 1.6 * ease(u * 1.5), 0, t);
-        }
-        if (deathDecor && phaseT > 2.4) {
-          scene.remove(deathDecor.obj);
-          deathDecor = null;
-        }
+      case 'dead':
+        updateDeath(dt);
         break;
-      }
     }
     // la garganta brilla más cuanto más cerca de escupir (el juego le apaga el brillo en cada cuadro)
     if (e?.alive) {
@@ -496,8 +554,9 @@ export function startWorm(ctx: BossCtx, v: Variant): BossFight {
   ctx.banner(L('El Gusano de las cavernas', 'The Cave Worm'), L('Va bajo tierra: tirá adonde va a asomar, antes de que asome', 'It moves underground: shoot where it will surface, before it does'), 4);
 
   return {
+    // la oleada termina recién cuando cayó al piso: que se vea la muerte
     get done() {
-      return dead;
+      return dead && phaseT > DEATH.writhe + DEATH.fall + 0.3;
     },
     update(dt) {
       const t = ctx.clock();

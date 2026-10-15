@@ -227,3 +227,111 @@ la URL: `?ajuste=volumen.musica:0.5` o `?ajuste=sonidos.explosion-big:0.6`. Un t
 
 **Fuera.** Salieron cuatro grabados que no usaba nada: `fire`, `lightning`, `cart` y `ui-back`. Los
 disparos usan los `cast-*`.
+
+## El swing, el final y la saturación (15/10, cuarta tanda)
+
+Leandro, el 15/10:
+- «el golpe a la pelota suena como a vidrio, me parece que tendría que sonar más tipo a swing con viento,
+  woosh, y golpe menos vidrio»;
+- «cuando perdés debería haber un ruido más fuerte de que cayó la puerta, o se queja el caballero, hoy solo
+  arranca la música inmediatamente, debería haber un tiempo en el medio»;
+- «los ruidos me parece que clipean».
+
+Cada cosa tiene su llave de POLISH: `swing`, `defeatPause` y `mixGuard` (ver [pruebas.md](pruebas.md)). Los
+sonidos los arma `logs/sfx-work/cuarta.py`, y los golpes de antes quedaron en `logs/sfx-work/antes-15-10/`. Se
+mide con `node tools/lock.mjs navegador -- node logs/check-mezcla.mjs`.
+
+### El swing
+
+Antes, al soltar sonaba un soplido sintetizado (ruido rosa filtrado). Ahora suena un palo de golf de verdad
+cortando el aire:
+- **Fuente:** [479966](https://freesound.org/s/479966/), de craigsmith, «R19-33 Golf Club Swings and Hits», CC0.
+- **El aire grave:** abajo, un bambú: [855844](https://freesound.org/s/855844/), de Sadiquecat, CC0.
+
+| Palo | Sonido | Cómo |
+|---|---|---|
+| putter | `swing-short` | sin el bambú, bajito (0,35) |
+| wedge | `swing-short` | sin el bambú (0,7) |
+| hierro | `swing` | con el bambú a -4 dB; tres tomas |
+| driver | `swing-big` | dos semitonos más grave, con más aire (bambú a -2 dB) |
+
+El volumen sube con la potencia.
+
+**Cuándo suena.** El swing se dispara al soltar, pero el palo pega un rato después. Medido en el navegador:
+- hierro y driver, 0,09-0,10 s;
+- wedge, 0,12-0,13 s;
+- putter, 0,13-0,15 s.
+
+Los grabados están cortados con el pico (el palo pasando) a 0,07 s del arranque, y se agendan para que ese
+pico caiga en el impacto. Cada golpe mide cuánto tardó de verdad y corrige el próximo. Medido: el pico cae
+entre 7 ms antes y 12 ms después del golpe. Hubo un caso de 27 ms, en un wedge que pegó antes de lo normal.
+
+### El golpe, menos vidrio
+
+El vidrio venía de agudos que quedan sonando:
+- el driver tenía el «ping» de titanio, con parciales en 4,2, 6 y 8 kHz;
+- el wedge y el segundo putter tenían un anillo en 3-6 kHz;
+- la estrellita del perfecto era un seno puro de 2,6 kHz durante 0,6 s.
+
+Se usan las mismas grabaciones de antes, sin esos agudos y con cuerpo abajo:
+- **putter:** pasa-bajos en 3 kHz y un toc de madera chico;
+- **hierro:** pasa-bajos en 4 kHz, un golpe seco (Kenney impactGeneric) y cuerpo (impactPunch);
+- **wedge:** pasa-bajos en 2,8 kHz, pasto y madera;
+- **driver:** un «thock» de madera (Kenney impactWood_light, dos semitonos abajo) con cuerpo, y el golpe de
+  antes sin nada arriba de 3 kHz;
+- **perfecto:** un golpe pleno y grave (impactPunch_heavy, tres semitonos abajo, con madera) abajo del palo,
+  en vez de la estrellita.
+
+Cuánta energía queda arriba de 3 kHz:
+
+| | antes | ahora |
+|---|---|---|
+| driver | -0,2 dB (casi todo) | -28 dB |
+| hierro | -8 dB | -24 dB |
+| wedge | -2 dB | -14 dB (el pasto) |
+| putter 2 | -3 dB | -27 dB |
+
+### Perder
+
+- **La puerta** (`gate-fall`): la madera que se rompe ([723974](https://freesound.org/s/723974/), de
+  Saladsounds, «Wooden Door breaks», CC0) con un primer golpe. A los 0,42 s la puerta da contra el piso: un
+  golpe pesado y grave, madera y el golpe sordo de la explosión grande. Después rebotan tablas. Dura 1,2 s y
+  está a -15 LUFS: es lo más fuerte del juego.
+- **El caballero** (`knight-groan`): un quejido de hombre que cae de tono, dos tomas, las dos CC0:
+  [803168](https://freesound.org/s/803168/), de salemaudio, y [387153](https://freesound.org/s/387153/), de
+  seachangeau. Va junto con su caída (`player-dies`), que ahora suena a 1 en vez de 0,8.
+- **El silencio:** la música se apaga en 0,3 s y la de la derrota entra a los 2,2 s.
+  - Los tics del cartel, mientras tanto, no suenan.
+  - Medido (RMS): la puerta al caer, -11 dB; el caballero, -15 dB.
+  - Del segundo 1,5 al 2,1: nada (-120 dB). Antes, ahí ya sonaban la música y los tics a -17 dB.
+- **Jugar de nuevo** (sin recargar) devuelve la música y cancela la derrota que esperaba.
+
+### Saturación
+
+**Las situaciones cargadas.** Se midieron en el navegador, a la salida, con `check-mezcla`:
+- **bajas:** 14 bajas de un tiro de área, cada una con su golpe, su voz y su campana, más una explosión grande;
+- **explosiones:** cuatro grandes seguidas, con bajas, la puerta y el golfista;
+- **jefe:** aparece, tira, cae la roca, se queja, una explosión y seis bajas.
+
+| Situación | antes: pico | antes: el compresor baja | ahora: pico | ahora: el compresor baja |
+|---|---|---|---|---|
+| bajas | -1,0 dB | hasta 1,8 dB | -2,4 dB | hasta 0,9 dB |
+| explosiones | -0,7 dB | hasta 2,9 dB | -1,5 dB | hasta 2,1 dB |
+| jefe | -0,7 dB | hasta 3,2 dB | -1,3 dB | hasta 3,0 dB |
+
+**Antes no llegaba a 0 dB.** En ninguna de estas situaciones pasó, y ningún archivo de `public/sfx` viene
+recortado (tampoco entre muestras). Lo que sonaba a saturado era, más probablemente:
+- el compresor de 20:1, de rodilla dura y que cierra en 2 ms, moviéndole la ganancia a los graves adentro de
+  cada onda;
+- varias copias del mismo grabado encimadas.
+
+**Lo que cambió con `mixGuard`:**
+- **No más de 3 a la vez del mismo grabado** (`SampleBank.cap`).
+- **Las campanas de baja**, si hay más de 4 en 0,6 s, suenan cada una más bajo (√(4/n)): el acorde no pasa de
+  lo que suenan cuatro, y se siguen oyendo todas.
+- **Un compresor más blando:** -8 dB, 4:1, rodilla de 6 dB, 5 ms. Entra 1,9 dB más bajo, porque el navegador
+  sube solo lo que no comprime: así suena igual de fuerte que antes.
+- **Un recorte suave al final:** no toca nada hasta 0,85 y nunca pasa de 0,99. Aunque algo se pase, no
+  recorta en seco.
+
+**Peso.** `public/sfx` queda en 1,26 MB: 88 eventos en 126 archivos.

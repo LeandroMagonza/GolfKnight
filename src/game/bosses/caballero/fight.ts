@@ -98,6 +98,14 @@ const PHASES = [
 const TIME_PRESS = { perSecond: 0.0015, min: 0.82 };
 /** Y con la dificultad: cada nivel, un poco más rápida. */
 const PACE_PER_LEVEL = 0.012;
+/**
+ * Lo que se ve de la velocidad (15/10: Leandro «venía pegándole pero de repente empecé a no llegar a
+ * pegarle antes de que dispare»): las flechas al costado de su arco y el color de los ojos y del brillo
+ * del arco. Cuántas veces más rápida que al empezar tiene que ir su barra para cada flecha.
+ */
+const SPEED_TIERS = [1.12, 1.3, 1.5];
+/** El color de los ojos con cada flecha: violeta, naranja, rojo anaranjado, rojo. */
+const EYE_TIERS = [PURPLE, 0xffa040, 0xff6a30, 0xff2a2a];
 
 /**
  * Cómo suelta: `rojo` en el rojo de la primera pasada (3); `amarillo` en el amarillo subiendo (2, el que
@@ -252,6 +260,12 @@ export function startKnight(ctx: BossCtx, opts: KnightOpts): BossFight {
     return { weak: BAR.weak * k, mid: BAR.mid * k, strong: BAR.strong * k };
   };
   arc.setTimes(barTimes());
+  /** Cuántas flechas de velocidad tiene su barra ahora (0 a 3): ver SPEED_TIERS. */
+  const speedTier = (): number => {
+    const fast = 1 / pace();
+    return SPEED_TIERS.filter((x) => fast >= x - 1e-6).length;
+  };
+  let shownTier = 0;
 
   /** Dónde se para para pegarle a la pelota del puesto `i` hacia `aim`, y hacia dónde mira. */
   function stanceFor(i: number, out: THREE.Vector3): number {
@@ -907,7 +921,14 @@ export function startKnight(ctx: BossCtx, opts: KnightOpts): BossFight {
       const next = frac > PHASES[1].from ? 0 : frac > PHASES[2].from ? 1 : 2;
       if (next > phase && knight.alive) {
         phase = next;
-        ctx.feedback(phase === 1 ? L('¡El reflejo se apura!', 'The reflection speeds up!') : L('¡Furia oscura!', 'Dark fury!'));
+        // que se note (15/10): el cartel grande, un estallido y los ojos (ver abajo); su barra va más rápido
+        ctx.banner(
+          phase === 1 ? L('¡El reflejo se apura!', 'The reflection speeds up!') : L('¡Furia oscura!', 'Dark fury!'),
+          phase === 1 ? L('Su barra va más rápido: cortalo antes', 'His meter is faster: cut him sooner') : L('Su barra, más rápida todavía', 'His meter, faster still'),
+          2,
+        );
+        ctx.audio.bossAppear();
+        ctx.effects.explosion(new THREE.Vector3(knight.position.x, knight.position.y + KNIGHT_HEIGHT * 0.6, knight.position.z), 2.6, phase === 1 ? 0xff9a40 : 0xff3a2a);
       }
       row.update(dt);
       updateFlying(dt);
@@ -923,6 +944,14 @@ export function startKnight(ctx: BossCtx, opts: KnightOpts): BossFight {
         knight.body.parent?.updateMatrixWorld(true);
         rig.apply();
       }
+      // la velocidad de su barra: flechas al costado del arco (se actualizan cuando el arco está a la vista,
+      // así el «¡más rápido!» sale cuando se acomoda) y el color de los ojos
+      const tier = speedTier();
+      if (tier !== shownTier && (mode === 'address' || mode === 'charge')) {
+        arc.setSpeed(tier, tier > shownTier ? L('¡Más rápido!', 'Faster!') : '');
+        shownTier = tier;
+      }
+      eyes.color(EYE_TIERS[tier]);
       eyes.update(knight.heading, mode === 'charge' && meter.power >= MARKS[0] ? 1 : 0, visible && knight.position.y > heightAt(knight.position.x, knight.position.z) - KNIGHT_HEIGHT * 0.5);
       arc.anchor.set(knight.position.x, knight.position.y + KNIGHT_HEIGHT + ARC_ABOVE, knight.position.z);
       if (aimMark && cuttable()) {
@@ -968,7 +997,7 @@ export function startKnight(ctx: BossCtx, opts: KnightOpts): BossFight {
       },
     },
     log: () => ({
-      vida: knight.hp, fase: phase + 1, tiros: stats.shots, conjuradas: stats.conjured, cortes: stats.cuts, aguanto: stats.held, puerta: stats.gate,
+      vida: knight.hp, fase: phase + 1, velocidad: Math.round(100 / pace()) / 100, tiros: stats.shots, conjuradas: stats.conjured, cortes: stats.cuts, aguanto: stats.held, puerta: stats.gate,
       golfista: stats.player, esquivadas: stats.dodged, caddiesMuertos: stats.caddiesKilled, entregas: stats.delivered,
       devueltas: stats.parried, atajadas: stats.caught, modo: mode,
     }),

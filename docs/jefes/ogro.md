@@ -45,23 +45,30 @@ versiones). Se prueba con `?ola=10&jefe=ogro.<versión>` o desde el panel B > Pr
 
 ## Las versiones
 
-### `ogro.devuelve` — te devuelve las pelotas, y si no le mandás nada batea piedras a la puerta
+### `ogro.devuelve` — te devuelve las pelotas, y si no le mandás nada batea piedras a la puerta y a vos
 
-Lo de arriba, más la **paciencia**: con el palo en alto y nada que batear, se impacienta (un arco rojo se va
-llenando alrededor de la zona: 7 s, 5.5 y 4.3 según la fase). Cuando se llena tira una piedra al aire sobre
-el punto de bateo, se marca un carril rojo hasta la puerta, y 1.5 s después la batea: le saca 1 a la puerta.
-**Una pelota que le llega mientras tanto se la corta** (batea tu pelota, la piedra se cae y se rompe). Es el
-reloj de la pelea: no alcanza con tirarle globos desde lejos, hay que cebarlo cada tanto. Vida 60.
+Lo de arriba, más apurado (desde el 15/10, `quick` / `QUICK`): **la que devuelve vuelve un 35 % más rápido**
+(vuela por lo menos 0.55 s) y queda **abierto menos** (2.4, 2.1 y 1.8 s). Y la **paciencia**: con el palo en
+alto y nada que batear, se impacienta (un arco rojo se va llenando alrededor de la zona: 3.4 s, 2.8 y 2.2
+según la fase). Cuando se llena tira una piedra al aire sobre el punto de bateo y 1.1 s después la batea:
+**a la puerta** (el carril rojo hasta la puerta; le saca 1) o **a vos** (el carril rojo te sigue mientras la
+tiene en el aire, y al batearla queda la marca roja donde estabas, como la de las pelotas; te saca 1). Van en
+el orden puerta, vos, puerta, puerta, vos. **Una pelota que le llega mientras tanto se la corta** (batea tu
+pelota, la piedra se cae y se rompe). Es el reloj de la pelea: no alcanza con tirarle globos desde lejos, hay
+que cebarlo seguido. Vida 75.
 
-### `ogro.batea` — no batea pelotas: batea a la puerta a los de su carril
+### `ogro.batea` — no batea pelotas: va a buscar a los que vienen y los batea a la puerta
 
-La idea de los enemigos, sola. No te devuelve nada (le entra todo, siempre), pero una **fila de goblins**
-baja por su carril (la franja roja que sale del punto de bateo hacia el fondo), uno cada 5.5 s (4.4 y 3.4
-en las fases que siguen; goblins, goblinas y en las últimas, orcos). El que llega al punto de bateo sale
-volando por arriba de tu línea y le pega a la puerta lo de su cuerpo (el orco, 2). Batea también a
-cualquiera de la escolta que se meta en el punto. Hay que limpiar el carril: el driver derecho por la fila
-agarra a varios de una. En el aire todavía se lo puede bajar (una pelota rasante que le pase por debajo le
-pega). Vida 50.
+La idea de los enemigos, sola. No te devuelve nada (le entra todo, siempre), pero bajan goblins, uno cada
+6.2 s (5.2 y 4.4 en las fases que siguen; goblins, goblinas y en las últimas, orcos). Desde el 15/10
+(`shuffle` / `SHUFFLE`) **cada uno baja por su columna** (en cualquier lugar de la cancha, hasta 13 m del
+centro) hasta la línea del ogro y ahí espera, y **el ogro se corre de costado** (3.6 m/s, con los pasos de
+lado) a buscar al que llega primero: va hacia donde sabe que viene, y apenas lo tiene en el punto lo batea.
+Una franja roja va del palo al que va a buscar. Después de cada batazo se vuelve a armar en 0.6 s. A los de la
+escolta que cruzan su línea (de 1 m adelante a 4 m atrás del punto) también los va a buscar. El que batea sale
+volando por arriba de tu línea y le saca 1 a la puerta (sea goblin, orco o huargo). Hay que bajarlos antes de
+que llegue a buscarlos: el que espera en la línea es un blanco quieto, pero él viene rápido. En el aire
+todavía se lo puede bajar (una pelota rasante que le pase por debajo le pega). Vida 70.
 
 ### `ogro.peloteo` — la que te devuelve queda en tu línea, dorada, y vale más cada vez
 
@@ -88,7 +95,17 @@ fila 3 cuando están a menos de 12 m del palo.
 Lo que no puede hacer: elegir el globo contra él (el bot solo usa el hierro y el wedge contra escudos o con
 relieve) ni cebarlo a propósito (su carnada es solo para la esquiva y la burbuja). Ver «Lo que haría falta».
 
-(Resultados de las tandas: abajo.)
+**Las corridas del 15/10** (después de los cambios de abajo; una o dos partidas, el bot «humano» desde la
+oleada 10, `logs/tandas/ogro-rey-15-10b.jsonl` y `-c.jsonl`):
+
+| Versión | Resultado | Lo que se ve |
+|---|---|---|
+| `devuelve` | perdió la puerta a los 55 s (al ogro le quedaban 42 de 75) | el ogro le sacó solo 1 de puerta (cortó 3 de 4 piedras) y ninguna devuelta le pegó; la puerta la perdió con la escolta mientras le pegaba al ogro (el bot no ceba a propósito) |
+| `batea` (con 4.4 m/s, uno cada 4.6 s) | perdió la puerta a los 40 s | bateó a 7 (el bug, arreglado); 10 de puerta: demasiado |
+| `batea` (con los números de ahora, salvo el 1 de puerta fijo) | 1 de 2 | 8 bateados en cada una; 9 y 5 de puerta. Después se dejó en 1 lo que saca cada uno |
+
+`batea` quedó del lado difícil para el bot (no prioriza bien a los que esperan en la línea); falta que lo
+juegue Leandro.
 
 ## Lo que haría falta en el código compartido
 
@@ -98,6 +115,33 @@ relieve) ni cebarlo a propósito (su carnada es solo para la esquiva y la burbuj
 - Nada más por ahora: para batear se usa `balls.list` (la pelota se marca `done` antes de que `Balls` la
   mueva: la pelea se actualiza entre la horda y las pelotas) y el resto son enemigos con guion.
 
+## Cambios del 15/10 (lo que jugó Leandro)
+
+Leandro jugó `devuelve` (ganó en 114 s, perdiendo 1 de puerta: «estaba muy fácil») y `batea` (ganó en 147 s;
+el ogro bateó solo a 2).
+
+- **El bug del bateo (todas las que tienen fila).** Leandro: «anda mal lo de batear a un goblin: el goblin se
+  queda parado un poco atrás, el ogro batea, y el goblin no sale volando, e intenta de nuevo con el mismo
+  goblin. Con un huargo y un caballero sí funcionó, los mandó girando hacia la puerta, muy divertido. Con la
+  goblina también falla, con el orco también». Era el guion de la fila: el de adelante caminaba al punto de
+  bateo solo mientras el palo estaba «listo» (`guard`); al entrar al círculo el ogro empezaba el golpe, el
+  palo dejaba de estar listo, y el goblin volvía a su lugar de espera (2.7 m atrás). En los 0.15 s hasta el
+  impacto daba un paso atrás y salía del círculo justo a tiempo. El huargo y el caballero eran de la escolta
+  (sin guion: siguen caminando hacia la puerta), por eso a ellos sí. Ahora el de adelante sigue caminando
+  mientras baja el palo, y en el impacto se cuenta medio metro de más (`inHit(e, 0.5)`). No hizo falta tocar
+  `enemies.ts`.
+- **`devuelve` más apurado.** Leandro: «el disparo que devuelve debería ser más rápido, no sé si hace falta que
+  sea tan coreografiado de que esté un rato largo esperando, podría tirarte pelotas y piedras más seguido,
+  tirarle más a la puerta también». La devuelta va un 35 % más rápido, el abierto dura medio segundo menos, la
+  paciencia es la mitad (3.4 s en vez de 7) y la piedra sale en 1.1 s en vez de 1.5. Las piedras van a la
+  puerta y también a vos (las que van a vos, 2 de cada 5). Vida 75 (igual).
+- **`batea` se mueve.** Leandro: «que haga algo y se mueva para los costados mientras, puede moverse hacia
+  donde sabe que viene un enemigo y pegarle más rápido». Ver arriba: ya no hay una fila por su carril, sino
+  goblins por toda la cancha y él que va a buscarlos. Como con el arreglo ya no se le escapa ninguno, salen más
+  espaciados (6.2 s en vez de 4.6) y cada uno saca 1 de puerta. `completo` sigue con la fila por el carril
+  (con el arreglo del bug).
+
 ## Problemas conocidos
 
-(abajo)
+- Mientras se corre de costado con el palo en alto (en `batea`), probablemente se desliza sin mover las
+  piernas (la pose del golpe es de todo el cuerpo); con el palo abajo camina de lado. No lo vi en fotos.

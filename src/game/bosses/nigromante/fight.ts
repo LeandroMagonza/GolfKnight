@@ -87,8 +87,16 @@ const ESCORT_INTERVAL = 2.5;
 const CHAIN_EVERY: [number, number] = [5, 3.5];
 const MAX_CHAINS = 3;
 const CHAIN_REACH = 5.5;
-/** Desde que cae el primero de una cadena, lo que hay para matar al resto. */
-const CHAIN_WINDOW = 2.0;
+/**
+ * Lo que tarda en volver un encadenado que cae (con toda la vida, y casi muerto). Vuelve si en ese rato queda
+ * alguien del grupo en pie (15/10, Leandro: «que cuando hay un grupo tengan que estar muertos los 3 para que
+ * no revivan»): el grupo cae solo si mueren todos dentro de esta ventana.
+ */
+const CHAIN_WINDOW: [number, number] = [2.6, 2.0];
+/** La vida del esqueleto, para avisar en `huesos` si el que vuelve va a ser más fuerte que el marcado. */
+const BONES_HP = 4;
+/** Cada cuánto, como mucho, el cartelito de «volvió, queda uno en pie». */
+const CHAIN_NAG = 4;
 /** Lo que le saca a él romper una cadena entera, según cuántos tenía. */
 const CHAIN_DAMAGE: Record<number, number> = { 2: 4, 3: 6 };
 
@@ -122,18 +130,25 @@ interface Grave {
   fx: GraveFx;
   /** Lo alzó él: sale como esqueleto común (se lo puede marcar). */
   raised?: boolean;
-  /** Si es de una cadena: si la rompen, no sale. */
+  /** Si es de una cadena: si caen todos, no sale; si sale, vuelve a su lugar en la cadena (`slot`). */
   chain?: Chain;
+  slot?: number;
 }
 
+/**
+ * Un grupo encadenado (15/10): mientras quede uno en pie, el que cae vuelve (y vuelve a la cadena). Se rompe
+ * solo si están todos caídos a la vez.
+ */
 interface Chain {
-  members: Enemy[];
+  /** El cuerpo de cada lugar (el de ahora: el que volvió reemplaza al caído); null si se fue sin morir. */
+  members: (Enemy | null)[];
+  /** Cuántos tenía al armarse (lo que le saca romperla). */
+  size: number;
   links: LinkFx[];
   rings: Map<Enemy, ChainRingFx>;
-  /** Cuándo se cierra la ventana (desde que cayó el primero), o -1. */
-  until: number;
-  fallen: number;
-  /** La rompieron entera: se resuelve en el próximo cuadro. */
+  /** Hay alguno caído esperando volver: la cadena titila. */
+  alarm: boolean;
+  /** Cayeron todos a la vez: se resuelve en el próximo cuadro. */
   broken: boolean;
 }
 
@@ -230,21 +245,27 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
       marked.delete(e);
       counts.markedKills++;
       const delay = lerp(REVIVE_DELAY, fury());
-      addGrave(e.position.x, e.position.z, e.stats.kind, e.mods, delay);
+      addGrave(e.position.x, e.position.z, e.stats.kind, e.mods, delay, {}, bonesTag(e));
     }
     const chain = chainOf.get(e);
     if (chain) chainDied(chain, e);
   }
 
-  function addGrave(x: number, z: number, kind: EnemyKind, mods: EnemyMods, delay: number, extra: Partial<Grave> = {}): Grave {
+  function addGrave(x: number, z: number, kind: EnemyKind, mods: EnemyMods, delay: number, extra: Partial<Grave> = {}, tag: THREE.Texture | null = null): Grave {
     const now = ctx.clock();
-    const g: Grave = { x, z, kind, mods, born: now, at: now + delay, fx: new GraveFx(fx, x, z), ...extra };
+    const g: Grave = { x, z, kind, mods, born: now, at: now + delay, fx: new GraveFx(fx, x, z, undefined, tag), ...extra };
     graves.push(g);
     return g;
   }
 
+  /** En `huesos`, el cartelito de lo que va a volver (rojo si va a ser más fuerte que `e`). */
+  function bonesTag(e: Enemy): THREE.Texture | null {
+    if (cfg.revive !== 'bones') return null;
+    return e.maxHp < BONES_HP ? fx.bonesWorseTex : fx.bonesTex;
+  }
+
   /** Sale uno de la tumba: el mismo (o un esqueleto), entero, saliendo del piso. */
-  function rise(g: Grave): void {
+  function rise(g: Grave): Enemy {
     const bones = g.raised || cfg.revive === 'bones';
     const kind: EnemyKind = bones ? 'skeleton' : g.kind;
     const mods: EnemyMods = bones ? {} : { ...g.mods };
@@ -260,12 +281,15 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
         e.script = tracker;
         return false;
       },
+      // si lo matan mientras sale, cuenta igual (si es de una cadena, vuelve a caer en ella)
+      onDeath: (e) => regularDied(e),
     };
     const e = horde.spawnCustom(partStats(kind, { tint: g.raised ? 0 : REVIVED_TINT }), kind, g.x, g.z, mods, script);
     e.heading = Math.PI;
     if (!g.raised) spent.add(e);
     tmpA.set(g.x, heightAt(g.x, g.z), g.z);
     ctx.effects.blink(tmpA, GREEN);
+    return e;
   }
 
   // ---- las marcas ----
@@ -313,7 +337,7 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
   function applyMark(e: Enemy): void {
     // al llegar a las cinco, suelta al más viejo
     if (marked.size >= maxMarks) unmark(marked.keys().next().value!);
-    marked.set(e, new MarkFx(fx, e));
+    marked.set(e, new MarkFx(fx, e, bonesTag(e)));
     counts.marks++;
     ctx.effects.spark(headOf(e, tmpA), GREEN);
   }
@@ -372,7 +396,7 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
 
   function makeChain(members: Enemy[]): void {
     if (members.length < 2) return;
-    const chain: Chain = { members, links: [], rings: new Map(), until: -1, fallen: 0, broken: false };
+    const chain: Chain = { members, size: members.length, links: [], rings: new Map(), alarm: false, broken: false };
     for (let i = 0; i + 1 < members.length; i++) chain.links.push(new LinkFx(fx));
     for (const m of members) {
       chain.rings.set(m, new ChainRingFx(fx, m));
@@ -382,24 +406,42 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
     counts.chains++;
   }
 
+  /** Cae uno del grupo: su tumba cuenta; si al cerrarse queda alguno en pie, vuelve. */
   function chainDied(chain: Chain, e: Enemy): void {
-    chain.fallen++;
-    const now = ctx.clock();
-    if (chain.until < 0) chain.until = now + CHAIN_WINDOW;
-    // la tumba cuenta lo que queda de la ventana: si no rompen la cadena a tiempo, sale
-    addGrave(e.position.x, e.position.z, e.stats.kind, e.mods, Math.max(0.3, chain.until - now), { chain });
+    const slot = chain.members.indexOf(e);
+    chainOf.delete(e);
     chain.rings.get(e)?.dispose();
     chain.rings.delete(e);
-    if (!chain.members.some((m) => m.alive)) chain.broken = true;
+    if (slot < 0) return;
+    addGrave(e.position.x, e.position.z, e.stats.kind, e.mods, lerp(CHAIN_WINDOW, fury()), { chain, slot });
   }
 
+  /** La tumba del lugar `slot` de la cadena, si está esperando. */
+  const graveOf = (chain: Chain, slot: number) => graves.find((g) => g.chain === chain && g.slot === slot && g.at !== Infinity);
+
+  /** Suelta la cadena: los caídos que esperaban vuelven igual, ya sueltos. */
   function dropChain(chain: Chain): void {
     const i = chains.indexOf(chain);
     if (i < 0) return;
     chains.splice(i, 1);
     for (const l of chain.links) l.dispose();
     for (const r of chain.rings.values()) r.dispose();
-    for (const m of chain.members) chainOf.delete(m);
+    for (const m of chain.members) if (m) chainOf.delete(m);
+    for (const g of graves) if (g.chain === chain) g.chain = undefined;
+  }
+
+  /** Volvió uno de la cadena: ocupa su lugar de nuevo. */
+  let nagged = -Infinity;
+  function rejoin(chain: Chain, slot: number, e: Enemy): void {
+    chain.members[slot] = e;
+    chainOf.set(e, chain);
+    chain.rings.set(e, new ChainRingFx(fx, e));
+    counts.failed++;
+    const now = ctx.clock();
+    if (now - nagged > CHAIN_NAG) {
+      nagged = now;
+      ctx.feedback(L('¡Volvió! Quedaba uno del grupo en pie', 'It rose! One of the group still stood'));
+    }
   }
 
   function updateChains(dt: number): void {
@@ -408,9 +450,9 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
       // (romper una puede matarlo a él, y ahí se sueltan todas)
       if (!chains.includes(chain)) continue;
       if (chain.broken) {
-        // rota entera: no vuelve nadie, y a él le pega
+        // cayeron todos a la vez: no vuelve nadie, y a él le pega
         counts.broken++;
-        const damage = CHAIN_DAMAGE[Math.min(3, chain.members.length)] ?? 4;
+        const damage = CHAIN_DAMAGE[Math.min(3, chain.size)] ?? 4;
         for (const g of graves) {
           if (g.chain !== chain) continue;
           const from = new THREE.Vector3(g.x, heightAt(g.x, g.z) + 0.8, g.z);
@@ -425,33 +467,57 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
         }
         continue;
       }
-      // los que se fueron sin morir (pasaron la línea, el hoyo, llegaron a la puerta) se sueltan
-      for (const m of chain.members) {
-        if (m.alive && !m.passed) continue;
-        chain.rings.get(m)?.dispose();
-        chain.rings.delete(m);
+      // cómo está cada lugar: en pie, caído esperando volver, o ido (pasó la línea: se suelta del grupo; el
+      // hoyo: cuenta como caído para siempre)
+      let standing = 0;
+      let down = 0;
+      let places = 0;
+      const anchors: ({ e: Enemy } | { x: number; z: number })[] = [];
+      for (let i = 0; i < chain.members.length; i++) {
+        const m = chain.members[i];
+        if (!m) continue;
+        if (m.passed) {
+          chain.rings.get(m)?.dispose();
+          chain.rings.delete(m);
+          chainOf.delete(m);
+          chain.members[i] = null;
+          continue;
+        }
+        places++;
+        if (m.alive) {
+          standing++;
+          anchors.push({ e: m });
+          continue;
+        }
+        const g = graveOf(chain, i);
+        if (g) {
+          down++;
+          anchors.push({ x: g.x, z: g.z });
+        }
       }
-      const up = chain.members.filter((m) => m.alive && !m.passed);
-      if (chain.until >= 0 && now >= chain.until) {
-        // no llegaron: los que cayeron vuelven (sus tumbas ya están contando) y la cadena se suelta
-        counts.failed++;
+      if (places < 2) {
         dropChain(chain);
         continue;
       }
-      if (chain.until < 0 && up.length < 2) {
-        dropChain(chain);
+      if (standing === 0) {
+        if (down > 0) chain.broken = true;
+        else dropChain(chain);
         continue;
       }
-      if (chain.until >= 0 && up.length === 0) {
-        chain.broken = true;
-        continue;
-      }
-      // las cadenas, entre los que siguen en pie (con uno caído, titilan: hay que apurarse)
-      const alarm = chain.until >= 0;
+      // la cadena pasa por todos: los vivos y las tumbas de los caídos (titila si hay alguno caído)
+      chain.alarm = down > 0;
       let li = 0;
-      for (let i = 0; i + 1 < up.length; i++) chain.links[li++].update(up[i], up[i + 1], now, alarm);
-      for (; li < chain.links.length; li++) chain.links[li].update(up[0], up[0], now, false);
-      for (const r of chain.rings.values()) r.update(now, alarm);
+      for (let i = 0; i + 1 < anchors.length && li < chain.links.length; i++) {
+        const a = anchors[i];
+        const b = anchors[i + 1];
+        const link = chain.links[li++];
+        if ('e' in a && 'e' in b) link.update(a.e, b.e, now, chain.alarm);
+        else if ('e' in a && !('e' in b)) link.toGrave(a.e, b.x, b.z, now);
+        else if (!('e' in a) && 'e' in b) link.toGrave(b.e, a.x, a.z, now);
+        else link.hide();
+      }
+      for (; li < chain.links.length; li++) chain.links[li].hide();
+      for (const r of chain.rings.values()) r.update(now, chain.alarm);
     }
     if (!boss.alive || ctx.over() || dropped > 0 || cast) return;
     if (chains.length >= MAX_CHAINS) return;
@@ -628,7 +694,8 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
         if (now < g.at || ctx.over()) continue;
         g.fx.dispose();
         graves.splice(i, 1);
-        rise(g);
+        const back = rise(g);
+        if (g.chain && g.slot !== undefined && chains.includes(g.chain)) rejoin(g.chain, g.slot, back);
         if (!g.raised) counts.revived++;
         ctx.audio.casterHit();
       }
@@ -639,7 +706,7 @@ export function startNecro(ctx: BossCtx, cfg: Version): BossFight {
         if (e === boss) return dropped > 0 ? 3 : 1.4;
         if (marked.has(e)) return cfg.revive === 'bones' ? (e.maxHp >= 4 ? 0.8 : 0.15) : 0.25;
         const chain = chainOf.get(e);
-        if (chain) return chain.until >= 0 ? 6 : 1.3;
+        if (chain) return chain.alarm ? 6 : 1.3;
         if (bearers.includes(e)) return 1.2;
         return 1;
       },

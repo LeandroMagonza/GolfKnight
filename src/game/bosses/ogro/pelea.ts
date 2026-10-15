@@ -26,6 +26,13 @@ export interface OgroOpts {
   fungo: boolean;
   /** Una fila de goblins baja por su carril, y los batea contra la puerta (y a cualquiera que se meta). */
   queue: boolean;
+  /**
+   * Más apurado (15/10, «estaba muy fácil»): la que devuelve vuelve más rápido, queda abierto menos, se
+   * impacienta antes y las piedras van una a la puerta y otra a vos (ver `QUICK`).
+   */
+  quick?: boolean;
+  /** Se corre de costado a buscar al que viene y lo batea apenas llega (ver `SHUFFLE`). */
+  shuffle?: boolean;
   /** La vida, sin la dificultad. */
   hp: number;
   /** La línea chica del cartel de arriba al empezar: cómo se le gana. */
@@ -102,12 +109,29 @@ const QUEUE = {
 };
 /** El círculo donde batea enemigos, alrededor del punto de bateo (más el radio de cada uno). */
 const HIT_RADIUS = 1.5;
+/**
+ * Con `shuffle` (15/10, Leandro: «que se mueva para los costados, hacia donde sabe que viene un enemigo, y
+ * le pegue más rápido»): la fila no baja por su carril sino cada uno por su columna, hasta su línea (`stopAt`
+ * m delante del punto de bateo), y él se corre de costado a `speed` m/s al que llega primero. A los de la
+ * escolta que cruzan su línea (de `band[0]` a `band[1]` m del punto) también los va a buscar. Batea y vuelve
+ * a armarse en `open` s. Sale uno cada `every` s por fase (más espaciados que la fila: ahora casi no se le
+ * escapa ninguno, y la primera tanda del bot perdió 10 de puerta en 40 s con los de la fila). Y el que
+ * batea le saca 1 a la puerta, sea lo que sea (sin esto, el orco y el huargo sacaban 2).
+ */
+const SHUFFLE = { speed: 3.6, stopAt: 1, band: [-1, 4], spread: 13, open: 0.6, keep: 0.6, every: [6.2, 5.2, 4.4] };
+/**
+ * Con `quick`: la que devuelve vuelve `returnMul` veces más rápido (y vuela por lo menos `minFlight` s), abierto
+ * `open` s por fase, se impacienta en `idle` s y tira la piedra en `toss` s; la piedra va a la puerta y a vos,
+ * en el orden de `aims` (a vos, con la marca roja como la de las pelotas, y te saca `damage`).
+ */
+const QUICK = { returnMul: 1.35, minFlight: 0.55, open: [2.4, 2.1, 1.8], idle: [3.4, 2.8, 2.2], toss: 1.1, aims: ['gate', 'player', 'gate', 'gate', 'player'] as Aim[], damage: 1 };
 /** El que batea a la puerta: cuánto vuela y qué tan alto (por arriba de tu línea). */
 const FLY = { time: 1.7, height: 7 };
 
 const COLORS = { guard: 0xff8a2a, open: 0xffd24a, idle: 0x9a9a9a, lane: 0xff5a3c };
 
 type BatState = 'enter' | 'move' | 'raise' | 'guard' | 'swing' | 'open';
+type Aim = 'gate' | 'player';
 
 interface Flier {
   e: Enemy;
@@ -125,6 +149,8 @@ interface Rock {
   lane: LaneMark;
   /** En el aire hacia la puerta (después del batazo); antes, subiendo y bajando sobre el punto de bateo. */
   flying: boolean;
+  /** Adónde la va a batear: a la puerta, o a vos (con `quick`). */
+  aim: Aim;
 }
 
 const smooth = (u: number) => u * u * (3 - 2 * u);
@@ -154,6 +180,15 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
   const queue = new Set<Enemy>();
   let queueTimer = QUEUE.first;
   let queueCount = 0;
+  /** Con `shuffle`: el que va a buscar ahora, y la columna por la que baja cada uno de la fila. */
+  let target: Enemy | null = null;
+  const column = new Map<Enemy, number>();
+  /** Con `quick`: cuántas piedras tiró (para el orden de `QUICK.aims`), y las que van hacia vos, con su piedra. */
+  let tossCount = 0;
+  const rockShots = new Map<Batazo, THREE.Object3D>();
+  // los tiempos que cambian con `quick`
+  const idleFor = () => (o.quick ? QUICK.idle : FUNGO.idle)[phase];
+  const tossFor = () => (o.quick ? QUICK.toss : FUNGO.toss);
   /** Pelotas que ya miró y no hay que volver a batear (las bateadas). */
   const seen = new WeakSet<Ball>();
   /** Las pelotas que ya conoce, para reconocer la que sale de un puesto con pelota dorada. */
@@ -309,8 +344,8 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
     // la de habilidad es gratis: vuelve como un golpe 1
     const q = b.ability ? 1 : Math.min(3, Math.max(1, b.quality));
     const rally = o.rally ? Math.min(RALLY.max, (rallyOf.get(b) ?? 0) + 1) : 0;
-    const speed = RETURN.speed[q - 1] * RETURN.phaseSpeed[phase] * (1 + RALLY.speedUp * Math.max(0, rally - 1));
-    const time = THREE.MathUtils.clamp(from.distanceTo(to) / speed, RETURN.minFlight, RETURN.maxFlight);
+    const speed = RETURN.speed[q - 1] * RETURN.phaseSpeed[phase] * (1 + RALLY.speedUp * Math.max(0, rally - 1)) * (o.quick ? QUICK.returnMul : 1);
+    const time = THREE.MathUtils.clamp(from.distanceTo(to) / speed, o.quick ? QUICK.minFlight : RETURN.minFlight, RETURN.maxFlight);
     batazos.push(new Batazo(scene, from, to, time, RETURN.height, RETURN.radius, RETURN.damage[q - 1], rally, rally > 1 ? 0xff7a00 : HURT_COLOR));
     stats.bateadas++;
     stats.peloteoMax = Math.max(stats.peloteoMax, rally);
@@ -383,11 +418,15 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
   function startToss(): void {
     const mesh = rockLook(0.38, 0x8a8478, 7);
     scene.add(mesh);
+    const aim: Aim = o.quick ? QUICK.aims[tossCount++ % QUICK.aims.length] : 'gate';
     const to = gateTarget(hitPoint.x);
     const laneMark = new LaneMark(scene, HURT_COLOR, 1.6).between(hitPoint.x, hitPoint.z - 1, to.x, to.z + 0.5);
-    toss = { mesh, t: 0, from: hitPoint.clone().setY(1.6), to, lane: laneMark, flying: false };
+    toss = { mesh, t: 0, from: hitPoint.clone().setY(1.6), to, lane: laneMark, flying: false, aim };
     stats.piedras++;
-    ctx.feedback(L('¡Va a batear una piedra a la puerta!', 'He’s about to hit a rock at the gate!'));
+    // el aviso con letras, solo las primeras veces: después se lee en el carril
+    if (stats.piedras <= 2 || !o.quick) {
+      ctx.feedback(aim === 'gate' ? L('¡Va a batear una piedra a la puerta!', 'He’s about to hit a rock at the gate!') : L('¡Va a batearte una piedra!', 'He’s about to hit a rock at you!'));
+    }
   }
 
   /** La piedra se le cae: le llegó una pelota mientras la tenía en el aire (`cut`), o se movió. */
@@ -404,8 +443,13 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
     if (toss) {
       // sube y baja sobre el punto de bateo: al terminar el aviso queda a la altura del palo
       toss.t += dt;
-      const u = Math.min(1, toss.t / FUNGO.toss);
+      const u = Math.min(1, toss.t / tossFor());
       toss.mesh.position.set(hitPoint.x, 1.4 + Math.sin(Math.PI * u) * 5.2, hitPoint.z);
+      // la que va hacia vos: el carril te sigue hasta que la batea (la marca queda donde estabas)
+      if (toss.aim === 'player') {
+        const p = ctx.player();
+        toss.lane.between(hitPoint.x, hitPoint.z - 1, p.anchor.x, p.anchor.z + 0.6);
+      }
       toss.mesh.rotation.x += dt * 4;
       toss.lane.opacity(0.3 + 0.3 * Math.abs(Math.sin(toss.t * (5 + 10 * u))));
     }
@@ -433,11 +477,14 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
 
   /** ¿Lo puede batear? Los vivos que caminan, sin contar a los de otros jefes ni a los que ya vuelan. */
   const batable = (e: Enemy) => e !== boss && e.alive && !e.passed && !e.stats.boss && !fliers.some((f) => f.e === e) && (e.script === null || queue.has(e));
-  const inHit = (e: Enemy) => Math.hypot(e.position.x - hitPoint.x, e.position.z - hitPoint.z) < HIT_RADIUS + e.radius;
+  /** En el punto de bateo; `slack` de más en el impacto, para que no se le escape el que está justo en el borde. */
+  const inHit = (e: Enemy, slack = 0) => Math.hypot(e.position.x - hitPoint.x, e.position.z - hitPoint.z) < HIT_RADIUS + e.radius + slack;
 
   function launch(e: Enemy): void {
     queue.delete(e);
-    const f: Flier = { e, from: e.position.clone(), to: gateTarget(e.position.x).setY(0), t: 0, damage: Math.max(1, e.gateDamage) };
+    column.delete(e);
+    if (target === e) target = null;
+    const f: Flier = { e, from: e.position.clone(), to: gateTarget(e.position.x).setY(0), t: 0, damage: o.shuffle ? 1 : Math.max(1, e.gateDamage) };
     fliers.push(f);
     stats.bateados++;
     e.script = {
@@ -487,12 +534,13 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
   function spawnQueue(dt: number): void {
     if (!o.queue || !boss.alive || ctx.over() || bat === 'enter') return;
     if ((queueTimer -= dt) > 0) return;
-    queueTimer = QUEUE.every[phase];
+    queueTimer = (o.shuffle ? SHUFFLE.every : QUEUE.every)[phase];
     const kinds = QUEUE.kinds[phase];
     const kind = kinds[queueCount++ % kinds.length];
     const z = SPAWN_Z - 4;
     const half = fieldHalfAt(z) - 1;
-    const x = THREE.MathUtils.clamp(hitPoint.x + (ctx.rng() - 0.5) * 1.2, -half, half);
+    // con `shuffle`, cada uno baja por su columna (él se corre a buscarlo); si no, por el carril del palo
+    const x = THREE.MathUtils.clamp(o.shuffle ? (ctx.rng() * 2 - 1) * SHUFFLE.spread : hitPoint.x + (ctx.rng() - 0.5) * 1.2, -half, half);
     const walker: EnemyScript = {
       update(e, dt2) {
         // sin el ogro, la fila se desarma: cada uno va a la puerta como cualquiera
@@ -504,9 +552,18 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
           e.animator.setLocomotion('Idle', 1);
           return true;
         }
-        // bajan por el carril hasta el punto de bateo; si el palo no está listo, esperan en fila
+        if (o.shuffle) {
+          // baja por su columna hasta la línea del ogro y ahí espera, mirando el palo: él viene a buscarlo
+          const col = column.get(e) ?? e.position.x;
+          if (e.walkToward(col, hitPoint.z + SHUFFLE.stopAt, QUEUE.speed, dt2, false, 0.25)) e.faceToward(hitPoint.x, hitPoint.z, dt2);
+          return true;
+        }
+        // bajan por el carril hasta el punto de bateo; si el palo no está listo, esperan en fila. El de
+        // adelante sigue caminando mientras baja el palo: antes, al empezar el golpe dejaba de estar «listo»
+        // y el goblin daba un paso atrás, salía del círculo justo en el impacto y no volaba (15/10, Leandro:
+        // «el goblin se queda parado un poco atrás, el ogro batea, y el goblin no sale volando»)
         const ahead = [...queue].filter((q) => q !== e && q.alive && q.position.z < e.position.z).length;
-        const ready = bat === 'guard' && !boss.silenced;
+        const ready = (bat === 'guard' || bat === 'swing') && !boss.silenced;
         const stop = hitPoint.z + (ready && ahead === 0 ? 0 : HIT_RADIUS + 1.2 + ahead * 1.3);
         if (e.walkToward(hitPoint.x, stop, QUEUE.speed, dt2, false, 0.25)) e.faceToward(hitPoint.x, hitPoint.z - 5, dt2);
         return true;
@@ -514,11 +571,59 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
     };
     const e = horde.spawnCustom(partStats(kind, {}), kind, x, z, {}, walker);
     queue.add(e);
+    column.set(e, x);
   }
 
   function release(e: Enemy): void {
     queue.delete(e);
+    column.delete(e);
     if (e.alive && !fliers.some((f) => f.e === e)) e.script = null;
+  }
+
+  // ---- de costado, a buscar al que viene (`shuffle`) ----
+
+  /** Cuánto tardaría en batear a `e`: lo que le falta para llegar a su línea, o a él para correrse, lo que sea más. */
+  function costOf(e: Enemy): number {
+    const reach = Math.abs(e.position.x - hitPoint.x) / SHUFFLE.speed;
+    const dz = e.position.z - hitPoint.z;
+    if (queue.has(e)) return Math.max(reach, Math.max(0, dz - SHUFFLE.stopAt) / QUEUE.speed) + 0.3 * reach;
+    // los de la escolta: solo los que están cruzando su línea
+    if (dz < SHUFFLE.band[0] || dz > SHUFFLE.band[1]) return Infinity;
+    return reach + 0.5;
+  }
+
+  function pickTarget(): void {
+    if (target && (!batable(target) || costOf(target) === Infinity)) target = null;
+    let best: Enemy | null = null;
+    let bestCost = Infinity;
+    for (const e of horde.enemies) {
+      if (!batable(e) || e.frozen) continue;
+      const c = costOf(e);
+      if (c < bestCost) {
+        best = e;
+        bestCost = c;
+      }
+    }
+    // no cambia de idea por poco: que se lea a quién va a buscar
+    if (best && (!target || bestCost < costOf(target) - SHUFFLE.keep)) target = best;
+  }
+
+  /** Se corre de costado (con los pasos de lado) para que el punto de bateo quede en la columna del que va a buscar. */
+  function shuffleStep(dt: number): void {
+    pickTarget();
+    const half = fieldHalfAt(boss.position.z) - BODY.radius - 0.5;
+    const goal = THREE.MathUtils.clamp((target ? target.position.x : stance.x) - side.x, -half, half);
+    const dx = goal - boss.position.x;
+    const step = Math.sign(dx) * Math.min(Math.abs(dx), SHUFFLE.speed * (target ? 1 : 0.5) * dt);
+    if (Math.abs(dx) < 0.08) {
+      boss.animator.setLocomotion('Idle', 1);
+      return;
+    }
+    boss.position.x += step;
+    boss.position.y = heightAt(boss.position.x, boss.position.z);
+    // mira a la línea (heading ~π): su derecha es +x
+    const right = Math.sin(boss.heading + Math.PI / 2) * -1;
+    boss.animator.setLocomotion(step * right > 0 ? 'Strafe Right' : 'Strafe Left', 1.2);
   }
 
   // ---- el ritmo del bate ----
@@ -535,9 +640,24 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
   function strike(): void {
     struck = true;
     if (o.queue) {
-      for (const e of horde.enemies) if (batable(e) && inHit(e)) launch(e);
+      for (const e of horde.enemies) if (batable(e) && inHit(e, 0.5)) launch(e);
     }
-    if (toss) {
+    if (toss && toss.aim === 'player') {
+      // hacia vos: como la pelota devuelta (la marca roja donde estás ahora), con la piedra en vez de la pelota
+      const r = toss;
+      toss = null;
+      r.lane.dispose();
+      const p = ctx.player();
+      const from = r.mesh.position.clone();
+      const to = new THREE.Vector3(p.anchor.x, heightAt(p.anchor.x, p.anchor.z) + 0.2, p.anchor.z);
+      const speed = RETURN.speed[1] * RETURN.phaseSpeed[phase] * QUICK.returnMul;
+      const time = THREE.MathUtils.clamp(from.distanceTo(to) / speed, QUICK.minFlight, RETURN.maxFlight);
+      const shot = new Batazo(scene, from, to, time, RETURN.height, RETURN.radius, QUICK.damage, 0);
+      shot.mesh.visible = false;
+      batazos.push(shot);
+      rockShots.set(shot, r.mesh);
+      audio.bossThrow();
+    } else if (toss) {
       const r = toss;
       toss = null;
       r.flying = true;
@@ -582,6 +702,8 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
     // plantado: de costado a la cancha, como el bateador
     boss.heading = boss.heading + wrap(stanceHeading - boss.heading) * (1 - Math.exp(-8 * dt));
     boss.animator.setLocomotion('Idle', 1);
+    // con `shuffle` se corre de costado mientras no esté bajando el palo
+    if (o.shuffle && bat !== 'swing' && !ctx.over()) shuffleStep(dt);
     place();
     if (ctx.over()) return;
     const want = phaseNow();
@@ -614,13 +736,13 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
       // baja el palo cuando una pelota está por llegar, cuando uno entra al punto de bateo o cuando la
       // piedra que tiró ya bajó a la altura del palo
       const ball = balls.find((b) => eta(b, SWING.lead) >= 0);
-      const go = !!ball || (o.queue && horde.enemies.some((e) => batable(e) && inHit(e))) || (!!toss && toss.t >= FUNGO.toss);
+      const go = !!ball || (o.queue && horde.enemies.some((e) => batable(e) && inHit(e))) || (!!toss && toss.t >= tossFor());
       // para el registro: por qué bajó el palo la última vez
       if (go) why = ball ? `${ball.club.id} ${ball.quality} y${ball.state.pos.y.toFixed(1)} v${ball.state.vel.x.toFixed(1)},${ball.state.vel.y.toFixed(1)},${ball.state.vel.z.toFixed(1)}` : toss ? 'piedra' : 'enemigo'; // i18n-ok: el registro
       if (!go) {
         if (o.fungo && !toss) {
           idle += dt;
-          if (idle >= FUNGO.idle[phase]) startToss();
+          if (idle >= idleFor()) startToss();
         }
         return;
       }
@@ -637,7 +759,7 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
     if (batTime >= SWING.lead + SWING.follow) {
       bat = 'open';
       batTime = 0;
-      openFor = o.returns ? OPEN[phase] : OPEN_QUEUE_ONLY;
+      openFor = o.returns ? (o.quick ? QUICK.open : OPEN)[phase] : o.shuffle ? SHUFFLE.open : OPEN_QUEUE_ONLY;
       // las primeras veces se avisa con letras; después alcanza con el círculo dorado
       if (o.returns && ++opens <= OPEN_TOLD) ctx.feedback(L('¡Abierto: pegale!', 'Open: hit him!'));
     }
@@ -659,13 +781,20 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
     if (!alive || !planted) arc.hide();
     else if (bat === 'open' && o.returns) arc.color(COLORS.open).opacity(0.8).fill(1 - batTime / Math.max(0.01, openFor));
     else if (toss) arc.color(HURT_COLOR).opacity(0.6 + 0.35 * pulse).fill(1);
-    else if (o.fungo && bat === 'guard' && !boss.silenced) arc.color(HURT_COLOR).opacity(0.75).fill(idle / FUNGO.idle[phase]);
+    else if (o.fungo && bat === 'guard' && !boss.silenced) arc.color(HURT_COLOR).opacity(0.75).fill(idle / idleFor());
     else arc.hide();
     glow.update(dt, armed || (alive && o.queue && planted && bat === 'guard') ? 1 : 0, armed ? COLORS.guard : COLORS.lane);
     if (lane && hitMark) {
       const on = alive && planted;
-      const far = Math.min(hitPoint.z + QUEUE.laneLength, SPAWN_Z - 2);
-      lane.between(hitPoint.x, hitPoint.z, hitPoint.x, far).opacity(on ? 0.2 : 0);
+      if (o.shuffle) {
+        // la franja va del palo al que va a buscar: se lee a quién le toca
+        const t = target && target.alive ? target : null;
+        if (t) lane.between(hitPoint.x, hitPoint.z, t.position.x, Math.max(t.position.z, hitPoint.z + 0.5));
+        lane.opacity(on && t ? 0.3 + 0.15 * pulse : 0);
+      } else {
+        const far = Math.min(hitPoint.z + QUEUE.laneLength, SPAWN_Z - 2);
+        lane.between(hitPoint.x, hitPoint.z, hitPoint.x, far).opacity(on ? 0.2 : 0);
+      }
       hitMark.at(hitPoint.x, hitPoint.z).opacity(on ? (bat === 'guard' && !boss.silenced ? 0.35 + 0.2 * pulse : 0.15) : 0);
     }
   }
@@ -690,15 +819,24 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
       updateRocks(dt);
       for (let i = batazos.length - 1; i >= 0; i--) {
         const b = batazos[i];
-        if (!b.update(dt)) continue;
+        const rock = rockShots.get(b);
+        const landed = b.update(dt);
+        if (rock) {
+          rock.position.copy(b.mesh.position);
+          rock.rotation.x += dt * 9;
+        }
+        if (!landed) continue;
         // cayó: si seguís adentro de la marca, te pega
         const p = ctx.player();
         if (!ctx.over() && p.alive && Math.hypot(p.anchor.x - b.to.x, p.anchor.z - b.to.z) <= b.radius) {
           if (!p.invulnerable) stats.teDio++;
           ctx.hitPlayer(b.damage, b.to, boss);
         }
-        effects.explosion(b.to.clone(), b.radius, HURT_COLOR);
-        if (o.rally && !ctx.over()) rallyBall(b.to.x, b.rally);
+        effects.explosion(b.to.clone(), b.radius, rock ? 0x9a8f80 : HURT_COLOR);
+        if (rock) {
+          disposeObject(scene, rock);
+          rockShots.delete(b);
+        } else if (o.rally && !ctx.over()) rallyBall(b.to.x, b.rally);
         b.dispose();
         batazos.splice(i, 1);
       }
@@ -719,7 +857,7 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
           // abierto: castigarlo, si llega a tiempo
           if (bat === 'open') return openFor - batTime > 1.1 ? 3 : 0.3;
           // con la piedra en el aire, cualquier pelota se la corta
-          if (toss || (o.fungo && idle > FUNGO.idle[phase] - 1.5)) return 2.5;
+          if (toss || (o.fungo && idle > idleFor() - 1.5)) return 2.5;
           return 0.25;
         }
         if (queue.has(e)) return e.position.z - hitPoint.z < 12 ? 3 : 1.6;
@@ -741,6 +879,8 @@ export function startOgro(ctx: BossCtx, o: OgroOpts): BossFight {
       rocks.length = 0;
       for (const b of batazos) b.dispose();
       batazos.length = 0;
+      for (const rock of rockShots.values()) disposeObject(scene, rock);
+      rockShots.clear();
       for (const { mark } of rallySpots.values()) mark.dispose();
       rallySpots.clear();
       zoneRing.dispose();

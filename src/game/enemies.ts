@@ -17,6 +17,7 @@ import { EF, r2, r3, type EnemySnap, type ProjSnap } from '../net/snapshot';
 import { polished } from '../core/polish';
 import { LayeredAnimator } from './animator';
 import { bubbleMaterial } from './bubble';
+import { PowerGainFx } from './powerGain';
 import type { Player } from './player';
 import { rotateWorld } from './swingPose';
 import { TEE_Z } from './tees';
@@ -88,7 +89,19 @@ export type HordeEvent =
   /** Uno que esquiva saltó al costado. */
   | { type: 'dodged'; enemy: Enemy }
   /** El tutorial no lo dejó morir: no era el tiro que se estaba enseñando. */
-  | { type: 'spared'; enemy: Enemy };
+  | { type: 'spared'; enemy: Enemy }
+  /**
+   * Ganó un poder en plena oleada, o le subió el nivel (`up`), o le bajó: se lo pasó el espectro, la
+   * coraza, la bandera, el chamán... (ver `Enemy.updatePowers` y docs/poderes-visibles.md).
+   */
+  | { type: 'powerGained'; enemy: Enemy; power: PowerName; level: number; up: boolean };
+
+/**
+ * Los poderes que se ven arriba de la vida, por nombre (el muro cuenta como escudo de nivel SHIELD_WALL),
+ * más los dos que no llevan ícono propio: `banner` (el punto de vida de la abanderada) y `warded` (lo
+ * protege un chamán).
+ */
+export type PowerName = Exclude<BadgeIcon, 'wall'> | 'warded';
 
 interface Template {
   scene: THREE.Object3D;
@@ -229,6 +242,37 @@ interface Badge {
   mutes?: boolean;
   /** Gastado por ahora (el escudo divino recargándose): se ve apagado. */
   off?: boolean;
+  /** Recién ganado o recién cambiado de nivel: un halo que destella detrás (de 0 a 1). */
+  flash?: number;
+}
+
+/**
+ * El nivel de un ícono para su tamaño y su adorno (15/10, Leandro: «el blindaje, el escudo, no se nota de
+ * lejos qué nivel tienen»): 1, 2 o 3 (3 o más, y el muro). Los que no llevan número son 1.
+ */
+function badgeTier(b: Badge): number {
+  if (b.icon === 'wall') return 3;
+  return b.value === undefined ? 1 : Math.max(1, Math.min(3, b.value));
+}
+/** Cuánto más grande va el ícono por su nivel: de lejos, el 2 y el 3 se ven antes de leer el número. */
+const TIER_SCALE = [1, 1, 1.4, 1.8];
+/** El borde de afuera por nivel: plateado el 2, dorado el 3. */
+const TIER_RIM = ['', '', '#eef3f8', '#ffc61a'];
+
+/** El color de cada poder, para el destello de cuando lo gana (anillos, brillo del cuerpo). */
+export const POWER_COLORS: Record<PowerName, number> = {
+  shield: 0xff8a1f, armor: 0x5b9bff, ward: 0xb26bff, heal: 0x2fd05a, banner: 0xffd34d, ethereal: 0xcfe6ff, divine: 0xffe14d,
+  bomb: 0xff7a2e, dig: 0x9a6a3a, spell: 0xff4fa3, dodge: 0x10c9b4, skull: 0xff4d4d, regen: 0x3ee07a, phase: 0xb26bff, warded: 0xb26bff,
+};
+
+/** El ícono de un poder, solo y grande (para el que salta cuando lo gana): `px` de lado. */
+function badgeCanvas(icon: BadgeIcon, value: number | undefined, px = 128): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = px;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(px / 32, px / 32);
+  drawBadge(ctx, 0, { icon, value }, false);
+  return canvas;
 }
 
 /** El escudo del pack para un nivel: el suyo, o el del nivel de abajo más cercano que tenga modelo. */
@@ -240,10 +284,56 @@ function shieldPropFor(level: number): THREE.Object3D | null {
   return null;
 }
 
+/**
+ * Lo que cambia del dibujo con el nivel, además del tamaño y el borde: el yelmo suma una cresta (y en el 3,
+ * cuernos); el escudo, una banda de metal arriba (dorada en el 3).
+ */
+function drawTierMarks(ctx: CanvasRenderingContext2D, cx: number, icon: BadgeIcon, tier: number): void {
+  const metal = tier >= 3 ? '#ffc61a' : '#d9e0e8';
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#0b0f14';
+  if (icon === 'armor') {
+    if (tier >= 3) {
+      // los cuernos, a los costados del yelmo
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + s * 9.5, 9);
+        ctx.quadraticCurveTo(cx + s * 16, 8, cx + s * 15.5, 0.8);
+        ctx.lineTo(cx + s * 12.8, 12.5);
+        ctx.closePath();
+        ctx.fillStyle = '#f2ecdc';
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+    // la cresta, sobre la cúpula
+    ctx.beginPath();
+    ctx.ellipse(cx, 5.2, 3.2, 4.6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = metal;
+    ctx.fill();
+    ctx.stroke();
+  } else if (icon === 'shield' || icon === 'wall') {
+    // la banda de arriba, de lado a lado
+    ctx.beginPath();
+    ctx.rect(cx - 12, 3, 24, 5);
+    ctx.fillStyle = metal;
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
 /** Dibuja un ícono de 32 × 32 en `x`. Formas simples, que se lean chiquitas y de lejos. */
 function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: boolean): void {
   const cx = x + 16;
   ctx.save();
+  if (b.flash) {
+    // recién ganado: un halo blanco detrás, que destella y se apaga
+    const g = ctx.createRadialGradient(cx, 16, 2, cx, 16, 16);
+    g.addColorStop(0, `rgba(255, 255, 255, ${0.95 * b.flash})`);
+    g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x, 0, 32, 32);
+  }
   ctx.globalAlpha = b.off ? 0.35 : 1;
   ctx.lineWidth = 2.5;
   ctx.strokeStyle = '#0b0f14';
@@ -439,11 +529,34 @@ function drawBadge(ctx: CanvasRenderingContext2D, x: number, b: Badge, muted: bo
       ctx.fillStyle = '#e0473d';
       break;
   }
+  // el nivel 2 y el 3 llevan un borde de afuera, plateado o dorado (además de ir más grandes, ver drawPips)
+  const tier = badgeTier(b);
+  if (tier > 1) {
+    const fill = ctx.fillStyle;
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = TIER_RIM[tier];
+    ctx.stroke();
+    ctx.fillStyle = fill;
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#0b0f14';
+  }
   ctx.fill();
   ctx.stroke();
+  if (tier > 1) drawTierMarks(ctx, cx, b.icon, tier);
   // el dibujo de adentro: el número, o un símbolo para los que no llevan número
   const mark = b.value !== undefined ? String(b.value) : b.icon === 'wall' ? '∞' : '';
-  if (mark) {
+  if (mark && tier > 1) {
+    // del 2 para arriba: grande, bien negro alrededor, que se lea desde la cámara alta
+    ctx.font = `900 ${mark.length > 1 ? 17 : 23}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 5;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+    ctx.strokeText(mark, cx, 18.5);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(mark, cx, 18.5);
+  } else if (mark) {
     ctx.font = `bold ${mark.length > 1 ? 14 : 18}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -589,6 +702,21 @@ export class Enemy {
   private wallMat: THREE.MeshStandardMaterial | null = null;
   /** Lo último que se dibujó en los cuadraditos: se redibujan solo si cambió. */
   private pipKey = '';
+  /**
+   * Los poderes que se ven arriba, con su nivel, para notar cuando gana uno, le sube o le baja (ver
+   * `updatePowers`). Null hasta que se mira por primera vez.
+   */
+  private powerLevels: Map<PowerName, number> | null = null;
+  /** Lo que se miró la última vez, junto: si no cambió, no hace falta mirar poder por poder. */
+  private powerKey = '';
+  /** Cuánto lleva sin la protección del chamán (no se festeja cada vez que roza el borde del círculo). */
+  private unwardedFor = 0;
+  private wasWarded = false;
+  private wasBannered = false;
+  /** El destello del que gana un poder: anillos, el ícono que salta y el brillo (ver game/powerGain). */
+  private readonly gainFx: PowerGainFx;
+  /** El ícono de arriba que destella porque recién cambió, y cuánto (de 1 a 0). */
+  private badgeFlash: { icon: BadgeIcon; k: number } | null = null;
   /** Ya pasó la línea del golfista: está fuera de juego (nada lo toca) y corre hasta la puerta. */
   passed = false;
   /** Alma en pena: tiene agarrado al golfista. */
@@ -725,6 +853,7 @@ export class Enemy {
     this.id = id ?? nextId++;
     this.behavior = behaviorOf(stats, mods);
     this.position = this.group.position;
+    this.gainFx = new PowerGainFx(this.group);
     this.maxHp = this.hp = Math.max(1, stats.hp + (mods.hp ?? 0));
     this.divineReady = !!this.divineEvery;
     if (this.divineEvery) {
@@ -1090,13 +1219,17 @@ export class Enemy {
     const bar = !!this.stats.boss;
     // cuántos cuadraditos de ancho ocupa la vida
     const slots = bar ? BOSS_BAR_SLOTS : Math.min(this.maxHp, PIP_LAYER);
-    // los íconos van más grandes que los cuadraditos: tienen un número o una forma que leer de lejos
-    const width = BADGE_PX * badges.length + 32 * slots;
+    // los íconos van más grandes que los cuadraditos: tienen un número o una forma que leer de lejos. Y
+    // el de nivel 2 o 3 (el escudo, el blindaje), más todavía (ver badgeTier): crece para arriba, apoyado
+    // en la fila de la vida, así no tapa al enemigo
+    const sizes = badges.map((b) => Math.round(BADGE_PX * TIER_SCALE[badgeTier(b)]));
+    const lift = Math.max(0, ...sizes.map((s) => s - BADGE_PX));
+    const width = sizes.reduce((a, s) => a + s, 0) + 32 * slots;
     // el que se cura, el intocable y el curandero llevan debajo de la vida la barra de su ciclo
     const healer = this.auraKind === 'heal' && !!HEAL_AURA.full && !bar;
     const regen = (!!this.mods.regen || healer) && !bar;
     const phase = !!this.mods.phase && !bar;
-    const height = BADGE_PX + (regen || phase ? REGEN_BAR_PX : 0);
+    const height = lift + BADGE_PX + (regen || phase ? REGEN_BAR_PX : 0);
     if (p.canvas.width !== width || p.canvas.height !== height) {
       p.canvas.width = width;
       p.canvas.height = height;
@@ -1106,18 +1239,25 @@ export class Enemy {
       p.sprite.material.needsUpdate = true;
       const perPx = Math.min(0.36, (bar ? 4.6 : 2.4) / (slots + badges.length)) / 32;
       p.sprite.scale.set(width * perPx, height * perPx, 1);
+      // lo de arriba de la fila (los íconos grandes) no corre la vida: queda donde estaba
+      p.sprite.center.set(0.5, 1 - (lift + (height - lift) / 2) / height);
     }
     const ctx = p.canvas.getContext('2d')!;
     ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
+    const flash = this.badgeFlash;
+    let bx = 0;
     badges.forEach((b, i) => {
+      const s = sizes[i];
+      if (flash && flash.icon === b.icon) b.flash = flash.k;
       ctx.save();
-      ctx.translate(i * BADGE_PX, 0);
-      ctx.scale(BADGE_PX / 32, BADGE_PX / 32);
+      ctx.translate(bx, lift + BADGE_PX - s);
+      ctx.scale(s / 32, s / 32);
       drawBadge(ctx, 0, b, !!b.mutes && this.silenced);
       ctx.restore();
+      bx += s;
     });
-    const top = (BADGE_PX - 32) / 2;
-    const left = badges.length * BADGE_PX;
+    const top = lift + (BADGE_PX - 32) / 2;
+    const left = bx;
     const empty = 'rgba(10, 14, 20, 0.7)';
     ctx.strokeStyle = '#0b0f14';
     if (bar) {
@@ -1187,7 +1327,7 @@ export class Enemy {
       // vuelve a ser intocable. Silenciado, gris y llena
       const x0 = left + 4;
       const w = 32 * slots - 8;
-      const y = BADGE_PX;
+      const y = lift + BADGE_PX;
       const h = REGEN_BAR_PX - 3;
       ctx.fillStyle = empty;
       ctx.beginPath();
@@ -1228,10 +1368,64 @@ export class Enemy {
   refreshPipsIfChanged(): void {
     // (la barra del que se cura, en 24 pasos: redibujar el lienzo en cada cuadro sería caro)
     const regen = this.mods.regen ? Math.floor(this.regenProgress * 24) : this.mods.phase ? Math.round(this.phaseBar * 24) : this.auraKind === 'heal' && HEAL_AURA.full ? Math.floor(this.healProgress * 24) : 0;
-    const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.silenced}/${this.bannered}/${this.divineReady}/${this.dodgeLeft > 0}/${this.alive && !this.passed}/${regen}`;
+    // (los poderes que gana en vivo también cambian los íconos; y el destello del que cambió, en 8 pasos)
+    const key = `${this.hp}/${this.maxHp}/${this.armorLevel}/${this.shieldLevel}/${this.silenced}/${this.bannered}/${this.divineReady}/${this.dodgeLeft > 0}/${this.alive && !this.passed}/${regen}/${this.powerKey}/${this.badgeFlash ? Math.ceil(this.badgeFlash.k * 8) : 0}`;
     if (key === this.pipKey) return;
     this.pipKey = key;
     this.refreshBar();
+  }
+
+  /** Lo que se mira de sus poderes, junto (ver `updatePowers`). */
+  private get powerSig(): string {
+    return `${this.shieldLevel}/${this.armorLevel}/${this.auraKind}/${this.ethereal}/${this.divineEvery > 0}/${!!this.mods.dodge}/${!!this.mods.regen}/${!!this.mods.phase}/${this.size}`;
+  }
+
+  /**
+   * Ganó un poder en plena oleada, o le subió o bajó el nivel (15/10, Leandro: «que haga animación y ruido
+   * cuando un enemigo gana un poder»): los anillos, el ícono que salta, el destello en su ícono de arriba, y
+   * con `horde`, el aviso para el sonido. Lo que trae al aparecer no cuenta (ni lo que le llega en su primer
+   * medio segundo: la bandera ya en alto, el chamán al lado). Los jefes no: cada uno muestra lo suyo.
+   */
+  private updatePowers(dt: number, horde: Horde | null): void {
+    if (this.badgeFlash && (this.badgeFlash.k -= dt / 0.7) <= 0) this.badgeFlash = null;
+    const live = this.alive && !this.passed;
+    if (!live) this.gainFx.clear();
+    else this.gainFx.update(dt, this.stats.height, this.stats.radius, this.stats.height + 0.45, this.group.scale.y);
+    if (!live || this.script || this.stats.boss) return;
+    const quiet = this.age < 0.5;
+    const sig = this.powerSig;
+    if (sig !== this.powerKey || !this.powerLevels) {
+      this.powerKey = sig;
+      const now = new Map<PowerName, number>();
+      for (const b of this.badges()) now.set(b.icon === 'wall' ? 'shield' : b.icon, b.icon === 'wall' ? SHIELD_WALL : b.value ?? 1);
+      const before = this.powerLevels;
+      this.powerLevels = now;
+      if (before && !quiet) {
+        for (const [power, level] of now) {
+          const was = before.get(power) ?? 0;
+          if (level !== was) this.powerChanged(power, level, level > was, horde);
+        }
+      }
+    }
+    // la protección del chamán y la vida de más de la abanderada no tienen ícono propio: se miran aparte
+    if (this.warded && !this.mods.phase) {
+      if (!this.wasWarded && this.unwardedFor >= 1.2 && !quiet) this.powerChanged('warded', 1, true, horde);
+      this.unwardedFor = 0;
+    } else {
+      this.unwardedFor += dt;
+    }
+    this.wasWarded = this.warded;
+    if (this.bannered && !this.wasBannered && !quiet) this.powerChanged('banner', 1, true, horde);
+    this.wasBannered = this.bannered;
+  }
+
+  private powerChanged(power: PowerName, level: number, up: boolean, horde: Horde | null): void {
+    const icon: BadgeIcon = power === 'warded' ? 'ward' : power === 'shield' && level >= SHIELD_WALL ? 'wall' : power;
+    const value = power === 'shield' || power === 'armor' ? (icon === 'wall' ? undefined : level) : undefined;
+    const tier = badgeTier({ icon, value });
+    this.gainFx.play({ up, color: POWER_COLORS[power], icon: badgeCanvas(icon, value), scale: TIER_SCALE[tier] });
+    if (power !== 'warded' && power !== 'banner') this.badgeFlash = { icon, k: 1 };
+    horde?.emit({ type: 'powerGained', enemy: this, power, level, up });
   }
 
   private refreshBar(): void {
@@ -1528,6 +1722,7 @@ export class Enemy {
     if (this.state === 'gone') return;
     this.age += dt;
     this.updateLook(dt);
+    this.updatePowers(dt, horde);
 
     if (this.state === 'dying' && this.sinkAt) {
       // al hoyo: se va al centro y se hunde rápido, achicándose un poco
@@ -1630,6 +1825,8 @@ export class Enemy {
 
     // parte de un jefe: lo mueve su guion (ver EnemyScript)
     if (this.script?.update && !this.passed && this.script.update(this, dt)) {
+      // el aturdido se descuenta igual: el guion lo lee en `stunned` (antes quedaba aturdido para siempre, 15/10)
+      if (this.stunTimer > 0) this.stunTimer = Math.max(0, this.stunTimer - dt);
       this.finishFrame(dt, this.scriptGesture);
       return;
     }
@@ -1893,6 +2090,7 @@ export class Enemy {
     if (this.regenGlow > 0) this.regenGlow = Math.max(0, this.regenGlow - dt);
     this.updateMark(dt);
     this.updateLook(dt);
+    this.updatePowers(dt, null);
     this.refreshChill();
     this.refreshPipsIfChanged();
     if (this.aura) {
@@ -2108,8 +2306,11 @@ export class Enemy {
     }
     // recién curado: brilla verde y se apaga
     const healed = this.regenGlow > 0 ? Math.min(1, this.regenGlow / REGEN_GLOW_SECONDS) : 0;
+    // recién ganó un poder: brilla del color del poder (ver updatePowers)
+    const gained = this.gainFx.glow;
     for (const { mat, color } of this.materials) {
       if (flash) mat.emissive.setHex(0xffffff);
+      else if (gained) mat.emissive.copy(this.gainFx.glowColorNow).multiplyScalar(0.9 * gained);
       else if (healed) mat.emissive.copy(REGEN_GLOW).multiplyScalar(0.4 + 1.2 * healed);
       else if (this.frozen) mat.emissive.setHex(0x3a7fa8);
       else if (flame) mat.emissive.setRGB(0.75 * flame, 0.25 * flame, 0.02);
@@ -2152,6 +2353,7 @@ export class Enemy {
     if (this.aura) (this.aura.material as THREE.Material).dispose();
     if (this.bubble) (this.bubble.material as THREE.Material).dispose();
     this.wallMat?.dispose();
+    this.gainFx.clear();
   }
 }
 

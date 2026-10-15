@@ -3,7 +3,7 @@
 // sin oleadas: aparecen los enemigos de la prueba delante del golfista, caminando despacio, y cuando caen
 // todos vuelven a aparecer. La puerta y el golfista no pierden vida. La lista y qué mirar, en docs/pruebas.md.
 import type { AbilityId, Element } from './core/abilities';
-import { DIVINE, POWERS, REGEN, type EnemyKind, type EnemyMods } from './core/waves';
+import { DIVINE, POWERS, REGEN, SHIELD_WALL, type EnemyKind, type EnemyMods } from './core/waves';
 
 export interface Prueba {
   /** El cartel de arriba al empezar. */
@@ -11,7 +11,7 @@ export interface Prueba {
   /** Qué hacer y qué mirar. */
   hint: string;
   /** Cada uno: tipo, poderes, y dónde (metros adelante del golfista, y al costado: + a la derecha de la pantalla). */
-  enemies: { kind: EnemyKind; mods?: EnemyMods; at: [number, number] }[];
+  enemies: { kind: EnemyKind; mods?: EnemyMods; at: [number, number]; grants?: boolean }[];
   /** Las habilidades que se aprenden al empezar. */
   learn?: AbilityId[];
   /** El guante puesto todo el rato (el aura). */
@@ -24,6 +24,8 @@ export interface Prueba {
   cards?: boolean;
   /** A qué parte de su velocidad caminan. */
   pace?: number;
+  /** Cada cuántos segundos le llega un poder a uno de los marcados con `grants` (ver grantTestPower en main). */
+  grantEvery?: number;
 }
 
 const hard = undefined;
@@ -170,6 +172,17 @@ export const PRUEBAS: Record<string, Prueba> = {
     enemies: row('orc', 5, 9, 3.2, { hp: 20 }),
     learn: ['echo', 'boost', 'might', 'shove'],
     pace: 0.3,
+  },
+  poderes: {
+    title: 'Prueba: los poderes que se ven',
+    hint: 'Atrás, el escudo de nivel 1, 2, 3 y el muro; en el medio, el blindaje 1, 2 y 3: el 2 y el 3 van más grandes, con borde plateado o dorado y el número grande. Adelante, cada 3 s a uno le llega un poder (el blindaje que sube, la esquiva, se cura, élite): anillos, el ícono que salta y su sonido.',
+    enemies: [
+      ...[1, 2, 3, SHIELD_WALL].map((shield, i) => ({ kind: 'orc' as EnemyKind, mods: { shield, hp: 8 }, at: [24, (i - 1.5) * 4.5] as [number, number] })),
+      ...[1, 2, 3].map((armor, i) => ({ kind: 'skeleton' as EnemyKind, mods: { armor, hp: 8 }, at: [18, (i - 1) * 4.5] as [number, number] })),
+      ...[-1, 0, 1].map((k) => ({ kind: 'goblin' as EnemyKind, mods: { hp: 6 }, at: [12, k * 4] as [number, number], grants: true })),
+    ],
+    grantEvery: 3,
+    pace: 0.1,
   },
   explosiones: {
     title: 'Prueba: las explosiones',

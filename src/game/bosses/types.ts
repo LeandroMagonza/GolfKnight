@@ -42,6 +42,12 @@ export interface BossFight {
    * telaraña, por ejemplo. El bot también la respeta.
    */
   blocks?(from: number, to: number): boolean;
+  /**
+   * Al soltar un tiro (antes de que baje el palo): el jefe puede decidir que salga pifia (el palo pasa, la
+   * pelota se queda en el puesto, suena y se ve como la pifia de siempre), con su propio cartelito. El jefe
+   * con música (bardo): fuera del beat, pifia.
+   */
+  onRelease?(info: ReleaseInfo): ReleaseVerdict | void;
   /** Lo que el bot necesita saber de este jefe. */
   bot?: BossBot;
   /** Números propios del jefe para el registro de la partida (y para las tandas del bot). */
@@ -56,8 +62,29 @@ export interface BossBot {
    * próximos `within` s? El bot no se queda ni tira ahí.
    */
   danger?(x: number, within: number): boolean;
+  /**
+   * Cuántos segundos esperar para soltar el tiro (0 = ya): el bot carga, clava el golpe y suelta a su hora.
+   * El jefe con música: hasta el próximo beat.
+   */
+  releaseWait?(): number;
   /** Multiplica cuánto le importa pegarle a `e` (1 = como a cualquiera, 0 = no tirarle, 3 = urgente). */
   weight?(e: Enemy): number;
+}
+
+/** El tiro que se acaba de soltar (ver `BossFight.onRelease`). */
+export interface ReleaseInfo {
+  /** El palo (`driver`, `iron`...). */
+  club: string;
+  /** Dónde estaba la barra al soltar (0 a 1). */
+  power: number;
+}
+
+/** Lo que decide el jefe del tiro soltado. */
+export interface ReleaseVerdict {
+  /** Sale pifia. */
+  pifia?: boolean;
+  /** El cartelito en vez de «¡Pifia!» (con L('…', '…')). */
+  text?: string;
 }
 
 /** Lo que el juego le da a cada jefe. */

@@ -24,9 +24,22 @@ const TOP_MARGIN = 6;
 const CSS = `.gk-rival{position:fixed;left:0;top:0;pointer-events:none;z-index:5;opacity:0;transition:opacity .12s;
 filter:drop-shadow(0 0 3px rgba(164,92,255,.9))}
 .gk-rival.on{opacity:1}
-.gk-rival.hot{filter:drop-shadow(0 0 7px rgba(255,80,120,1))}
 .gk-rival svg{width:100%;height:100%;overflow:visible;display:block}
-.gk-rival .zone{stroke:rgba(0,0,0,.75);stroke-width:1.5}`;
+.gk-rival .zone{stroke:rgba(0,0,0,.75);stroke-width:1.5}
+.gk-rival .art{width:100%;height:100%}
+.gk-rival.s1{filter:drop-shadow(0 0 4px rgba(255,150,60,.95))}
+.gk-rival.s2{filter:drop-shadow(0 0 5px rgba(255,90,40,1))}
+.gk-rival.s3{filter:drop-shadow(0 0 6px rgba(255,40,40,1)) drop-shadow(0 0 2px rgba(255,40,40,1))}
+.gk-rival.hot{filter:drop-shadow(0 0 7px rgba(255,80,120,1))}
+.gk-rival .speed{position:absolute;left:100%;top:30%;margin-left:2px;font:900 20px/1 system-ui,sans-serif;letter-spacing:-3px;
+color:#ffb04a;text-shadow:0 0 4px #000,0 0 2px #000;white-space:nowrap}
+.gk-rival.s2 .speed{color:#ff7a30}
+.gk-rival.s3 .speed{color:#ff4040}
+.gk-rival .faster{position:absolute;left:50%;top:-4px;transform:translate(-50%,-100%);font:800 14px/1 system-ui,sans-serif;
+color:#ffd36b;text-shadow:0 0 4px #000,0 0 2px #000;white-space:nowrap;opacity:0}
+.gk-rival .faster.go{animation:gk-rival-faster 1.8s ease-out}
+@keyframes gk-rival-faster{0%{opacity:0;transform:translate(-50%,-60%) scale(.7)}12%{opacity:1;transform:translate(-50%,-100%) scale(1.15)}
+75%{opacity:1;transform:translate(-50%,-110%) scale(1)}100%{opacity:0;transform:translate(-50%,-130%) scale(1)}}`;
 
 export class RivalArc {
   private readonly el = document.createElement('div');
@@ -41,6 +54,11 @@ export class RivalArc {
   readonly anchor = new THREE.Vector3();
   private readonly v = new THREE.Vector3();
   private shown = false;
+  /** El dibujo del arco, las flechas de la velocidad al costado y el aviso de «más rápido» arriba. */
+  private readonly art = document.createElement('div');
+  private readonly speed = document.createElement('div');
+  private readonly faster = document.createElement('div');
+  private tier = 0;
 
   constructor(private readonly scene: THREE.Scene, private readonly marks: readonly [number, number]) {
     if (!document.getElementById('gk-rival-css')) {
@@ -50,6 +68,10 @@ export class RivalArc {
       document.head.append(style);
     }
     this.el.className = 'gk-rival';
+    this.art.className = 'art';
+    this.speed.className = 'speed';
+    this.faster.className = 'faster';
+    this.el.append(this.art, this.speed, this.faster);
     document.body.append(this.el);
     this.probe = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
     this.probe.frustumCulled = false;
@@ -70,8 +92,28 @@ export class RivalArc {
     this.height = (ARC_PX * (ART_TOP + art.below)) / ART_W;
     this.el.style.width = `${ARC_PX}px`;
     this.el.style.height = `${this.height.toFixed(0)}px`;
-    this.el.innerHTML = art.svg;
-    this.needle = this.el.querySelector('.needle');
+    this.art.innerHTML = art.svg;
+    this.needle = this.art.querySelector('.needle');
+  }
+
+  /**
+   * Lo rápida que va su barra (15/10: Leandro no se daba cuenta de que se apuraba): de 0 (la de arriba)
+   * a 3. Se ve en las flechas al costado del arco (», »», »»») y en el color del brillo (violeta, naranja,
+   * rojo). Al subir, con `text`, el aviso arriba del arco.
+   */
+  setSpeed(tier: number, text = ''): void {
+    if (tier === this.tier) return;
+    const up = tier > this.tier;
+    this.el.classList.remove(`s${this.tier}`);
+    this.tier = tier;
+    if (tier > 0) this.el.classList.add(`s${tier}`);
+    this.speed.textContent = '»'.repeat(tier); // i18n-ok: flechas, no texto
+    if (up && text) {
+      this.faster.textContent = text;
+      this.faster.classList.remove('go');
+      void this.faster.offsetWidth;
+      this.faster.classList.add('go');
+    }
   }
 
   show(on: boolean): void {

@@ -106,6 +106,11 @@ export class Eyes {
     this.group.add(this.left, this.right);
     scene.add(this.group);
   }
+  /** El color de los ojos (se ponen rojos con la velocidad de su barra: ver EYE_TIERS en fight.ts). */
+  color(c: number): void {
+    this.left.material.color.setHex(c);
+    this.right.material.color.setHex(c);
+  }
   /** `yaw`: hacia dónde mira (0 = +z). `pulse` de 0 a 1: más fuerte mientras carga. */
   update(yaw: number, pulse: number, visible: boolean): void {
     this.group.visible = visible && !!this.head;

@@ -134,6 +134,28 @@ export class RockLine {
     return pick;
   }
 
+  /** ¿El lugar de `x` está libre (sin piedra que crezca o espere ahí)? */
+  isFree(x: number): boolean {
+    return !this.rocks.some((r) => r.e.alive && r.state !== 'roll' && Math.abs(r.x - x) < 0.5);
+  }
+
+  /**
+   * Dónde nacen las próximas `n` separadas: lugares libres de a uno, a dos lugares o más entre sí (6.4 m:
+   * fuera del área del hierro y del wedge, cada una pide su golpe), lejos del gólem, y en orden salteado
+   * (no de una punta a la otra). Si no entran `n`, las que entren.
+   */
+  planApart(n: number, bodyX: number, bodyR: number): number[] {
+    const free = RockLine.slots().filter((x) => Math.abs(x - bodyX) >= bodyR + R_MAX - 0.15 && this.isFree(x));
+    const out: number[] = [];
+    const pool = free.slice();
+    while (out.length < n && pool.length) {
+      const i = Math.floor(this.ctx.rng() * pool.length);
+      const x = pool.splice(i, 1)[0];
+      if (out.every((o) => Math.abs(o - x) >= 2 * SLOT_GAP - 0.1)) out.push(x);
+    }
+    return out;
+  }
+
   /** Marca en el piso dónde van a nacer, mientras el gólem levanta los brazos (`k` de 0 a 1). */
   showPlan(xs: readonly number[], k: number): void {
     if (this.marks.length !== xs.length || this.marks.some((m, i) => m.x !== xs[i])) {

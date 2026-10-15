@@ -26,6 +26,13 @@ export interface Variant {
   gateFalls: boolean;
   /** Daño de más por golpe mientras está aturdido (la carga rota). */
   dazeBonus: number;
+  /**
+   * Coraza (15/10, idea de Leandro: «carga más chica y blindaje mientras carga»): mientras junta o corre,
+   * cada golpe le baja a la carga esto menos (el flojo rebota) y a la vida, nada. 0: sin coraza.
+   */
+  armor?: number;
+  /** Los puntos de la carga, si no son los de siempre (CHARGE_FIRST, CHARGE_STEP, CHARGE_MAX). */
+  charge?: { first: number; step: number; max: number };
 }
 
 // ---- el cuerpo ----
@@ -86,6 +93,12 @@ const TRAMPLE = 1;
 const TRAMPLE_REACH = 0.55;
 /** Si llega con carga y la puerta cae entera (la versión brutal): más que toda la puerta. */
 const GATE_ALL = 99;
+/**
+ * Si te pasa, rompe la puerta (15/10, Leandro: «debería romper la puerta si logra pasarte»): media puerta
+ * de una (de 10), le quede la carga que le quede. Dos veces y se pierde; una duele de verdad, pero con la
+ * puerta sana no termina la partida. Antes le sacaba lo que le quedaba de carga (1 a 3, casi siempre).
+ */
+const GATE_SMASH = 5;
 
 // ---- el desvío ----
 /**
@@ -127,11 +140,15 @@ const GLOW_RUN = 0.8;
 type Phase = 'enter' | 'windup' | 'run' | 'push' | 'recoil' | 'retreat' | 'recover' | 'daze' | 'move' | 'crash' | 'return' | 'idle';
 
 const clamp = THREE.MathUtils.clamp;
+/** El número del golpe que rebota en la coraza. */
+const ARMOR_COLOR = '#b8c4d0';
 
 export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
   const { horde, scene, effects, audio } = ctx;
   const levelCharge = Math.floor(ctx.level / CHARGE_PER_LEVELS);
-  const chargeFor = (n: number) => Math.min(CHARGE_MAX, CHARGE_FIRST + (n - 1) * CHARGE_STEP) + levelCharge;
+  const ch = v.charge ?? { first: CHARGE_FIRST, step: CHARGE_STEP, max: CHARGE_MAX };
+  const chargeFor = (n: number) => Math.min(ch.max, ch.first + (n - 1) * ch.step) + levelCharge;
+  const armor = v.armor ?? 0;
   const windupFor = (n: number) => Math.max(WINDUP_MIN, WINDUP_FIRST - (n - 1) * WINDUP_STEP);
   const runFor = (n: number) => Math.min(RUN_MAX, RUN_FIRST + (n - 1) * RUN_STEP);
 
@@ -161,7 +178,11 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
   /** El parpadeo de la barra cuando le bajan la carga. */
   let blink = 0;
   let speedNow = 0;
-  const stats = { cargas: 0, rotas: 0, desvios: 0, choques: 0, puerta: 0, pisotones: 0, golpesCarga: 0, empujones: 0 };
+  /** Ya avisó en esta corrida que pasó la línea (va a romper la puerta). */
+  let pastSaid = false;
+  /** El aviso de la coraza, una vez. */
+  let armorSaid = false;
+  const stats = { cargas: 0, rotas: 0, desvios: 0, choques: 0, puerta: 0, pisotones: 0, golpesCarga: 0, empujones: 0, rebotes: 0 };
 
   const meter = new ChargeMeter(scene);
   const debris = new Debris(scene);
@@ -214,7 +235,15 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
     pawClock = 0;
     snortClock = SNORT_EVERY * 0.5;
     target.set((ctx.rng() * 2 - 1) * GATE_AIM, 0, GATE_Z);
-    if (n === 1) ctx.banner(L('¡El minotauro va a embestir!', 'The minotaur is about to charge!'), L('Bajale la carga antes de que salga', 'Knock his charge down before he runs'), 3);
+    if (n === 1) {
+      ctx.banner(
+        L('¡El minotauro va a embestir!', 'The minotaur is about to charge!'),
+        armor > 0
+          ? L('Blindado mientras carga: pegale fuerte. Si te pasa, rompe la puerta', 'Armored while charging: hit hard. If he gets past you, he breaks the gate')
+          : L('Bajale la carga. Si te pasa, rompe la puerta', 'Knock his charge down. If he gets past you, he breaks the gate'),
+        3,
+      );
+    }
     audio.growl();
   }
 
@@ -222,6 +251,7 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
     phase = 'run';
     t = 0;
     trampled = false;
+    pastSaid = false;
     dir.set(target.x - e.position.x, 0, target.z - e.position.z).normalize();
     debris.dust(e.position.x, e.position.z, 12, 1.6, 3.5);
     audio.bossThrow();
@@ -316,14 +346,15 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
   }
 
   function crash(e: Enemy): void {
-    const amount = v.gateFalls ? GATE_ALL : Math.max(1, Math.ceil(charge));
+    const amount = v.gateFalls ? GATE_ALL : GATE_SMASH;
     stats.choques++;
     stats.puerta += amount;
     ctx.hitGate(amount, e);
     effects.explosion(e.position.clone().setY(e.position.y + 1.5), 3, 0xff4030);
     debris.dust(e.position.x, e.position.z, 14, 1.8, 4);
     audio.explosion(true);
-    ctx.feedback(L('¡Embistió la puerta!', 'He rammed the gate!'));
+    ctx.feedback(L('¡Rompió la puerta!', 'He smashed the gate!'));
+    effects.explosion(new THREE.Vector3(e.position.x, 1, GATE_Z + 0.5), 5, 0x9a7a5a);
     phase = 'crash';
     t = 0;
     charge = 0;
@@ -337,8 +368,20 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
     if (e.position.z < TEE_Z - BEHIND) return 0;
     if (!charging()) return amount + (phase === 'daze' && amount > 0 ? v.dazeBonus : 0);
     if (amount <= 0) return 0;
-    const took = Math.min(charge, amount);
-    charge = Math.max(0, charge - amount);
+    // la coraza: el golpe flojo rebota, y a los otros les resta lo suyo
+    const hit = Math.max(0, amount - armor);
+    if (hit <= 0) {
+      stats.rebotes++;
+      audio.armorHit();
+      floats.add('0', e.position.x, e.position.y + HEIGHT + 2.1, e.position.z, ARMOR_COLOR);
+      if (!armorSaid) {
+        armorSaid = true;
+        ctx.feedback(L('¡Blindado! Pegale más fuerte', 'Armored! Hit harder'));
+      }
+      return 0;
+    }
+    const took = Math.min(charge, hit);
+    charge = Math.max(0, charge - hit);
     stats.golpesCarga++;
     blink = 0.18;
     floats.add(`−${took}`, e.position.x, e.position.y + HEIGHT + 2.1, e.position.z, running() ? RUN_COLOR : CHARGE_COLOR);
@@ -351,11 +394,11 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
     } else {
       flinch = FLINCH_TIME;
     }
-    return v.hpWhileCharging ? amount : 0;
+    return v.hpWhileCharging && armor <= 0 ? amount : 0;
   }
 
   /** El brillo rojo del cuerpo: se pinta sobre el de siempre solo si no hay otro (el golpe, el fuego...). */
-  function glow(e: Enemy, k: number): void {
+  function glow(e: Enemy, k: number, steel = false): void {
     if (k <= 0.01) return;
     e.body.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -364,7 +407,8 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
       if (!mat.emissive) return;
       const em = mat.emissive;
       if (em.r + em.g + em.b > 0.02) return;
-      em.setRGB(0.9 * k, 0.12 * k, 0.03 * k);
+      if (steel) em.setRGB(0.45 * k, 0.55 * k, 0.7 * k);
+      else em.setRGB(0.9 * k, 0.12 * k, 0.03 * k);
     });
   }
 
@@ -436,7 +480,8 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
               audio.growl();
             }
           }
-          glow(e, GLOW_WINDUP * (fuse / windup) * (0.7 + 0.3 * Math.sin(t * 12)));
+          // con coraza, brilla acero mientras junta (el aviso de que el golpe flojo rebota)
+          glow(e, (armor > 0 ? Math.max(0.5, fuse / windup) : fuse / windup) * GLOW_WINDUP * (0.7 + 0.3 * Math.sin(t * 12)), armor > 0 && !tell);
           if (left <= 0) launch(e);
           break;
         }
@@ -458,6 +503,11 @@ export function startMinotaur(ctx: BossCtx, v: Variant): BossFight {
             trampled = true;
             stats.pisotones++;
             ctx.hitPlayer(TRAMPLE, e.position, e);
+          }
+          // pasó la línea: ya no se lo puede parar, y avisa lo que viene
+          if (!pastSaid && e.position.z < TEE_Z - BEHIND) {
+            pastSaid = true;
+            ctx.feedback(L('¡Te pasó! ¡Va a romper la puerta!', 'He got past you! He will smash the gate!'));
           }
           if (e.position.z <= GATE_Z + e.radius + 0.3) crash(e);
           break;

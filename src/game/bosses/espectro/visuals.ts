@@ -136,6 +136,112 @@ export class HostMark {
   }
 }
 
+/**
+ * La placa del espectro eterno (15/10, Leandro: «le pondría una barra de casteo para saber cuánto falta para
+ * que termine de hacerle el buff al enemigo», y que se vea cómo escala con la vida que trae): arriba de la
+ * cabeza, la vida de esta aparición en rombos grandes (y el número), y abajo la barra de casteo que se llena,
+ * con lo que va a darle cuando se llene. Grande, para leerla desde la cámara alta.
+ */
+export class CastPlate {
+  private readonly canvas = document.createElement('canvas');
+  private readonly tex: THREE.CanvasTexture;
+  private readonly mat: THREE.SpriteMaterial;
+  private readonly sprite: THREE.Sprite;
+  /** Lo último que se dibujó: se redibuja solo si cambia. */
+  private key = '';
+  /** Ancho en metros. */
+  private static readonly WIDTH = 4.2;
+  constructor(private readonly scene: THREE.Scene, private readonly color: string) {
+    this.canvas.width = 320;
+    this.canvas.height = 100;
+    this.tex = new THREE.CanvasTexture(this.canvas);
+    this.mat = new THREE.SpriteMaterial({ map: this.tex, transparent: true, depthTest: false });
+    this.sprite = new THREE.Sprite(this.mat);
+    this.sprite.scale.set(CastPlate.WIDTH, (CastPlate.WIDTH * 100) / 320, 1);
+    this.sprite.renderOrder = 15;
+    this.sprite.visible = false;
+    scene.add(this.sprite);
+  }
+
+  /**
+   * En `at` (el centro de la placa): `hp` de `max` rombos, la barra en `progress` (0 a 1; null: sin barra) con
+   * `label` (lo que va a dar), `paused` (silenciado o congelado: gris).
+   */
+  show(at: THREE.Vector3, hp: number, max: number, progress: number | null, label: string, labelColor: string, paused: boolean): void {
+    this.sprite.visible = true;
+    this.sprite.position.copy(at);
+    const p = progress === null ? -1 : Math.round(progress * 60);
+    const key = `${hp}/${max}/${p}/${label}/${paused}`;
+    if (key === this.key) return;
+    this.key = key;
+    const g = this.canvas.getContext('2d')!;
+    const W = this.canvas.width;
+    g.clearRect(0, 0, W, this.canvas.height);
+    // la vida: un rombo por punto, llenos los que le quedan
+    const n = Math.max(1, max);
+    const size = 30;
+    const gap = 10;
+    const rowW = n * size + (n - 1) * gap;
+    const x0 = (W - rowW) / 2;
+    for (let i = 0; i < n; i++) {
+      const cx = x0 + i * (size + gap) + size / 2;
+      const cy = 26;
+      g.beginPath();
+      g.moveTo(cx, cy - size / 2);
+      g.lineTo(cx + size / 2, cy);
+      g.lineTo(cx, cy + size / 2);
+      g.lineTo(cx - size / 2, cy);
+      g.closePath();
+      g.fillStyle = i < hp ? this.color : 'rgba(18, 10, 30, 0.75)';
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = '#f2e8ff';
+      g.stroke();
+    }
+    if (progress === null) {
+      this.tex.needsUpdate = true;
+      return;
+    }
+    // la barra de casteo, con lo que va a dar escrito encima
+    const bx = 14;
+    const by = 58;
+    const bw = W - 28;
+    const bh = 34;
+    g.fillStyle = 'rgba(18, 10, 30, 0.8)';
+    g.beginPath();
+    g.roundRect(bx, by, bw, bh, 8);
+    g.fill();
+    g.fillStyle = paused ? '#8a8f99' : this.color;
+    g.beginPath();
+    g.roundRect(bx, by, Math.max(0.001, bw * Math.min(1, progress)), bh, 8);
+    g.fill();
+    g.lineWidth = 4;
+    g.strokeStyle = '#f2e8ff';
+    g.beginPath();
+    g.roundRect(bx, by, bw, bh, 8);
+    g.stroke();
+    g.font = '900 30px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 7;
+    g.strokeStyle = '#120a1e';
+    g.strokeText(label, W / 2, by + bh / 2 + 1);
+    g.fillStyle = labelColor;
+    g.fillText(label, W / 2, by + bh / 2 + 1);
+    this.tex.needsUpdate = true;
+  }
+
+  hide(): void {
+    this.sprite.visible = false;
+  }
+
+  dispose(): void {
+    this.scene.remove(this.sprite);
+    this.mat.dispose();
+    this.tex.dispose();
+  }
+}
+
 /** Los cartelitos que suben del huésped cuando el espectro le da algo («+blindaje», «¡ÉLITE!»). */
 export class Labels {
   private readonly list: { sprite: THREE.Sprite; mat: THREE.SpriteMaterial; tex: THREE.CanvasTexture; age: number; y: number }[] = [];

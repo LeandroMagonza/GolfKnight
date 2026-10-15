@@ -53,6 +53,66 @@ function drawSkullFlame(): THREE.CanvasTexture {
   return tex;
 }
 
+/**
+ * El cartelito de «vuelve como esqueleto» (15/10, en `nigromante.huesos`: Leandro mataba a uno chico cerca y
+ * le salía uno de 4 que no llegaba a matar; que se lea antes qué va a salir): una calavera de hueso y los 4
+ * cuadraditos de vida del esqueleto. `worse`: el que va a volver es más fuerte que el de ahora (borde rojo).
+ */
+function drawBonesTag(worse: boolean): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 80;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(14,22,16,0.82)';
+  g.strokeStyle = worse ? '#ff4d6a' : '#9fe6a0';
+  g.lineWidth = 6;
+  g.beginPath();
+  g.roundRect(4, 4, 248, 72, 18);
+  g.fill();
+  g.stroke();
+  // la calavera
+  g.fillStyle = '#efe8d6';
+  g.beginPath();
+  g.ellipse(46, 36, 22, 20, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillRect(34, 46, 24, 16);
+  g.fillStyle = '#14201a';
+  g.beginPath();
+  g.ellipse(38, 36, 6, 7, 0, 0, Math.PI * 2);
+  g.ellipse(54, 36, 6, 7, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillRect(40, 54, 3, 8);
+  g.fillRect(46, 54, 3, 8);
+  g.fillRect(52, 54, 3, 8);
+  // la flecha y los 4 de vida, como los del juego
+  g.fillStyle = '#efe8d6';
+  g.font = '900 34px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('→', 92, 40); // i18n-ok: una flecha
+  for (let i = 0; i < 4; i++) {
+    g.fillStyle = '#5be07a';
+    g.strokeStyle = '#0b0f14';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.roundRect(114 + i * 34, 26, 28, 28, 6);
+    g.fill();
+    g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** El cartelito de lo que vuelve (ver drawBonesTag), en metros de ancho. */
+const TAG_WIDTH = 1.9;
+function tagSprite(tex: THREE.Texture): THREE.Sprite {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+  s.scale.set(TAG_WIDTH, (TAG_WIDTH * 80) / 256, 1);
+  s.renderOrder = 13;
+  return s;
+}
+
 const additive = (color: number, opacity: number) =>
   new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
 
@@ -67,6 +127,9 @@ function flameSprite(tex: THREE.Texture, size: number): THREE.Sprite {
 /** Lo que comparten las marcas, las tumbas y las cadenas de una pelea, para liberarlo al final. */
 export class NecroFx {
   readonly tex = drawSkullFlame();
+  /** «Vuelve como esqueleto»: igual o más flojo, y más fuerte que el de ahora. */
+  readonly bonesTex = drawBonesTag(false);
+  readonly bonesWorseTex = drawBonesTag(true);
   readonly ringGeo = new THREE.RingGeometry(0.78, 1, 40);
   readonly diskGeo = new THREE.CircleGeometry(1, 32);
   readonly beamGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
@@ -95,6 +158,8 @@ export class NecroFx {
     for (const b of this.beams) b.dispose();
     this.beams.length = 0;
     this.tex.dispose();
+    this.bonesTex.dispose();
+    this.bonesWorseTex.dispose();
     this.ringGeo.dispose();
     this.diskGeo.dispose();
     this.beamGeo.dispose();
@@ -155,9 +220,16 @@ export class MarkFx {
   private readonly sprite: THREE.Sprite;
   private readonly ring: THREE.Mesh;
   private readonly ringMat: THREE.MeshBasicMaterial;
+  /** Lo que va a volver si lo matás (en `huesos`): arriba de la llama. */
+  private readonly tag: THREE.Sprite | null;
   private age = 0;
-  constructor(fx: NecroFx, private readonly e: Enemy) {
+  constructor(fx: NecroFx, private readonly e: Enemy, tag: THREE.Texture | null = null) {
     this.sprite = flameSprite(fx.tex, MARK_ICON);
+    this.tag = tag ? tagSprite(tag) : null;
+    if (this.tag) {
+      this.tag.position.y = e.stats.height + MARK_ICON_UP + MARK_ICON * 0.62;
+      e.group.add(this.tag);
+    }
     this.sprite.position.y = e.stats.height + MARK_ICON_UP;
     this.ringMat = additive(GREEN, 0.7);
     this.ring = new THREE.Mesh(fx.ringGeo, this.ringMat);
@@ -174,6 +246,7 @@ export class MarkFx {
     const pulse = 0.5 + 0.5 * Math.sin(this.age * 5);
     const flicker = leaving ? 0.45 + 0.55 * Math.abs(Math.sin(this.age * 9)) : 1;
     (this.sprite.material as THREE.SpriteMaterial).opacity = flicker;
+    if (this.tag) (this.tag.material as THREE.SpriteMaterial).opacity = flicker;
     // aparece creciendo (la marca que llega)
     const grow = Math.min(1, this.age / 0.25);
     this.sprite.scale.setScalar(MARK_ICON * (0.4 + 0.6 * grow) * (1 + 0.06 * pulse));
@@ -184,6 +257,10 @@ export class MarkFx {
     this.e.group.remove(this.sprite, this.ring);
     (this.sprite.material as THREE.Material).dispose();
     this.ringMat.dispose();
+    if (this.tag) {
+      this.e.group.remove(this.tag);
+      (this.tag.material as THREE.Material).dispose();
+    }
   }
 }
 
@@ -197,8 +274,10 @@ export class GraveFx {
   private readonly ringMat = additive(GREEN, 0.8);
   private readonly ring: THREE.Mesh;
   private readonly sprite: THREE.Sprite;
+  /** Lo que va a salir (en `huesos`): arriba de la llama. */
+  private readonly tag: THREE.Sprite | null;
   private age = 0;
-  constructor(private readonly fx: NecroFx, x: number, z: number, private readonly radius = 1.1) {
+  constructor(private readonly fx: NecroFx, x: number, z: number, private readonly radius = 1.1, tag: THREE.Texture | null = null) {
     const disk = new THREE.Mesh(fx.diskGeo, this.diskMat);
     disk.rotation.x = -Math.PI / 2;
     disk.scale.setScalar(radius);
@@ -209,6 +288,11 @@ export class GraveFx {
     this.sprite = flameSprite(fx.tex, 0.8);
     this.sprite.position.y = 0.7;
     this.group.add(disk, this.ring, this.sprite);
+    this.tag = tag ? tagSprite(tag) : null;
+    if (this.tag) {
+      this.tag.position.y = 1.7;
+      this.group.add(this.tag);
+    }
     this.group.position.set(x, heightAt(x, z) + 0.07, z);
     fx.scene.add(this.group);
   }
@@ -227,6 +311,7 @@ export class GraveFx {
     this.diskMat.dispose();
     this.ringMat.dispose();
     (this.sprite.material as THREE.Material).dispose();
+    if (this.tag) (this.tag.material as THREE.Material).dispose();
   }
 }
 
@@ -245,10 +330,26 @@ export class LinkFx {
   update(p: Enemy, q: Enemy, t: number, alarm: boolean): void {
     this.a.set(p.position.x, p.position.y + p.height * 0.55, p.position.z);
     this.b.set(q.position.x, q.position.y + q.height * 0.55, q.position.z);
-    stretch(this.mesh, this.a, this.b, alarm ? 0.11 : 0.07);
+    this.between(this.a, this.b, t, alarm);
+  }
+  /**
+   * De un encadenado vivo a la tumba de uno que cayó (15/10): la cadena sigue atada al caído, titilando,
+   * mientras su tumba cuenta (si queda alguien del grupo en pie, vuelve).
+   */
+  toGrave(p: Enemy, x: number, z: number, t: number): void {
+    this.a.set(p.position.x, p.position.y + p.height * 0.55, p.position.z);
+    this.b.set(x, heightAt(x, z) + 0.5, z);
+    this.between(this.a, this.b, t, true);
+  }
+  private between(a: THREE.Vector3, b: THREE.Vector3, t: number, alarm: boolean): void {
+    this.mesh.visible = true;
+    stretch(this.mesh, a, b, alarm ? 0.11 : 0.07);
     const wave = 0.5 + 0.5 * Math.sin(t * (alarm ? 22 : 4));
     this.mat.opacity = alarm ? 0.5 + 0.5 * wave : 0.55 + 0.25 * wave;
     this.mat.color.setHex(alarm ? 0xeaffb0 : GREEN);
+  }
+  hide(): void {
+    this.mesh.visible = false;
   }
   dispose(): void {
     this.fx.scene.remove(this.mesh);

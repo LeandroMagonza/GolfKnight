@@ -96,8 +96,8 @@ export class World {
   }
 
   /**
-   * Arma el campo que diga core/terrain: la misma malla con relieve o sin él (en el liso queda plana y no
-   * se toca: las lomas del geomante llevan malla propia). Más allá, hasta el horizonte, un rough plano.
+   * Arma el campo que diga core/terrain: la misma malla con relieve o sin él (en el liso queda plana hasta
+   * que una loma de la partida la deforma). Más allá, hasta el horizonte, un rough plano.
    */
   private buildField(): void {
     const g = this.field;
@@ -152,7 +152,9 @@ export class World {
   /**
    * El campo: una sola malla, de un metro por cuadro, con la altura de core/terrain. El color hace de
    * mapa (ver `grassColor`), y con relieve además es más claro en las lomas y más oscuro en el valle, para
-   * que se lea desde la cámara fija. En el liso no queda como `terrainGeo`: es plana y nadie la toca.
+   * que se lea desde la cámara fija. En el liso también queda como `terrainGeo`: las lomas de la partida (el
+   * geomante, el gusano) la deforman, y quedan con el pasto, las franjas y las rayas de distancia del campo
+   * (Leandro, 15/10: con malla propia se veía un cuadrado de otro color).
    */
   private buildTerrain(scene: THREE.Object3D, detail: THREE.Texture): void {
     const geo = new THREE.PlaneGeometry(TERRAIN.width, TERRAIN.depth, TERRAIN.width, TERRAIN.depth);
@@ -162,7 +164,7 @@ export class World {
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3));
     for (let i = 0; i < pos.count; i++) shadeVertex(geo, i);
     geo.computeVertexNormals();
-    if (relief.on) this.terrainGeo = geo;
+    this.terrainGeo = geo;
     detail.repeat.set(TERRAIN.width / DETAIL_TILE, TERRAIN.depth / DETAIL_TILE);
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: detail, roughness: 1 }));
     mesh.receiveShadow = true;
@@ -172,7 +174,7 @@ export class World {
   /** La malla del campo con relieve (null en el campo liso). */
   private terrainGeo: THREE.BufferGeometry | null = null;
 
-  /** ¿El campo es una malla con relieve? En el liso las lomas de la partida llevan malla propia. */
+  /** ¿El campo es una malla que las lomas pueden deformar? (desde el 15/10, siempre: también el liso) */
   get hasTerrain(): boolean {
     return this.terrainGeo !== null;
   }

@@ -1,15 +1,25 @@
-// La pelea con el limo venenoso (ver docs/jefes/limo.md). Un limo grande que no camina: salta en arcos, de
-// costado y hacia la línea, y cada salto marca en el piso dónde va a caer. Según la versión:
-// - se divide al morir: el grande en dos medianos y cada mediano en dos chicos, cada vez más rápidos, y los
-//   de un mismo tamaño saltan juntos, en manada (para el área del wedge y del hierro);
+// La pelea con el limo venenoso (ver docs/jefes/limo.md). Un limo grande que se arrastra hacia la línea en
+// diagonal, despacio, y cambia de diagonal de a ratos. Cada tanto **se junta para saltar** (se aplasta y
+// brilla, y el piso marca el carril y adónde cae): si no lo cortás con un golpe fuerte, salta varios metros
+// hacia la línea de una. Cortado, retrocede un poco y queda mareado. Según la versión:
+// - se divide al morir: el grande en dos medianos y cada mediano en dos chicos, cada vez más rápidos; los
+//   hermanos van en diagonales espejadas y se cruzan (a veces el área agarra a los dos, a veces no);
 // - se come a la escolta que toca: gana su vida, se los ve adentro, y salen vivos cuando revienta;
-// - escupe a los puestos: el charco deja ese puesto sin pelota un rato (ver charcos.ts).
-// El que llega a la línea se para justo antes, y en el salto siguiente la cruza: de ahí camina a la puerta
-// como cualquiera (y le saca lo suyo, más lo que tenga adentro).
+// - escupe a los puestos: el charco deja ese puesto sin pelota un rato (ver charcos.ts). La escupida
+//   también se corta con un golpe fuerte mientras se infla.
+// El que llega a la línea se queda ahí unos segundos (pega si lo tocás, y el piso late en rojo) y después
+// la cruza: de ahí camina a la puerta como cualquiera, y **la rompe entera** (perdés), sea del tamaño que
+// sea. Leandro, 15/10: «si llega cualquier parte del limo, perdés, y balanceémoslo para eso» (antes sacaba
+// un poco, y con la puerta sana se lo podía ignorar).
+//
+// 15/10, Leandro: «el boss estuvo saltando por ahí en la suya y ni me di cuenta que estaba avanzando
+// realmente», «vaya moviéndose lento en diagonal poco angulada, y cambiando de dirección de a ratos, en
+// especial cuando son más de uno», «cortarle el ataque con un golpe fuerte», y los que llegaron a la puerta
+// no le hicieron perder. Antes saltaba todo el tiempo, en zigzag, en manada.
 import * as THREE from 'three';
 import { L } from '../../../i18n';
 import type { Enemy, EnemyScript } from '../../enemies';
-import { GroundMark, SPAWN_Z, TEE_Z, facet, fieldHalfAt, flatMat, heightAt, partStats, touchesPlayer } from '../kit';
+import { BossBar, GroundMark, LaneMark, SPAWN_Z, TEE_Z, facet, fieldHalfAt, flatMat, heightAt, partStats, touchesPlayer } from '../kit';
 import type { BossCtx, BossFight } from '../types';
 import { SPIT_LOCK, SPIT_TRACK, Spit, type Glob } from './charcos';
 import { Belly } from './panza';
@@ -35,21 +45,26 @@ interface Tier {
   name: string;
   height: number;
   radius: number;
-  /** El salto: agacharse, en el aire, descanso (de a cuánto), largo máximo, cuánto avanza y cuánto se abre de costado en cada uno, y lo alto. */
-  crouch: number;
+  /** Lo que avanza arrastrándose (m/s hacia la línea), y cuánto se abre de costado por metro (la diagonal). */
+  glide: number;
+  slant: number;
+  /** Cada cuánto cambia de diagonal cuando va solo (con un hermano, cuando ya se cruzaron). */
+  turn: [number, number];
+  /**
+   * El salto, su ataque: cada cuánto (0 = no salta), cuánto se junta antes (la ventana para cortarlo),
+   * cuánto avanza, cuánto está en el aire y lo alto.
+   */
+  leapEvery: [number, number];
+  gather: number;
+  leap: number;
   air: number;
-  rest: [number, number];
-  reach: number;
-  advance: number;
-  sway: number;
   lift: number;
-  /** Lo que saca: si te cae encima o lo tocás en la línea, y a la puerta si cruza. */
+  /** Lo que saca si te cae encima o lo tocás en la línea (a la puerta, si cruza, la rompe entera). */
   trample: number;
-  gate: number;
+  /** Cuánto se queda en la línea antes de cruzarla: la última ventana para matarlo. */
+  lineWait: number;
   /** A qué velocidad camina una vez que cruzó la línea (ahí lo lleva el juego, como a cualquiera). */
   speed: number;
-  /** Radio de la ronda en la manada (0: va solo). */
-  spacing: number;
   /** Escupe cada tantos segundos (0 = no escupe), y lo que dura su charco. */
   spitEvery: number;
   puddle: number;
@@ -58,34 +73,46 @@ interface Tier {
   score: number;
 }
 
-// Avance medio de cada uno (avanza / (agacharse + aire + descanso)): el grande 0.7 m/s, el mediano 1.25 y
-// el chico 2.1 (el goblin corre a 3.6). El grande tarda un minuto y medio en llegar a la línea.
+// Sin cortarle ningún salto, el grande llega a la línea en menos de un minuto (va a 0.45 m/s y salta 6.5 m
+// cada 9 s más o menos); cortándole todos, en más de tres. Cualquiera que cruza rompe la puerta: por eso
+// se queda en la línea unos segundos (el grande 4, el chico 3) y los chicos van despacio (1 m/s).
 const TIERS: Tier[] = [
-  { name: L('Limo venenoso', 'Poison Slime'), height: 2.4, radius: 1.7, crouch: 0.55, air: 0.85, rest: [0.9, 1.4], reach: 5, advance: 1.8, sway: 3, lift: 2.2, trample: 2, gate: 4, speed: 1.1, spacing: 0, spitEvery: 6.5, puddle: 14, heavy: true, boss: true, score: 150 },
-  { name: L('Limo mediano', 'Slime'), height: 1.6, radius: 1.12, crouch: 0.4, air: 0.65, rest: [0.55, 0.85], reach: 4.2, advance: 2.2, sway: 2.4, lift: 1.6, trample: 1, gate: 2, speed: 1.8, spacing: 1.7, spitEvery: 9, puddle: 10, heavy: true, boss: true, score: 50 },
-  { name: L('Limo chico', 'Small Slime'), height: 1.0, radius: 0.7, crouch: 0.25, air: 0.45, rest: [0.3, 0.5], reach: 3.2, advance: 2.3, sway: 1.6, lift: 1.0, trample: 1, gate: 1, speed: 3.0, spacing: 1.6, spitEvery: 0, puddle: 0, heavy: false, boss: false, score: 20 },
+  { name: L('Limo venenoso', 'Poison Slime'), height: 2.4, radius: 1.7, glide: 0.45, slant: 0.42, turn: [4, 7], leapEvery: [7, 10], gather: 1.8, leap: 6.5, air: 1.0, lift: 2.6, trample: 2, lineWait: 4, speed: 1.1, spitEvery: 6.5, puddle: 14, heavy: true, boss: true, score: 150 },
+  { name: L('Limo mediano', 'Slime'), height: 1.6, radius: 1.12, glide: 0.7, slant: 0.5, turn: [3, 5], leapEvery: [6, 9], gather: 1.4, leap: 5, air: 0.8, lift: 1.9, trample: 1, lineWait: 3.5, speed: 1.8, spitEvery: 9, puddle: 10, heavy: true, boss: true, score: 50 },
+  { name: L('Limo chico', 'Small Slime'), height: 1.0, radius: 0.7, glide: 1.0, slant: 0.55, turn: [2, 3.5], leapEvery: [0, 0], gather: 0, leap: 0, air: 0.45, lift: 1.0, trample: 1, lineWait: 3, speed: 3.0, spitEvery: 0, puddle: 0, heavy: false, boss: false, score: 20 },
 ];
 
-/** Entra desde un poco más allá de donde aparecen los demás: llega saltando. */
+/** Entra desde un poco más allá de donde aparecen los demás. */
 const ENTER_Z = SPAWN_Z + 3;
-/** Se para a esta distancia de la línea (sobre su radio) antes de cruzarla, y espera tanto de más ahí. */
+/** Se para a esta distancia de la línea (sobre su radio), espera ahí lo de su tamaño (`lineWait`), y la cruza. */
 const LINE_GAP = 0.6;
-const LINE_WAIT = 0.9;
-/** Del otro lado: adonde cae al cruzar (de ahí camina a la puerta). */
-const CROSS_DEPTH = 3.2;
-/** Con frío, los relojes del salto corren a esto (al chico, además, el hielo lo congela). */
+/** La presión: se arrastra más rápido con la pelea, hasta un 50 % más a los 150 s. */
+const SPEED_UP = { max: 0.5, time: 150 };
+/** El arrastre: avanza a pulsos (como una oruga), tantos por segundo y de tanto. */
+const CRAWL = { rate: [3.2, 4.2, 6], amp: 0.55 };
+/** Con frío, los relojes corren a esto (al chico, además, el hielo lo congela). */
 const CHILL_TIME = 0.55;
-/** El chico que recibe un golpe tarda un poco más en saltar (queda mareado). */
-const FLINCH = 0.25;
-/** Al dividirse: los dos salen para los costados y un poco hacia la línea, en un salto corto. */
+/** Lo que corta el salto (y la escupida) mientras se junta: un golpe 2 o 3, o una habilidad. */
+const CUT_QUALITY = 2;
+/** Cortado: retrocede tanto (m, en tanto s) y queda mareado tanto. */
+const CUT_PUSH = 2.2;
+const CUT_SLIDE = 0.35;
+const CUT_STUN = 1.1;
+/** El salto que cae en la línea apunta a tu puesto, pero se corre como mucho esto del suyo (sobre su largo). */
+const LEAP_AIM = 0.6;
+const LEAP_COLOR = 0xff8a3c;
+/** El primero sale enseguida de entrar (que se vea pronto qué hace). */
+const FIRST_LEAP = 3.5;
+/** Al dividirse: los dos salen para los costados, y se cruzan; quedan tanto adelante/atrás uno del otro. */
 const SPLIT_SIDE = 2.4;
 const SPLIT_FORWARD = 1.5;
 const SPLIT_AIR = 0.55;
-/** Los de un tamaño se juntan en una manada si están a menos de esto; si no, arman otra. Hasta 4 por manada. */
+const SPLIT_STAGGER = 0.5;
+/** Después de cruzarse, los hermanos se separan esto (al azar) antes de volver a encararse. */
+const CROSS_GAP: [number, number] = [2.5, 5.5];
+/** Los de un tamaño van juntos (se cruzan de a dos) si están a menos de esto; si no, arman otra. Hasta 4. */
 const PACK_JOIN = 12;
 const PACK_MAX = 4;
-/** El que no manda espera que salte el que manda; si tarda (escupiendo), salta solo pasado esto. */
-const FOLLOW_PATIENCE = 1.2;
 /** Comer: busca a esta distancia, come a los que toca, gana su vida y crece (hasta un 35 % más). */
 const SEEK_RANGE = 13;
 const BELLY_MAX = 10;
@@ -110,11 +137,14 @@ const SPIT_MIN_Z = TEE_Z + 8;
 const SPIT_FIRST = 4;
 /** Escupe más seguido con menos vida: con la vida entera, el ritmo de su tamaño; casi muerto, el 55 %. */
 const SPIT_RAGE = 0.45;
-/** El que se planta: una franja de media cancha, que se acerca un poco por segundo hasta un tope. */
+/**
+ * El que se planta: una franja de media cancha que se acerca un poco por segundo, **sin tope**: si no lo
+ * matás, a los dos minutos y pico llega a la línea y la cruza como cualquiera (antes paraba a 28 m y solo
+ * te escupía: se lo podía dejar para el final sin que la puerta corriera peligro).
+ */
 const BAND_FAR = 46;
-const BAND_FAR_MIN = 28;
 const BAND_DEPTH = 12;
-const BAND_CREEP = 0.1;
+const BAND_CREEP = 0.25;
 /** Y escupe cada vez más seguido: a los 5 minutos, al 60 %. */
 const BAND_SPIT_RAMP = 300;
 /** La baba se ve a través: lo que se comió, la calavera y la espada que ya tenía. */
@@ -122,54 +152,61 @@ const GOO_OPACITY = 0.72;
 /** El resorte del aplastado (el mismo tipo que el de los golpes). */
 const SPRING_K = 170;
 const SPRING_C = 15;
-/** Las marcas: dónde va a caer (violeta oscuro; en rojo si cae sobre la línea) y la baba que deja. */
+/** Las marcas: dónde va a caer (violeta; en rojo si cae sobre la línea) y la baba que deja (y su rastro). */
 const RING_COLOR = 0x7a3cc8;
 const RING_DANGER = 0xff5a3c;
 const DECAL_COLOR = 0x3d1660;
 const DECAL_LIFE = 2.6;
+const TRAIL_STEP = 1.3;
+const TRAIL_LIFE = 6;
 /** Con dificultad: más vida por nivel, y escupe más seguido. */
 const HP_PER_LEVEL = 0.03;
 const SPIT_PER_LEVEL = 0.02;
 /** El que gotea: el chico sale despedido a tanto de costado, en un salto corto. */
 const SHED_SIDE = 2.6;
-/** Para el bot: el chico apura (rápido y en manada), el que está en la línea también, y lo que está por comerse. */
+/** Para el bot: el que se junta para saltar (cortalo), el chico, el que está en la línea, y lo que está por comerse. */
+const GATHER_WEIGHT = 2.6;
 const SMALL_WEIGHT = 2.5;
-const AT_LINE_WEIGHT = 1.6;
+const AT_LINE_WEIGHT = 1.8;
+/** El que está en la línea por cruzar: si cruza, se pierde. */
+const LINE_WEIGHT = 5;
 const FOOD_WEIGHT = 1.5;
 
 interface Pack {
   tier: number;
   members: Piece[];
-  /** Adónde va la manada (el lugar del que manda, menos su lugar en la ronda). */
-  anchor: THREE.Vector2;
-  /** Cada salto nuevo del que manda: los demás saltan cuando cambia. */
-  ver: number;
-  crossing: boolean;
-  side: number;
-  goal: number;
-  goalHops: number;
+  /** Cuánto falta para que cambien de diagonal. */
+  turnIn: number;
 }
+
+type Phase = 'glide' | 'gather' | 'air' | 'spit' | 'stunned' | 'line';
 
 interface Piece {
   e: Enemy;
   tier: number;
   pack: Pack;
-  slot: THREE.Vector2;
-  phase: 'rest' | 'crouch' | 'air' | 'spit';
+  phase: Phase;
   t: number;
-  wait: number;
-  ver: number;
+  /** Para qué lado se abre la diagonal (-1 / 1). */
+  sx: number;
+  leapIn: number;
   from: THREE.Vector3;
   to: THREE.Vector3;
   airTime: number;
   liftMax: number;
   lift: number;
-  crossing: boolean;
   /** El salto de cuando nace (al dividirse) no le pega a nadie. */
   harmless: boolean;
+  /** Le entró un golpe fuerte mientras se juntaba (lo lee el guion en su vuelta). */
+  cutPending: boolean;
+  /** Ya le dijimos «más fuerte» en este salto. */
+  weakTold: boolean;
   ring: GroundMark;
+  lane: LaneMark | null;
   /** Hasta dónde chupa (el que come). */
   pullRing: GroundMark | null;
+  /** El disco rojo de cuando está en la línea, por cruzar. */
+  alarm: GroundMark | null;
   arm: THREE.Object3D | null;
   rawH: number;
   sq: number;
@@ -184,7 +221,9 @@ interface Piece {
   glob: Glob | null;
   /** El daño que lleva sin gotear (el que gotea). */
   shedAcc: number;
-  glowing: boolean;
+  /** Brilla: violeta escupiendo, naranja juntándose para saltar. */
+  glow: 'spit' | 'leap' | null;
+  trail: number;
   /** Se murió (y ya se dividió o largó lo de adentro), o cruzó la línea y lo lleva el juego. */
   handled: boolean;
   handed: boolean;
@@ -198,6 +237,7 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
   const hpScale = 1 + HP_PER_LEVEL * ctx.level;
   const tierHp = (t: number) => Math.max(1, Math.round(v.hp[t] * hpScale + (t === 0 ? ctx.bonusHp : 0)));
   const spit = v.spits ? new Spit(ctx) : null;
+  const bar = new BossBar(L('Limo venenoso', 'Poison Slime'), '#8a3fd0');
   // si el limo no está (el modelo no cargó), una gota facetada
   let look = 'slime';
   if (!horde.hasLook('slime')) {
@@ -217,23 +257,21 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
   const byId = new Map<number, Piece>();
   /** Los que salieron de una panza, y hasta cuándo no se los puede volver a comer. */
   const freed = new Map<number, number>();
-  const decals: { mark: GroundMark; t: number }[] = [];
-  const stats = { divisiones: 0, goteados: 0, tragados: 0, salieron: 0, golpes: 0, cruzaron: 0, puertaPotencial: 0 };
+  const decals: { mark: GroundMark; t: number; life: number; alpha: number }[] = [];
+  const stats = { divisiones: 0, goteados: 0, tragados: 0, salieron: 0, golpes: 0, llegaron: 0, cruzaron: 0, saltos: 0, cortes: 0, cortesEscupida: 0 };
   let toldSplit = false;
   let toldEat = false;
-  /** La vida que le queda por delante a cada tamaño contando lo que va a nacer (para el registro). */
-  const ahead = (t: number): number => (t < v.splits ? 2 * (tierHp(t + 1) + ahead(t + 1)) : 0);
+  let toldLeap = false;
+  let toldLine = false;
+  /** La vida que le queda por delante a cada tamaño contando lo que va a nacer (para la barra y el registro). */
+  const ahead = (t: number): number => (t < v.splits && t < 2 ? 2 * (tierHp(t + 1) + ahead(t + 1)) : 0);
   let lifeTotal = tierHp(0) + ahead(0);
 
-  // ---- las manadas ----
+  const speedUp = () => 1 + SPEED_UP.max * Math.min(1, ctx.clock() / SPEED_UP.time);
+  /** Lo que se corre de costado por segundo un limo de ese tamaño. */
+  const lateral = (tier: number) => TIERS[tier].glide * TIERS[tier].slant * speedUp();
 
-  function slotFor(tier: number, i: number): THREE.Vector2 {
-    const s = TIERS[tier].spacing;
-    // de a dos, uno a cada lado; los otros dos, adelante y atrás (un rombo: el wedge los agarra a todos)
-    const ring: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-    const [x, z] = ring[i % ring.length];
-    return new THREE.Vector2(x * s, z * s);
-  }
+  // ---- las manadas: los de un tamaño que van juntos se cruzan de a dos ----
 
   function joinPack(tier: number, x: number, z: number): Pack {
     for (const p of packs) {
@@ -241,7 +279,7 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
       const lead = p.members[0];
       if (lead && Math.hypot(lead.e.position.x - x, lead.e.position.z - z) < PACK_JOIN) return p;
     }
-    const p: Pack = { tier, members: [], anchor: new THREE.Vector2(x, z), ver: 0, crossing: false, side: rng() < 0.5 ? -1 : 1, goal: x, goalHops: 0 };
+    const p: Pack = { tier, members: [], turnIn: rand(...TIERS[tier].turn) };
     packs.push(p);
     return p;
   }
@@ -250,7 +288,36 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     const pk = p.pack;
     const i = pk.members.indexOf(p);
     if (i >= 0) pk.members.splice(i, 1);
-    if (!pk.members.length) packs.splice(packs.indexOf(pk), 1);
+    if (!pk.members.length && packs.includes(pk)) packs.splice(packs.indexOf(pk), 1);
+  }
+
+  /**
+   * Cambian de diagonal. De a dos: se encaran (cada uno hacia el otro) y siguen hasta pasarse y separarse
+   * unos metros; ahí vuelven a encararse. El que va solo da vuelta (o va hacia la comida, o hacia el medio).
+   */
+  function turnPack(pk: Pack): void {
+    const T = TIERS[pk.tier];
+    const m = pk.members.filter((p) => p.phase !== 'line');
+    let next = rand(...T.turn);
+    for (let i = 0; i + 1 < m.length; i += 2) {
+      const a = m[i];
+      const b = m[i + 1];
+      const dx = b.e.position.x - a.e.position.x;
+      a.sx = dx >= 0 ? 1 : -1;
+      b.sx = -a.sx;
+      next = Math.max(i ? next : 0, (Math.abs(dx) + rand(...CROSS_GAP)) / (2 * lateral(pk.tier)));
+    }
+    if (m.length % 2) {
+      const p = m[m.length - 1];
+      const { x, z } = p.e.position;
+      const f = p.belly && p.belly.list.length < BELLY_MAX ? food(x, z, p.tier) : null;
+      if (f) {
+        p.sx = f.x >= x ? 1 : -1;
+        next = Math.min(next, rand(1.5, 3));
+      } else if (Math.abs(x) > halfAt(z, p.e.radius) * 0.6) p.sx = x > 0 ? -1 : 1;
+      else p.sx = -p.sx;
+    }
+    pk.turnIn = THREE.MathUtils.clamp(next, 1.5, 9);
   }
 
   /** Lo que está por delante del campo (en x) a esa altura, para no salirse. */
@@ -259,7 +326,7 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
 
   /** La franja del que se planta (escupe): se acerca con el tiempo. */
   function band(): [number, number] {
-    const far = Math.max(BAND_FAR_MIN, BAND_FAR - ctx.clock() * BAND_CREEP);
+    const far = Math.max(TEE_Z, BAND_FAR - ctx.clock() * BAND_CREEP);
     return [far - BAND_DEPTH, far];
   }
 
@@ -269,75 +336,22 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     return until === undefined || ctx.clock() > until;
   }
 
-  /** Adónde saltar para comer: donde va a estar el grupo más grande cerca (cuando caiga), o null. */
+  /** Hacia dónde ir a comer: donde está el grupo más grande cerca, o null. */
   function food(x: number, z: number, tier: number): THREE.Vector2 | null {
-    const T = TIERS[tier];
-    const soon = T.crouch + T.air;
+    void tier;
     const near = horde.enemies.filter((en) => edible(en) && Math.hypot(en.position.x - x, en.position.z - z) < SEEK_RANGE);
     let best: THREE.Vector2 | null = null;
     let bestScore = 0;
     for (const en of near) {
-      // caminan derecho a la puerta: adonde van a estar cuando caiga
-      const px = en.position.x;
-      const pz = en.position.z - en.walkSpeed * soon;
       let score = 0;
-      for (const o of near) if (Math.hypot(o.position.x - px, o.position.z - o.walkSpeed * soon - pz) < 3) score += 1 + 0.15 * o.hp;
-      score /= 1 + Math.hypot(px - x, pz - z) / 8;
+      for (const o of near) if (Math.hypot(o.position.x - en.position.x, o.position.z - en.position.z) < 3) score += 1 + 0.15 * o.hp;
+      score /= 1 + Math.hypot(en.position.x - x, en.position.z - z) / 8;
       if (score > bestScore) {
         bestScore = score;
-        best = new THREE.Vector2(px, pz);
+        best = new THREE.Vector2(en.position.x, en.position.z);
       }
     }
     return best;
-  }
-
-  /** El que manda decide el próximo salto de la manada. */
-  function planPack(pk: Pack, lead: Piece): void {
-    const T = TIERS[pk.tier];
-    const bx = lead.e.position.x - lead.slot.x;
-    const bz = lead.e.position.z - lead.slot.y;
-    let nz = bz - T.advance * rand(0.75, 1.25);
-    // de costado: en zigzag, y derivando hacia una meta que cambia cada tantos saltos
-    if (--pk.goalHops <= 0) {
-      pk.goal = rand(-0.7, 0.7) * fieldHalfAt(bz);
-      pk.goalHops = 3 + Math.floor(rng() * 3);
-    }
-    pk.side = -pk.side;
-    let nx = bx + pk.side * T.sway * rand(0.5, 1) + THREE.MathUtils.clamp(pk.goal - bx, -T.sway, T.sway) * 0.5;
-    if (lead.belly && lead.belly.list.length < BELLY_MAX) {
-      const f = food(bx, bz, pk.tier);
-      if (f) {
-        nx = f.x;
-        // los que vienen de atrás lo alcanzan solos: no vuelve más de 2 m
-        nz = Math.min(f.y, bz + 2);
-      }
-    }
-    if (v.holds) {
-      const [near, far] = band();
-      // hasta la franja entra a saltos largos; ahí adentro, va y viene
-      if (bz > far + 1) nz = Math.max(far - 1, bz - T.reach * 0.9);
-      else nz = THREE.MathUtils.clamp(bz + rand(-2, 1.5), near, far);
-    }
-    pk.crossing = false;
-    const stop = stopZ(pk.tier);
-    if (!v.holds && nz < stop) {
-      if (lead.e.position.z <= stop + 0.8) {
-        pk.crossing = true;
-        nz = TEE_Z - CROSS_DEPTH;
-        nx = bx;
-      } else nz = stop;
-    }
-    // el largo máximo del salto
-    const dx = nx - bx;
-    const dz = nz - bz;
-    const d = Math.hypot(dx, dz);
-    if (d > T.reach && !pk.crossing) {
-      nx = bx + (dx / d) * T.reach;
-      nz = bz + (dz / d) * T.reach;
-    }
-    const half = halfAt(nz, T.radius + T.spacing);
-    pk.anchor.set(THREE.MathUtils.clamp(nx, -half, half), Math.min(nz, ENTER_Z));
-    pk.ver++;
   }
 
   // ---- los pedazos ----
@@ -350,13 +364,24 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
         step(p, dt);
         return true;
       },
+      filter(_e, amount, shot) {
+        // juntándose para saltar (o inflándose para escupir), un golpe fuerte lo corta
+        const cuttable = p.phase === 'gather' || (p.phase === 'spit' && !!p.glob && !p.glob.launched);
+        if (cuttable && shot) {
+          if (shot.ability || shot.quality >= CUT_QUALITY) p.cutPending = true;
+          else if (!p.weakTold) {
+            p.weakTold = true;
+            ctx.feedback(L('¡Más fuerte, para cortarlo!', 'Harder, to cut it!'));
+          }
+        }
+        return amount;
+      },
       onDamage(_e, dealt, killed) {
-        if (!killed && p.tier === 2 && p.phase === 'rest') p.wait += FLINCH;
         // lo que gotea sale en la vuelta del jefe (acá estamos en medio de un golpe de la horda)
         if (v.sheds && p.tier === 0 && !killed) p.shedAcc += dealt;
       },
     };
-    const st = partStats('slime', { name: T.name, height: T.height, radius: T.radius, hp: tierHp(tier), speed: T.speed, runs: tier === 2, damage: T.trample, gateDamage: T.gate, heavy: T.heavy, boss: T.boss, score: T.score });
+    const st = partStats('slime', { name: T.name, height: T.height, radius: T.radius, hp: tierHp(tier), speed: T.speed, runs: tier === 2, damage: T.trample, gateDamage: Infinity, heavy: T.heavy, boss: T.boss, score: T.score });
     const e = horde.spawnCustom(st, look, x, z, {}, script);
     e.heading = Math.PI;
     const arm = e.body.getObjectByName('Armature') ?? e.body.children[0] ?? null;
@@ -371,12 +396,12 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     });
     const rawH = T.height / Math.max(1e-4, e.body.scale.y);
     p = {
-      e, tier, pack: pk, slot: slotFor(tier, pk.members.length), phase: 'rest', t: 0, wait: rand(...T.rest), ver: pk.ver,
-      from: new THREE.Vector3(), to: new THREE.Vector3(x, 0, z), airTime: T.air, liftMax: T.lift, lift: 0, crossing: false, harmless: false,
-      ring: new GroundMark(ctx.scene, RING_COLOR, false, T.radius).opacity(0),
-      pullRing: v.absorbs && tier <= 1 ? new GroundMark(ctx.scene, PULL_COLOR, false, T.radius + PULL_REACH).opacity(0) : null, arm, rawH, sq: 0, sqv: 0, sqTarget: 0, pop: 1, mats,
+      e, tier, pack: pk, phase: 'glide', t: 0, sx: rng() < 0.5 ? -1 : 1, leapIn: T.leap ? rand(...T.leapEvery) : Infinity,
+      from: new THREE.Vector3(), to: new THREE.Vector3(x, 0, z), airTime: T.air, liftMax: T.lift, lift: 0, harmless: false, cutPending: false, weakTold: false,
+      ring: new GroundMark(ctx.scene, RING_COLOR, false, T.radius).opacity(0), lane: null,
+      pullRing: v.absorbs && tier <= 1 ? new GroundMark(ctx.scene, PULL_COLOR, false, T.radius + PULL_REACH).opacity(0) : null, alarm: null, arm, rawH, sq: 0, sqv: 0, sqTarget: 0, pop: 1, mats,
       belly: v.absorbs && tier <= 1 && arm ? new Belly(arm, rawH) : null, gained: 0,
-      spitIn: SPIT_FIRST + rand(0, 2), glob: null, shedAcc: 0, glowing: false, handled: false, handed: false,
+      spitIn: SPIT_FIRST + rand(0, 2), glob: null, shedAcc: 0, glow: null, trail: 0, handled: false, handed: false,
     };
     pk.members.push(p);
     pieces.push(p);
@@ -399,6 +424,8 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     p.glob = spit.prepare(p.e, TIERS[p.tier].puddle);
     p.phase = 'spit';
     p.t = 0;
+    p.cutPending = false;
+    p.weakTold = false;
     p.spitIn = spitEvery(p);
     const e = p.e;
     // el clip de ataque se estira para atrás y se estrella para adelante: el golpe (al 45 %) es la escupida
@@ -406,61 +433,87 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     return true;
   }
 
-  /** Salta, si le toca: el que manda decide adónde va la manada; los demás, a su lugar en la ronda. */
-  function tryHop(p: Piece): void {
-    const pk = p.pack;
-    const lead = pk.members[0];
-    if (lead === p) planPack(pk, p);
-    else if (pk.ver === p.ver && p.t < p.wait + FOLLOW_PATIENCE) return;
-    p.ver = pk.ver;
+  /** Se junta para saltar: marca el carril y adónde cae, y da tiempo para cortarlo. */
+  function startGather(p: Piece): void {
     const T = TIERS[p.tier];
-    const e = p.e;
+    const { x, z } = p.e.position;
     const stop = stopZ(p.tier);
-    p.crossing = pk.crossing && e.position.z <= stop + 1.2;
-    let tx = pk.anchor.x + p.slot.x;
-    let tz = p.crossing ? TEE_Z - CROSS_DEPTH + p.slot.y * 0.5 : pk.anchor.y + p.slot.y;
-    if (!p.crossing && !v.holds) tz = Math.max(tz, stop);
-    const dx = tx - e.position.x;
-    const dz = tz - e.position.z;
-    const d = Math.hypot(dx, dz);
-    if (d > T.reach && !p.crossing) {
-      tx = e.position.x + (dx / d) * T.reach;
-      tz = e.position.z + (dz / d) * T.reach;
-    }
+    const tz = Math.max(stop, z - T.leap);
+    let tx = x + p.sx * T.leap * T.slant;
+    const atLine = tz <= stop + 0.5;
+    // el que cae en la línea te busca: apunta a tu puesto (hasta donde le da el salto)
+    if (atLine) tx = x + THREE.MathUtils.clamp(ctx.player().position.x - x, -T.leap * LEAP_AIM, T.leap * LEAP_AIM);
     const half = halfAt(tz, T.radius);
     tx = THREE.MathUtils.clamp(tx, -half, half);
-    // un salto de nada no vale: se queda un rato más
-    if (Math.hypot(tx - e.position.x, tz - e.position.z) < 0.3 && !p.crossing) {
-      p.t = 0;
-      p.wait = rand(...T.rest) * 0.5;
-      return;
-    }
     p.to.set(tx, 0, tz);
-    p.phase = 'crouch';
+    p.phase = 'gather';
     p.t = 0;
-    p.harmless = false;
-    const dist = Math.hypot(tx - e.position.x, tz - e.position.z);
-    p.airTime = T.air * (0.7 + 0.3 * Math.min(1, dist / T.reach));
-    p.liftMax = T.lift * (0.6 + 0.4 * Math.min(1, dist / T.reach));
-    const danger = tz < TEE_Z + e.radius + 1.5;
-    p.ring.color(danger ? RING_DANGER : RING_COLOR).size(e.radius).at(tx, tz).opacity(0.2);
+    p.cutPending = false;
+    p.weakTold = false;
+    p.glow = 'leap';
+    p.ring.color(atLine ? RING_DANGER : RING_COLOR).size(p.e.radius).at(tx, tz).opacity(0.25);
+    p.lane = new LaneMark(ctx.scene, LEAP_COLOR, p.e.radius * 1.3).between(x, z, tx, tz).opacity(0.12);
+    ctx.audio.growl();
+    if (!toldLeap) {
+      toldLeap = true;
+      ctx.feedback(L('Se junta para saltar: ¡cortalo con un golpe fuerte!', 'It gathers to leap: cut it with a strong hit!'));
+    }
   }
 
-  /** Cae: se aplasta, deja baba, le pega al que esté abajo, come lo que tocó, y si cruzó, lo larga al juego. */
-  function land(p: Piece): void {
+  /** Lo cortaste: no salta (ni escupe), retrocede un poco y queda mareado. */
+  function cut(p: Piece): void {
     const T = TIERS[p.tier];
     const e = p.e;
-    p.phase = 'rest';
+    if (p.phase === 'spit') {
+      if (p.glob) spit?.cancel(p.glob);
+      p.glob = null;
+      stats.cortesEscupida++;
+    } else stats.cortes++;
+    p.cutPending = false;
+    p.glow = null;
+    for (const m of p.mats) m.emissive.setRGB(0, 0, 0);
+    p.ring.opacity(0);
+    p.lane?.dispose();
+    p.lane = null;
+    p.phase = 'stunned';
+    p.t = 0;
+    p.from.copy(e.position);
+    const back = v.holds ? 0 : Math.min(CUT_PUSH, ENTER_Z - e.position.z);
+    p.to.set(e.position.x, 0, e.position.z + Math.max(0, back));
+    p.leapIn = T.leap ? rand(...T.leapEvery) : Infinity;
+    p.sqv -= 7;
+    ctx.feedback(L('¡Cortado!', 'Cut!'));
+    ctx.audio.bubblePop();
+    ctx.effects.explosion(new THREE.Vector3(e.position.x, e.position.y + e.height * 0.5, e.position.z), e.radius, 0xb36bff);
+  }
+
+  /** Llegó a la línea: se queda ahí un momento (pega si lo tocás) y después la cruza. */
+  function toLine(p: Piece): void {
+    p.phase = 'line';
+    p.t = 0;
+    p.lane?.dispose();
+    p.lane = null;
+    stats.llegaron++;
+    ctx.audio.growl();
+    if (!toldLine) {
+      toldLine = true;
+      ctx.banner(L('¡Llegó a la línea!', 'It reached the line!'), L('Matalo antes de que cruce: si llega a la puerta, cae', 'Kill it before it crosses: if it reaches the gate, the gate falls'), 2.5);
+    }
+  }
+
+  /** Cae: se aplasta, deja baba, le pega al que esté abajo, come lo que tocó; en la línea, se queda ahí. */
+  function land(p: Piece): void {
+    const e = p.e;
+    p.phase = 'glide';
     p.t = 0;
     p.lift = 0;
-    p.wait = rand(...T.rest) + (e.position.z <= stopZ(p.tier) + 0.3 ? LINE_WAIT : 0);
     p.sqv += 5;
     p.ring.opacity(0);
-    decal(e.position.x, e.position.z, e.radius);
+    decal(e.position.x, e.position.z, e.radius * 0.85, DECAL_LIFE, 0.4);
     ctx.audio.thud();
     if (!p.harmless && !ctx.over() && touchesPlayer(ctx, e, e.radius + 0.5)) hurt(p);
     if (p.belly) eat(p);
-    if (p.crossing) handOver(p);
+    if (e.position.z <= stopZ(p.tier) + 0.3) toLine(p);
   }
 
   function hurt(p: Piece): void {
@@ -472,16 +525,57 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
   function handOver(p: Piece): void {
     p.handed = true;
     p.pullRing?.opacity(0);
+    p.alarm?.opacity(0);
     stats.cruzaron++;
-    if (p.belly) {
-      p.e.stats.gateDamage += p.belly.gateDamage;
-      p.belly.clear();
-    }
-    stats.puertaPotencial += p.e.stats.gateDamage;
+    // lo de la panza ya no cuenta: con lo suyo alcanza para romper la puerta
+    p.belly?.clear();
     resetPose(p);
     p.ring.opacity(0);
+    p.lane?.dispose();
+    p.lane = null;
     p.e.script = null;
     leaveP(p);
+  }
+
+  /** Se arrastra en su diagonal, a pulsos, dejando un rastro de baba. */
+  function glide(p: Piece, dt: number, k: number): void {
+    const T = TIERS[p.tier];
+    const e = p.e;
+    const clock = ctx.clock();
+    const rate = CRAWL.rate[p.tier];
+    const pulse = 1 + CRAWL.amp * Math.sin(clock * rate + e.id);
+    const f = speedUp() * pulse * k;
+    let vz = -T.glide * f;
+    const vx = p.sx * T.glide * T.slant * f;
+    if (v.holds) {
+      // hasta la franja entra derecho; ahí adentro va de costado nomás
+      const [near, far] = band();
+      if (e.position.z <= far) vz = e.position.z < near ? T.glide * 0.5 * k : 0;
+    }
+    let x = e.position.x + vx * dt;
+    let z = Math.min(ENTER_Z, e.position.z + vz * dt);
+    const half = halfAt(z, e.radius);
+    if (x > half) {
+      x = half;
+      p.sx = -1;
+    } else if (x < -half) {
+      x = -half;
+      p.sx = 1;
+    }
+    const stop = stopZ(p.tier);
+    const atLine = z <= stop;
+    if (atLine) z = stop;
+    e.knock.set(0, 0, 0);
+    e.position.set(x, heightAt(x, z), z);
+    e.faceToward(x + vx, z + vz, dt, 3);
+    // se estira al avanzar y se junta entre pulsos
+    p.sqTarget = 0.09 * Math.sin(clock * rate + e.id + 1.4);
+    p.trail += Math.hypot(vx, vz) * dt;
+    if (p.trail > TRAIL_STEP) {
+      p.trail = 0;
+      decal(x, z + e.radius * 0.4, e.radius * 0.5, TRAIL_LIFE, 0.28);
+    }
+    if (atLine) toLine(p);
   }
 
   function step(p: Piece, dt: number): void {
@@ -496,32 +590,50 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     }
     // el frío lo hace más lento en el piso; congelado (solo el chico) se queda quieto. En el aire, sigue
     const k = e.frozen ? 0 : e.chilled ? CHILL_TIME : 1;
-    p.t += p.phase === 'air' || p.phase === 'spit' ? dt : dt * k;
+    p.t += p.phase === 'air' ? dt : dt * k;
     p.pop = Math.min(1, p.pop + dt / 0.4);
-    // el reloj de la escupida corre saltando o quieto; escupe en el próximo descanso
     if (p.phase !== 'spit') p.spitIn -= dt * k;
     switch (p.phase) {
-      case 'rest': {
-        e.animator.setLocomotion('Idle', 0.5 + 0.5 * k);
-        p.sqTarget = 0.04 * Math.sin(ctx.clock() * 5 + e.id);
-        // en la línea, tocarlo pega (como al que te pasa por encima)
-        if (e.position.z < TEE_Z + e.radius + 1.2 && touchesPlayer(ctx, e, e.radius + 0.45)) hurt(p);
+      case 'glide': {
+        e.animator.setLocomotion(e.animator.has('Walk') ? 'Walk' : 'Idle', 0.5 + 0.5 * k);
+        if (k > 0) glide(p, dt, k);
+        if (p.phase !== 'glide') break;
+        p.leapIn -= dt * k;
         if (spitter(p) && p.spitIn <= 0 && e.position.z > SPIT_MIN_Z && k > 0) {
           if (startSpit(p)) break;
           p.spitIn = 0.8;
         }
-        if (p.t >= p.wait && k > 0) tryHop(p);
+        if (!v.holds && p.leapIn <= 0 && k > 0) {
+          if (e.position.z > stopZ(p.tier) + 1.5) {
+            startGather(p);
+            stats.saltos++;
+          } else p.leapIn = 1;
+        }
         break;
       }
-      case 'crouch': {
-        const u = Math.min(1, p.t / T.crouch);
-        p.sqTarget = 0.3 * u;
+      case 'gather': {
+        e.animator.setLocomotion('Idle', 1);
+        const u = Math.min(1, p.t / T.gather);
+        // se aplasta juntando fuerza, y tiembla al final
+        p.sqTarget = 0.32 * u + (u > 0.6 ? 0.04 * Math.sin(ctx.clock() * 34) : 0);
         e.faceToward(p.to.x, p.to.z, dt, 5);
-        p.ring.opacity(0.2 + 0.4 * u);
-        if (p.t >= T.crouch) {
+        p.ring.opacity(0.25 + 0.45 * u);
+        p.lane?.opacity((0.12 + 0.3 * u) * (0.75 + 0.25 * Math.sin(ctx.clock() * (6 + 10 * u))));
+        if (p.cutPending || e.stunned || e.frozen) {
+          cut(p);
+          break;
+        }
+        if (p.t >= T.gather) {
           p.phase = 'air';
           p.t = 0;
           p.from.copy(e.position);
+          p.airTime = T.air;
+          p.liftMax = T.lift;
+          p.harmless = false;
+          p.glow = null;
+          for (const m of p.mats) m.emissive.setRGB(0, 0, 0);
+          p.lane?.dispose();
+          p.lane = null;
         }
         break;
       }
@@ -544,18 +656,54 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
         const u = Math.min(1, p.t / SPIT_WINDUP);
         // se infla (más alto) mientras junta la baba, y se aplasta al escupir
         p.sqTarget = p.t < SPIT_WINDUP ? -0.22 * u : 0.15;
-        p.glowing = p.t < SPIT_WINDUP;
+        p.glow = p.t < SPIT_WINDUP ? 'spit' : null;
+        if (p.glob && !p.glob.launched && (p.cutPending || e.stunned || e.frozen)) {
+          cut(p);
+          break;
+        }
         if (p.t >= SPIT_WINDUP + SPIT_RECOVER) {
-          p.phase = 'rest';
+          p.phase = 'glide';
           p.t = 0;
-          p.wait = 0.25;
-          p.glowing = false;
+          p.glow = null;
+          for (const m of p.mats) m.emissive.setRGB(0, 0, 0);
           p.glob = null;
         }
         break;
       }
+      case 'stunned': {
+        e.animator.setLocomotion('Idle', 0.4);
+        // retrocede de un empujón, y queda temblando
+        const u = Math.min(1, p.t / CUT_SLIDE);
+        const s = 1 - (1 - u) * (1 - u);
+        const x = p.from.x;
+        const z = p.from.z + (p.to.z - p.from.z) * s;
+        e.knock.set(0, 0, 0);
+        e.position.set(x, heightAt(x, z), z);
+        p.sqTarget = 0.18 + 0.06 * Math.sin(ctx.clock() * 22);
+        if (p.t >= CUT_STUN) {
+          p.phase = 'glide';
+          p.t = 0;
+        }
+        break;
+      }
+      case 'line': {
+        e.animator.setLocomotion('Idle', 1);
+        e.knock.set(0, 0, 0);
+        e.faceToward(e.position.x, TEE_Z - 5, dt, 4);
+        // está por cruzar: un disco rojo que se llena y un anillo grande que late cada vez más rápido
+        const u = Math.min(1, p.t / T.lineWait);
+        const beat = Math.abs(Math.sin(ctx.clock() * (5 + 14 * u)));
+        p.ring.color(RING_DANGER).size(e.radius + 0.6 + 0.5 * beat).at(e.position.x, e.position.z).opacity(0.6 + 0.35 * beat);
+        (p.alarm ??= new GroundMark(ctx.scene, RING_DANGER, true, e.radius)).size((e.radius + 0.5) * (0.3 + 0.7 * u)).at(e.position.x, e.position.z).opacity(0.25 + 0.35 * u);
+        p.sqTarget = 0.12 * Math.sin(ctx.clock() * 9);
+        for (const m of p.mats) m.emissive.setRGB(0.6 * beat * u, 0.05 * beat * u, 0.02 * beat * u);
+        // tocarlo pega (como al que te pasa por encima)
+        if (touchesPlayer(ctx, e, e.radius + 0.45)) hurt(p);
+        if (p.t >= T.lineWait && k > 0) handOver(p);
+        break;
+      }
     }
-    pose(p, dt);
+    if (!p.handed) pose(p, dt);
   }
 
   /** El aplastado y el salto se hacen en el esqueleto, así no se pisan con el aplastado de los golpes. */
@@ -567,30 +715,34 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     const pop = 0.45 + 0.55 * p.pop;
     arm.scale.set((1 + 0.5 * p.sq) * pop, (1 - p.sq) * pop, (1 + 0.5 * p.sq) * pop);
     arm.position.y = (p.lift * p.rawH) / Math.max(0.1, p.e.height);
-    if (p.glowing) {
+    if (p.glow) {
       const g = 0.5 + 0.5 * Math.sin(ctx.clock() * 18);
-      for (const m of p.mats) m.emissive.setRGB(0.35 * g, 0.05 * g, 0.65 * g);
+      if (p.glow === 'spit') for (const m of p.mats) m.emissive.setRGB(0.35 * g, 0.05 * g, 0.65 * g);
+      else for (const m of p.mats) m.emissive.setRGB(0.7 * g, 0.3 * g, 0.05 * g);
     }
   }
 
   function resetPose(p: Piece): void {
     p.lift = 0;
     p.sq = p.sqv = 0;
-    p.glowing = false;
+    p.glow = null;
+    for (const m of p.mats) m.emissive.setRGB(0, 0, 0);
     if (p.arm) {
       p.arm.scale.setScalar(1);
       p.arm.position.y = 0;
     }
   }
 
-  function decal(x: number, z: number, r: number): void {
-    let d = decals.find((k) => k.t >= DECAL_LIFE);
+  function decal(x: number, z: number, r: number, life: number, alpha: number): void {
+    let d = decals.find((k) => k.t >= k.life);
     if (!d) {
-      d = { mark: new GroundMark(ctx.scene, DECAL_COLOR, true, r), t: 0 };
+      d = { mark: new GroundMark(ctx.scene, DECAL_COLOR, true, r), t: 0, life, alpha };
       decals.push(d);
     }
     d.t = 0;
-    d.mark.size(r * 0.85).at(x, z).opacity(0.4);
+    d.life = life;
+    d.alpha = alpha;
+    d.mark.size(r).at(x, z).opacity(alpha);
   }
 
   /** Chupa a los de la escolta que pasan cerca: se deslizan hacia él (en el piso, y con lugar en la panza). */
@@ -637,7 +789,21 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     }
   }
 
-  /** El que gotea: cada `sheds` de daño se le cae un chico, que sale de costado y se va con la manada. */
+  /** Un recién nacido (al dividirse o al gotear): sale en un salto corto hasta (tx, tz), sin pegar. */
+  function hatch(c: Piece, tx: number, tz: number, sx: number): void {
+    c.phase = 'air';
+    c.t = 0;
+    c.from.copy(c.e.position);
+    c.to.set(tx, 0, tz);
+    c.airTime = SPLIT_AIR;
+    c.liftMax = 1.3;
+    c.harmless = true;
+    c.pop = 0;
+    c.sx = sx;
+    c.ring.size(c.e.radius).at(tx, tz).opacity(0.5);
+  }
+
+  /** El que gotea: cada `sheds` de daño se le cae un chico, que sale de costado y corre a la línea. */
   function shed(p: Piece): void {
     while (v.sheds && p.shedAcc >= v.sheds) {
       p.shedAcc -= v.sheds;
@@ -646,27 +812,22 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
       const fwd = z - SPLIT_FORWARD < stopZ(2) + 1 ? 0 : SPLIT_FORWARD;
       const c = spawnPiece(2, x + side * p.e.radius * 0.5, z, joinPack(2, x, z - fwd));
       const half = halfAt(z, TIERS[2].radius);
-      c.phase = 'air';
-      c.t = 0;
-      c.from.copy(c.e.position);
-      c.to.set(THREE.MathUtils.clamp(x + side * (p.e.radius + SHED_SIDE), -half, half), 0, Math.max(z - fwd, stopZ(2)));
-      c.airTime = SPLIT_AIR;
-      c.liftMax = 1.2;
-      c.harmless = true;
-      c.pop = 0;
-      c.ring.size(c.e.radius).at(c.to.x, c.to.z).opacity(0.5);
+      hatch(c, THREE.MathUtils.clamp(x + side * (p.e.radius + SHED_SIDE), -half, half), Math.max(z - fwd, stopZ(2)), -side);
       stats.goteados++;
       lifeTotal += c.e.maxHp;
       ctx.audio.bubblePop();
     }
   }
 
-  /** Murió: suelta a los de adentro y, si le toca, se parte en dos más chicos. */
+  /** Murió: suelta a los de adentro y, si le toca, se parte en dos más chicos que se cruzan. */
   function died(p: Piece): void {
     p.handled = true;
     p.pullRing?.opacity(0);
+    p.alarm?.opacity(0);
     resetPose(p);
     p.ring.opacity(0);
+    p.lane?.dispose();
+    p.lane = null;
     leaveP(p);
     const { x, z } = p.e.position;
     if (p.belly?.list.length) {
@@ -692,24 +853,22 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
     for (const side of [-1, 1]) {
       const c = spawnPiece(tier, x, z, pk);
       const half = halfAt(z, T.radius);
-      c.phase = 'air';
-      c.t = 0;
-      c.from.set(x, 0, z);
-      c.to.set(THREE.MathUtils.clamp(x + side * SPLIT_SIDE, -half, half), 0, Math.max(z - fwd, v.holds ? 0 : stopZ(tier)));
-      c.airTime = SPLIT_AIR;
-      c.liftMax = 1.3;
-      c.harmless = true;
-      c.pop = 0;
-      c.ring.size(c.e.radius).at(c.to.x, c.to.z).opacity(0.5);
+      // uno un poco adelante del otro: al cruzarse pasan rozándose (el área agarra a los dos)
+      const tz = Math.max(z - fwd + side * SPLIT_STAGGER, v.holds ? 0 : stopZ(tier));
+      // salen para afuera y vuelven encarándose
+      hatch(c, THREE.MathUtils.clamp(x + side * SPLIT_SIDE, -half, half), tz, -side);
+      c.leapIn = T.leap ? rand(...T.leapEvery) + 1.5 : Infinity;
     }
+    pk.turnIn = SPLIT_AIR + (2 * SPLIT_SIDE + rand(...CROSS_GAP)) / (2 * lateral(tier));
   }
 
-  // el grande entra saltando desde el fondo
+  ctx.banner(L('Limo venenoso', 'Poison Slime'), L('Si un limo llega a la puerta, cae', 'If a slime reaches the gate, the gate falls'), 4);
+  // el grande entra desde el fondo, y salta enseguida (que se vea qué hace)
   {
     const pk = joinPack(0, 0, ENTER_Z);
-    const x0 = rand(-8, 8);
-    const p = spawnPiece(0, x0, ENTER_Z, pk);
-    p.wait = 0.4;
+    const p = spawnPiece(0, rand(-8, 8), ENTER_Z, pk);
+    p.sx = p.e.position.x > 0 ? -1 : 1;
+    p.leapIn = FIRST_LEAP;
   }
 
   /** ¿Algo del limo le cae o lo toca al que esté parado en el puesto de `x`, en los próximos `within` s? */
@@ -719,8 +878,8 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
       if (p.handled || p.handed || !p.e.alive) continue;
       const reach = p.e.radius + 1.1;
       const T = TIERS[p.tier];
-      if ((p.phase === 'crouch' || p.phase === 'air') && !p.harmless && p.to.z < TEE_Z + reach + 0.5 && Math.abs(p.to.x - x) < reach) {
-        const left = p.phase === 'crouch' ? T.crouch - p.t + p.airTime : p.airTime - p.t;
+      if ((p.phase === 'gather' || p.phase === 'air') && !p.harmless && p.to.z < TEE_Z + reach + 0.5 && Math.abs(p.to.x - x) < reach) {
+        const left = p.phase === 'gather' ? T.gather - p.t + T.air : p.airTime - p.t;
         if (left < within + 0.5) return true;
       }
       // quieto en la línea: tocarlo pega
@@ -732,6 +891,36 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
   /** ¿Este de la escolta está por ser comido? */
   function aboutToBeEaten(en: Enemy): boolean {
     return pieces.some((p) => p.belly && !p.handled && !p.handed && p.e.alive && Math.hypot(en.position.x - p.e.position.x, en.position.z - p.e.position.z) < p.e.radius + 5);
+  }
+
+  /** La barra: la vida que le queda a todo el limo (contando lo que va a nacer), y lo cerca que está. */
+  function updateBar(): void {
+    let left = 0;
+    let nearest = Infinity;
+    let gathering = false;
+    let atLine = false;
+    let walking = false;
+    for (const p of pieces) {
+      if (p.handled) continue;
+      if (p.handed) {
+        if (p.e.alive) walking = true;
+        continue;
+      }
+      if (!p.e.alive) continue;
+      left += Math.max(0, p.e.hp) + ahead(p.tier);
+      nearest = Math.min(nearest, p.e.position.z - p.e.radius - TEE_Z);
+      if (p.phase === 'gather') gathering = true;
+      if (p.phase === 'line') atLine = true;
+    }
+    const m = Math.max(0, Math.round(nearest));
+    const sub = walking
+      ? L('¡Va a romper la puerta!', 'It is going to break the gate!')
+      : atLine
+        ? L('¡En la línea! Si cruza, cae la puerta', 'At the line! If it crosses, the gate falls')
+        : gathering
+          ? L('Se junta para saltar: ¡golpe fuerte!', 'Gathering to leap: hit hard!')
+          : Number.isFinite(nearest) ? L(`A ${m} m de la línea`, `${m} m from the line`) : '';
+    bar.set(left, lifeTotal, sub);
   }
 
   return {
@@ -755,23 +944,32 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
         if ((p.handled || p.handed) && p.e.state === 'gone') {
           p.ring.dispose();
           p.pullRing?.dispose();
+          p.alarm?.dispose();
+          p.lane?.dispose();
           p.belly?.clear();
           byId.delete(p.e.id);
           pieces.splice(i, 1);
         }
       }
+      for (const pk of packs) {
+        pk.turnIn -= dt;
+        if (pk.turnIn <= 0) turnPack(pk);
+      }
       spit?.update(dt);
       for (const d of decals) {
-        if (d.t >= DECAL_LIFE) continue;
+        if (d.t >= d.life) continue;
         d.t += dt;
-        d.mark.opacity(0.4 * Math.max(0, 1 - d.t / DECAL_LIFE));
+        d.mark.opacity(d.alpha * Math.max(0, 1 - d.t / d.life));
       }
+      updateBar();
     },
     bot: {
       danger,
       weight(e) {
         const p = byId.get(e.id);
         if (p) {
+          if (p.phase === 'gather' || (p.phase === 'spit' && p.glob && !p.glob.launched)) return GATHER_WEIGHT;
+          if (p.phase === 'line') return LINE_WEIGHT;
           if (p.tier === 2) return SMALL_WEIGHT;
           return p.e.position.z < TEE_Z + 8 ? AT_LINE_WEIGHT : 1;
         }
@@ -785,19 +983,25 @@ export function startLimo(ctx: BossCtx, v: LimoVersion): BossFight {
       goteados: stats.goteados,
       tragados: stats.tragados,
       salieron: stats.salieron,
+      saltos: stats.saltos,
+      cortes: stats.cortes,
+      cortesEscupida: stats.cortesEscupida,
       escupidas: spit?.spat ?? 0,
       charcos: spit?.puddled ?? 0,
       pelotasComidas: spit?.eaten ?? 0,
       golpesEscupida: spit?.hits ?? 0,
       golpesSalto: stats.golpes,
+      llegaron: stats.llegaron,
       cruzaron: stats.cruzaron,
-      puertaPotencial: stats.puertaPotencial,
       vidaTotal: lifeTotal,
     }),
     dispose() {
+      bar.dispose();
       for (const p of pieces) {
         p.ring.dispose();
         p.pullRing?.dispose();
+        p.alarm?.dispose();
+        p.lane?.dispose();
         p.belly?.clear();
       }
       for (const d of decals) d.mark.dispose();

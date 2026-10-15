@@ -13,9 +13,9 @@
     "files": [
       "perfect.mp3"
     ],
-    "seconds": 0.64,
-    "source": "W Stingers_Jingles/Fantasy/TD_Collect_Star_01.wav",
-    "note": "Estrellita del mapeo; va encima de club-3. A -16 LUFS para que no tape el golpe."
+    "seconds": 0.4,
+    "source": "K impactPunch_heavy_000.ogg + K impactWood_medium_002.ogg",
+    "note": "Golpe perfecto: un golpe pleno y grave abajo del del palo (Kenney impactPunch_heavy tres semitonos abajo e impactWood_medium). Antes la estrellita de TD_Collect_Star: un seno de 2,6 kHz que sonaba a vidrio."
   },
   "duff": {
     "files": [
@@ -370,32 +370,34 @@
       "club-putter-2.mp3"
     ],
     "seconds": 0.25,
-    "source": "F 408260.mp3 | F 408260.mp3",
-    "note": "Putter: el \"tic\" de un putt de verdad (Freesound 408260, \"putt.wav\", CC0), dos golpes de la misma toma; sin graves (pasa-altos 150 Hz: tenía viento)."
+    "source": "F 408260.mp3 + K impactWood_light_000.ogg | F 408260.mp3 + K impactWood_light_002.ogg",
+    "note": "Putter: el \"tic\" del putt de verdad (Freesound 408260, CC0) sin lo de arriba de 3 kHz (el segundo golpe tenía un anillo en 3-6 kHz), con un toc de madera chico abajo (Kenney impactWood_light, +5 st, -8 dB)."
   },
   "club-iron": {
     "files": [
-      "club-iron.mp3"
+      "club-iron.mp3",
+      "club-iron-2.mp3"
     ],
-    "seconds": 0.08,
-    "source": "F 622414.mp3",
-    "note": "Hierro: un click seco con brillo arriba de 5 kHz (Freesound 622414, \"golf ball hits.wav\", CC0)."
+    "seconds": 0.3,
+    "source": "F 622414.mp3 + K impactGeneric_light_000.ogg + K impactPunch_medium_001.ogg | F 622414.mp3 + K impactGeneric_light_002.ogg + K impactPunch_medium_003.ogg",
+    "note": "Hierro: el click de Freesound 622414 (CC0) sin el brillo de arriba de 4 kHz y 3 dB abajo, con un golpe seco (Kenney impactGeneric_light) y cuerpo (impactPunch_medium, -8 dB)."
   },
   "club-wedge": {
     "files": [
       "club-wedge.mp3"
     ],
     "seconds": 0.3,
-    "source": "F 21877.mp3",
-    "note": "Wedge: golpe con más cuerpo abajo, como con pasto (Freesound 21877, \"golf_hitting_ball.wav\", CC0)."
+    "source": "F 21877.mp3 + K footstep_grass_001.ogg + K impactWood_light_002.ogg",
+    "note": "Wedge: el golpe de Freesound 21877 (CC0) sin el anillo de 3-6 kHz, con pasto (Kenney footstep_grass, -3 dB) y un toc de madera (-6 dB)."
   },
   "club-driver": {
     "files": [
-      "club-driver.mp3"
+      "club-driver.mp3",
+      "club-driver-2.mp3"
     ],
-    "seconds": 0.1,
-    "source": "F 593483.mp3",
-    "note": "Driver: el \"ping\" de la cabeza de titanio, parciales en 4, 6 y 8 kHz que suenan 100 ms (Freesound 593483, \"Driver hitting golf ball.wav\", CC0)."
+    "seconds": 0.3,
+    "source": "K impactWood_light_000.ogg + K impactPunch_medium_000.ogg + F 593483.mp3 | K impactWood_light_002.ogg + K impactPunch_medium_003.ogg + F 593483.mp3",
+    "note": "Driver: un \"thock\" de madera (Kenney impactWood_light, dos semitonos abajo) con cuerpo (impactPunch_medium, -5 dB) y el golpe del driver de antes (Freesound 593483) sin el \"ping\" de titanio (de 3 kHz para arriba: sus parciales de 4,2, 6 y 8 kHz) y a -6 dB."
   },
   "hit-heavy": {
     "files": [
@@ -693,5 +695,50 @@
     "seconds": 0.16,
     "source": "K impactSoft_medium_000.ogg | K impactSoft_medium_002.ogg",
     "note": "Golpe blando, apagado (Kenney impactSoft_medium): el alma en pena, y la pelota que cae o empuja."
+  },
+  "swing": {
+    "files": [
+      "swing.mp3",
+      "swing-2.mp3",
+      "swing-3.mp3"
+    ],
+    "seconds": 0.47,
+    "source": "F 479966.mp3 + F x855844.mp3 | F 479966.mp3 + F x855844.mp3 | F 479966.mp3 + F x855844.mp3",
+    "note": "Swing del hierro: un palo de golf de verdad cortando el aire (Freesound 479966, craigsmith \"R19-33 Golf Club Swings and Hits\", CC0), con el aire grave de un bambú abajo, -4 dB (Freesound 855844, Sadiquecat, CC0). Pico a 0,07 s: el juego lo agenda para que caiga en el impacto."
+  },
+  "swing-big": {
+    "files": [
+      "swing-big.mp3",
+      "swing-big-2.mp3"
+    ],
+    "seconds": 0.53,
+    "source": "F 479966.mp3 + F x855844.mp3 | F 479966.mp3 + F x855844.mp3",
+    "note": "Swing del driver: el mismo palo dos semitonos más grave y con más aire (bambú a -2 dB). Pico a 0,08 s."
+  },
+  "swing-short": {
+    "files": [
+      "swing-short.mp3",
+      "swing-short-2.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "F 479966.mp3 | F 479966.mp3",
+    "note": "Swing corto (putter y wedge): un palo de R19-33 solo, sin el bambú, más bajo. Pico a 0,07 s."
+  },
+  "gate-fall": {
+    "files": [
+      "gate-fall.mp3"
+    ],
+    "seconds": 1.23,
+    "source": "F x723974.mp3 + K impactWood_heavy_001.ogg + K impactPunch_heavy_002.ogg + K impactWood_heavy_003.ogg + F x431174.mp3 + K impactPlank_medium_002.ogg + K impactWood_light_003.ogg",
+    "note": "Cae la puerta: madera que se rompe (Freesound 723974, Saladsounds \"Wooden Door breaks\", CC0) con el primer golpe (Kenney impactWood_heavy, 4 st abajo) y, a los 0,42 s, la puerta contra el piso: golpe pesado grave, madera y el golpe sordo de Freesound 431174; después tablas que rebotan. A -12 LUFS: más fuerte que los golpes."
+  },
+  "knight-groan": {
+    "files": [
+      "knight-groan.mp3",
+      "knight-groan-2.mp3"
+    ],
+    "seconds": 0.68,
+    "source": "F x803168.mp3 | F x387153.mp3",
+    "note": "El caballero se queja al caer: un quejido de hombre que cae de tono (Freesound 803168, salemaudio \"Short Pained Groans\", y 387153, seachangeau \"groan by adam\"; los dos CC0)."
   }
 }

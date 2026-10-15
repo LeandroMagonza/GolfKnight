@@ -7,6 +7,7 @@
 import { L } from '../../../i18n';
 import type { EnemyKind, Wave } from '../../../core/waves';
 import type { BossCtx, BossDef, BossFight } from '../types';
+import { Azar } from './azar';
 import { Coraza, type CorazaMode, type CorazaOpts } from './coraza';
 import { Cuerpo, type CuerpoOpts, ENTRY_Z, STATIONS } from './cuerpo';
 import { Rings, Volley } from './piezas';
@@ -21,7 +22,7 @@ const SHAMAN = { kind: 'shaman', height: 3.6, radius: 1.25, speed: 2.4, behavior
 const PALADIN = { kind: 'knight', mesh: 'Character_Hero_Knight_Female', height: 4.0, radius: 1.4, speed: 2.4 } as const;
 
 /** La vida de cada versión; se le suma `HP_PER_LEVEL` por nivel de dificultad y la del talento. */
-const HP = { mecha: 56, tope: 40, suma: 50, pulso: 64, parejaCaballero: 40, parejaChaman: 30, doble: 60 };
+const HP = { mecha: 56, tope: 40, suma: 50, pulso: 64, parejaCaballero: 40, parejaChaman: 30, doble: 60, azar: 54 };
 const HP_PER_LEVEL = 2;
 
 /**
@@ -49,12 +50,14 @@ interface Parte {
   body: Cuerpo;
   coraza?: Coraza;
   pulso?: Pulso;
+  azar?: Azar;
   /** Para el registro, cuando son dos (sus números van con esto adelante). */
   key: string;
 }
 
 /** Para el bot: el blindado cerrado no vale nada (pegarle lo cierra o rebota); el resto, lo que diga su ritmo. */
 function weightOf(p: Parte): number {
+  if (p.azar) return p.azar.weight();
   const c = p.coraza?.weight() ?? 1;
   if (c <= 0) return 0;
   const u = p.pulso?.weight() ?? 1;
@@ -83,6 +86,7 @@ function fight(ctx: BossCtx, parts: Parte[], volley: Volley, rings: Rings, rule:
       for (const p of parts) {
         p.coraza?.update(dt);
         p.pulso?.update(dt);
+        p.azar?.update(dt);
       }
     },
     bot: {
@@ -96,7 +100,7 @@ function fight(ctx: BossCtx, parts: Parte[], volley: Volley, rings: Rings, rule:
       const out: Record<string, number | string> = { vida: parts.reduce((n, p) => n + Math.max(0, p.body.e.hp), 0), seg: Math.round(ctx.clock()) };
       for (const p of parts) {
         const pre = parts.length > 1 ? `${p.key}.` : '';
-        for (const [k, v] of Object.entries({ ...p.coraza?.log, ...p.pulso?.log })) out[pre + k] = Math.round(v * 10) / 10;
+        for (const [k, v] of Object.entries({ ...p.coraza?.log, ...p.pulso?.log, ...p.azar?.log })) out[pre + k] = Math.round(v * 10) / 10;
       }
       return out;
     },
@@ -106,6 +110,7 @@ function fight(ctx: BossCtx, parts: Parte[], volley: Volley, rings: Rings, rule:
       for (const p of parts) {
         p.coraza?.dispose();
         p.pulso?.dispose();
+        p.azar?.dispose();
       }
     },
   };
@@ -115,13 +120,14 @@ const KNIGHT_NAME = L('Caballero de hierro', 'Iron Knight');
 const SHAMAN_NAME = L('Chamán eterno', 'Undying Shaman');
 
 /** El cartel de la regla, cuando llega a su lugar. */
-const RULES: Record<CorazaMode | 'pulso' | 'pulsoEscolta' | 'pareja' | 'doble', [string, string]> = {
-  mecha: [L('¡Esperá que se abra!', 'Wait for it to open!'), L('El blindaje baja solo. En 0, descargale todo antes de que se cierre', 'Its armor drops by itself. At 0, unload everything before it closes')],
+const RULES: Record<CorazaMode | 'pulso' | 'pulsoEscolta' | 'pareja' | 'doble' | 'azar', [string, string]> = {
+  mecha: [L('¡Esperá que se abra!', 'Wait for it to open!'), L('El blindaje baja solo. En 0, descargale todo. Si la pelota rebota, te devuelve una esquirla', 'Its armor drops by itself. At 0, unload everything. If your ball bounces, a shard flies back at you')],
   tope: [L('¡Esperá que se abra!', 'Wait for it to open!'), L('En 0, el primer golpe lo cierra: que sea el más fuerte', 'At 0, the first hit closes it: make it your strongest')],
   suma: [L('¡Esperá que se abra!', 'Wait for it to open!'), L('Cada golpe le sube 2 el blindaje: pegale en 0, y fuerte', 'Each hit raises its armor by 2: hit it at 0, and hard')],
   pulso: [L('¡No lo dejes respirar!', "Don't let it breathe!"), L('Si pasan 3 segundos sin pegarle, se cura', 'If 3 seconds pass without a hit, it heals')],
   pulsoEscolta: [L('¡No lo dejes respirar!', "Don't let it breathe!"), L('Si pasan 3 segundos sin pegarle, se cura él y cura a los de al lado', 'If 3 seconds pass without a hit, it heals itself and those around it')],
   pareja: [L('Uno seguido, el otro de golpe', 'One steadily, the other all at once'), L('Al chamán pegale seguido; al caballero, cuando se abre', 'Keep hitting the shaman; hit the knight when it opens')],
+  azar: [L('¿Blindado o fantasma?', 'Armored or ghost?'), L('Blindado: un golpe fuerte. Fantasma: tres golpes. Si no, lanza a la puerta', 'Armored: one strong hit. Ghost: three hits. Otherwise, a spear at the gate')],
   doble: [L('¡Tocalo seguido, descargale en 0!', 'Keep tagging it, unload at 0!'), L('Aunque rebote, cada toque le corta la cura', 'Even if it bounces, every touch stops the healing')],
 };
 
@@ -152,7 +158,7 @@ function pulsoBoss(id: string, blurb: string, o: PulsoOpts, rule: [string, strin
 }
 
 export const BOSSES: BossDef[] = [
-  corazaBoss('ritmo.coraza', 'Ráfaga. Blindaje 5 que baja solo; en 0, el primer golpe prende una mecha de 2 s (todo entra) y se cierra al tope. Ventana perdida: lanza a la puerta.', { mode: 'mecha', punish: 'lanza' }, HP.mecha), // i18n-ok: el panel de pruebas
+  corazaBoss('ritmo.coraza', 'Ráfaga. Blindaje 5 que baja solo; en 0, el primer golpe prende una mecha de 1.9 s (todo entra) y se cierra al tope. Ventana perdida: lanza a la puerta. La pelota que rebota en el blindaje le devuelve una esquirla a tu puesto.', { mode: 'mecha', punish: 'lanza' }, HP.mecha), // i18n-ok: el panel de pruebas
   corazaBoss('ritmo.coraza-escolta', 'Como la coraza, pero si se le pasa la ventana reparte su blindaje: +1 a los de la escolta que tiene cerca (hasta 2).', { mode: 'mecha', punish: 'placas' }, HP.mecha), // i18n-ok: el panel de pruebas
   corazaBoss('ritmo.tope', 'De a ratos. El primer golpe en 0 lo cierra al tope en el acto: un golpe por ventana, que sea el más fuerte. Baja más rápido (3.5 s).', { mode: 'tope', punish: 'lanza' }, HP.tope), // i18n-ok: el panel de pruebas
   corazaBoss('ritmo.suma', 'Cada golpe que entra le suma 2 de blindaje (sin mecha): pegarle en 0 y con golpes grandes. Ventana perdida: lanza.', { mode: 'suma', punish: 'lanza' }, HP.suma), // i18n-ok: el panel de pruebas
@@ -186,9 +192,23 @@ export const BOSSES: BossDef[] = [
       const rings = new Rings(ctx.scene);
       const name = L('Paladina caída', 'Fallen Paladin');
       const body = spawn(ctx, PALADIN, name, hpFor(ctx, HP.doble));
-      const coraza = new Coraza(ctx, body, { mode: 'mecha', punish: 'lanza' }, volley, rings);
+      const coraza = new Coraza(ctx, body, { mode: 'mecha', punish: 'lanza', rebote: false }, volley, rings);
       const pulso = new Pulso(ctx, body, { reset: 'toque', escort: false, summons: false, moves: false, ring: 4.3, lift: 3.2 }, volley, rings);
       return fight(ctx, [{ body, coraza, pulso, key: 'paladina' }], volley, rings, RULES.doble);
+    },
+  },
+  {
+    id: 'ritmo.azar',
+    name: L('Caballero de dos caras', 'Two-Faced Knight'),
+    blurb: 'Cada 3-4.5 s gira una ruleta sobre la cabeza y sale blindado (blindaje 3: un golpe fuerte que le saque 1) o fantasma (etéreo: tres golpes). Ventana de 4-6 s: si cumplís se tambalea sin blindaje 2.5 s; si no, lanza a la puerta. Entre ventanas, blindaje 2.', // i18n-ok: el panel de pruebas
+    escort: longEscort,
+    start(ctx) {
+      const volley = new Volley(ctx.scene);
+      const rings = new Rings(ctx.scene);
+      const name = L('Caballero de dos caras', 'Two-Faced Knight');
+      const body = spawn(ctx, KNIGHT, name, hpFor(ctx, HP.azar));
+      const azar = new Azar(ctx, body, volley, rings);
+      return fight(ctx, [{ body, azar, key: 'caballero' }], volley, rings, RULES.azar);
     },
   },
 ];

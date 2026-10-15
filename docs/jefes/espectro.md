@@ -56,6 +56,30 @@ En todas, del aviso al élite pasan unos 14 s la primera vez y unos 10 s desde l
 - **`espectro.ola`**: la barra es la vida del espectro de ahora; abajo, cuántas veces lo desterraste y cuántos
   élites hizo.
 
+## `espectro.eterno` (15/10)
+
+Leandro jugó `espectro.ola` y pidió esto: «que el espectro que buffea no muera, pero arranque a aparecer con 1
+de vida, después 2, y así vaya subiendo hasta quizás 5 para cuando termina la ola. Que no tenga vida propia así
+como la barra esa, solo tiene vida cuando aparece y siempre vuelve a aparecer mientras haya enemigos para que
+aparezca. De la forma que digo yo es visual cómo escala porque va teniendo más vida. Y también le pondría una
+barra de casteo para saber cuánto falta para que termine de hacerle el buff al enemigo». Dijo que `ola` «es
+similar, pero no estoy seguro si escala»: quedó como estaba y esta es aparte.
+
+- **Sin barra de jefe arriba.** La vida es la de cada aparición, y se ve en su **placa** sobre la cabeza: un
+  rombo violeta por punto (llenos los que le quedan) y, abajo, la **barra de casteo** que se va llenando, con lo
+  que va a darle escrito encima («+2 vida», «+poder», «¡ÉLITE!»). Silenciado o congelado, la barra se pone gris
+  y no avanza. En el piso, el disco del huésped se llena al mismo ritmo.
+- **Cada aparición trae más vida**: 1 la primera, y sube con el reloj de la escolta (40 enemigos × 2.2 s, unos
+  88 s) hasta 5, pero nunca más de uno por aparición: 1, 2, 3, 4, 5. Con el golpe 4, uno más.
+- **Matarlo corta el hechizo** que tenía a medio llenar («¡Hechizo cortado!»): lo que iba a dar no sale. Se
+  esfuma y a los 5 s (3.5 s al final) avisa sobre **otro** huésped (no el mismo, si hay otro) y vuelve a aparecer.
+- Si no lo matás, sigue sobre el mismo huésped: +2 vida, un poder, +2 vida y el élite (3.6 s cada hechizo al
+  principio, 2.6 s al final). Ahí se va solo y vuelve por otro.
+- **Se gana la oleada**: viene mientras haya horda a la que pegarse; cuando no queda nadie, termina.
+
+Los números, arriba de `index.ts`: `ETERNO` (`hp` 1 a 5, `ramp` 88 s, `rest` 5 a 3.5 s, `plate` la altura de la
+placa) y `VERSIONS.eterno` (la escalera y los segundos de cada hechizo). La placa es `CastPlate` en `visuals.ts`.
+
 ## Cómo se le gana
 
 - **Un buen driver de lejos lo destierra de una** (a más de 40 m, el golpe 2 ya pega 3). El wedge cae encima
@@ -82,7 +106,13 @@ En todas, del aviso al élite pasan unos 14 s la primera vez y unos 10 s desde l
 
 ## El bot
 
-PENDIENTE
+- **Primera tanda (15/10, una partida por versión):** ganó las cuatro; `poderes`, `vida` y `mezcla` sin perder
+  puerta (los cinco destierros en unos 90 s), `ola` perdiendo 6 de puerta con 13 apariciones. Fácil.
+- **`espectro.eterno` (15/10):** la primera prueba, con 3 → 2 s entre apariciones, la perdió por la puerta
+  (129 s, 15 apariciones, 14 hechizos cortados, 1 élite): de tanto ir por el espectro se le pasaba la horda. Con
+  5 → 3.5 s, ganó 2 de 2 perdiendo 5 y 2 de puerta (110–118 s de pelea): 12 apariciones, las 12 muertas con el
+  hechizo a medio hacer, la vida llegó a 5, ningún élite. El bot lo prioriza mucho (`BOT.specter`); un jugador
+  que deje pasar algún hechizo cambia vida del huésped por tiros a la horda.
 
 ## Lo que falta o no anda
 

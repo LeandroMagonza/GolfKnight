@@ -7,9 +7,11 @@
 //   suma   cada golpe que entra le suma `bump` al blindaje: mejor pegarle en 0 y con golpes grandes.
 // Si se le pasa la ventana sin que le peguen, castiga: tira la lanza a la puerta, o reparte su blindaje a
 // la escolta. Y cada vez que se cierra después de una ráfaga pisa fuerte y tira esquirlas a los puestos.
+// Desde el 15/10 (Leandro: «si le pegás al blindaje y no lográs pasar, que haga el ataque que te tira metales
+// a vos»), la pelota que rebota en el blindaje cerrado le devuelve una esquirla al puesto del golfista.
 import * as THREE from 'three';
 import { L } from '../../../i18n';
-import { GATE_HALF_WIDTH, GATE_Z, heightAt, TEE_Z } from '../kit';
+import { GATE_HALF_WIDTH, GATE_Z, heightAt, nearestSpot, TEE_Z } from '../kit';
 import type { BossCtx } from '../types';
 import { Cuerpo, type Golpe, pickStation, playerInside, targetSpots } from './cuerpo';
 import { Dial, plateMesh, Rings, shardMesh, spearMesh, Tag, Volley } from './piezas';
@@ -24,6 +26,11 @@ export interface CorazaOpts {
   side?: number;
   /** El radio de los anillos del piso (el del doble va más afuera, para que entre el reloj de la cura). */
   ring?: number;
+  /**
+   * La pelota que rebota en el blindaje le devuelve una esquirla al golfista (sí por omisión). En el doble no:
+   * ahí tocarlo aunque rebote es lo que se pide (le corta la cura).
+   */
+  rebote?: boolean;
 }
 
 /** Los números de la coraza (ver docs/jefes/ritmo.md). Los pares van del principio al final de la pelea. */
@@ -33,17 +40,17 @@ export const CORAZA = {
   /** Segundos que tarda en bajar cada punto (de 5 a 0 en 5 s). En «tope», más rápido: cada ventana es un golpe solo. */
   drainEvery: 1.0,
   drainEveryTope: 0.7,
-  /** mecha: cuánto queda abierto desde el primer golpe en 0, antes de cerrarse de golpe. */
-  fuse: [2.2, 1.6],
-  /** Cuánto espera abierto sin que le peguen antes de castigar. */
-  openFor: [4.2, 2.6],
+  /** mecha: cuánto queda abierto desde el primer golpe en 0, antes de cerrarse de golpe (15/10: era 2.2 a 1.6; Leandro: «está fácil»). */
+  fuse: [1.9, 1.4],
+  /** Cuánto espera abierto sin que le peguen antes de castigar (15/10: era 4.2 a 2.6). */
+  openFor: [3.6, 2.3],
   /** Con cada nivel de dificultad, la ventana sin golpes dura esto menos. */
   levelOpen: 0.08,
   /** suma: cuánto le sube cada golpe que entra, y desde cuánto cuenta como que se cerró (las esquirlas). */
   bump: 2,
   closeAt: 4,
   /** Las esquirlas al cerrarse después de una ráfaga: cuántos puestos, cuánto vuelan, el radio y el daño. */
-  shards: [1, 3],
+  shards: [2, 3],
   shardFlight: 1.5,
   shardRadius: 1.4,
   shardDamage: 1,
@@ -58,6 +65,12 @@ export const CORAZA = {
   plateFlight: 0.9,
   /** Cuánto se queda plantado después de cerrarse, antes de irse a otro lugar (el pisotón). */
   settle: 1.0,
+  /**
+   * La esquirla de vuelta (la pelota que rebota en el blindaje): al puesto donde está el golfista, lo que
+   * vuela (lo justo para cambiarse de puesto), y lo mínimo entre una y otra (si rebotan varias juntas).
+   */
+  counterFlight: 1.35,
+  counterEvery: 1.2,
 };
 
 const STEEL = 0x4f8dff;
@@ -82,10 +95,12 @@ export class Coraza {
   private spear = -1;
   /** Cuánto falta para irse a otro lugar (-1: no se va). */
   private moveIn = -1;
+  /** Cuándo puede devolver la próxima esquirla (ver `counterEvery`). */
+  private counterAt = 0;
   private readonly plates: Dial;
   private readonly clock: Dial;
   readonly tag: Tag;
-  readonly log = { ventanas: 0, aprovechadas: 0, golpesEnVentana: 0, apurados: 0, castigos: 0, esquirlas: 0, esquirlasPegaron: 0, placas: 0 };
+  readonly log = { ventanas: 0, aprovechadas: 0, golpesEnVentana: 0, apurados: 0, castigos: 0, esquirlas: 0, esquirlasPegaron: 0, placas: 0, rebotes: 0, rebotesPegaron: 0 };
 
   constructor(private readonly ctx: BossCtx, private readonly body: Cuerpo, private readonly o: CorazaOpts, private readonly volley: Volley, private readonly rings: Rings) {
     const r = o.ring ?? 2.6;
@@ -93,6 +108,7 @@ export class Coraza {
     this.clock = new Dial(ctx.scene, 24, r + 0.9, r + 1.4, 0);
     this.tag = new Tag(ctx.scene, 1.7);
     body.onLand((g) => this.landed(g));
+    body.onTouch((raw, shot) => this.touched(raw, shot));
     this.sync();
   }
 
@@ -191,6 +207,40 @@ export class Coraza {
     }
   }
 
+  /**
+   * Cada pelota que lo toca, antes del blindaje: si está cerrado y no lo pasa (rebota entera), le devuelve
+   * una esquirla al golfista. Lo que sí pasa lo maneja `landed` (en la mecha, lo cierra: «¡Muy pronto!»).
+   */
+  private touched(raw: number, shot: boolean): void {
+    if (this.o.rebote === false || !shot || raw <= 0 || !this.body.arrived || this.body.silenced || this.ctx.over()) return;
+    if (this.state !== 'cerrado' || raw > this.body.e.armor) return;
+    const now = this.ctx.clock();
+    if (now < this.counterAt) return;
+    this.counterAt = now + CORAZA.counterEvery;
+    this.counter();
+  }
+
+  /** La esquirla de vuelta: al puesto donde está parado el golfista, con su marca roja (cambiate de puesto). */
+  private counter(): void {
+    const e = this.body.e;
+    this.log.rebotes++;
+    const x = this.ctx.spots()[nearestSpot(this.ctx, this.ctx.player().position.x)];
+    const from = e.position.clone().setY(e.position.y + e.height * 0.7);
+    this.ctx.audio.ricochet();
+    this.rings.add(e.position.x, e.position.z, STEEL, 1.0, 3.5, 0.35);
+    this.volley.fire({
+      mesh: shardMesh(), from, to: new THREE.Vector3(x, heightAt(x, TEE_Z) + 0.2, TEE_Z), flight: CORAZA.counterFlight, height: 6,
+      mark: { color: 0xff3b30, radius: CORAZA.shardRadius },
+      land: (at) => {
+        this.ctx.effects.explosion(at, CORAZA.shardRadius, 0x8fa3c0);
+        this.ctx.audio.bossRock();
+        if (this.ctx.over() || !playerInside(this.ctx, at.x, at.z, CORAZA.shardRadius)) return;
+        this.log.rebotesPegaron++;
+        this.ctx.hitPlayer(CORAZA.shardDamage, at, e);
+      },
+    });
+  }
+
   /** Se cierra al tope. Con `shards`, pisa fuerte y tira esquirlas; después se va a otro lugar. */
   private close(shards: boolean, early = false, settle: number = CORAZA.settle): void {
     const e = this.body.e;
@@ -207,14 +257,13 @@ export class Coraza {
   /** Se le pasó la ventana: castiga y se cierra. */
   private missed(): void {
     this.log.castigos++;
-    if (this.o.punish === 'lanza') {
+    // sin escolta cerca a quien darle las placas, tira la lanza: si no, a solas no tenía con qué apurar a
+    // la puerta y se lo podía dejar para el final (15/10, la regla de la puerta: ver docs/jefes.md)
+    if (this.o.punish === 'lanza' || !this.sharePlates()) {
       this.spear = 0;
       this.ctx.feedback(L('¡Se te pasó! Tira la lanza a la puerta', 'Missed it! It throws its spear at the gate'));
       this.close(false, false, CORAZA.spearWindup + CORAZA.settle);
-    } else {
-      this.sharePlates();
-      this.close(false, false, CORAZA.settle + 0.5);
-    }
+    } else this.close(false, false, CORAZA.settle + 0.5);
   }
 
   /** El pisotón: esquirlas a los puestos (el del golfista y otros), con su marca en el piso. */
@@ -276,8 +325,9 @@ export class Coraza {
   /**
    * Reparte su blindaje: placas que vuelan a los de la escolta más cercanos, +1 a cada uno hasta el tope
    * de los comunes. Solo a los que no tienen otra defensa (con el etéreo o un escudo quedarían imposibles).
+   * False si no había a quién (no hace nada).
    */
-  private sharePlates(): void {
+  private sharePlates(): boolean {
     const e = this.body.e;
     const n = Math.round(lerp(CORAZA.plates, this.heat));
     const all = this.ctx.horde.enemies;
@@ -289,6 +339,7 @@ export class Coraza {
         && Math.hypot(o.position.x - e.position.x, o.position.z - e.position.z) < CORAZA.plateRadius)
       .sort((a, b) => Math.hypot(a.position.x - e.position.x, a.position.z - e.position.z) - Math.hypot(b.position.x - e.position.x, b.position.z - e.position.z))
       .slice(0, n);
+    if (!picks.length) return false;
     this.body.play('Rallying', 1.5);
     this.ctx.feedback(L('¡Se te pasó! Reparte su blindaje', 'Missed it! It hands out its armor'));
     const from = e.position.clone().setY(e.position.y + e.height * 0.7);
@@ -304,6 +355,7 @@ export class Coraza {
         },
       });
     }
+    return true;
   }
 
   /** El blindaje que resta el juego (el número del yelmo sobre la vida). */

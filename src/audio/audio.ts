@@ -32,9 +32,39 @@ const KILL_STRUM = 0.06;
  */
 const CLUB_VOLUME = [0.55, 0.75, 0.95];
 /** De qué suena cada enemigo al recibir la pelota. El resto, golpe seco en el cuerpo (`ball-hit`, `hit-heavy`). */
+/**
+ * El swing grabado de cada palo (15/10, Leandro: «tendría que sonar más tipo a swing con viento, woosh»):
+ * `peak`, dónde está su pico (el palo pasando) desde que arranca, y `lead`, lo que tarda el palo de soltar a
+ * pegar (medido en el navegador: logs/check-mezcla.mjs). `whoosh` lo agenda para que el pico caiga en el
+ * impacto; después de cada golpe se corrige con lo que tardó de verdad.
+ */
+const SWING: Record<string, { name: string; peak: number; volume: number; lead: number }> = {
+  putter: { name: 'swing-short', peak: 0.07, volume: 0.35, lead: 0.145 },
+  wedge: { name: 'swing-short', peak: 0.07, volume: 0.7, lead: 0.13 },
+  iron: { name: 'swing', peak: 0.07, volume: 0.75, lead: 0.095 },
+  driver: { name: 'swing-big', peak: 0.078, volume: 0.85, lead: 0.095 },
+};
+/**
+ * Al perder, lo que pasa del ruido del final (la puerta que cae, el caballero que se queja) a la música de la
+ * derrota, en segundos (Leandro, 15/10: «hoy solo arranca la música inmediatamente, debería haber un tiempo
+ * en el medio»).
+ */
+const DEFEAT_PAUSE = 2.2;
+
 const HIT_SOUND: Record<string, string> = {
   skeleton: 'hit-bone', knight: 'hit-armor', stoneling: 'hit-stone', golem: 'hit-stone', wraith: 'hit-soft',
 };
+
+/**
+ * El recorte suave del final (POLISH.mixGuard): igual hasta 0,85, y de ahí se dobla hacia 0,99 sin pasarlo
+ * nunca (una tangente hiperbólica). Así lo que se pasa se redondea en vez de cortarse en seco a 0 dB.
+ */
+function softClip(s: number): number {
+  const knee = 0.85;
+  const a = Math.abs(s);
+  if (a <= knee) return s;
+  return Math.sign(s) * (knee + (0.99 - knee) * Math.tanh((a - knee) / (0.99 - knee)));
+}
 
 const MUTE_KEY = 'gk-music-muted';
 /** Todo el sonido apagado (N): música y efectos. */
@@ -70,6 +100,18 @@ export class GameAudio {
   private bank: SampleBank | null = null;
   /** Cuándo sonó la última baja: la siguiente no sale antes de `KILL_STRUM` después. */
   private killAt = 0;
+  /** Cuándo sonaron las últimas bajas: muchas juntas suenan cada una más bajo (ver `kill`). */
+  private killTimes: number[] = [];
+  /** Cuándo se soltó el último swing (reloj de audio) y con qué palo: el golpe mide cuánto tardó (ver `whoosh`). */
+  private released: { at: number; club: string } | null = null;
+  /** Lo que tarda cada palo de soltar a pegar, medido en los swings anteriores. */
+  private readonly swingLead = new Map<string, number>();
+  /** Perdiste y la música se apagó para el silencio del final (ver `defeat`). */
+  private musicDown = false;
+  /** La música de la derrota, esperando que pase el silencio. */
+  private defeatTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Lo último de la cadena, lo que va a los parlantes (ver `start`). */
+  private out!: Tone.ToneAudioNode;
   ready = false;
   /** La música silenciada con M. Se guarda en el navegador: reiniciar recarga la página y no la tiene que volver a prender. */
   muted = loadMuted();
@@ -142,10 +184,31 @@ export class GameAudio {
     // `Limiter` de Tone es un compresor con rodilla de 30 dB y suelta de 10 ms: con varios grabados juntos
     // casi no frenaba, la suma pasaba de 0 dB y recortaba a la salida (Leandro: «no sabés si está saturado»)
     const mix = polished('mix');
-    this.limiter = mix
-      ? new Tone.Compressor({ threshold: -3, ratio: 20, knee: 0, attack: 0.002, release: 0.15 }).toDestination()
-      : new Tone.Limiter(-1).toDestination();
-    this.master = new Tone.Gain(VOLUME.todo).connect(this.limiter);
+    const guard = polished('mixGuard');
+    // con el recorte suave de abajo (mixGuard), el compresor puede ser más blando: uno de rodilla dura y
+    // 20:1 que se cierra en 2 ms le mueve la ganancia a los graves (una explosión) adentro de cada onda, y
+    // eso también suena a saturado
+    this.limiter = mix && guard
+      ? new Tone.Compressor({ threshold: -8, ratio: 4, knee: 6, attack: 0.005, release: 0.25 })
+      : mix
+        ? new Tone.Compressor({ threshold: -3, ratio: 20, knee: 0, attack: 0.002, release: 0.15 })
+        : new Tone.Limiter(-1);
+    // y después (POLISH.mixGuard, 15/10, Leandro: «los ruidos me parece que clipean»): el compresor del
+    // navegador sube solo lo que comprime (+1,7 dB con estos números) y deja pasar el arranque de los golpes,
+    // así que con mucho junto la salida pasaba de 0 dB. Un recorte suave: hasta 0,85 no toca nada, de ahí
+    // se dobla de a poco y nunca pasa de 0,99. Entra a la mitad para tener margen hasta +6 dB.
+    if (guard) {
+      const shaper = new Tone.WaveShaper((x) => softClip(2 * x), 4096);
+      shaper.oversample = '2x';
+      this.limiter.chain(new Tone.Gain(0.5), shaper, Tone.getDestination());
+      this.out = shaper;
+    } else {
+      this.limiter.toDestination();
+      this.out = this.limiter;
+    }
+    // el compresor blando sube solo lo que no comprime unos 3,6 dB (el de antes, 1,7): -1,9 dB a la entrada
+    // para que todo suene igual de fuerte que antes
+    this.master = new Tone.Gain(VOLUME.todo).connect(guard ? new Tone.Gain(0.8).connect(this.limiter) : this.limiter);
     const verb = new Tone.Freeverb({ roomSize: 0.7, dampening: 2500, wet: 0.25 }).connect(this.master);
     this.musicBus = new Tone.Gain(this.musicLevel()).connect(verb);
 
@@ -178,6 +241,8 @@ export class GameAudio {
     // bajos: vienen normalizados a -1 dB de pico y varios juntos se suman
     const sampleBus = new Tone.Gain(mix ? 0.6 : 0.9).connect(this.master);
     this.bank = new SampleBank(sampleBus, () => this.now());
+    // no más de 3 copias del mismo grabado a la vez (POLISH.mixGuard)
+    if (polished('mixGuard')) this.bank.cap = 3;
     void this.bank.load();
     this.ready = true;
   }
@@ -214,7 +279,7 @@ export class GameAudio {
 
   /** El volumen de la música: apagada con M, y su perilla (`VOLUME.musica`). */
   private musicLevel(): number {
-    return this.muted ? 0 : 0.8 * VOLUME.musica;
+    return this.muted || this.musicDown ? 0 : 0.8 * VOLUME.musica;
   }
 
   /** Pasa al sonido lo tocado en la pestaña Sonido (lo general y la música; lo demás se lee al sonar). */
@@ -277,9 +342,20 @@ export class GameAudio {
     Tone.getTransport().start();
   }
 
-  /** El palo cortando el aire; más agudo cuanto más potencia. */
-  whoosh(power: number): void {
+  /**
+   * El palo cortando el aire; más agudo cuanto más potencia. Con el palo (`club`) y `POLISH.swing`, el swing
+   * grabado de ese palo: se suelta acá y pega un rato después (la bajada del swing), así que se lo agenda
+   * para que su pico caiga en el impacto. Cuánto tarda cada palo lo mide `tock` en los swings anteriores.
+   */
+  whoosh(power: number, club = ''): void {
     if (!this.ok('whoosh')) return;
+    const s = SWING[club];
+    if (s && this.hasSample('swing', s.name)) {
+      this.released = { at: this.now(), club };
+      const lead = this.swingLead.get(club) ?? s.lead;
+      this.sample('swing', s.name, s.volume * (0.55 + 0.45 * power), 0.03, 40, Math.max(0, lead - s.peak));
+      return;
+    }
     this.whooshFilter.frequency.value = 600 + 1600 * power;
     this.whooshNoise.triggerAttackRelease(0.2, this.at(this.whooshNoise), VOLUME.palo);
   }
@@ -295,8 +371,16 @@ export class GameAudio {
 
   /** Impacto del palo con la pelota: el de ese palo (`club`), más fuerte cuanto mejor el golpe. */
   tock(perfect: boolean, quality = 0, club = ''): void {
+    // cuánto tardó el palo de soltar a pegar: el próximo swing de este palo se agenda con eso
+    if (this.released?.club === club) {
+      const d = this.now() - this.released.at;
+      if (d > 0.02 && d < 0.8) this.swingLead.set(club, 0.5 * (this.swingLead.get(club) ?? d) + 0.5 * d);
+      this.released = null;
+    }
+    // los tics del cartel de la derrota (sin golpe) no rompen el silencio antes de su música (ver `defeat`)
+    if (quality === 0 && this.defeatTimer) return;
     if (!this.ok('tock')) return;
-    // grabado: el golpe del palo, y la estrellita del perfecto encima
+    // grabado: el golpe del palo, y el golpe pleno del perfecto abajo (desde el 15/10; antes una estrellita)
     if (quality >= 1 && club && this.sample('samples', `club-${club}`, CLUB_VOLUME[Math.min(3, quality) - 1], 0.04)) {
       if (perfect) this.sample('samples', 'perfect', 0.7, 0.02, 40, 0.03);
       return;
@@ -356,7 +440,12 @@ export class GameAudio {
     if (!this.ready) return;
     const t = Math.max(this.now(), this.killAt + KILL_STRUM);
     this.killAt = t;
-    this.killBell.triggerAttackRelease(midiToFreq(arpeggioNote(step)), 0.5, t, Math.min(1, 0.6 + 0.06 * step) * VOLUME.bajas);
+    // muchas juntas (un área, una explosión): cada una más bajo, para que el acorde entero no pase de lo
+    // que suenan cuatro (POLISH.mixGuard). Se siguen oyendo todas
+    this.killTimes = this.killTimes.filter((x) => x > t - 0.6);
+    this.killTimes.push(t);
+    const crowd = polished('mixGuard') ? Math.sqrt(4 / Math.max(4, this.killTimes.length)) : 1;
+    this.killBell.triggerAttackRelease(midiToFreq(arpeggioNote(step)), 0.5, t, crowd * Math.min(1, 0.6 + 0.06 * step) * VOLUME.bajas);
   }
 
   bounce(): void {
@@ -435,7 +524,30 @@ export class GameAudio {
     [0, 3, 7, 12].forEach((m, i) => this.bell.triggerAttackRelease(midiToFreq(low + 36 + m), 0.5, t + 0.18 + i * 0.09, 0.7));
   }
 
-  defeat(): void {
+  /**
+   * Perdiste: `how` dice cómo (la puerta cayó, o cayó el caballero). Con `POLISH.defeatPause` suena primero
+   * el final, fuerte y claro (la puerta que se rompe y cae, o el caballero que se queja; el golpe de su caída
+   * es `playerDies`), la música se apaga, y la de la derrota entra recién después de un silencio
+   * (`DEFEAT_PAUSE`). Sin `how`, o con la llave apagada, la derrota en el acto, como antes.
+   */
+  defeat(how?: 'gate' | 'player'): void {
+    if (how && this.ready && polished('defeatPause')) {
+      this.musicDown = true;
+      this.musicBus.gain.rampTo(0, 0.3);
+      if (how === 'gate') this.sample('samples', 'gate-fall', 1, 0, 500);
+      else this.sample('samples', 'knight-groan', 1, 0.02, 500);
+      if (this.defeatTimer) clearTimeout(this.defeatTimer);
+      this.defeatTimer = setTimeout(() => {
+        this.defeatTimer = null;
+        this.defeatTheme();
+      }, DEFEAT_PAUSE * 1000);
+      return;
+    }
+    this.defeatTheme();
+  }
+
+  /** La música de la derrota. */
+  private defeatTheme(): void {
     if (this.sample('samples', 'defeat', 0.8, 0)) return;
     const t = this.now();
     [57, 53, 50].forEach((m, i) => this.horn.triggerAttackRelease(midiToFreq(m - 12), 0.8, t + i * 0.45));
@@ -551,9 +663,9 @@ export class GameAudio {
     this.sample('uiSounds', 'ui-click', 0.5, 0, 60);
   }
 
-  /** Cae el golfista. */
+  /** Cae el golfista (desde el 15/10 más fuerte: es el final, y va con su quejido, ver `defeat`). */
   playerDies(): void {
-    this.sample('samples', 'player-dies', 0.8, 0, 500);
+    this.sample('samples', 'player-dies', polished('defeatPause') ? 1 : 0.8, 0, 500);
   }
 
   /** Uno cae al hoyo. */
@@ -590,6 +702,15 @@ export class GameAudio {
   /** Perdiste: la horda que sigue detrás del cartel deja de sonar (`false` al volver a jugar). */
   hush(on: boolean): void {
     this.quietWorld = on;
+    // se vuelve a jugar: si la derrota estaba esperando su silencio, ya no suena, y vuelve la música
+    if (!on && this.defeatTimer) {
+      clearTimeout(this.defeatTimer);
+      this.defeatTimer = null;
+    }
+    if (!on && this.musicDown) {
+      this.musicDown = false;
+      if (this.ready) this.musicBus.gain.rampTo(this.musicLevel(), 0.5);
+    }
   }
 
   /** Para las pruebas (__gk): un analizador conectado a la salida, para medir picos. */
@@ -598,7 +719,7 @@ export class GameAudio {
     if (!this.probe) {
       this.probe = Tone.getContext().createAnalyser();
       this.probe.fftSize = 4096;
-      Tone.connect(this.limiter, this.probe);
+      Tone.connect(this.out, this.probe);
     }
     return this.probe;
   }
@@ -611,5 +732,54 @@ export class GameAudio {
   /** ¿El grabado de `name` va a sonar? (para no sumarle el sintetizado) */
   willSample(key: PolishKey, name: string): boolean {
     return this.hasSample(key, name);
+  }
+
+  // ---- un enemigo gana un poder (15/10; ver docs/poderes-visibles.md) ----
+
+  /** La campana tibia de los poderes ganados (se arma la primera vez que hace falta). */
+  private gainBell: Tone.PolySynth<Tone.FMSynth> | null = null;
+
+  /**
+   * Un enemigo ganó un poder en plena oleada (`up`), o le subió el nivel; o le bajó (`up` false, más bajito).
+   * Un arpegio corto que sube, en la campana de FM (senoidal, poca modulación: tibia, nada de 8 bits), con
+   * el registro y el color de cada poder, y debajo el grabado que ya es de ese poder cuando lo hay (el metal
+   * del blindaje, la burbuja del bendito, la cura). Cada nivel más suena un tono más arriba. Si a varios les
+   * llega a la vez (la bandera en alto), suena una sola vez.
+   */
+  powerGain(power: string, level = 1, up = true): void {
+    try {
+      if (this.quietWorld || !this.ok('powerGain', 140)) return;
+      if (!this.gainBell) {
+        this.gainBell = new Tone.PolySynth(Tone.FMSynth, {
+          harmonicity: 1, modulationIndex: 1.6,
+          oscillator: { type: 'sine' }, modulation: { type: 'sine' },
+          envelope: { attack: 0.006, decay: 0.55, sustain: 0, release: 0.5 },
+          modulationEnvelope: { attack: 0.004, decay: 0.2, sustain: 0, release: 0.1 },
+          volume: -13,
+        });
+        this.gainBell.chain(new Tone.Filter(2600, 'lowpass'), new Tone.Freeverb({ roomSize: 0.6, dampening: 2200, wet: 0.28 }), this.master);
+      }
+      // las notas de cada poder (midi), de abajo para arriba
+      const NOTES: Record<string, number[]> = {
+        armor: [43, 50, 55], shield: [48, 55, 60], divine: [72, 76, 79, 84], dodge: [69, 76, 81], regen: [65, 69, 72],
+        heal: [65, 69, 72], ethereal: [62, 69, 74], phase: [62, 69, 74], skull: [40, 43, 47], banner: [58, 65, 70],
+        warded: [64, 71, 76], ward: [64, 71, 76],
+      };
+      const base = NOTES[power] ?? [60, 67];
+      const shift = Math.max(0, Math.min(3, (level >= 10 ? 3 : level) - 1)) * 2;
+      const notes = up ? base.map((m) => m + shift) : [base[base.length - 1] + shift, base[0] + shift];
+      const t = this.at(this.gainBell);
+      const gap = power === 'ethereal' || power === 'phase' ? 0.11 : 0.07;
+      notes.forEach((m, i) => this.gainBell!.triggerAttackRelease(midiToFreq(m), 0.22, t + i * gap, up ? 0.8 - i * 0.08 : 0.4));
+      if (!up) return;
+      // el grabado del poder, bajito, debajo del arpegio
+      if (power === 'armor') this.sample('powerSounds', 'armor-hit', 0.32, 0.05, 120);
+      else if (power === 'shield') this.thudSynth.triggerAttackRelease('C2', 0.1, this.at(this.thudSynth));
+      else if (power === 'divine') this.sample('powerSounds', 'bubble-up', 0.35, 0.05, 120);
+      else if (power === 'dodge') this.sample('powerSounds', 'dodge-ready', 0.4, 0.05, 120);
+      else if (power === 'regen') this.sample('powerSounds', 'heal', 0.3, 0.05, 150);
+    } catch (e) {
+      console.warn('audio powerGain:', e);
+    }
   }
 }

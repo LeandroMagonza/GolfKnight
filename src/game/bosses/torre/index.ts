@@ -5,6 +5,12 @@
 // ruedas se rompen con lo que pega bajo (el driver) y la frenan. Si llega a la línea, baja la rampa y sale
 // la horda.
 //
+// 15/10 (Leandro: «la torre muy fácil también, le tiré todo con el wedge y no hizo mucho, tiró varias
+// flechas pero no era difícil esquivar»): los arqueros se tapan con un **techo de escudos** y lo levantan
+// para tirar. El globo solo sirve destapados (hay que tirarlo cuando ves que lo levantan); destapados tiran
+// **ráfagas** a tu puesto y a los de al lado (y con la plataforma llena, una a la puerta). El golpe 3 del
+// driver o del hierro contra la torre la sacude y les corta la ráfaga. Cuando se termina la escolta, apura.
+//
 // Las pelotas chocan con la torre como con un cilindro (ver Balls.collide): el globo que entra por arriba
 // del piso de la plataforma (TOP_HIT_Y) revienta ahí y su área barre a los de arriba. Los arqueros solo
 // cobran de pelotas que les llegan a la altura (ver `crewFilter`): el driver que pasa por abajo no.
@@ -13,6 +19,7 @@ import { L } from '../../../i18n';
 import type { Ball } from '../../balls';
 import type { Enemy, EnemyScript, Horde } from '../../enemies';
 import { BossBar, GATE_HALF_WIDTH, GATE_Z, GroundMark, LaneMark, TEE_Z, arcPoint, disposeObject, flatMat, heightAt, nearestSpot, partStats } from '../kit';
+import type { Wave } from '../../../core/waves';
 import type { BossCtx, BossDef, BossFight } from '../types';
 
 // ---- la torre ----
@@ -68,22 +75,38 @@ const LADDER_Z = 1.75;
 const CREW_REACH = 0.3;
 const ARCHER_TINT = 0xe0b088;
 
+// ---- el techo de escudos (15/10) ----
+/**
+ * Tapados `shut` s (del arranque al final de la rampa), avisan `warn` s (el techo tiembla), lo levantan en
+ * `lift` s, quedan destapados `open` s (tiran sus ráfagas, en `volleys` s de lo destapado; la segunda, desde
+ * la mitad de la rampa o a solas) y lo bajan en `lift` s. Cuenta como destapado con el techo a más de medio
+ * levantar. El globo tarda 2-2.5 s en llegar: tirado cuando empieza a temblar, cae destapado.
+ */
+const COVER = { shut: [5, 3.5] as [number, number], warn: 0.8, lift: 0.5, open: 3.8, volleys: [0.15, 1.9], first: 3.5 };
+/** El golpe 3 del driver o del hierro contra la torre la sacude: les corta la ráfaga (una vez cada tanto). */
+const SHAKE = { quality: 3, every: 1.2 };
+/**
+ * A solas (se terminó la escolta): la torre apura el paso, se tapan menos, suben más rápido, y la guarnición
+ * que queda abajo se recorta a `garrison` (que no dure: 15/10, «que su rato a solas sea corto»).
+ */
+const ALONE = { pace: 1.8, shut: 0.75, climb: 0.6, garrison: 6 };
+/** Cuándo se terminó la escolta (como el lagarto): lo que tarda en salir, sin nadie vivo; o `late` s después. */
+const ESCORT = { early: 3, late: 20, fallback: 75 };
+
 // ---- las flechas ----
-/** Tensa el arco (la marca ya está en el piso) y la flecha vuela. */
-const ARROW_DRAW = 0.9;
-const ARROW_FLIGHT = 1;
+/**
+ * Tensa el arco (la marca ya está en el piso) y la flecha vuela. Eran 0.9 y 1 s, de a una: ahora tiran todos
+ * juntos (una ráfaga), y vuela más rápido.
+ */
+const ARROW_DRAW = 1.0;
+const ARROW_FLIGHT = 0.75;
 const ARROW_RADIUS = 1.3;
 const ARROW_DAMAGE = 1;
 const ARROW_HEIGHT = 3.5;
-/** Cada arquero tira cada tanto (del arranque al final de la rampa)... */
-const ARCHER_EVERY: [number, number] = [6, 4.2];
-/** ...pero entre todos, no más de una flecha cada tanto, ni más de dos marcas a la vez. */
-const VOLLEY_GAP: [number, number] = [1.7, 1];
-const MAX_MARKS = 2;
-/** Las de fuego a la puerta (la versión muralla): tensa más, y se ve venir. */
-const FIRE_DRAW = 2.6;
+/** Las de fuego a la puerta (la versión muralla): tensa más, y se ve venir; de a `FIRE_VOLLEY` por ráfaga. */
+const FIRE_DRAW = 2.4;
+const FIRE_VOLLEY = 2;
 const FIRE_FLIGHT = 1.8;
-const FIRE_GAP: [number, number] = [5, 3.2];
 const FIRE_DAMAGE = 1;
 /** En cuántos segundos la presión llega a lo más alto. */
 const RAMP = 120;
@@ -116,11 +139,11 @@ interface Archer {
   /** Cuánto subió (0 a 1). */
   climb: number;
   ladderX: number;
-  /** Cuánto le falta para poder tirar otra vez. */
-  cool: number;
   /** Tensando: cuánto lleva (-1, no). */
   draw: number;
   to: THREE.Vector3 | null;
+  /** Esta flecha va a la puerta (la de fuego, o la del quinto de la ráfaga). */
+  atGate: boolean;
   marks: GroundMark[];
   lane: LaneMark | null;
   flame: THREE.Mesh | null;
@@ -189,6 +212,30 @@ function towerLook(): THREE.Group {
   flag.position.set(1.3, PLATFORM_Y + 1.0, -1.0);
   flag.rotation.y = Math.PI / 2;
   g.add(pole, flag);
+  // el techo de escudos (15/10): nueve escudos redondos encima de los arqueros. Se levanta hacia atrás para
+  // tirar (lo mueve la pelea: ver `drawCover`)
+  const roof = new THREE.Group();
+  roof.name = 'techo';
+  roof.position.set(0, PLATFORM_Y + 1.6, 0);
+  const shieldMat = flatMat(0x9b2d2a);
+  const rimMat = flatMat(0xd0a84a, { metalness: 0.5, roughness: 0.45 });
+  const shieldGeo = new THREE.CylinderGeometry(0.66, 0.66, 0.1, 12);
+  const bossGeo = new THREE.CylinderGeometry(0.17, 0.2, 0.16, 8);
+  let k = 0;
+  for (const x of [-0.95, 0, 0.95]) {
+    for (const z of [-0.95, 0, 0.95]) {
+      const sh = new THREE.Mesh(shieldGeo, shieldMat);
+      sh.position.set(x, 0.05 * (k % 3), z);
+      sh.rotation.set(0.08 * Math.sin(k * 1.7), 0, 0.08 * Math.cos(k * 2.3));
+      sh.castShadow = true;
+      const stud = new THREE.Mesh(bossGeo, rimMat);
+      stud.position.y = 0.09;
+      sh.add(stud);
+      roof.add(sh);
+      k++;
+    }
+  }
+  g.add(roof);
   // la escalera, atrás
   for (const x of [-0.35, 0.35]) box(0.08, PLATFORM_Y + 0.3, 0.08, dark, x, (PLATFORM_Y + 0.3) / 2, -1.55);
   for (let y = 0.4; y < PLATFORM_Y; y += 0.45) box(0.7, 0.06, 0.08, wood, 0, y, -1.55);
@@ -256,7 +303,7 @@ function lookOf(ctx: BossCtx, kind: string, mesh: string): string {
   return key;
 }
 
-function start(ctx: BossCtx, rules: Rules): BossFight {
+function start(ctx: BossCtx, rules: Rules, escortSpan: number): BossFight {
   const { horde, scene, effects, audio } = ctx;
   const spots = ctx.spots();
   if (!horde.hasLook('torre-asedio')) towerHeight = horde.addLook('torre-asedio', towerLook());
@@ -282,10 +329,19 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
   let garrison = rules.endless ? Infinity : GARRISON + Math.round(GARRISON_PER_LEVEL * ctx.level);
   const total = garrison;
   let climbTimer = 1;
-  let volleyGap = 2.5;
+  /** El techo: en qué está, cuánto lleva, y cuánto dura esta vez tapado. */
+  let cover: 'shut' | 'warn' | 'lift' | 'open' | 'lower' = 'shut';
+  let coverT = 0;
+  let shutTime = COVER.first;
+  let volleyIdx = 0;
+  let shakeCd = 0;
+  let shakeT = 0;
+  /** Se terminó la escolta (ver ESCORT y ALONE). */
+  let alone = false;
+  let coveredTold = 0;
   /** Las pelotas que ya avisaron si quedaron cortas o largas (una vez por pelota). */
   const told = new WeakSet<Ball>();
-  const stats = { arriba: 0, cortos: 0, largos: 0, golpesRuedas: 0, atascos: 0, arquerosMuertos: 0, flechas: 0, pegadas: 0, fuego: 0, llego: 0, goblins: 0 };
+  const stats = { arriba: 0, tapados: 0, sacudidas: 0, rafagas: 0, aSolas: 0, cortos: 0, largos: 0, golpesRuedas: 0, atascos: 0, arquerosMuertos: 0, flechas: 0, pegadas: 0, fuego: 0, llego: 0, goblins: 0 };
 
   const ramp = () => Math.min(1, ctx.clock() / RAMP);
 
@@ -304,8 +360,8 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
         if (collapse > 2.4) e.remove();
         return true;
       }
-      // torcida con las ruedas rotas
-      e.body.rotation.z = move === 'stuck' ? 0.06 : 0;
+      // torcida con las ruedas rotas; se bambolea con la sacudida
+      e.body.rotation.z = (move === 'stuck' ? 0.06 : 0) + (shakeT > 0 ? 0.07 * Math.sin(shakeT * 40) * shakeT * 2 : 0);
       return true;
     },
     filter: (e, amount, shot) => towerFilter(e, amount, shot),
@@ -322,6 +378,40 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
   );
   const wheelParts = [0, 1, 2, 3].map((i) => tower.body.getObjectByName(`rueda-${i}`)).filter((o): o is THREE.Object3D => !!o);
   const rampPart = tower.body.getObjectByName('rampa');
+  const roofPart = tower.body.getObjectByName('techo');
+
+  /** Cuánto está levantado el techo (0 tapados, 1 destapados). */
+  function coverU(): number {
+    if (cover === 'lift') return Math.min(1, coverT / COVER.lift);
+    if (cover === 'open') return 1;
+    if (cover === 'lower') return Math.max(0, 1 - coverT / COVER.lift);
+    return 0;
+  }
+  /** Tapados: el globo rebota en el techo y a los de arriba no les llega nada. */
+  const covered = () => !won && coverU() < 0.5;
+
+  /** El techo: tiembla al avisar, se levanta hacia atrás y baja. */
+  function drawCover(): void {
+    if (!roofPart) return;
+    const u = smooth(coverU());
+    const shake = cover === 'warn' ? 0.07 * Math.sin(coverT * 45) : 0;
+    roofPart.position.set(0, PLATFORM_Y + 1.6 - 1.5 * u + shake, -2.3 * u);
+    roofPart.rotation.x = -1.25 * u;
+  }
+
+  /** ¿Se terminó la escolta? */
+  function checkEscort(): void {
+    if (alone || won) return;
+    const t = ctx.clock();
+    const span = escortSpan > 0 ? escortSpan : ESCORT.fallback;
+    if (t < span - ESCORT.early) return;
+    const others = horde.enemies.some((x) => x.alive && !x.passed && x !== tower && !archers.some((a) => a.e === x));
+    if (others && t < span + ESCORT.late) return;
+    alone = true;
+    stats.aSolas = Math.round(t);
+    if (Number.isFinite(garrison)) garrison = Math.min(garrison, ALONE.garrison);
+    ctx.banner(L('¡La torre apura!', 'The tower speeds up!'), L('Se terminó la escolta', 'The escort is over'), 2);
+  }
 
   /** La pelota de este tiro más cerca de `e` (la que le está pegando), o null si no es una pelota. */
   function ballOf(e: Enemy, shot: NonNullable<Horde['shot']>): Ball | null {
@@ -343,6 +433,18 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
     if (!shot) return hurts ? amount : 0;
     const b = ballOf(e, shot);
     const y = b ? b.state.pos.y - e.position.y : 1;
+    // el golpe fuerte directo (no el área) la sacude: les corta la ráfaga
+    if (b && !b.burst && (shot.club === 'driver' || shot.club === 'iron') && shot.quality >= SHAKE.quality) shake();
+    if (y >= TOP_HIT_Y && covered()) {
+      // en el techo cerrado: rebota, a los de arriba no les llega
+      stats.tapados++;
+      effects.spark(new THREE.Vector3(pos.x, e.position.y + PLATFORM_Y + 1.7, pos.z), 0xd0a84a);
+      if (b && !told.has(b)) {
+        told.add(b);
+        if (coveredTold++ < 3) ctx.feedback(L('¡Tapados! Tirá cuando levantan los escudos', 'Covered! Lob when they lift the shields'));
+      }
+      return hurts ? amount : 0;
+    }
     if (y >= TOP_HIT_Y) {
       // cayó en la plataforma: el área barre a los de arriba (ver crewFilter)
       stats.arriba++;
@@ -381,6 +483,19 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
       stats.largos++;
       ctx.feedback(L('¡Largo! Más cerca', 'Long! Closer'));
     }
+  }
+
+  /** La sacudida: los que estaban tensando sueltan el arco (sin tirar). */
+  function shake(): void {
+    if (shakeCd > 0) return;
+    const drawing = archers.filter((a) => a.state === 'top' && a.draw >= 0);
+    if (!drawing.length) return;
+    shakeCd = SHAKE.every;
+    shakeT = 0.5;
+    stats.sacudidas++;
+    for (const a of drawing) cancelDraw(a);
+    audio.thud();
+    ctx.feedback(L('¡Sacudida! Se les cayeron las flechas', 'Shaken! They dropped their arrows'));
   }
 
   function hitWheels(amount: number): void {
@@ -431,7 +546,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
         moveLeft = ROLL_TIME;
       }
     } else {
-      const pace = rules.pace * (rules.wheels ? MIN_PACE + (1 - MIN_PACE) * (wheels / WHEELS_HP) : 1);
+      const pace = rules.pace * (alone ? ALONE.pace : 1) * (rules.wheels ? MIN_PACE + (1 - MIN_PACE) * (wheels / WHEELS_HP) : 1);
       const dz = ROLL_SPEED * pace * dt;
       pos.z -= dz;
       spin += dz / 0.62;
@@ -465,6 +580,8 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
   /** Los de la torre cobran solo de lo que les llega a la altura: el driver que pasa por abajo, no. */
   function crewFilter(e: Enemy, amount: number, shot: Horde['shot']): number {
     if (!shot) return amount;
+    // bajo el techo cerrado no les llega ninguna pelota
+    if (covered() && archers.some((a) => a.e === e && a.state === 'top')) return 0;
     const b = ballOf(e, shot);
     if (!b) return amount;
     return b.state.pos.y >= e.position.y - CREW_REACH ? amount : 0;
@@ -490,7 +607,6 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
           if (a.climb >= 1) {
             a.state = 'top';
             a.slot = freeSlot();
-            a.cool = 1 + ctx.rng() * 2;
           }
           return true;
         }
@@ -540,7 +656,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
     bow.scale.multiplyScalar(1 / sc);
     bow.position.set(0.22 / sc, 0.78 / sc, 0.3 / sc);
     e.body.add(bow);
-    const a: Archer = { e, state: onTop ? 'top' : 'walk', slot: onTop ? freeSlot() : -1, climb: onTop ? 1 : 0, ladderX, cool: 1.5 + ctx.rng() * 2.5, draw: -1, to: null, marks: [], lane: null, flame: null };
+    const a: Archer = { e, state: onTop ? 'top' : 'walk', slot: onTop ? freeSlot() : -1, climb: onTop ? 1 : 0, ladderX, draw: -1, to: null, atGate: false, marks: [], lane: null, flame: null };
     archers.push(a);
   }
 
@@ -556,24 +672,28 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
     }
     a.draw = -1;
     a.to = null;
+    a.atGate = false;
   }
 
   const gateMode = rules.target === 'gate';
 
-  function startDraw(a: Archer): void {
+  /** Empieza a tensar: al puesto `spot`, o a la puerta (`spot` < 0; con fuego en la versión muralla). */
+  function startDraw(a: Archer, spot: number): void {
     a.draw = 0;
-    if (gateMode) {
+    if (spot < 0) {
+      a.atGate = true;
       a.to = new THREE.Vector3((ctx.rng() * 2 - 1) * GATE_HALF_WIDTH, 3, GATE_Z + 0.5);
       // una franja larga hasta la puerta: se ve de lejos que va a tirar ahí
       a.lane = new LaneMark(scene, 0xff7a20, 0.7).between(pos.x, pos.z - TOWER_RADIUS, a.to.x, GATE_Z + 1).opacity(0.15);
-      a.flame = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff8a20, transparent: true, opacity: 0.9 }));
-      a.flame.position.set(0, ARCHER_HEIGHT + 0.25, 0);
-      a.e.group.add(a.flame);
-      audio.casterCast();
+      if (gateMode) {
+        a.flame = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff8a20, transparent: true, opacity: 0.9 }));
+        a.flame.position.set(0, ARCHER_HEIGHT + 0.25, 0);
+        a.e.group.add(a.flame);
+        audio.casterCast();
+      }
       return;
     }
-    // a tu puesto: donde estás ahora
-    const x = spots[nearestSpot(ctx, ctx.player().anchor.x)];
+    const x = spots[spot];
     a.to = new THREE.Vector3(x, heightAt(x, TEE_Z) + 0.1, TEE_Z);
     a.marks = [new GroundMark(scene, 0xff3b30, true, ARROW_RADIUS).at(x, TEE_Z).opacity(0.15), new GroundMark(scene, 0xff3b30, false, ARROW_RADIUS).at(x, TEE_Z).opacity(0.7)];
   }
@@ -584,7 +704,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
     const mesh = arrowLook(gateMode);
     mesh.position.copy(from);
     scene.add(mesh);
-    arrows.push({ mesh, marks: a.marks, from, to: a.to, t: 0, time: gateMode ? FIRE_FLIGHT : ARROW_FLIGHT, gate: gateMode, stuck: -1 });
+    arrows.push({ mesh, marks: a.marks, from, to: a.to, t: 0, time: gateMode ? FIRE_FLIGHT : ARROW_FLIGHT, gate: a.atGate, stuck: -1 });
     a.marks = [];
     a.lane?.dispose();
     a.lane = null;
@@ -595,7 +715,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
     }
     a.draw = -1;
     a.to = null;
-    a.cool = lerp(ARCHER_EVERY[0], ARCHER_EVERY[1], ramp()) * (0.8 + 0.4 * ctx.rng());
+    a.atGate = false;
     stats.flechas++;
     audio.whoosh(0.5);
   }
@@ -647,17 +767,9 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
     climbTimer -= dt;
     if (climbTimer <= 0 && garrison > 0 && onTop + coming < TOP_SLOTS.length) {
       spawnArcher(false);
-      climbTimer = onTop + coming < 2 ? CLIMB_SOON : lerp(CLIMB_EVERY[0], CLIMB_EVERY[1], ramp());
+      climbTimer = onTop + coming < 2 ? CLIMB_SOON : lerp(CLIMB_EVERY[0], CLIMB_EVERY[1], ramp()) * (alone ? ALONE.climb : 1);
     }
-    // las flechas: cada uno a su ritmo, pero entre todos una cada tanto y no más de dos marcas a la vez
-    volleyGap -= dt;
-    const marks = archers.filter((a) => a.draw >= 0).length + arrows.filter((x) => x.t < 1 && !x.gate).length;
-    for (const a of archers) if (a.state === 'top' && a.draw < 0) a.cool -= dt;
-    const ready = archers.filter((a) => a.state === 'top' && a.draw < 0 && a.cool <= 0).sort((p, q) => p.cool - q.cool)[0];
-    if (ready && volleyGap <= 0 && (gateMode ? !archers.some((a) => a.draw >= 0) : marks < MAX_MARKS) && ctx.player().alive) {
-      startDraw(ready);
-      volleyGap = gateMode ? lerp(FIRE_GAP[0], FIRE_GAP[1], ramp()) : lerp(VOLLEY_GAP[0], VOLLEY_GAP[1], ramp());
-    }
+    updateCover(dt);
     for (const a of archers) {
       if (a.draw < 0) continue;
       a.draw += dt;
@@ -668,6 +780,59 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
       if (a.flame) a.flame.scale.setScalar(0.6 + 0.8 * u + 0.15 * Math.sin(ctx.clock() * 20));
       if (a.draw >= need) release(a);
     }
+  }
+
+  /** El ciclo del techo, y las ráfagas mientras están destapados. */
+  function updateCover(dt: number): void {
+    coverT += dt;
+    shakeCd = Math.max(0, shakeCd - dt);
+    shakeT = Math.max(0, shakeT - dt);
+    const next = (c: typeof cover) => {
+      cover = c;
+      coverT = 0;
+    };
+    if (cover === 'shut' && coverT >= shutTime) next('warn');
+    else if (cover === 'warn' && coverT >= COVER.warn) next('lift');
+    else if (cover === 'lift' && coverT >= COVER.lift) {
+      next('open');
+      volleyIdx = 0;
+    } else if (cover === 'open') {
+      // la segunda ráfaga, desde la mitad de la rampa o a solas (con fuego, una sola: tensa mucho)
+      const count = gateMode ? 1 : alone || ramp() >= 0.5 ? 2 : 1;
+      if (volleyIdx < count && coverT >= COVER.volleys[volleyIdx]) {
+        volleyIdx++;
+        volley();
+      }
+      if (coverT >= COVER.open) next('lower');
+    } else if (cover === 'lower' && coverT >= COVER.lift) {
+      next('shut');
+      shutTime = lerp(COVER.shut[0], COVER.shut[1], ramp()) * (alone ? ALONE.shut : 1);
+    }
+    drawCover();
+  }
+
+  /**
+   * La ráfaga: todos los de arriba tensan a la vez. A tu puesto y a los de al lado (hay que correrse dos), el
+   * cuarto otra vez a tu puesto, y el quinto (la plataforma llena) a la puerta. Con fuego (muralla), los
+   * primeros FIRE_VOLLEY a la puerta. (El cuarto a la puerta era mucho: con la plataforma sin barrer, una a la
+   * puerta en cada ráfaga, y el bot perdía la puerta en 30 s.)
+   */
+  function volley(): void {
+    if (!ctx.player().alive) return;
+    const ready = archers.filter((a) => a.state === 'top' && a.draw < 0 && a.e.alive);
+    if (!ready.length) return;
+    stats.rafagas++;
+    if (gateMode) {
+      ready.slice(0, FIRE_VOLLEY).forEach((a) => startDraw(a, -1));
+      return;
+    }
+    const p = nearestSpot(ctx, ctx.player().anchor.x);
+    const last = spots.length - 1;
+    let side = ctx.rng() < 0.5 ? 1 : -1;
+    if (p + side < 0 || p + side > last) side = -side;
+    const other = p - side >= 0 && p - side <= last ? p - side : p + 2 * side;
+    const targets = [p, p + side, other, p, -1];
+    ready.forEach((a, i) => startDraw(a, targets[i] ?? p));
   }
 
   function updateArrows(dt: number): void {
@@ -720,7 +885,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
   }
 
   for (let i = 0; i < START_ON_TOP; i++) spawnArcher(true);
-  ctx.banner(L('La torre de asedio', 'The Siege Tower'), L('Un globo justo en la plataforma barre a los arqueros', 'A lob right onto the platform sweeps the archers'), 3.5);
+  ctx.banner(L('La torre de asedio', 'The Siege Tower'), L('Un globo en la plataforma cuando levantan los escudos barre a los arqueros', 'A lob onto the platform when they lift their shields sweeps the archers'), 3.5);
 
   const fight: BossFight & { hold: boolean } = {
     get hold() {
@@ -739,6 +904,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
         updateArchers(dt);
         return;
       }
+      checkEscort();
       updateTower(dt);
       updateArchers(dt);
       updateArrows(dt);
@@ -746,20 +912,21 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
       // la barra: la guarnición que queda (o la vida de la torre), las ruedas y cuánto le falta
       const meters = Math.max(0, Math.round(pos.z - TEE_Z));
       const where = move === 'arrived' ? L('¡En la línea!', 'At the line!') : L(`a ${meters} m`, `${meters} m away`);
+      const roofText = covered() ? L(' · Tapados', ' · Covered') : L(' · ¡Destapados!', ' · Uncovered!');
       const wheelText = !rules.wheels ? '' : move === 'stuck' ? L(` · Arreglando las ruedas: ${Math.ceil(repairLeft)} s`, ` · Fixing the wheels: ${Math.ceil(repairLeft)} s`) : L(` · Ruedas ${Math.round((wheels / WHEELS_HP) * 100)} %`, ` · Wheels ${Math.round((wheels / WHEELS_HP) * 100)} %`);
       if (rules.hp > 0) {
-        bar.set(tower.hp, tower.maxHp, `${where}${wheelText} · ${L('Arqueros', 'Archers')}: ${archers.length}`);
+        bar.set(tower.hp, tower.maxHp, `${where}${roofText}${wheelText} · ${L('Arqueros', 'Archers')}: ${archers.length}`);
       } else {
         const left = garrison + archers.length;
-        bar.set(left, total, `${L('Arqueros', 'Archers')}: ${left} · ${where}${wheelText}`);
+        bar.set(left, total, `${L('Arqueros', 'Archers')}: ${left} · ${where}${roofText}${wheelText}`);
       }
     },
     bot: {
       // donde va a caer una flecha (las que se tensan y las que vuelan)
       danger(x) {
-        const near = (v: THREE.Vector3 | null) => !!v && Math.abs(v.x - x) < ARROW_RADIUS + 0.7;
+        const near = (v: THREE.Vector3 | null) => !!v && Math.abs(v.z - TEE_Z) < 2 && Math.abs(v.x - x) < ARROW_RADIUS + 0.7;
         if (gateMode) return false;
-        return archers.some((a) => a.draw >= 0 && near(a.to)) || arrows.some((ar) => !ar.gate && ar.stuck < 0 && near(ar.to));
+        return archers.some((a) => a.draw >= 0 && !a.atGate && near(a.to)) || arrows.some((ar) => !ar.gate && ar.stuck < 0 && near(ar.to));
       },
       weight(e) {
         // el bot no sabe tirar el globo a la plataforma: a los arqueros casi no les tira (los mata de casualidad)
@@ -789,23 +956,33 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
 
 const BASE: Rules = { target: 'player', wheels: true, hp: 0, topMul: 1, endless: false, pace: 1 };
 
+/** Lo que tarda en salir la escolta de la última oleada (s): la anota `escort`, para saber cuándo queda a solas. */
+let escortSpan = 0;
+/** La escolta de siempre; solo se anota cuánto tarda en salir. */
+const escort = (wave: Wave) => {
+  escortSpan = wave.groups.reduce((n, g) => n + g.count, 0) * wave.interval;
+};
+
 export const BOSSES: BossDef[] = [
   {
     id: 'torre.arqueros',
     name: L('Torre de asedio', 'Siege Tower'),
     blurb: 'Hay que matar a toda la guarnición con globos en la plataforma; los arqueros te tiran al puesto; el driver le rompe las ruedas.', // i18n-ok: el panel de pruebas
-    start: (ctx) => start(ctx, BASE),
+    escort,
+    start: (ctx) => start(ctx, BASE, escortSpan),
   },
   {
     id: 'torre.muralla',
     name: L('Torre de asedio', 'Siege Tower'),
     blurb: 'Como arqueros, pero tiran flechas de fuego a la puerta (tensan 2.6 s): no te apuntan a vos, hay que barrerlos antes.', // i18n-ok: el panel de pruebas
-    start: (ctx) => start(ctx, { ...BASE, target: 'gate' }),
+    escort,
+    start: (ctx) => start(ctx, { ...BASE, target: 'gate' }, escortSpan),
   },
   {
     id: 'torre.casco',
     name: L('Torre de asedio', 'Siege Tower'),
-    blurb: 'La torre tiene vida y se rompe a golpes; el globo en la plataforma le pega el triple y barre a los arqueros, que no se acaban. Las ruedas no se rompen.', // i18n-ok: el panel de pruebas
-    start: (ctx) => start(ctx, { ...BASE, wheels: false, hp: 55, topMul: 3, endless: true, pace: 0.85 }),
+    blurb: 'La torre tiene vida y se rompe a golpes; el globo en la plataforma (destapada) le pega el triple y barre a los arqueros, que no se acaban. Las ruedas no se rompen.', // i18n-ok: el panel de pruebas
+    escort,
+    start: (ctx) => start(ctx, { ...BASE, wheels: false, hp: 45, topMul: 3, endless: true, pace: 0.85 }, escortSpan),
   },
 ];

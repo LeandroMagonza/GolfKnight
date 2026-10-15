@@ -41,9 +41,18 @@ export async function connect() {
     console.log(error);
     process.exit(1);
   }
-  const client = new pg.Client({ ...config, ssl: { rejectUnauthorized: false } });
+  let client = new pg.Client({ ...config, ssl: { rejectUnauthorized: false } });
   try {
-    await client.connect();
+    try {
+      await client.connect();
+    } catch (e) {
+      // db.<ref>.supabase.co tiene solo IPv6 y en algunas redes no resuelve (15/10): por el pooler de São Paulo,
+      // con el usuario «postgres.<ref>»
+      if (!/ENOTFOUND|ENETUNREACH|EHOSTUNREACH/.test(String(e.message)) || !config.host.startsWith('db.')) throw e;
+      const ref = config.host.split('.')[1];
+      client = new pg.Client({ ...config, host: 'aws-1-sa-east-1.pooler.supabase.com', user: `${config.user}.${ref}`, ssl: { rejectUnauthorized: false } });
+      await client.connect();
+    }
   } catch (e) {
     // sin la contraseña en el mensaje
     console.log(`No se pudo conectar a la base (${config.host}): ${String(e.message).replaceAll(secret, '…')}`);

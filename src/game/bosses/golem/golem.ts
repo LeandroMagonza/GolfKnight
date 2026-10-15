@@ -24,8 +24,12 @@ const WALK_SPEED = 2.4;
 /** El cuerpo: el gólem de roca de dungeon.glb, un poco más grande que el de siempre. */
 const HEIGHT = 4.6;
 const RADIUS = 1.8;
-/** Vida (más la del talento del golpe 4). */
-const HP = 140;
+/**
+ * Vida (más la del talento del golpe 4), si la versión no dice otra. Era 140: el 15/10 Leandro perdió dos
+ * veces con «crece» dejándolo en 116 y 87 a los 85 s, con la escolta terminada hacía rato («tiene
+ * demasiada [...] no debería durar tanto como la wave»).
+ */
+const HP = 75;
 /** Golpe al piso: lo que tarda en levantar los brazos (con el ritmo en 1, y lo mínimo) y en bajarlos: las piedras nacen al pegar. */
 const SLAM_WINDUP = 1.1;
 const SLAM_MIN = 0.7;
@@ -35,8 +39,20 @@ const SLAM_REST = 0.45;
 /** Segundos entre golpes al piso con el ritmo en 1, y el primero (después de llegar). */
 const SLAM_EVERY = 6.5;
 const FIRST_SLAM = 1.5;
-/** Segundos por punto de vida que crece una piedra, con el ritmo en 1 (de 1 a 5: 4 pasos). */
-const GROW_STEP = 3.2;
+/**
+ * Segundos por punto de vida que crece una piedra, con el ritmo en 1 (de 1 a 5: 4 pasos), si la versión no
+ * dice otro. Era 3.2: con «crece» había que romper las tres al nacer o «se hacía una bola muy difícil de
+ * remontar» (Leandro, 15/10); ahora crecen más lento (4.2: 17 s hasta el tope).
+ */
+const GROW_STEP = 4.2;
+/**
+ * Piedras separadas (15/10, pedido de Leandro: «que aparezcan a veces juntas y otras separadas»): la
+ * chance de que una tanda salga junta (una tira, un golpe al piso) y, si no, separadas: en lugares
+ * salteados (fuera del área del hierro) y de a una, un golpe al piso cada una, con SPLIT_GAP s entre golpe y
+ * golpe: cada una con su reloj.
+ */
+const TOGETHER_CHANCE = 0.5;
+const SPLIT_GAP = 0.9;
 /** Cuántas piedras por golpe: dos, y tres desde este ritmo. */
 const THREE_AT = 1.35;
 /** Sin fases, el ritmo sube solo con el tiempo: 1 al llegar, +1 cada TEMPO_RAMP s, hasta TEMPO_MAX. */
@@ -65,11 +81,16 @@ export interface GolemOpts {
   gate: 'hp' | number;
   /** La piedra grande con su ventana, y las fases. */
   big: boolean;
+  /** Vida (si no, HP) y lo que tarda en crecer cada punto (si no, GROW_STEP). */
+  hp?: number;
+  growStep?: number;
+  /** Las tandas a veces juntas y a veces separadas (si no, siempre juntas). */
+  mix?: boolean;
 }
 
 export function startGolem(ctx: BossCtx, opts: GolemOpts): BossFight {
   const { horde } = ctx;
-  const line = new RockLine(ctx, LINE_Z, { gate: opts.gate, growStep: GROW_STEP });
+  const line = new RockLine(ctx, LINE_Z, { gate: opts.gate, growStep: opts.growStep ?? GROW_STEP });
   // se planta en uno de los lugares de la línea, cerca del medio: cada pelea, otros carriles
   const homeX = SLOT_GAP * (Math.floor(ctx.rng() * 5) - 2);
   // sin la barra grande de arriba (BossBar): tapa justo la parte de la cancha donde se planta; la vida va
@@ -89,6 +110,11 @@ export function startGolem(ctx: BossCtx, opts: GolemOpts): BossFight {
   let arrivedAt = -1;
   let overhead: Overhead | null = null;
   let windowSaid = false;
+  /** Las piedras separadas que faltan nacer, una por golpe al piso, y la espera hasta el próximo golpe. */
+  let queue: number[] = [];
+  let queueIn = 0;
+  let together = 0;
+  let apart = 0;
 
   const tempo = (): number => {
     if (opts.big) return PHASE_TEMPO[phase];
@@ -123,8 +149,10 @@ export function startGolem(ctx: BossCtx, opts: GolemOpts): BossFight {
       }
       if (act === 'idle') {
         e.animator.setLocomotion('Idle', 1);
-        slamIn -= dt;
+        // con una tanda separada a medio nacer, el reloj de la próxima tanda espera
+        if (!queue.length) slamIn -= dt;
         bigIn -= dt;
+        if (queue.length) queueIn -= dt;
         if (roarQueued) {
           roarQueued = false;
           roar(e);
@@ -132,8 +160,28 @@ export function startGolem(ctx: BossCtx, opts: GolemOpts): BossFight {
           act = 'big';
           bigIn = BIG_EVERY[phase];
           overhead!.begin();
-        } else if (slamIn <= 0) {
-          planned = line.plan(line.tempo >= THREE_AT ? 3 : 2, homeX, RADIUS);
+        } else if (queue.length && queueIn <= 0) {
+          // la siguiente de la tanda separada (si su lugar se ocupó, se la saltea)
+          const x = queue.shift()!;
+          planned = line.isFree(x) ? [x] : [];
+          if (planned.length) {
+            act = 'slam';
+            t = 0;
+            slamFor = Math.max(SLAM_MIN, SLAM_WINDUP / Math.sqrt(line.tempo));
+          }
+          queueIn = SPLIT_GAP;
+        } else if (!queue.length && slamIn <= 0) {
+          const n = line.tempo >= THREE_AT ? 3 : 2;
+          const apartXs = opts.mix && ctx.rng() >= TOGETHER_CHANCE ? line.planApart(n, homeX, RADIUS) : [];
+          if (apartXs.length >= 2) {
+            apart++;
+            planned = [apartXs[0]];
+            queue = apartXs.slice(1);
+            queueIn = SPLIT_GAP;
+          } else {
+            together++;
+            planned = line.plan(n, homeX, RADIUS);
+          }
           if (planned.length) {
             act = 'slam';
             t = 0;
@@ -209,7 +257,7 @@ export function startGolem(ctx: BossCtx, opts: GolemOpts): BossFight {
     ctx.banner(L('¡El gólem se enfurece!', 'The golem is enraged!'), L('Las piedras nacen y crecen más rápido', 'Rocks spawn and grow faster'), 2.2);
   }
 
-  const stats = partStats('golem', { name: title, height: HEIGHT, radius: RADIUS, hp: HP + ctx.bonusHp, speed: WALK_SPEED, boss: true, heavy: true, score: 600 });
+  const stats = partStats('golem', { name: title, height: HEIGHT, radius: RADIUS, hp: (opts.hp ?? HP) + ctx.bonusHp, speed: WALK_SPEED, boss: true, heavy: true, score: 600 });
   const body = horde.spawnCustom(stats, 'golem', homeX, ENTER_Z, {}, script);
   if (opts.big) overhead = new Overhead(ctx, body, BIG);
 
@@ -246,6 +294,7 @@ export function startGolem(ctx: BossCtx, opts: GolemOpts): BossFight {
       fase: phase + 1,
       accion: overhead?.busy ? overhead.phase : act,
       piedras: line.count.born,
+      ...(opts.mix ? { juntas: together, separadas: apart } : {}),
       rotas: line.count.broken,
       lanzadas: line.count.launched,
       enLaPuerta: line.count.gate,

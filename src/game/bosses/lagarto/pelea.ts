@@ -8,9 +8,9 @@ import { ELEMENTS } from '../../../core/abilities';
 import { L } from '../../../i18n';
 import type { Ball } from '../../balls';
 import { shadowMat, type Enemy, type EnemyScript } from '../../enemies';
-import { FIELD_HALF_WIDTH, GATE_HALF_WIDTH, GATE_Z, GroundMark, LaneMark, SPAWN_Z, TEE_Z, disposeObject, heightAt, partStats } from '../kit';
+import { FIELD_HALF_WIDTH, GATE_HALF_WIDTH, GATE_Z, LaneMark, SPAWN_Z, TEE_Z, disposeObject, heightAt, partStats } from '../kit';
 import type { BossCtx, BossFight } from '../types';
-import { colliderLook, spearView, type SpearView } from './lanza';
+import { CrossMark, colliderLook, spearView, type SpearView } from './lanza';
 
 /** Lo que cambia entre versiones. */
 export interface LagartoCfg {
@@ -26,8 +26,11 @@ export interface LagartoCfg {
 
 // ---- el cuerpo ----
 
-/** El cuerpo: alto como un élite grande, y la vida (más la del talento del golpe 4 y la dificultad). */
-const BODY = { height: 3.4, radius: 1.0, hp: 80, hpPerLevel: 2 };
+/**
+ * El cuerpo: alto como un élite grande, y la vida (más la del talento del golpe 4 y la dificultad). Tenía 80
+ * (15/10, Leandro: «tiene mucha vida, podría hacerse rápido antes y tener menos vida»): la pelea era larga.
+ */
+const BODY = { height: 3.4, radius: 1.0, hp: 52, hpPerLevel: 1.5 };
 /**
  * Dónde se planta: entre estas z (a 21-31 m de la línea; más allá de los 46 queda debajo de la barra de
  * arriba) y hasta `edge` de cada lado.
@@ -35,7 +38,7 @@ const BODY = { height: 3.4, radius: 1.0, hp: 80, hpPerLevel: 2 };
 const BAND = { near: 30, far: 40, edge: 12.5 };
 /** Corre al entrar; de costado, al cambiar de lugar (m/s). */
 const RUN = 4.5;
-const STRAFE = 3.4;
+const STRAFE = 4;
 /** Lo que avanza el clip de ir de costado en un segundo, a escala 1 (el desplazamiento que le saca el juego). */
 const STRAFE_CLIP = { left: 1.84, right: 2.47 };
 /** Lo que mide el lagarto del pack, para pasar las medidas de los clips a su tamaño. */
@@ -44,15 +47,22 @@ const MODEL_HEIGHT = 1.81;
 // ---- el tiro ----
 
 /**
- * Las fases, por la vida que le queda (más de `above`): cuánto apunta (s), cuánto descansa entre tiros (s),
- * qué tan rápido vuela la lanza (m/s; el goblin camina a 3.6), la chance de un segundo tiro seguido y la de
- * tirarte a vos en vez de a la puerta.
+ * Las fases: cuánto apunta (s), cuánto descansa entre tiros (s), qué tan rápido vuela la lanza (m/s; el goblin
+ * camina a 3.6), la chance de un segundo tiro seguido y la de tirarte a vos en vez de a la puerta. La 1 es con
+ * la escolta; **la 2 empieza cuando se termina la escolta** (15/10, Leandro: «quizás el primer enrage es
+ * cuando termina la wave»; antes era por vida), y la 3 con menos de `above` de vida, ya a solas. Todas más
+ * rápidas que antes (eran 10, 11.5 y 13 m/s; «haría que la lanza vaya un poco más rápido»).
  */
 const PHASES = [
-  { above: 0.66, windup: 1.15, rest: 3.0, speed: 10, double: 0, atPlayer: 0.35 },
-  { above: 0.33, windup: 1.0, rest: 2.6, speed: 11.5, double: 0.3, atPlayer: 0.45 },
-  { above: 0, windup: 0.85, rest: 2.2, speed: 13, double: 0.5, atPlayer: 0.5 },
+  { above: 1, windup: 1.0, rest: 2.5, speed: 12, double: 0.1, atPlayer: 0.35 },
+  { above: 1, windup: 0.85, rest: 2.2, speed: 13.5, double: 0.3, atPlayer: 0.45 },
+  { above: 0.4, windup: 0.75, rest: 1.9, speed: 15, double: 0.45, atPlayer: 0.5 },
 ];
+/**
+ * Cuándo se terminó la escolta: pasó lo que tarda en salir (`escortSpan`, menos `early`) y no queda nadie
+ * de la horda vivo; o, con rezagados, `late` s después igual. Sin el dato (pruebas), a los `fallback` s.
+ */
+const ESCORT = { early: 3, late: 20, fallback: 75 };
 /** El segundo tiro seguido apunta menos. */
 const QUICK_WINDUP = 0.6;
 /** El brazo que baja después de soltar (tampoco esquiva). */
@@ -87,28 +97,41 @@ const SPEAR = {
   /** Cuánto queda clavada en la muralla (s). */
   stuck: 1.6,
 };
-/** Los colores del carril: a la puerta, a vos, y la que vuelve devuelta. */
+/** Los colores del carril: a la puerta, a vos, y la que vuelve devuelta (y la franja dorada de devolver). */
 const COLORS = { gate: 0xffa13d, player: 0xff3b30, back: 0xffe066 };
 
 // ---- cómo esquiva ----
 
-/** La esquiva al apuntarle (la de siempre, pero recibir daño no se la recarga): cada cuánto. */
-const DODGE_EVERY = 4.5;
-/** El roll: cuánto dura y cuánto se corre. El clip es el del pack, sin desplazamiento: lo corre el código. */
-const ROLL = { time: 0.8, dist: 4.2, clip: 'Falling To Roll' };
+/**
+ * La esquiva al apuntarle (la de siempre, pero recibir daño no se la recarga): cada cuánto. Era 4.5 (15/10,
+ * Leandro: «haría que el salto lo tenga más seguido, que salte más lejos, y quizás incluso que pueda hacer
+ * roll mientras carga la lanza»): ahora también rueda apuntando, y sigue apuntando desde donde cae.
+ */
+const DODGE_EVERY = 3;
+/** El roll: cuánto dura y cuánto se corre (era 4.2). El clip es el del pack, sin desplazamiento: lo corre el código. */
+const ROLL = { time: 0.85, dist: 6.5, clip: 'Falling To Roll' };
 /** Los pasos al azar (la versión sin esquiva): cada cuánto (s), cuánto (m), y qué parte son rolls. */
-const STEPS = { every: [1.3, 2.8], dist: [2.5, 5.5], roll: 0.4 };
+const STEPS = { every: [0.9, 2.0], dist: [3, 7], roll: 0.5 };
 /** Después de cada tiro, la chance de irse a otro lado (así cambia el ángulo). */
 const RELOCATE = 0.5;
 
 // ---- la atajada ----
 
 /**
- * Devolverla: le pegás a la pelota parado en su carril (a `width` de donde cruza la línea) cuando la lanza
- * está a menos de `reach` m de la línea, o te llega en los `after` s que siguen al golpe. Vuelve a `speed`
- * y le saca `damage` según el golpe (1, 2, 3).
+ * Devolverla (15/10, una sola regla, y a la vista): **la lanza que está en la franja dorada** (los últimos
+ * `reach` m antes de la línea, pintados en su carril) **se devuelve con lo que la toque**: una pelota (de
+ * cualquier puesto), o tu golpe parado en su carril (a `width` de donde cruza; vale si te llega en los
+ * `after` s que siguen al golpe). Antes de la franja, la pelota la rompe (si la versión las baja). Vuelve a
+ * `speed` y le saca `damage` según el golpe (1, 2, 3). Antes la franja era de 3 m para el golpe y de 4 para
+ * la pelota, sin marca: Leandro no entendía por qué una pelota desde lejos contaba como devolver.
  */
-const PARRY = { reach: 3, after: 0.3, width: 2, speed: 22, damage: [3, 4, 5] };
+const PARRY = { reach: 4, after: 0.35, width: 2, speed: 22, damage: [3, 4, 5] };
+/**
+ * Los largos de la lanza para las pelotas: la parte que le pegan se corre por el asta hasta el punto más cerca
+ * de la pelota que viene, así la toca **toda la lanza que se ve** (de `tail` a `tip` del centro), no solo un
+ * círculo en el medio (15/10, Leandro: «está raro a veces pegarle a la lanza... de costado»).
+ */
+const SHAFT = { tail: 1.6, tip: 2.3, radius: 0.6, near: 7 };
 
 const BODY_LOOK = 'lizardman';
 const SPEAR_LOOK = 'lagarto-lanza';
@@ -126,6 +149,13 @@ interface Plan {
   cx: number;
 }
 
+/** Lo que se pinta de un carril: la franja, la flecha en la línea, y la franja dorada de devolver (si hay). */
+interface Marks {
+  lane: LaneMark;
+  cross: CrossMark;
+  zone: LaneMark | null;
+}
+
 interface Spear {
   kind: Kind;
   x: number;
@@ -140,8 +170,7 @@ interface Spear {
   state: 'fly' | 'past' | 'back' | 'stuck' | 'gone';
   part: Enemy | null;
   view: SpearView;
-  lane: LaneMark | null;
-  ring: GroundMark | null;
+  marks: Marks | null;
   timer: number;
   /** La devolvió una pelota que la tocó cerca de la línea (lo marca el filtro de la parte): el golpe. */
   parryQ: number;
@@ -161,19 +190,32 @@ function segDist(px: number, pz: number, ax: number, az: number, bx: number, bz:
   return Math.hypot(px - (ax + vx * u), pz - (az + vz * u));
 }
 
-/** Lo que el lagarto lancero hace en una partida. */
-export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossFight {
+/** La x del carril `p` a la altura `z`. */
+const laneX = (p: Plan, z: number) => p.ox + ((p.ex - p.ox) * (p.oz - z)) / (p.oz - p.ez);
+
+/**
+ * Lo que el lagarto lancero hace en una partida. `escortSpan`: lo que tarda en salir la escolta (s), para
+ * saber cuándo se terminó (0 si no se sabe).
+ */
+export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string, escortSpan = 0): BossFight {
   const { horde, rng } = ctx;
   if (!horde.hasLook(SPEAR_LOOK)) horde.addLook(SPEAR_LOOK, colliderLook(SPEAR.height));
   const spears: Spear[] = [];
   const parts = new Set<Enemy>();
   const stats = { lanzas: 0, derribadas: 0, devueltas: 0, aPuerta: 0, aVos: 0, aliados: 0, esquivas: 0, rolls: 0 };
   const level = clamp(ctx.level, 0, 10);
+  /** Solo se devuelven (la atajada): cada carril cruza la línea justo en un puesto, y ahí le deja pelota. */
+  const parryOnly = cfg.parry && !cfg.shoot;
 
   let mode: Mode = 'enter';
   let rest = 2.5;
   let goal = { x: 0, z: 0, thenThrow: null as Kind | null, tx: 0 };
-  let aim: { plan: Plan; t: number; time: number; lane: LaneMark; ring: GroundMark } | null = null;
+  /** Apuntando: el carril, a quién y adónde (`tx`, para volver a trazarlo si rueda apuntando) y sus marcas. */
+  let aim: { plan: Plan; t: number; time: number; tx: number; marks: Marks } | null = null;
+  /** Ya llegó a su franja (antes, entrando, no se lo encierra en ella: ver el roll). */
+  let arrived = false;
+  /** Se terminó la escolta: la fase 2 (ver ESCORT). */
+  let escortOver = false;
   let followT = 0;
   let pendingDouble = false;
   let lastKind: Kind = 'gate';
@@ -203,7 +245,7 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
     },
   };
   const body = horde.spawnCustom(
-    partStats('lizardman', { name: L('Lagarto lancero', 'Lizard Lancer'), hp: BODY.hp + level * BODY.hpPerLevel + ctx.bonusHp, height: BODY.height, radius: BODY.radius, speed: RUN, runs: true, boss: true, heavy: true, score: 500 }),
+    partStats('lizardman', { name: L('Lagarto lancero', 'Lizard Lancer'), hp: Math.round(BODY.hp + level * BODY.hpPerLevel) + ctx.bonusHp, height: BODY.height, radius: BODY.radius, speed: RUN, runs: true, boss: true, heavy: true, score: 500 }),
     BODY_LOOK, startX, SPAWN_Z - 2,
     cfg.evade === 'aim' ? { dodge: true, dodgeEvery: DODGE_EVERY } : {},
     bodyScript,
@@ -218,8 +260,69 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
   const spearSpeed = () => (PHASES[phase].speed + level * PER_LEVEL.speed) * (1 + (hurry() - 1) / 2);
   const windupTime = (quick: boolean) => (quick ? QUICK_WINDUP : PHASES[phase].windup * (1 - level * PER_LEVEL.windup)) / (1 + (hurry() - 1) / 2);
 
-  /** Apuntando o soltando: no esquiva (es la ventana para pegarle). */
-  const committed = () => mode === 'windup' || mode === 'follow';
+  /**
+   * Soltando: no esquiva (es la ventana segura para pegarle). Apuntando sí (15/10): rueda y sigue apuntando
+   * desde donde cae.
+   */
+  const committed = () => mode === 'follow';
+
+  /** Un puesto al azar, para la atajada (de los del medio, adonde tiran los guardias). */
+  function spotTarget(): number {
+    const xs = ctx.spots().filter((x) => Math.abs(x) <= 8.5);
+    return xs.length ? xs[Math.floor(rng() * xs.length)] : 0;
+  }
+
+  /** Adónde tira a la puerta: un lugar de la abertura, o en la atajada, derecho por un puesto. */
+  const gateTarget = () => (parryOnly ? spotTarget() : (rng() * 2 - 1) * GATE_AIM);
+
+  /** La atajada: que haya pelota en el puesto por donde cruza (si no, no hay con qué devolverla). */
+  function giveBall(x: number): void {
+    if (!parryOnly) return;
+    const i = ctx.tees.nearest(x);
+    if (!ctx.tees.hasBall(i)) ctx.tees.place(i, false, true);
+  }
+
+  function makeMarks(plan: Plan): Marks {
+    const color = COLORS[plan.kind];
+    const m: Marks = {
+      lane: new LaneMark(ctx.scene, color, 1.3).opacity(0.15),
+      cross: new CrossMark(ctx.scene, color, 1.05).opacity(0.4),
+      zone: cfg.parry ? new LaneMark(ctx.scene, COLORS.back, 1.7).opacity(0.22) : null,
+    };
+    if (m.zone) m.zone.mesh.renderOrder = 3;
+    placeMarks(m, plan, plan.ox, plan.oz);
+    return m;
+  }
+
+  /** La franja desde (fx, fz) hasta la muralla, la flecha en la línea y la franja dorada. */
+  function placeMarks(m: Marks, plan: Plan, fx: number, fz: number): void {
+    m.lane.between(fx, fz, plan.ex, plan.ez);
+    m.cross.at(plan.cx, TEE_Z).toward(plan.ex - plan.ox, plan.ez - plan.oz);
+    if (m.zone) {
+      const z = Math.min(fz, TEE_Z + PARRY.reach);
+      m.zone.between(laneX(plan, z), z, plan.cx, TEE_Z);
+    }
+  }
+
+  function disposeMarks(m: Marks | null): void {
+    m?.lane.dispose();
+    m?.cross.dispose();
+    m?.zone?.dispose();
+  }
+
+  /** ¿Está en la franja dorada (se devuelve con lo que la toque)? */
+  const inZone = (s: Spear) => cfg.parry && s.z - TEE_Z <= PARRY.reach && s.z - TEE_Z >= -0.8;
+
+  /** ¿Se terminó la escolta? (ver ESCORT) */
+  function checkEscort(): void {
+    if (escortOver) return;
+    const t = ctx.clock();
+    const span = escortSpan > 0 ? escortSpan : ESCORT.fallback;
+    if (t < span - ESCORT.early) return;
+    const others = horde.enemies.some((x) => x.alive && !x.passed && x !== body && !parts.has(x));
+    if (others && t < span + ESCORT.late) return;
+    escortOver = true;
+  }
 
   /**
    * Dónde va a estar parado el golfista: en el puesto adonde va (o en el que está), al costado de la pelota
@@ -235,7 +338,8 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
   function lane(bx: number, bz: number, kind: Kind, tx: number): Plan | null {
     const oz = bz - 1;
     const ez = SPEAR.wallZ;
-    if (kind === 'gate') return { kind, ox: bx, oz, ex: tx, ez, cx: bx + ((tx - bx) * (oz - TEE_Z)) / (oz - ez) };
+    // a la puerta apunta a la muralla (en la atajada, a un puesto: sigue derecho hasta la muralla)
+    if (kind === 'gate' && !parryOnly) return { kind, ox: bx, oz, ex: tx, ez, cx: bx + ((tx - bx) * (oz - TEE_Z)) / (oz - ez) };
     const ex = bx + ((tx - bx) * (oz - ez)) / (oz - TEE_Z);
     // que pegue en la muralla, no afuera del campo
     if (Math.abs(ex) > FIELD_HALF_WIDTH - 1) return null;
@@ -260,7 +364,7 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
     const kinds: Kind[] = !cfg.atPlayer || !p.alive ? ['gate'] : wantPlayer ? ['player', 'gate'] : ['gate', 'player'];
     const sign = rng() < 0.5 ? 1 : -1;
     for (const kind of kinds) {
-      const tx = kind === 'gate' ? (rng() * 2 - 1) * GATE_AIM : playerX();
+      const tx = kind === 'gate' ? gateTarget() : playerX();
       for (let k = 0; k <= 12; k++) {
         const off = (k % 2 ? sign : -sign) * Math.ceil(k / 2) * 1.5;
         const x = clamp(bx + off, -BAND.edge, BAND.edge);
@@ -278,8 +382,10 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
     mode = 'move';
   }
 
+  /** Rueda. Si estaba apuntando, sigue apuntando al terminar (el carril se vuelve a trazar desde donde cae). */
   function startRoll(e: Enemy, dx: number, dz: number, dist: number): void {
     const n = Math.hypot(dx, dz) || 1;
+    if (mode !== 'windup') clearAim();
     roll = { t: 0, done: 0, dist, dx: dx / n, dz: dz / n };
     mode = 'roll';
     stats.rolls++;
@@ -293,22 +399,20 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
    * Empieza a apuntar desde donde está: el carril queda fijo desde acá. A la puerta, a `gateX` (o a un lugar
    * al azar de la abertura); a vos, adonde estés parado ahora.
    */
-  function startWindup(e: Enemy, kind: Kind, quick: boolean, gateX = (rng() * 2 - 1) * GATE_AIM): boolean {
+  function startWindup(e: Enemy, kind: Kind, quick: boolean, gateX = gateTarget()): boolean {
     const tx = kind === 'gate' ? gateX : playerX();
     const plan = lane(e.position.x, e.position.z, kind, tx);
     if (!plan || !laneClear(plan)) return false;
-    const color = COLORS[kind];
-    const laneMark = new LaneMark(ctx.scene, color, 1.3).between(plan.ox, plan.oz, plan.ex, plan.ez).opacity(0.15);
-    const ring = new GroundMark(ctx.scene, color, false, 1.1).at(plan.cx, TEE_Z).opacity(0.3);
-    aim = { plan, t: 0, time: windupTime(quick), lane: laneMark, ring };
+    clearAim();
+    aim = { plan, t: 0, time: windupTime(quick), tx, marks: makeMarks(plan) };
+    giveBall(plan.cx);
     lastKind = kind;
     mode = 'windup';
     return true;
   }
 
   function clearAim(): void {
-    aim?.lane.dispose();
-    aim?.ring.dispose();
+    disposeMarks(aim?.marks ?? null);
     aim = null;
   }
 
@@ -343,10 +447,12 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
       if (e.silenced) cd = Math.max(cd, DODGE_EVERY);
       else cd = Math.max(0, cd - dt);
     }
-    const ph = PHASES.findIndex((f) => e.hp / e.maxHp > f.above);
+    checkEscort();
+    const ph = !escortOver ? 0 : e.hp / e.maxHp > PHASES[2].above ? 1 : 2;
     if (ph > phase) {
+      if (phase === 0) ctx.banner(L('¡El lagarto se enfurece!', 'The lizard is enraged!'), L('Se terminó la escolta: tira más rápido', 'The escort is over: faster spears'), 2);
+      else ctx.feedback(L('¡El lagarto se apura!', 'The lizard speeds up!'));
       phase = ph;
-      ctx.feedback(L('¡El lagarto se apura!', 'The lizard speeds up!'));
     }
     e.scriptGesture = 0;
     e.scriptSwing = null;
@@ -354,9 +460,11 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
       clearAim();
       e.animator.setLocomotion('Idle', 1);
     } else if (!e.frozen) runMode(e, p, dt);
-    // a lo sumo un poco afuera de su franja (los empujones)
+    // a lo sumo un poco afuera de su franja (los empujones). Entrando todavía no: el roll que le salía corriendo
+    // desde el fondo lo traía de golpe al borde de la franja (15/10, Leandro: «hace el roll, pero no desde donde
+    // está, sino desde hacia donde iba a pararse»)
     e.position.x = clamp(e.position.x, -BAND.edge - 1.5, BAND.edge + 1.5);
-    if (mode !== 'enter') e.position.z = clamp(e.position.z, BAND.near - 1.5, BAND.far + 1.5);
+    if (arrived) e.position.z = clamp(e.position.z, BAND.near - 1.5, BAND.far + 1.5);
     e.position.y = heightAt(e.position.x, e.position.z);
     if (cfg.evade === 'aim') {
       dodgeSet = committed() ? Math.max(cd, 0.3) : cd;
@@ -384,6 +492,7 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
       case 'enter': {
         if (e.walkToward(goal.x, goal.z, RUN, dt, true, 0.4)) {
           mode = 'idle';
+          arrived = true;
           rest = 1;
         }
         break;
@@ -426,10 +535,10 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
         e.scriptSwing = u * 0.999;
         // el carril late cada vez más rápido y más fuerte hasta que suelta
         const beat = 0.5 + 0.5 * Math.sin(aim.t * (8 + 14 * u));
-        aim.lane.opacity(0.18 + 0.3 * u + 0.12 * beat);
-        aim.ring.opacity(0.3 + 0.35 * beat).size(1.1 + 0.25 * beat);
+        aim.marks.lane.opacity(0.18 + 0.3 * u + 0.12 * beat);
+        aim.marks.cross.opacity(0.35 + 0.35 * beat).size(1 + 0.2 * beat);
         if (u >= 1) {
-          throwSpear(aim.plan, aim.lane, aim.ring);
+          throwSpear(aim.plan, aim.marks);
           aim = null;
           mode = 'follow';
           followT = 0;
@@ -462,7 +571,15 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
         e.position.z += roll.dz * (d - roll.done);
         roll.done = d;
         e.faceToward(e.position.x + roll.dx, e.position.z + roll.dz, dt, 30);
-        if (u >= 1) mode = e.position.z > BAND.far + 2 ? 'enter' : 'idle';
+        // rodó apuntando: el carril lo sigue (al mismo puesto, o al mismo lugar de la puerta)
+        if (aim) {
+          const plan = lane(e.position.x, e.position.z, aim.plan.kind, aim.tx);
+          if (plan) {
+            aim.plan = plan;
+            placeMarks(aim.marks, plan, plan.ox, plan.oz);
+          } else clearAim();
+        }
+        if (u >= 1) mode = !arrived ? 'enter' : aim ? 'windup' : 'idle';
         break;
       }
     }
@@ -470,18 +587,18 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
 
   // ---- las lanzas ----
 
-  function throwSpear(plan: Plan, laneMark: LaneMark, ring: GroundMark): void {
+  function throwSpear(plan: Plan, marks: Marks): void {
     if (ctx.over()) {
-      laneMark.dispose();
-      ring.dispose();
+      disposeMarks(marks);
       return;
     }
+    giveBall(plan.cx);
     const len = Math.hypot(plan.ex - plan.ox, plan.ez - plan.oz) || 1;
     const view = spearView(COLORS[plan.kind]);
     ctx.scene.add(view.root);
     const s: Spear = {
       kind: plan.kind, x: plan.ox, z: plan.oz, dx: (plan.ex - plan.ox) / len, dz: (plan.ez - plan.oz) / len, speed: spearSpeed(),
-      plan, y0: BODY.height * 0.8, traveled: 0, state: 'fly', part: null, view, lane: laneMark.opacity(0.42), ring, timer: 0, parryQ: 0, damage: 0,
+      plan, y0: BODY.height * 0.8, traveled: 0, state: 'fly', part: null, view, marks, timer: 0, parryQ: 0, damage: 0,
     };
     spears.push(s);
     stats.lanzas++;
@@ -490,15 +607,40 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
       hinted = true;
       ctx.feedback(hint);
     }
+    marks.lane.opacity(0.42);
     drawSpear(s);
+  }
+
+  /**
+   * Dónde poner la parte que le pegan las pelotas: en el punto del asta más cerca de la pelota en vuelo más
+   * cercana (ver SHAFT). Así el círculo del choque recorre toda la lanza: de costado le pega igual en la punta
+   * que en la cola.
+   */
+  function shaftPoint(s: Spear, out: THREE.Vector3): void {
+    let best = SHAFT.near;
+    let along = 0;
+    for (const b of ctx.balls.list) {
+      if (b.done) continue;
+      const rx = b.state.pos.x - s.x;
+      const rz = b.state.pos.z - s.z;
+      const u = clamp(rx * s.dx + rz * s.dz, -SHAFT.tail, SHAFT.tip);
+      const d = Math.hypot(rx - s.dx * u, rz - s.dz * u);
+      if (d < best) {
+        best = d;
+        along = u;
+      }
+    }
+    out.set(s.x + s.dx * along, 0, s.z + s.dz * along);
   }
 
   /** La parte que le pegan las pelotas: aparece cuando la lanza ya se separó del cuerpo (si no, se empujan). */
   function addPart(s: Spear): void {
+    const at = new THREE.Vector3();
     const script: EnemyScript = {
       update(e) {
         e.knock.set(0, 0, 0);
-        e.position.set(s.x, heightAt(s.x, s.z), s.z);
+        shaftPoint(s, at);
+        e.position.set(at.x, heightAt(at.x, at.z), at.z);
         e.heading = Math.atan2(s.dx, s.dz);
         // ni vida, ni barritas, ni la sombra redonda: lo que se ve es la lanza
         for (const c of e.group.children) {
@@ -507,8 +649,8 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
         return true;
       },
       filter(e, amount, shot) {
-        // con la atajada, la pelota que la toca cerca de la línea la devuelve en vez de romperla
-        if (cfg.parry && shot && !shot.ability && s.z - TEE_Z < PARRY.reach + 1) {
+        // en la franja dorada, la pelota que la toca la devuelve en vez de romperla
+        if (shot && !shot.ability && inZone(s)) {
           s.parryQ = Math.max(1, shot.quality);
           return 0;
         }
@@ -521,7 +663,7 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
       },
     };
     const part = horde.spawnCustom(
-      partStats('lizardman', { name: L('Lanza', 'Spear'), hp: 1, height: SPEAR.height, radius: SPEAR.radius, speed: s.speed, runs: true, boss: true, heavy: false, score: 5 }),
+      partStats('lizardman', { name: L('Lanza', 'Spear'), hp: 1, height: SPEAR.height, radius: SHAFT.radius, speed: s.speed, runs: true, boss: true, heavy: false, score: 5 }),
       SPEAR_LOOK, s.x, s.z, {}, script,
     );
     s.part = part;
@@ -537,10 +679,8 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
   }
 
   function dropMarks(s: Spear): void {
-    s.lane?.dispose();
-    s.ring?.dispose();
-    s.lane = null;
-    s.ring = null;
+    disposeMarks(s.marks);
+    s.marks = null;
   }
 
   /** Se rompe en el aire (la bajaron, se clavó en el golfista o en uno de la horda, o cayó el lagarto). */
@@ -580,7 +720,7 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
   }
 
   /** La x del carril de `s` a la altura `z`. */
-  const xAt = (s: Spear, z: number) => s.plan.ox + ((s.plan.ex - s.plan.ox) * (s.plan.oz - z)) / (s.plan.oz - s.plan.ez);
+  const xAt = (s: Spear, z: number) => laneX(s.plan, z);
 
   function updateSpear(s: Spear, dt: number): void {
     const p = ctx.player();
@@ -629,7 +769,7 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
     const over = ctx.over();
 
     if (s.state === 'fly') {
-      if (!s.part && cfg.shoot && Math.hypot(s.x - body.position.x, s.z - body.position.z) > body.radius + SPEAR.radius + 0.3) addPart(s);
+      if (!s.part && cfg.shoot && Math.hypot(s.x - body.position.x, s.z - body.position.z) > body.radius + SHAFT.tail + SHAFT.radius + 0.3) addPart(s);
       // uno de la horda que se le cruza: se clava en él
       for (const e of horde.enemies) {
         if (!e.alive || e.passed || e.script) continue;
@@ -639,9 +779,8 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
         shatter(s);
         return;
       }
-      // la atajada: el golpe a la pelota desde su carril, justo cuando llega
-      const ahead = s.z - TEE_Z;
-      if (cfg.parry && swing && ctx.clock() - swing.at <= PARRY.after && ahead <= PARRY.reach && ahead >= -0.8 && Math.abs(s.plan.cx - swing.x) < PARRY.width) {
+      // la atajada: el golpe a la pelota desde su carril, con la lanza en la franja dorada
+      if (swing && inZone(s) && ctx.clock() - swing.at <= PARRY.after && Math.abs(s.plan.cx - swing.x) < PARRY.width) {
         parry(s, swing.q);
         return;
       }
@@ -653,12 +792,12 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
         shatter(s);
         return;
       }
-      // pasó la línea: ya nadie la toca, sigue a la muralla
+      // pasó la línea: ya nadie la toca, sigue a la muralla (con su franja nomás)
       if (s.z < TEE_Z - 1.2) {
         s.state = 'past';
         dropPart(s);
-        s.ring?.dispose();
-        s.ring = null;
+        s.marks?.cross.opacity(0);
+        s.marks?.zone?.opacity(0);
       }
     }
     if (s.z <= SPEAR.wallZ) {
@@ -673,12 +812,16 @@ export function startLagarto(ctx: BossCtx, cfg: LagartoCfg, hint: string): BossF
       s.timer = SPEAR.stuck;
     }
     drawSpear(s);
-    // el carril, de la lanza a la muralla; el anillo de la línea late mientras viene
-    s.lane?.between(s.x, s.z, s.plan.ex, s.plan.ez);
-    if (s.ring) {
+    // el carril, de la lanza a la muralla; la flecha de la línea late mientras viene, y se pone dorada (más
+    // grande) mientras la lanza está en la franja de devolver
+    if (s.marks && s.state === 'fly') {
+      placeMarks(s.marks, s.plan, s.x, s.z);
       const near = clamp(1 - (s.z - TEE_Z) / 25, 0, 1);
-      s.ring.opacity(0.35 + 0.35 * near * (0.5 + 0.5 * Math.sin(ctx.clock() * 18)));
-    }
+      const beat = 0.5 + 0.5 * Math.sin(ctx.clock() * 18);
+      const gold = inZone(s);
+      s.marks.cross.color(gold ? COLORS.back : COLORS[s.kind]).opacity(gold ? 0.95 : 0.4 + 0.35 * near * beat).size(gold ? 1.35 + 0.15 * beat : 1);
+      s.marks.zone?.opacity(gold ? 0.5 + 0.2 * beat : s.z > TEE_Z ? 0.22 : 0);
+    } else s.marks?.lane.between(s.x, s.z, s.plan.ex, s.plan.ez);
   }
 
   /** El golpe a la pelota (no las habilidades): una pelota nueva que sale de la línea de los puestos. */

@@ -25,8 +25,8 @@ export const BOSSES: BossDef[] = [
   ),
   version(
     'cadenas',
-    'Encadena de a 2 o 3 que van juntos: si cae uno, hay 2 s para matar al resto o el caído vuelve. Romper una cadena entera le saca 4 o 6.', // i18n-ok: el panel de pruebas
-    { mode: 'chains', revive: 'same', bearers: false, hint: L('Matá juntos a los encadenados, o vuelven', 'Kill chained foes together, or they rise again') },
+    'Encadena de a 2 o 3 que van juntos: el que cae vuelve a los 2.5 s mientras quede otro del grupo en pie (y vuelve a la cadena). Hay que tenerlos a todos caídos a la vez: eso rompe la cadena y le saca 4 o 6.', // i18n-ok: el panel de pruebas
+    { mode: 'chains', revive: 'same', bearers: false, hint: L('Encadenados: mientras quede uno en pie, el resto vuelve', 'Chained foes rise again while one still stands') },
   ),
   version(
     'porteadores',

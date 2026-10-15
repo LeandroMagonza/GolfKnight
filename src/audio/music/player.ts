@@ -3,6 +3,7 @@
 // Qué canción va en cada lugar se elige en el panel B (pestaña Sonido) o en musica.html, y se guarda en
 // este navegador.
 import * as Tone from 'tone';
+import type { BeatGrid } from './beat';
 import { DEFAULT_SONG, loadSong } from './registry';
 import type { MusicSlot, Song } from './types';
 
@@ -31,6 +32,8 @@ export class MusicPlayer {
   /** El ▶ del panel: suena esa, sin importar el lugar, hasta que se la saque. */
   private previewing: string | null = null;
   private level = 0;
+  /** La canción de un jefe con música propia: suena esa mientras dura la pelea (ver `force`). */
+  private forced: string | null = null;
 
   constructor(private readonly out: () => Tone.InputNode | null) {}
 
@@ -66,6 +69,21 @@ export class MusicPlayer {
     this.refresh();
   }
 
+  /**
+   * Un jefe con música propia (ver bosses/bardo): suena `id` mientras dura la pelea, sin importar lo elegido
+   * para el lugar; null vuelve a la del lugar (con el fundido de siempre).
+   */
+  force(id: string | null): void {
+    if (id === this.forced) return;
+    this.forced = id;
+    this.refresh();
+  }
+
+  /** La grilla de pulsos de la canción `id`, si es la que suena y tiene (ver beat.ts). */
+  beatOf(id: string): BeatGrid | null {
+    return this.current?.id === id ? this.current.song.beat ?? null : null;
+  }
+
   /** Qué tan tensa está la partida, de 0 a 1: se la pasa a la canción que suena (si le importa). */
   intensity(level: number): void {
     if (Math.abs(level - this.level) < 0.02) return;
@@ -74,7 +92,7 @@ export class MusicPlayer {
   }
 
   refresh(): void {
-    const id = this.previewing ?? (this.songFor(this.slot) || this.songFor(this.scenario) || DEFAULT_SONG);
+    const id = this.previewing ?? this.forced ?? (this.songFor(this.slot) || this.songFor(this.scenario) || DEFAULT_SONG);
     if (id === this.current?.id || id === this.wanted) return;
     this.wanted = id;
     void this.play(id);

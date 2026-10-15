@@ -2661,3 +2661,14 @@ resta. Con el total sube la cantidad de saltos, no lo que pega cada uno.
 Probado con `logs/check-viento.mjs`: la explosión en cadena (y sin maestría, nada); el wedge de viento con
 Torbellino de fuego junta a cuatro que estaban a 12 m y los prende a todos; el wedge de hielo con
 Ventisca sopla y enfría a los que juntó; el remolino de Abe junta a tres que estaban a 9 m.
+
+## Hecho: el nivel de los poderes se ve de lejos, y el tutorial te hace sacar el palo (15/10/2026)
+
+- **El escudo y el blindaje de nivel 2 y 3 van más grandes** (×1.4 y ×1.8), con borde plateado o dorado,
+  un dibujo que cambia (cresta y cuernos en el yelmo, banda de metal en el escudo) y el número grande.
+- **Ganar un poder en plena oleada se ve y se oye**: anillos del color del poder que le suben por el cuerpo,
+  el ícono que salta arriba de la vida y un arpegio tibio por tipo de poder. Sirve para el espectro, la
+  coraza, la bandera y el chamán sin que ellos avisen nada.
+- **El tutorial no te pone el palo**: te dice qué tecla apretar y espera.
+
+Todo en `poderes-visibles.md`; se prueba con `?prueba=poderes`.

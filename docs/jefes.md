@@ -12,6 +12,11 @@ Lo que se le pide a cada jefe nuevo:
 - **Se lee desde la cámara alta:** marcas en el piso, brillos, avisos con tiempo.
 - **No camina derecho a la puerta.** Para eso está el resto de la horda.
 - **Cada jefe lleva al extremo una habilidad del jugador** (abajo), para que cada uno pida algo distinto.
+- **Mientras está vivo, puede romperte la puerta entera** (Leandro, 15/10: «si el limo te hace solo 8 de
+  daño, y vos mataste al resto de la ola con por lo menos 9, podés ignorarlo y ganar igual. Para mí los
+  jefes tienen que tener potencial de romperte toda la puerta mientras están vivos»). Nada de topes: su
+  presión sobre la puerta sigue mientras viva, y la pelea no termina sin matarlo (o sin cumplir lo que
+  pide su versión). Ignorarlo nunca puede ser la jugada.
 
 ## Qué habilidad del jugador pone a prueba cada uno
 
@@ -31,6 +36,7 @@ Lo que se le pide a cada jefe nuevo:
 | Anticipar | tirar adonde va a asomar | Gusano |
 | Pelotas | qué pelota usar antes de que la roben | Rey goblin ladrón |
 | Distancia exacta | el globo en la plataforma | Torre de asedio |
+| Ritmo (soltar en el beat) | todo tiro fuera del beat de su canción sale pifia | Bardo del metal, Ogro tamborilero |
 
 Cada familia tiene su doc en `docs/jefes/<familia>.md`, con lo que hace cada versión y cómo le fue al bot.
 
@@ -111,3 +117,27 @@ sirve para ver qué está muy fácil o muy difícil, no para afinar números.
 | Torre | 1 de 3 | pierde en `muralla` y `casco` |
 
 Las partidas, una por línea, en `logs/tandas/jefes-2026-10-15-02-12.jsonl`.
+
+## La regla de la puerta, familia por familia (15/10)
+
+Revisado contra «mientras está vivo, puede romperte la puerta entera» (sin `bardo`, que estaba en obra):
+
+- **Limo: no la cumplía, arreglado.** El que llegaba a la puerta sacaba un poco (8 el grande) y la pelea
+  terminaba sin matarlo. Ahora cualquier limo que llega a la puerta **la rompe entera** (cartel al empezar,
+  y en la línea espera unos segundos con un disco rojo que se llena). `limo.escupe` paraba a media cancha
+  y solo escupía al puesto: ahora su franja se acerca sin tope y, si no lo matás, cruza.
+- **La cumplen** (la pelea termina solo matándolo y su presión sobre la puerta no tiene techo): gólem
+  (piedras), araña (arañitas de los huevos), caballero (`puerta`, `fuerte`, `atajable`, `devuelve`),
+  lagarto (lanzas), minotauro (embestidas: media puerta cada una, toda en `brutal`), nigromante (alza
+  esqueletos mientras viva), ogro (piedras o bateados a la puerta), el resto de ritmo (lanzas o goblins), hidra
+  (escupitajos a la puerta), `gusano.puerta`, `rey.puerta`, torre (si llega a la línea larga goblins sin
+  parar).
+- **Ritmo: `coraza-escolta` no la cumplía a solas, arreglado.** Castigaba repartiendo blindaje a la escolta,
+  y sin escolta no hacía nada. Ahora, si no hay a quién, tira la lanza a la puerta.
+- **Espectro:** no tiene vida que bajar; su presión son los élites que hace, y un élite que entra tira la
+  puerta. En `ola` y `eterno` la pelea termina con la oleada, pero mientras quede escolta puede hacer
+  élites: no se lo puede ignorar. No se tocó.
+- **Para que decida Leandro (no se tocaron):** `caballero.puesto`, `rey.lanza`, `rey.gloton`,
+  `rey.palanquin` y `gusano.puesto` le tiran solo **a vos**, nunca a la puerta. No se los puede ignorar para
+  ganar (la oleada no termina sin matarlos, y te pueden matar), pero no rompen la puerta. Para cumplir la
+  regla al pie de la letra habría que darles algo contra la puerta: es un cambio de diseño, no un número.

@@ -16,6 +16,9 @@ describe('los volúmenes', () => {
     expect(groupOf('heal')).toBe('enemigos');
     expect(groupOf('explosion-big')).toBe('explosiones');
     expect(groupOf('wave-clear')).toBe('partida');
+    expect(groupOf('swing-big')).toBe('palo');
+    expect(groupOf('gate-fall')).toBe('golfista');
+    expect(groupOf('knight-groan')).toBe('golfista');
   });
 
   it('multiplican el grupo por el sonido', () => {

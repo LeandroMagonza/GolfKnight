@@ -190,7 +190,7 @@ describe('el juego en inglés', () => {
     expect(en.difficulty.TALENTS.find((t) => t.id === 'casters')!.text(0.1)).toMatch(/^10% more sorcerers join/);
     expect(en.cards.cooldownNote('shove', 2)?.text).toMatch(/^Cooldown: 12 s → [\d.]+ s · slower$/);
     expect(en.cards.describe({ kind: 'ability', id: 'cart', level: 2 }).tag).toBe('ABILITY · LEVEL 2');
-    expect(en.abilities.upgradeNote('wedge-lightning', 2)).toBe('Area: 4.2 → 5 m');
+    expect(en.abilities.upgradeNote('wedge-lightning', 2)).toBe('Area: 3.4 → 4 m');
     expect(en.abilities.elementNote('lightning', 1, 2)).toBe('All your lightning, jumps per side: 2 → 3');
     expect(en.abilities.elementNote('ice', 2, 3)).toBe('All your ice: 6.5 → 8 s, and freezes');
     expect(en.spells.spellSize('current', 1)).toBe('4 m wide line');

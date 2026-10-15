@@ -3,6 +3,7 @@
 // suena según dónde está la partida (`MusicSlot`) y cambia de una a otra con un fundido (ver player.ts).
 // Ver docs/musica.md.
 import type * as Tone from 'tone';
+import type { BeatGrid } from './beat';
 
 /** Dónde suena: cada escenario, mientras hay un élite en la cancha, y la pelea con el jefe. */
 export type MusicSlot = 'escenario1' | 'escenario2' | 'escenario3' | 'elite' | 'jefe';
@@ -37,4 +38,9 @@ export interface Song {
   intensity?(level: number): void;
   /** Libera instrumentos y efectos. */
   dispose(): void;
+  /**
+   * Dónde cae cada pulso (opcional): las canciones de los jefes con música (ver beat.ts y bosses/bardo). El
+   * jefe la lee para saber si soltaste en el beat, y le pide el tempo.
+   */
+  beat?: BeatGrid;
 }

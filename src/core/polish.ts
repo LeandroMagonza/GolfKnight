@@ -42,6 +42,13 @@ export const POLISH = {
   mix: 1,
   /** Los efectos suenan en el acto. Apagada, vuelven a sonar 0,1 s tarde, como antes (el adelanto con que Tone agenda la música). */
   onTime: 1,
+  // ---- la cuarta tanda (15/10, Leandro: «el golpe a la pelota suena como a vidrio», «cuando perdés debería haber un ruido más fuerte», «los ruidos me parece que clipean») ----
+  /** El swing grabado: el palo cortando el aire, agendado para que su pico caiga en el impacto. Apagada, vuelve el soplido sintetizado. */
+  swing: 1,
+  /** Al perder: la puerta que cae o el caballero que se queja, la música que se apaga y un silencio antes del final. Apagada, el final suena en el acto. */
+  defeatPause: 1,
+  /** Tope de voces: no más de 3 a la vez del mismo grabado, ni de 8 campanas de baja; y un recorte suave al final que no deja pasar de 0 dB. Se nota al recargar. */
+  mixGuard: 1,
 };
 export type PolishKey = keyof typeof POLISH;
 

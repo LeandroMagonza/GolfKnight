@@ -11,6 +11,14 @@ export class SampleBank {
   private readonly buffers = new Map<string, AudioBuffer[]>();
   private readonly last = new Map<string, number>();
   private loop: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  /**
+   * Cuántas copias de un mismo grabado pueden sonar a la vez (15/10, POLISH.mixGuard): con diez bajas en un
+   * tiro, diez voces de muerte iguales encimadas no se oyen mejor que tres y suman hasta recortar. Sin tope,
+   * Infinity.
+   */
+  cap = Infinity;
+  /** Cuántas copias de cada uno están sonando. */
+  private readonly sounding = new Map<string, number>();
 
   /** `now`: el instante de ahora en el reloj de audio (ver `GameAudio.now`). */
   constructor(private readonly out: Tone.ToneAudioNode, private readonly now: () => number = () => Tone.now()) {}
@@ -51,6 +59,9 @@ export class SampleBank {
     const now = performance.now();
     if (now - (this.last.get(name) ?? -1e9) < ms) return true;
     this.last.set(name, now);
+    const n = this.sounding.get(name) ?? 0;
+    if (n >= this.cap) return true;
+    this.sounding.set(name, n + 1);
     const ctx = Tone.getContext();
     const src = ctx.createBufferSource();
     src.buffer = bufs[Math.floor(Math.random() * bufs.length)];
@@ -60,7 +71,10 @@ export class SampleBank {
     src.connect(gain);
     Tone.connect(gain, this.out);
     src.start(this.now() + delay);
-    src.onended = () => gain.disconnect();
+    src.onended = () => {
+      gain.disconnect();
+      this.sounding.set(name, Math.max(0, (this.sounding.get(name) ?? 1) - 1));
+    };
     return true;
   }
 

@@ -13,7 +13,7 @@ export const BOSSES: BossDef[] = [
   {
     id: 'hidra.clasica',
     name: NAME,
-    blurb: 'Muñón 2 s o le salen dos. El cuerpo solo recibe sin cabezas (10 s), después le salen 3, 4, 5...', // i18n-ok: el panel de pruebas
+    blurb: 'Muñón 2 s o le salen dos. El cuerpo solo recibe sin cabezas (10 s), después le salen 4, y 5. Las del medio y las puntas, bajas (driver).', // i18n-ok: el panel de pruebas
     start: (ctx) => startHydra(ctx, CLASICA),
   },
   {
@@ -25,8 +25,9 @@ export const BOSSES: BossDef[] = [
   {
     id: 'hidra.siempre',
     name: NAME,
-    blurb: 'Al cuerpo se le pega siempre (el doble de vida); las cabezas solo atacan, y las quemadas vuelven a los 15 s.', // i18n-ok: el panel de pruebas
-    start: (ctx) => startHydra(ctx, { ...CLASICA, body: 'always' }),
+    blurb: 'Al cuerpo se le pega siempre (75 de vida); empieza con 4 cabezas que atacan más seguido, y las quemadas vuelven a los 8 s.', // i18n-ok: el panel de pruebas
+    // más exigente (Leandro, 15/10: «hidra siempre me parece bastante fácil»): eran 60 de vida, 3 cabezas y 15 s
+    start: (ctx) => startHydra(ctx, { ...CLASICA, body: 'always', heads: 4, resprout: 8, pace: 0.85 }),
   },
   {
     id: 'hidra.apurada',

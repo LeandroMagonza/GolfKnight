@@ -32,6 +32,11 @@ siempre está en `songs/clasica.ts`, de ejemplo). Se cargan solo cuando hacen fa
 - **El gusto de Leandro**: nada que suene a 8 bits (ondas cuadradas peladas, arpegios de chiptune). Le gustó
   el arpegio de las bajas y la risa del élite. Sonidos cálidos: cuerdas pulsadas, colchones filtrados, FM
   suave, tambores graves, reverb.
+- **Las canciones de los jefes con música** (15/10, `songs/bardo.ts`, ver `docs/jefes/bardo.md`): el jefe
+  la pone con `music.force(id)` mientras dura la pelea (`force(null)` vuelve a la del lugar) y la lee por su
+  `beat`: una `BeatGrid` (`src/audio/music/beat.ts`) donde la canción marca cada pulso que agenda, en la hora
+  del audio. El jefe pide el tempo (`want`) y la canción lo toma al empezar el compás siguiente. Sola (en
+  musica.html o en el render), sube de fase cada 8 compases.
 
 **Para revisarla sin escucharla:** `node tools/lock.mjs navegador -- node tools/musica-render.mjs <id> [segundos]
 [--tension=x|sube]` la renderiza (Tone.Offline) y deja `logs/musica/<id>.wav` y `<id>.png`, el

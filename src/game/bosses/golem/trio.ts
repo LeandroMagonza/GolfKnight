@@ -3,7 +3,7 @@
 // anillo dorado se le cierra en los pies; cuando se cierra, la piedra brilla: cualquier golpe que le entre
 // en esa ventana le hace soltarla encima (se pega y queda aturdido, y aturdido cada golpe le entra uno
 // más). Timeando bien, la puerta no recibe nada. Cada tiro los apura un poco, y cuando cae uno los otros
-// se enojan y van más rápido.
+// se enojan y tiran sin pausa; el último ya no se deja aturdir (15/10).
 import * as THREE from 'three';
 import { L } from '../../../i18n';
 import type { Enemy, EnemyScript } from '../../enemies';
@@ -31,8 +31,13 @@ const CYCLE_MIN = 4.5;
 const CYCLE_DECAY = 0.95;
 /** La primera piedra de cada uno, después de llegar: escalonadas. */
 const FIRST = [3, 6.5, 10];
-/** Cuando cae uno, los que quedan van a esta parte del ciclo. */
-const ANGER = 0.8;
+/**
+ * Cuando cae uno, los que quedan tiran sin pausa (15/10, Leandro: «cuando muere uno los otros tienen que
+ * estar pegando constantemente»): entre tiro y tiro, solo esto (s). El último, además, no se aturde
+ * («cuando queda uno solo no puede stunearse»): levanta con el anillo rojo y tira derecho.
+ */
+const ANGRY_GAP = 1.1;
+const LAST_GAP = 1.6;
 /** La piedra: cualquier golpe en la ventana la corta (ver Overhead). */
 const OVER = { lift: 1.3, window: 1.4, need: 1, radius: 0.95, gate: 1, flight: 1.4 };
 /** Soltársela encima: lo que se pega, lo que queda aturdido, y lo que pega de más cada golpe mientras. */
@@ -77,10 +82,12 @@ export function startTrio(ctx: BossCtx): BossFight {
         if (!g) return;
         g.stars.visible = false;
         fallen++;
+        const left = golems.filter((o) => o !== g && o.e.alive);
+        for (const o of left) o.overhead.uncuttable = left.length === 1;
         // los que quedan se enojan: rugen y van más rápido
         for (const o of golems) {
           if (o === g || !o.e.alive) continue;
-          o.cycle = Math.max(CYCLE_MIN, o.cycle * ANGER);
+          o.cycle = gapFor(o);
           o.next = Math.min(o.next, o.cycle);
           if (o.act === 'idle') {
             o.act = 'roar';
@@ -88,9 +95,12 @@ export function startTrio(ctx: BossCtx): BossFight {
             o.e.animator.playOneShot('Rallying', o.e.animator.clipDuration('Rallying') / ROAR_TIME || 1);
           }
         }
-        if (golems.some((o) => o !== g && o.e.alive)) {
+        if (left.length === 1) {
           ctx.audio.bossAppear();
-          ctx.banner(L('¡Los otros se enojan!', 'The others get angry!'), L('Tiran más seguido', 'They throw more often'), 2);
+          ctx.banner(L('¡El último no se deja aturdir!', "The last one can't be stunned!"), L('Tira sin parar: bajalo rápido', 'He throws nonstop: take him down fast'), 2.2);
+        } else if (left.length) {
+          ctx.audio.bossAppear();
+          ctx.banner(L('¡Los otros se enojan!', 'The others get angry!'), L('Tiran sin parar', 'They throw nonstop'), 2);
         }
       },
     };
@@ -105,6 +115,12 @@ export function startTrio(ctx: BossCtx): BossFight {
     g = { e, act: 'enter', t: 0, next: FIRST[order[i]], cycle: CYCLE, overhead: new Overhead(ctx, e, OVER), stars };
     golems.push(g);
   });
+
+  /** Lo que espera entre tiro y tiro: su ciclo, o casi nada si ya cayó alguno. */
+  function gapFor(g: Golem): number {
+    if (!fallen) return Math.max(CYCLE_MIN, g.cycle * CYCLE_DECAY);
+    return g.overhead.uncuttable ? LAST_GAP : ANGRY_GAP;
+  }
 
   function step(g: Golem, dt: number): void {
     const e = g.e;
@@ -143,8 +159,8 @@ export function startTrio(ctx: BossCtx): BossFight {
         e.animator.poseOneShot('Hard Landing', STUN_POSE);
       } else if (!g.overhead.busy) {
         g.act = 'idle';
-        // cada tiro (cortado o no) lo apura un poco
-        g.cycle = Math.max(CYCLE_MIN, g.cycle * CYCLE_DECAY);
+        // cada tiro (cortado o no) lo apura un poco; si ya cayó alguno, tira de nuevo enseguida
+        g.cycle = gapFor(g);
         g.next = g.cycle;
       }
     } else if (g.act === 'stun') {
@@ -155,7 +171,7 @@ export function startTrio(ctx: BossCtx): BossFight {
         g.act = 'idle';
         g.stars.visible = false;
         e.animator.clearOneShot();
-        g.cycle = Math.max(CYCLE_MIN, g.cycle * CYCLE_DECAY);
+        g.cycle = gapFor(g);
         g.next = g.cycle;
       }
     } else if (g.act === 'roar' && g.t >= ROAR_TIME) {

@@ -109,8 +109,8 @@ describe('cartas', () => {
       for (let level = 2; level <= maxLevelOf(id); level++) expect(describeCard({ kind: 'ability', id, level }, fresh({ slots: [{ id, level: level - 1 }] })).up, `${id} ${level}`).toBeTruthy();
     }
     // el wedge saltea la pifia: su nivel 1 sale con el golpe 2, así que el área es la del 2 y la del 3
-    expect(upgradeNote('wedge-lightning', 2)).toBe('Área: 4.2 → 5 m');
-    expect(describeCard({ kind: 'ability', id: 'wedge-lightning', level: 2 }, fresh({ slots: [{ id: 'wedge-lightning', level: 1 }] })).up).toBe('Área: 4.2 → 5 m · Todo tu rayo, saltos por lado: 2 → 3');
+    expect(upgradeNote('wedge-lightning', 2)).toBe('Área: 3.4 → 4 m');
+    expect(describeCard({ kind: 'ability', id: 'wedge-lightning', level: 2 }, fresh({ slots: [{ id: 'wedge-lightning', level: 1 }] })).up).toBe('Área: 3.4 → 4 m · Todo tu rayo, saltos por lado: 2 → 3');
     // una carta nueva de un elemento que ya tenés también le sube a todo
     expect(describeCard({ kind: 'ability', id: 'putter-fire', level: 1 }, fresh({ slots: [{ id: 'driver-fire', level: 2 }] })).up).toBe('Todo tu fuego: 3 → 4 de daño');
     expect(upgradeNote('wedge-ice', 2)).toContain('Congela');

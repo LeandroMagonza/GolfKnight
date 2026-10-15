@@ -65,6 +65,26 @@ pasa por la fila de un caddie que llega le saca la pelota.
 Además la barra se apura un 0.15 % por segundo de pelea (hasta un 18 %) y un 1.2 % por nivel de
 dificultad.
 
+### Cómo se ve que se apura (15/10)
+
+Leandro: «¿el caballero oscuro carga cada vez más rápido o algo así? porque estaría bueno ver algún reflejo
+de eso, me pasó que venía pegándole pero de repente empecé a no llegar a pegarle antes de que dispare». Sí:
+con las fases y el tiempo, su barra llega a ir 1.6 veces más rápido que al empezar (en la tercera fase, al
+minuto, el rojo abre a 1.05 s en vez de 1.57). Pero el arco se veía igual (los tramos se achican todos
+juntos), y el cambio de fase era un cartelito chico. Ahora:
+
+- **Flechas al costado de su arco**: », »» y »»» cuando su barra va 1.12, 1.3 y 1.5 veces más rápido que al
+  empezar (`SPEED_TIERS`). El brillo del arco cambia con ellas: violeta, naranja, naranja rojizo, rojo.
+- **«¡Más rápido!»** salta arriba del arco cuando suma una flecha (sale la próxima vez que se acomoda, que es
+  cuando importa).
+- **Los ojos** cambian igual: de violeta a naranja y a rojo (`EYE_TIERS`).
+- **Cambio de fase**: el cartel grande («¡El reflejo se apura! Su barra va más rápido: cortalo antes»,
+  «¡Furia oscura! Su barra, más rápida todavía»), con un estallido naranja o rojo y el rugido de jefe.
+- En el registro: `velocidad` (cuántas veces más rápida que al empezar).
+
+En sus partidas de `caballero.puerta` llegó a la fase 3 en cuatro de cinco (de 61 a 76 s): ahí ya va con dos
+flechas, y tres hacia el final.
+
 ## Las versiones
 
 | Id | Qué cambia |
@@ -92,8 +112,11 @@ dificultad.
 
 ## El bot
 
-(Pendiente: las tandas.)
+La primera tanda (15/10, una partida por versión) está en `docs/jefes.md`: ganó 3 de 5, pierde en `fuerte` y
+`atajable`. Lo del 15/10 (las flechas y los ojos) es solo de lo que se ve: no cambia lo que hace ni los
+números, y no se volvió a probar con el bot.
 
 ## Lo que falta o no anda
 
-(Pendiente.)
+- Las flechas y el «¡más rápido!» no se vieron en una foto todavía: con dos flechas, que no tapen su vida ni
+  se salgan de la pantalla en los puestos de las puntas.

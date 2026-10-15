@@ -59,17 +59,36 @@ Igual, pero el marcado que matás vuelve como **esqueleto** (4 de vida, lento), 
 cuenta: matar a un goblin marcado (1 de vida) te deja un esqueleto de 4; matar a un caballero marcado (8)
 te deja uno de 4. Los marcados chicos conviene dejarlos, los grandes conviene matarlos.
 
+**15/10:** a Leandro le pareció fuerte («mataba a uno de lv bajo cerca y después spawneaba de lv 4 y me
+costaba matarlo, perdí por la puerta»), pero con contrajuego: no se tocó la regla. Lo que se agregó es que **se
+lea antes qué va a salir**: arriba de la llama de cada marcado y de cada tumba va un cartelito con una calavera,
+una flecha y los 4 cuadraditos verdes de vida del esqueleto. Con **borde rojo** si el marcado tiene menos de 4
+(matarlo te deja algo más fuerte), con borde verde si no (`drawBonesTag` en `fx.ts`).
+
 ### `nigromante.cadenas` — matar juntos
 
 En vez de marcar, cada 5 s (3.5 casi muerto) **encadena de a 2 o 3 que van cerca** (a menos de 5.5 m),
-hasta 3 cadenas: una cadena de luz verde entre ellos y un anillo a los pies de cada uno. Si cae uno, la
-cadena se pone a titilar y **hay 2 s para matar al resto**: la tumba del caído cuenta ese tiempo. Si
-llegás, **la cadena se rompe y a él le sacás 4 (de a 2) o 6 (de a 3)**, con un rayo de vuelta hasta el
-bastón. Si no, el caído vuelve y la cadena se suelta. A él también se le pega directo, como siempre.
+hasta 3 cadenas: una cadena de luz verde entre ellos y un anillo a los pies de cada uno.
+
+**La regla (desde el 15/10): mientras quede uno del grupo en pie, el que cae vuelve.** Leandro: «el grupo
+solo revivía al primero, una vez que matabas a uno y se ponía a revivir el resto podían morir sin revivir;
+probaría cambiarlo para que cuando hay un grupo tengan que estar muertos los 3 para que no revivan, eso te
+fuerza a matarlos más en área o pegarle a los que más vida tienen antes para poder matarlos a la vez». Y:
+«tiene counterplay y me parece que está bueno por ese lado, te hace jugar distinto».
+
+- El que cae deja su tumba (el disco verde con el anillo que se cierra: 2.6 s, 2 s casi muerto). **La cadena
+  no se suelta**: sigue atada desde los vivos hasta la tumba, gruesa y titilando, y los anillos de los que
+  quedan titilan también.
+- Si al cerrarse la tumba queda alguno del grupo en pie, **el caído vuelve y vuelve a la cadena** (con su
+  anillo; «¡Volvió! Quedaba uno del grupo en pie»). Puede volver todas las veces que haga falta.
+- Si en algún momento **están todos caídos a la vez** (o sea, murieron todos dentro de la ventana), la cadena
+  se rompe: no vuelve nadie, y a él le sacás 4 (de a 2) o 6 (de a 3), con un rayo de vuelta hasta el bastón.
+- El que pasa la línea se suelta del grupo; si queda uno solo, la cadena se suelta y el caído que esperaba
+  vuelve igual (suelto). El que se traga el hoyo cuenta como caído para siempre.
 
 Pide áreas (hierro, wedge, el viento que junta) y alinear el driver corriéndose cargando: tres en fila
 caen de un tiro. Con un grande en la cadena, primero se lo baja sin matarlo y después se los liquida
-juntos.
+juntos. Ya no sirve matarlos de a uno: los primeros vuelven mientras el último siga en pie.
 
 ### `nigromante.porteadores` — voltearlo
 
@@ -94,12 +113,15 @@ Agrega el «cuándo» de una ventana: voltearlo cuando tenés pelotas a mano par
 | Vuelve a los | 3 a 2.2 s | `REVIVE_DELAY` |
 | Alza muertos | con menos de 4 en la cancha, cada 9 s, 2 o 3 | `RAISE_BELOW`, `RAISE_EVERY`, `RAISE_COUNT` |
 | Escolta | ×1.7, cada 2.5 s | `ESCORT_MORE`, `ESCORT_INTERVAL` |
-| Cadenas | cada 5 a 3.5 s, hasta 3, a 5.5 m; ventana 2 s; rompe 4 o 6 | `CHAIN_EVERY`, `MAX_CHAINS`, `CHAIN_REACH`, `CHAIN_WINDOW`, `CHAIN_DAMAGE` |
+| Cadenas | cada 5 a 3.5 s, hasta 3, a 5.5 m; el caído vuelve a los 2.6 a 2 s si queda alguno en pie; rompe 4 o 6 | `CHAIN_EVERY`, `MAX_CHAINS`, `CHAIN_REACH`, `CHAIN_WINDOW`, `CHAIN_DAMAGE` |
 | Porteadores | 4 de vida; caen con 2; 5 s en el piso, +1 por golpe | `BEARER_HP`, `DROP_AT`, `DROP_TIME`, `DROP_BONUS` |
 
 ## Cómo le fue al bot
 
-(ver abajo)
+- **Primera tanda (15/10, una partida por versión):** ganó las cuatro.
+- **`cadenas` con la regla nueva (15/10, una partida):** ganó en 90 s perdiendo 3 de puerta: 2 cadenas, las 2
+  rotas, 1 encadenado que volvió porque quedaba otro en pie. El bot, cuando hay uno caído, va con todo por los
+  que quedan de esa cadena (`weight` 6).
 
 ## Lo que se sabe que falta o puede fallar
 

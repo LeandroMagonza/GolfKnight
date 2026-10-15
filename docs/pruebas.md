@@ -36,6 +36,7 @@ Para comparar con lo de antes:
 | `?prueba=invocaciones` | Q W E R: el carrito arranca, el hoyo se clava (y el que cae suena), la bandera vuela y se clava, la pólvora chisporrotea. |
 | `?prueba=mejoras` | Q W E R: la lluvia de pelotas sube, el caddie brilla dorado, la lupa crece, el clon junta energía. |
 | `?prueba=refuerzos` | Q W E R: eco, potencia, fuerza y el palazo (suena al conectar: dejalos acercar). |
+| `?prueba=poderes` | El nivel de los poderes (15/10, ver poderes-visibles.md): atrás el escudo 1, 2, 3 y el muro; en el medio el blindaje 1, 2 y 3, más grandes y con borde plateado o dorado. Cada 3 s a uno de los goblins de adelante le llega un poder: anillos que le suben por el cuerpo, el ícono que salta y su sonido (un arpegio tibio por tipo de poder). |
 | `?prueba=explosiones` con hierro y wedge | Las explosiones nuevas: un "boom" grabado (la chica) y uno más grave y largo (el golpe 3). |
 | Volúmenes | Panel B, pestaña **Sonido**: un volumen por grupo y uno por cada sonido, con ▶ para escucharlo. «Copiar configuración» y me lo pasás. |
 | Limpiar la cancha | En una partida normal: si matás a todos mientras la oleada sigue saliendo, el que sigue sale enseguida (antes esperaba su turno). Para comparar, `?ajuste=apuro.wait:99`. |
@@ -66,3 +67,6 @@ Las llaves están en `POLISH`, en `src/core/polish.ts`.
 | `abilitySounds` | El sonido de cada poder (vuelve el whoosh de antes para todos) |
 | `mix` | La mezcla sin saturar: vuelve el limitador de antes, que dejaba recortar con varios sonidos juntos. Se nota al recargar |
 | `onTime` | Los sonidos en el acto: vuelven a sonar una décima tarde, como antes |
+| `swing` | El swing grabado que cae en el impacto (vuelve el soplido sintetizado al soltar) |
+| `defeatPause` | Al perder, el ruido del final y el silencio antes de la música (vuelve el final en el acto) |
+| `mixGuard` | El tope de voces por sonido y el recorte suave al final (se nota al recargar) |

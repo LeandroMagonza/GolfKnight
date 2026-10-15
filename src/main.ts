@@ -196,6 +196,11 @@ let bossDef: BossDef | null = null;
 let fight: BossFight | null = null;
 let fightClock = 0;
 let fightBroke = false;
+/**
+ * El jefe decidió que el tiro que se acaba de soltar sale pifia (ver `BossFight.onRelease`; el jefe con música:
+ * fuera del beat). Lleva el cartelito; null, el tiro sigue como siempre.
+ */
+let bossDuff: string | null = null;
 /** Los modelos propios del jefe (`BossDef.models`), a medida que cargan. */
 const bossModels = new Map<string, GLTF>();
 let dungeonGltf: GLTF | null = null;
@@ -419,6 +424,12 @@ const TEST = DEV_TOOLS ? PRUEBAS[params.get('prueba') ?? ''] ?? null : null;
 let testGroup: Enemy[] = [];
 let testWait = 0;
 let testFreeze = 0;
+/** La prueba de los poderes (`grantEvery`): cuánto falta para el próximo, a quién le toca y qué le dio a cada uno. */
+let testGrant = 0;
+let testGrantTurn = 0;
+const testGrants = new Map<Enemy, number>();
+/** Lo que le va llegando a cada uno en la prueba de los poderes, en orden: el blindaje que sube, y otros. */
+const TEST_GRANTS = ['armor', 'armor', 'armor', 'dodge', 'regen', 'elite'] as const;
 /** Tipos de enemigo apagados desde el panel: las oleadas los saltean. */
 const disabledKinds = new Set<EnemyKind>((savedBalance.disabled ?? []) as EnemyKind[]);
 
@@ -994,7 +1005,8 @@ function endGame(result: 'victory' | 'defeat', title: string, detail: string, ca
   fight?.dispose?.();
   Player.blockStep = null;
   if (result === 'victory') audio.victory();
-  else audio.defeat();
+  // al perder: la puerta que cae o el caballero que se queja, un silencio, y recién la música (ver audio.defeat)
+  else audio.defeat(player.alive ? 'gate' : 'player');
 }
 
 horde.onEvent = (e) => {
@@ -1188,6 +1200,10 @@ horde.onEvent = (e) => {
       break;
     case 'banner':
       hud.feedback(e.up ? L('¡La bandera en alto! Todos tienen 1 de vida más', 'Banner up! They all get +1 HP') : L('Cayó la bandera', 'Banner down'), e.up ? 'bad' : 'good');
+      break;
+    case 'powerGained':
+      // ganó un poder o le cambió el nivel: lo que se ve lo hace el enemigo (game/powerGain); acá, el sonido
+      audio.powerGain(e.power, e.level, e.up);
       break;
   }
 };
@@ -2192,7 +2208,7 @@ const input = new Input(ABE_ONLY ? abeKeys : {
       return;
     }
     if (started && !paused && !ended && player.mode === 'charging') {
-      audio.whoosh(player.meter.power);
+      audio.whoosh(player.meter.power, player.club.id);
       player.releaseSwing();
     }
   },
@@ -2341,6 +2357,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
     p.duffs = (club, quality, tap) => {
       // en el tenis no hay pifia: el nivel lo da el timing
       if (tennis) return false;
+      // el jefe la decidió al soltar
+      if (bossDuff !== null) return true;
       const range = shotRange(club);
       return damageFor(club, range, quality, tap) <= 0 && areaDamageFor(club, range, quality, tap) <= 0;
     };
@@ -2348,7 +2366,8 @@ async function makePlayer(skin: Skin): Promise<Player> {
       // la pifia también gasta el eco y la potencia
       dropNextShot();
       audio.duff();
-      hud.feedback(L('¡Pifia!', 'Whiff!'), 'bad');
+      hud.feedback(bossDuff || L('¡Pifia!', 'Whiff!'), 'bad');
+      bossDuff = null;
       setCleanStreak(0);
       tutorial?.onDuff();
     };
@@ -2358,6 +2377,15 @@ async function makePlayer(skin: Skin): Promise<Player> {
     p.onRelease = () => {
       // a cuánto del tope soltó, para el registro (se anota con el tiro, si sale)
       releaseOff = p.meter.offPeak;
+      bossDuff = null;
+      if (fight?.onRelease && !tennis) {
+        try {
+          const v = fight.onRelease({ club: p.club.id, power: p.meter.power });
+          if (v?.pifia) bossDuff = v.text ?? '';
+        } catch (err) {
+          console.error(`[gk] el jefe ${bossDef?.id} falló al soltar:`, err);
+        }
+      }
       if (tennis || glove?.element === 'ghost') return;
       p.teePosition(tee);
       horde.dodgeAim(tee, p.aimDir);
@@ -3409,6 +3437,10 @@ function updateTest(dt: number): void {
     testFreeze = 0;
     for (const e of testGroup) if (e.alive && !e.passed) horde.freeze(e);
   }
+  if (TEST.grantEvery && (testGrant += dt) >= TEST.grantEvery) {
+    testGrant = 0;
+    grantTestPower();
+  }
   if (testGroup.some((e) => e.alive && !e.passed)) return;
   if (testWait === 0) {
     audio.waveClear();
@@ -3418,6 +3450,31 @@ function updateTest(dt: number): void {
   if (testWait < 1.6 || cardOpen) return;
   testWait = 0;
   spawnTestGroup();
+}
+
+/** La prueba de los poderes: a uno de los marcados le llega lo que sigue en su lista (ver TEST_GRANTS). */
+function grantTestPower(): void {
+  if (!TEST) return;
+  const open = testGroup.filter((e, i) => e.alive && !e.passed && TEST.enemies[i]?.grants && (testGrants.get(e) ?? 0) < TEST_GRANTS.length);
+  if (!open.length) return;
+  const e = open[testGrantTurn++ % open.length];
+  const n = testGrants.get(e) ?? 0;
+  testGrants.set(e, n + 1);
+  const m = e.mods;
+  switch (TEST_GRANTS[n]) {
+    case 'armor':
+      m.armor = (m.armor ?? 0) + 1;
+      break;
+    case 'dodge':
+      m.dodge = true;
+      break;
+    case 'regen':
+      m.regen = REGEN.margin;
+      break;
+    case 'elite':
+      m.size = 1.25;
+      break;
+  }
 }
 
 // ---- el jefe (14/10; ver src/game/bosses y docs/jefes.md) ----

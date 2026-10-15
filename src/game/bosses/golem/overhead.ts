@@ -20,6 +20,8 @@ const DROP_TIME = 0.28;
 const GOLD = new THREE.Color(0xffc93a);
 const RING_FROM = 3.2;
 const RED_MARK = 0xff4a2a;
+/** El brillo de la piedra sin ventana (no se le puede cortar). */
+const NO_CUT = new THREE.Color(0xff4a2a);
 
 export interface OverheadOpts {
   /** Lo que tarda en levantarla, y lo que dura la ventana, en s. */
@@ -51,6 +53,11 @@ export class Overhead {
   acc = 0;
   /** Para el registro: las que soltó encima suyo y las que llegaron a la puerta. */
   readonly count = { cut: 0, landed: 0, thrown: 0 };
+  /**
+   * Sin ventana (15/10: el último de los tres gólems «no puede stunearse»): la levanta con el anillo rojo
+   * y la tira directo, sin el dorado ni la chance de soltársela encima.
+   */
+  uncuttable = false;
   private rock: { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial } | null = null;
   private readonly ring: GroundMark;
   private readonly flying: Flying[] = [];
@@ -76,7 +83,7 @@ export class Overhead {
 
   /** Lo que le entró al gólem: en la ventana suma. */
   hit(dealt: number): void {
-    if (this.phase === 'window') this.acc += dealt;
+    if (this.phase === 'window' && !this.uncuttable) this.acc += dealt;
   }
 
   /** El brazo para el guion (scriptSwing), o null si no está con la piedra. */
@@ -97,6 +104,7 @@ export class Overhead {
 
   /** El bot: dentro de cuánto abre y cierra la ventana (null si no hay una en camino). */
   windowIn(): { open: number; close: number } | null {
+    if (this.uncuttable) return null;
     if (this.phase === 'lift') return { open: this.opts.lift - this.t, close: this.opts.lift - this.t + this.opts.window };
     if (this.phase === 'window') return { open: 0, close: this.opts.window - this.t };
     return null;
@@ -138,10 +146,12 @@ export class Overhead {
       rock.mesh.scale.setScalar(Math.max(0.01, smooth(Math.min(1, this.t / (opts.lift * 0.7)))));
       rock.mesh.position.copy(head);
       rock.mesh.rotation.y += dt * 1.5;
-      rock.mat.emissive.copy(GOLD).multiplyScalar(0.15 * k);
+      rock.mat.emissive.copy(this.uncuttable ? NO_CUT : GOLD).multiplyScalar(0.15 * k);
+      this.ring.color(this.uncuttable ? RED_MARK : GOLD.getHex());
       this.ring.at(g.position.x, g.position.z).size(close + RING_FROM * (1 - k)).opacity(0.25 + 0.35 * k);
       if (this.t >= opts.lift) {
-        this.phase = 'window';
+        // sin ventana: la tira derecho
+        this.phase = this.uncuttable ? 'throw' : 'window';
         this.t = 0;
       }
     } else if (this.phase === 'window') {

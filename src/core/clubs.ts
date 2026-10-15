@@ -125,7 +125,7 @@ export const CLUBS: Record<ClubId, Club> = {
   },
   iron: {
     id: 'iron', name: L('Hierro 7', '7 Iron'), title: L('Arco bajo', 'Low arc'), hint: L('Obstáculos y explota', 'Clears cover, bursts'),
-    loftDeg: 27, minRange: 0, maxRange: 55, spread: [2.2, 3, 3.5],
+    loftDeg: 27, minRange: 0, maxRange: 55, spread: [2.4, 3.3, 3.85], // +10 % (Leandro, 15/10)
     // modo por defecto: no atraviesa, y el área sale solo si le pega a alguien (ver IRON_MODES)
     pierces: false, burstsOnGround: false, stopsOnLand: true,
     damage: [[1, 2, 3], [1, 2, 3], [1, 2, 3]],
@@ -134,7 +134,7 @@ export const CLUBS: Record<ClubId, Club> = {
   },
   wedge: {
     id: 'wedge', name: 'Wedge', title: L('Globo', 'Lob'), hint: L('Área', 'Area'),
-    loftDeg: 55, minRange: 0, maxRange: 55, spread: [3.5, 4.2, 5],
+    loftDeg: 55, minRange: 0, maxRange: 55, spread: [2.8, 3.4, 4], // −20 % (Leandro, 15/10)
     pierces: false, burstsOnGround: true, stopsOnLand: true,
     // todo su daño es de área, y es la más grande de todas: por eso pega bastante menos que un impacto.
     // El golpe 1 es una **pifia**: 0 de daño, y un tiro que no pega nada no sale (ver `Player.duffs`).

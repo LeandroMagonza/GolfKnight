@@ -1358,7 +1358,9 @@ export function startBot(): BotStats {
     const pl = gk.player;
     const p = plan!;
     const times: ChargeTimes = pl.meter.timing;
-    const wait = p.releaseAt !== undefined ? Math.max(0, p.releaseAt - clock) : 0;
+    // el jefe con música (ver bosses/bardo): suelta en el beat, o sale pifia
+    const bossWait = gk.boss?.fight?.bot?.releaseWait?.() ?? 0;
+    const wait = Math.max(p.releaseAt !== undefined ? Math.max(0, p.releaseAt - clock) : 0, bossWait);
     const left = Math.max(chargeTime(p.q, times) - (pl.meter.elapsed ?? 0), wait, 0) + delay;
     if (!aimPlan(p, left)) {
       // se murió (o se fue) el blanco, o ya no hay cómo: otro desde acá, o suelta la carga

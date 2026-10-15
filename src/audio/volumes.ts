@@ -43,6 +43,8 @@ export const SFX_NAMES = [
   'hole', 'hurt', 'hurt-goblin', 'hurt-goblina', 'hurt-golem', 'hurt-knight', 'hurt-orc', 'hurt-shaman', 'hurt-skeleton',
   'hurt-stoneling', 'hurt-warchief', 'hurt-wraith', 'ice', 'lightning-chain', 'perfect', 'phase-bounce', 'player-dies',
   'ricochet', 'trample', 'ui-click', 'victory', 'wave-clear',
+  // 15/10: el swing de cada palo, la puerta que cae y el caballero que se queja al perder
+  'swing', 'swing-big', 'swing-short', 'gate-fall', 'knight-groan',
 ] as const;
 
 /** El volumen de cada sonido grabado, aparte del de su grupo. */
@@ -50,10 +52,10 @@ export const SFX_VOLUME: Record<string, number> = Object.fromEntries(SFX_NAMES.m
 
 /** A qué grupo va cada sonido grabado. */
 export function groupOf(name: string): VolumeGroup {
-  if (name.startsWith('club-') || name === 'perfect' || name === 'duff') return 'palo';
+  if (name.startsWith('club-') || name.startsWith('swing') || name === 'perfect' || name === 'duff') return 'palo';
   if (name === 'ball-hit' || name.startsWith('hit-') || name === 'armor-hit' || name === 'ricochet' || name === 'phase-bounce') return 'golpes';
   if (name.startsWith('explosion-')) return 'explosiones';
-  if (name === 'hurt' || name === 'gate-hit' || name === 'player-dies') return 'golfista';
+  if (name === 'hurt' || name === 'gate-hit' || name === 'player-dies' || name === 'gate-fall' || name === 'knight-groan') return 'golfista';
   if (name.startsWith('death-') || name.startsWith('hurt-') || name.startsWith('elite-') || name.startsWith('boss-')) return 'voces';
   if (name.startsWith('cast-') || ['ice', 'lightning-chain', 'hole', 'trample'].includes(name)) return 'poderes';
   if (['wave-clear', 'card-appear', 'card-pick', 'ui-click', 'victory', 'defeat'].includes(name)) return 'partida';

@@ -244,6 +244,14 @@ export class Spit {
     this.puddled++;
   }
 
+  /** Se cortó la escupida (un golpe fuerte al limo mientras se infla): si el globo no salió, no sale. */
+  cancel(g: Glob): boolean {
+    const i = this.globs.indexOf(g);
+    if (i < 0 || g.launched) return false;
+    this.drop(i);
+    return true;
+  }
+
   private drop(i: number): void {
     const g = this.globs[i];
     g.ring.dispose();

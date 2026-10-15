@@ -21,9 +21,12 @@
 // 7. el hierro: un grupo detrás de una loma, pegándole a uno salpica a los demás;
 // 8. el wedge: otro grupo detrás de la misma loma; con el golpe 1 pifia;
 // 9. el putter: uno cerca.
+// Cuando el paso trae otro palo (el hierro, el wedge, el putter), no te lo pone solo (15/10, pedido de
+// Leandro): el palo nuevo aparece en la barra, el paso dice qué tecla apretar, y los enemigos salen recién
+// cuando lo sacaste.
 // Al terminar arranca la partida de verdad, con los cuatro palos.
 import * as THREE from 'three';
-import { qualityOf, type ClubId } from './core/clubs';
+import { CLUB_KEYS, CLUB_ORDER, CLUBS, qualityOf, type ClubId } from './core/clubs';
 import { heightAt, mounds, type Mound } from './core/terrain';
 import type { EnemyKind, EnemyMods } from './core/waves';
 import type { Enemy, Horde, HordeEvent } from './game/enemies';
@@ -280,6 +283,8 @@ export class Tutorial {
   finished = false;
   /** El paso 5: la fila va sobre la recta de la pelota hacia `baseX`, que también tiene que ser plana. */
   lineUp = false;
+  /** El palo que el paso espera que saque (con su tecla) antes de arrancar. Null: ya lo tiene en la mano. */
+  private switchTo: ClubId | null = null;
 
   /** Lo que pone el paso, antes de ubicarlo en el campo (ver `place`). */
   private pending: { kind: EnemyKind; x: number; z: number; mods?: EnemyMods; line?: number; from?: number }[] = [];
@@ -439,11 +444,31 @@ export class Tutorial {
       this.wait = 3.5;
       return;
     }
+    this.host.hud.showBanner(s.title, L(`Paso ${this.index + 1} de ${STEPS.length}`, `Step ${this.index + 1} of ${STEPS.length}`), 2);
+    const player = this.host.player();
+    if (this.index > 0 && player.club.id !== s.club) {
+      // otro palo: no te lo pone solo (15/10, Leandro: «que te obligue a tener un paso de apretar el botón
+      // para pasar al palo correspondiente»). Aparece en la barra, con el que tenías, y se espera la tecla
+      player.unlocked.add(s.club);
+      this.switchTo = s.club;
+      const key = KEY(CLUB_KEYS[CLUB_ORDER.indexOf(s.club)]);
+      const name = CLUBS[s.club].name;
+      this.say(L(
+        `Ahora, el <b>${name}</b>. Apretá ${key} para sacarlo: cada palo tiene su tecla, y se cambia en cualquier momento.`,
+        `Now the <b>${name}</b>. Press ${key} to take it out: each club has its own key, and you can switch any time.`,
+      ));
+      return;
+    }
+    this.begin(s);
+  }
+
+  /** Arranca el paso con su palo en la mano: los enemigos, la loma y lo que hay que hacer. */
+  private begin(s: Step): void {
+    this.switchTo = null;
     this.host.onlyClub(s.club);
     s.setup(this);
     this.place(!!s.sameSpot);
     this.say(s.text);
-    this.host.hud.showBanner(s.title, L(`Paso ${this.index + 1} de ${STEPS.length}`, `Step ${this.index + 1} of ${STEPS.length}`), 2);
   }
 
   /** Vuelve a poner el paso como empezó: los vivos, sanos y en su lugar; los caídos, de nuevo. */
@@ -502,7 +527,7 @@ export class Tutorial {
 
   /** Terminó un tiro del golfista. */
   onShotDone(): void {
-    if (this.wait > 0) return;
+    if (this.wait > 0 || this.switchTo) return;
     this.step?.shotDone?.(this);
   }
 
@@ -520,6 +545,13 @@ export class Tutorial {
     const s = this.step;
     if (!s) return;
     if (!s.noSupply) this.supplyBall(dt);
+    if (this.switchTo) {
+      // esperando que saque el palo del paso (con la tecla o la rueda); si está tirando, cuando termina
+      const p = this.host.player();
+      if (p.club.id !== this.switchTo || p.pendingClub) return;
+      this.host.hud.feedback(L('¡Eso!', 'There you go!'), 'good');
+      this.begin(s);
+    }
     s.update?.(this, dt);
     if (this.allDown) {
       this.say(s.praise);

@@ -10,7 +10,7 @@ rápido si llega a embestir, y te puede quedar ahí cerca, que te da menos tiemp
 bajarlo.»
 
 Código: `src/game/bosses/minotauro/` (`index.ts` las versiones, `fight.ts` la pelea, `props.ts` lo que se ve).
-Probarlo: `?ola=10&jefe=minotauro.carga` (o `.mixto`, `.billar`, `.brutal`).
+Probarlo: `?ola=10&jefe=minotauro.carga` (o `.mixto`, `.billar`, `.brutal`, `.coraza`).
 
 ## Cómo es
 
@@ -22,7 +22,7 @@ gólem de roca. Llega con la última oleada (sin el gólem de siempre; la escolt
    arriba de la vida, aparece **la barra de la carga**: un par de cuernos y un cuadradito naranja por punto, con
    **la mecha** abajo (lo que le falta para salir). En el piso: **el carril** naranja hasta la puerta, **un anillo
    rojo en la línea de los puestos** (el puesto que va a atropellar) y **un anillo a sus pies que se cierra**.
-   La primera vez sale el cartel «¡El minotauro va a embestir! Bajale la carga antes de que salga».
+   La primera vez sale el cartel «¡El minotauro va a embestir! Bajale la carga. Si te pasa, rompe la puerta».
 3. **Cada golpe le baja la carga** (sale el número en naranja, «−3», y la barra parpadea). Según la versión, le
    baja también la vida.
 4. **Si le vaciás la carga antes de que salga**, la carga se rompe (estallido naranja, «¡Carga rota!») y queda
@@ -37,8 +37,10 @@ gólem de roca. Llega con la última oleada (sin el gólem de siempre; la escolt
    Pegarle en el medio lo manda derecho para atrás; en el borde, hasta 70° de costado. Corre 13 m para ese
    lado, se sacude la cabeza y **vuelve a juntar desde ahí**: si lo desviaste tarde, queda cerca (hasta 22 m
    de la puerta), y la próxima corrida es corta. «¡Desviado!»
-8. **Si llega a la puerta**, le pega **lo que le quedaba de carga** (en la versión brutal, la tira abajo),
-   rebota atontado y vuelve corriendo al fondo a juntar otra.
+8. **Si te pasa, rompe la puerta** (desde el 15/10): al cruzar tu línea sale «¡Te pasó! ¡Va a romper la
+   puerta!», y al llegar le saca **media puerta (5 de 10)**, le quede la carga que le quede, con un estallido y
+   «¡Rompió la puerta!» (en la versión brutal, la tira abajo entera). Rebota atontado y vuelve corriendo al
+   fondo a juntar otra. Antes le sacaba lo que le quedaba de carga.
 9. **Si te encuentra en el carril**, te atropella (1 de vida) y sigue.
 10. **Cada carga nueva es más fuerte:** un punto más (de 5 a 11), junta un poco menos (de 5.2 s a 4 s) y corre
     más rápido (de 9 a 12 m/s). Con la dificultad, un punto más cada 4 niveles.
@@ -66,10 +68,13 @@ Otras reglas:
 
 | Versión | Qué tiene de distinto |
 |---|---|
-| `minotauro.carga` | **El golpe mientras junta o corre baja solo la carga.** La vida baja en las ventanas: aturdido (+1 por golpe), desviado, moviéndose, entrando. 50 de vida. Llega: la puerta pierde lo que le quedaba de carga. |
-| `minotauro.mixto` | **Cada golpe baja la carga y la vida a la vez.** 90 de vida, sin el +1 del aturdido. Llega: la puerta pierde lo que le quedaba. |
+| `minotauro.carga` | **El golpe mientras junta o corre baja solo la carga.** La vida baja en las ventanas: aturdido (+1 por golpe), desviado, moviéndose, entrando. 30 de vida. |
+| `minotauro.mixto` | **Cada golpe baja la carga y la vida a la vez.** 55 de vida, sin el +1 del aturdido. |
 | `minotauro.billar` | Como «carga», pero **cada golpe de la corrida lo rebota** en ángulo (2.2 m por punto) y sigue corriendo con lo que le queda; el que le vacía la carga lo desvía del todo. Cada golpe gana tiempo. |
-| `minotauro.brutal` | Como «mixto», pero **si llega a la puerta con carga, la puerta cae**: se pierde la partida. |
+| `minotauro.brutal` | Como «mixto», pero **si llega a la puerta, la puerta cae**: se pierde la partida. |
+| `minotauro.coraza` | (15/10) Como «carga», pero **la carga es más chica y blindada**: 3 puntos la primera, +1 cada una, hasta 7; cada golpe le baja **uno menos** (el golpe 1 rebota: «0» gris, ruido de armadura, «¡Blindado! Pegale más fuerte») y a la vida, nada. Mientras junta brilla acero, no rojo. 30 de vida. |
+
+En todas menos brutal, si te pasa le saca media puerta.
 
 ## Los números (arriba de `fight.ts`; la vida, en `index.ts`)
 
@@ -80,6 +85,8 @@ Otras reglas:
 | `TELL` | 0.8 s | el aviso del final (de manos, carril rojo) |
 | `RUN_FIRST`, `RUN_STEP`, `RUN_MAX` | 9, +0.4, 12 m/s | velocidad de la corrida |
 | `RUN_FLOOR` | 0.5 | a qué parte corre con la carga casi vacía |
+| `GATE_SMASH` | 5 | lo que le saca a la puerta si te pasa (la puerta es de 10); brutal: toda |
+| `armor`, `charge` (`Variant`) | 1; 3, +1, 7 | la coraza: lo que le resta a cada golpe mientras carga, y sus puntos |
 | `FLINCH_SLOW`, `FLINCH_TIME` | 0.35, 0.25 s | el tropezón de cada golpe en la corrida |
 | `DAZE` | 3.5 s | aturdido después de romperle la carga |
 | `dazeBonus` | 1 en «carga», 0 en «mixto» | daño de más por golpe aturdido |
@@ -88,12 +95,35 @@ Otras reglas:
 | `PUSH_PER_POINT` | 2.2 m | billar: lo que rebota cada punto de un golpe de la corrida |
 | `STANCE_NEAR`, `STANCE_FAR`, `STANCE_SIDE` | 36, 46, 12 m | dónde se planta |
 | `TRAMPLE` | 1 | lo que le saca al golfista que atropella |
-| vida | 50 («carga», «billar»), 90 («mixto», «brutal») | más la del golpe 4 (`bonusHp`) |
+| vida | 30 («carga», «billar», «coraza»), 55 («mixto», «brutal») | más la del golpe 4 (`bonusHp`); hasta el 15/10, 50 y 90 |
+
+## Lo que cambió el 15/10 (lo que dijo Leandro)
+
+«El minotauro me gustó, pero también me parece que tiene mucha vida, y que debería romper la puerta si logra
+pasarte; quizás ya brutal es lo que pedía, porque no le baja la vida pero hace que le baje la vida y la de
+carga cuando le pegás mientras carga, lo que básicamente hace que le baje la vida jaja.» Y: «quizás le podría
+[poner] carga más chica y blindaje mientras carga, pero no tengo un gran argumento».
+
+- **Menos vida en todas**: 50 → 30 y 90 → 55. Le ganó a «carga» a los 188 s, con 18 cargas y 14 desvíos; con
+  30, unos 110 s contando la escolta.
+- **Si te pasa, rompe la puerta**: media puerta de una (`GATE_SMASH`), avisado en el cartel de la primera carga
+  y al cruzar tu línea. Dos pasadas y se pierde; una con la puerta sana duele pero no termina la partida.
+  Elegí eso y no la puerta entera para que dejarlo pasar una vez no sea perder en todas las versiones: para
+  eso está brutal.
+- **Brutal**: lo que dice Leandro es que en brutal (que es «mixto»: cada golpe baja la carga **y** la vida) la
+  pelea es casi pegarle a la vida todo el tiempo, y por eso se siente bien. Queda igual (la puerta entera si
+  pasa), con la vida nueva (55). Si es la que le gusta, `mixto` ahora es la misma pelea con la media puerta.
+- **`minotauro.coraza`, nueva**, para comparar: la carga chica y blindada que pidió (arriba). Pide golpes
+  fuertes, no muchos golpes: un 3 le saca 2, un 4 le saca 3, un 1 nada.
 
 ## El bot
 
-<!-- se completa con las tandas -->
+15/10, `minotauro.coraza`, 2 partidas desde la oleada 10: ganó una a los 55 s del jefe (4 cargas, 2 rotas, 1
+desvío, 5 rebotes en la coraza, **1 vez le pasó: −5 de puerta**). La otra se cortó a los 26 s por un error de
+la tanda (`page.evaluate`: «reading 'hit'», no del jefe: había otros agentes cambiando el árbol), con el
+minotauro en 10 de vida después de romperle las dos primeras cargas.
 
 ## Problemas conocidos
 
-<!-- se completa -->
+- La barra de la carga no muestra la coraza (los cuernos son los mismos): se lee por el brillo acero mientras
+  junta y por el «0» de los golpes que rebotan.

@@ -26,6 +26,12 @@ export interface Variant {
    * ninguna), o siempre se le puede pegar.
    */
   body: 'covered' | 'always';
+  /** Con cuántas cabezas empieza (3 si no se dice). */
+  heads?: number;
+  /** Cuánto tarda en volver a salir una cabeza de un muñón quemado, en la versión «siempre» (`RESPROUT`). */
+  resprout?: number;
+  /** Por cuánto se multiplica el tiempo entre ataques (1 si no se dice; menos, más seguido). */
+  pace?: number;
 }
 
 /** Dónde aparece, adónde va a plantarse (a unos 24 m de los puestos) y a qué paso. */
@@ -33,13 +39,29 @@ const ENTER_Z = 58;
 const HOLD_Z = 33;
 const ENTER_SPEED = 3;
 /** Cada cuánto se corre de costado, a qué paso, y entre qué x (para no quedarse en un lugar). */
-const WADE = { every: 16, speed: 1.4, span: 8, minStep: 4 };
-/** Cabezas al empezar, y cuántos cuellos le entran como mucho. */
+const WADE = { every: 16, speed: 1.4, span: 6, minStep: 4 };
+/**
+ * Cabezas al empezar, y cuántos cuellos le entran como mucho (eran 7; Leandro, 15/10: «quizás 7 cabezas es
+ * mucho»).
+ */
 const HEADS_START = 3;
-const SLOTS = 7;
+const SLOTS = 5;
+/**
+ * Dónde van las cabezas (15/10, Leandro: «algunas cabezas cerca del piso, que se les pueda pegar con el
+ * driver, y que estén más separadas entre sí para que el wedge no les pegue a todas»). Los cuellos pares
+ * (el del medio y los de las puntas) van **bajos**, adelante, con la cabeza casi en el piso: el driver
+ * rasante las ve. Los impares, **altos**, más atrás. Entre una y la de al lado hay unos 4.5 m: un wedge
+ * agarra una, o dos si cae justo entre las dos, pero no todas.
+ */
+const SPREAD = { gap: 3.9, lowZ: 5.8, highZ: 3.8 };
+/** Altura de la cabeza de un cuello bajo (la de los altos es HEAD_Y). */
+const HEAD_LOW = 1.25;
+const isLow = (i: number) => i % 2 === 0;
+/** Cuántas piedras lleva el cuello de cada lugar (del medio para afuera): los de las puntas son largos. */
+const NECK_LINKS = [11, 12, 16];
 /** Vida de cada cabeza (más con la dificultad: +1 cada 4 niveles) y del cuerpo, según la versión. */
 const HEAD_HP = 5;
-const BODY_HP = { covered: 30, always: 60 };
+const BODY_HP = { covered: 30, always: 75 };
 /** La cabeza que vuelve sola y más fuerte: cuánta más vida, cuánto más grande y cuántas veces más ataca. */
 const STRONG = { hp: 1.8, scale: 1.2, weight: 2 };
 /** El cuerpo tapado: cuánto queda al descubierto cuando se queda sin cabezas, antes de que le vuelvan a salir. */
@@ -70,15 +92,15 @@ const RECOIL = 0.35;
 /** Los cuellos en el cuerpo (que mira a +z): de dónde salen, de izquierda a derecha. */
 function shoulderOf(i: number): THREE.Vector3 {
   const k = i - (SLOTS - 1) / 2;
-  return new THREE.Vector3(k * 0.42, 2.35 - Math.abs(k) * 0.07, 1.7 - Math.abs(k) * 0.12);
+  return new THREE.Vector3(k * 0.55, (isLow(i) ? 2.15 : 2.45) - Math.abs(k) * 0.1, 1.7 - Math.abs(k) * 0.15);
 }
 /** Dónde está, quieta, la cabeza de cada cuello (en el piso, en el modelo del cuerpo). */
 function restOf(i: number): THREE.Vector3 {
   const k = i - (SLOTS - 1) / 2;
-  return new THREE.Vector3(k * 1.3, 0, 4.7 - Math.abs(k) * 0.3);
+  return new THREE.Vector3(k * SPREAD.gap, 0, isLow(i) ? SPREAD.lowZ - Math.abs(k) * 0.3 : SPREAD.highZ);
 }
 /** En qué orden se ocupan los cuellos libres: del medio para afuera. */
-const FILL_ORDER = [3, 1, 5, 2, 4, 0, 6];
+const FILL_ORDER = [2, 1, 3, 0, 4];
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const ease = (u: number) => {
@@ -228,7 +250,9 @@ interface Slot {
   snap: number;
   recoil: number;
   phase: number;
-  /** La animación de la cabeza (ver `animateHead`). */
+  /** Lo que baja la cabeza de este cuello desde HEAD_Y (los bajos, ver `isLow`): la base de `rise`. */
+  base: number;
+  /** La animación de la cabeza (ver `animateHead`); `rise` ya trae `base`. */
   rise: number;
   back: number;
   tilt: number;
@@ -253,7 +277,7 @@ function jointOf(e: Enemy, s: Slot, out: THREE.Vector3): THREE.Vector3 {
 }
 
 /** Lo que miden los modelos (los mide `addLook`): la vida del enemigo va a esa altura, sin escalar. */
-const measured = { body: 3.2, head: HEAD_Y + 0.9 };
+const measured = { body: 3.2, head: HEAD_Y + 0.9, low: HEAD_LOW + 0.9 };
 
 /** Las partes de una cabeza que se animan, buscadas una sola vez. */
 interface HeadParts {
@@ -272,6 +296,9 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
   if (!horde.hasLook('hidra-cuerpo')) measured.body = horde.addLook('hidra-cuerpo', bodyLook());
   if (!horde.hasLook('hidra-cabeza')) measured.head = horde.addLook('hidra-cabeza', headLook());
   if (!horde.hasLook('hidra-cabeza-fuerte')) horde.addLook('hidra-cabeza-fuerte', headLook(COLORS.strong));
+  // las de los cuellos bajos: el mismo modelo con la cabeza abajo, así la vida va encima de la cabeza
+  if (!horde.hasLook('hidra-cabeza-baja')) measured.low = horde.addLook('hidra-cabeza-baja', headLook(COLORS.scale, HEAD_LOW));
+  if (!horde.hasLook('hidra-cabeza-fuerte-baja')) horde.addLook('hidra-cabeza-fuerte-baja', headLook(COLORS.strong, HEAD_LOW));
   if (!horde.hasLook('hidra-munon')) {
     // el muñón es solo la columna donde le pegan: lo que se ve es la punta del cuello (ver Neck)
     const g = new THREE.Group();
@@ -344,8 +371,8 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
   for (let i = 0; i < SLOTS; i++) {
     slots.push({
       i, state: 'empty', head: null, stump: null, timer: 0, age: 0, strong: false, budStrong: false, attack: null,
-      snap: 0, recoil: 0, phase: ctx.rng() * Math.PI * 2, rise: 0, back: 0, tilt: 0, jaw: 0, droop: 0,
-      end: new THREE.Vector3(), stumpAt: new THREE.Vector3(), neck: new Neck(scene, scaleMat, darkMat, boneMat), ring: null,
+      snap: 0, recoil: 0, phase: ctx.rng() * Math.PI * 2, base: isLow(i) ? HEAD_LOW - HEAD_Y : 0, rise: isLow(i) ? HEAD_LOW - HEAD_Y : 0, back: 0, tilt: 0, jaw: 0, droop: 0,
+      end: new THREE.Vector3(), stumpAt: new THREE.Vector3(), neck: new Neck(scene, scaleMat, darkMat, boneMat, NECK_LINKS[Math.abs(i - (SLOTS - 1) / 2)]), ring: null,
     });
   }
   const globs: Glob[] = [];
@@ -386,10 +413,12 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
     const at = toWorld(restOf(slot.i), new THREE.Vector3());
     const k = strong ? STRONG.scale : 1;
     const hp = strong ? Math.round(headHp * STRONG.hp) : headHp;
+    const low = isLow(slot.i);
     const e = horde.spawnCustom(partStats('wraith', {
       name: strong ? L('Cabeza furiosa', 'Raging head') : L('Cabeza de hidra', 'Hydra head'),
-      behavior: 'golem', height: HEAD_H * k, radius: 0.85 * k, hp, speed: 0, heavy: true, runs: false, score: 40, damage: 1, gateDamage: 1,
-    }), strong ? 'hidra-cabeza-fuerte' : 'hidra-cabeza', at.x, at.z, {}, headScript(slot));
+      behavior: 'golem', height: (low ? measured.low : HEAD_H) * k, radius: 0.85 * k, hp, speed: 0, heavy: true, runs: false, score: 40, damage: 1, gateDamage: 1,
+    }), `hidra-cabeza${strong ? '-fuerte' : ''}${low ? '-baja' : ''}`, at.x, at.z, {}, headScript(slot)); // i18n-ok: clave del modelo
+    slot.rise = slot.base;
     e.heading = body.heading;
     slot.head = e;
     slot.state = 'head';
@@ -457,7 +486,7 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
     x.remove();
     slot.stump = null;
     slot.state = 'sealed';
-    slot.timer = RESPROUT;
+    slot.timer = v.resprout ?? RESPROUT;
     slot.ring?.dispose();
     slot.ring = null;
     stats.quemadas++;
@@ -492,6 +521,8 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
     const obj = headLook(slot.strong ? COLORS.strong : COLORS.scale);
     obj.scale.setScalar(slot.strong ? STRONG.scale : 1);
     obj.position.copy(e.position);
+    // el modelo tiene la cabeza a HEAD_Y: la de un cuello bajo (o la que estaba alzada) cae desde donde estaba
+    obj.position.y += slot.rise * (slot.strong ? STRONG.scale : 1);
     obj.rotation.y = e.heading;
     scene.add(obj);
     const away = new THREE.Vector3(Math.sin(e.heading), 0, Math.cos(e.heading));
@@ -625,7 +656,7 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
     attackCount++;
     startAttack(slot, attackCount % gateEvery === 0 ? 'gate' : 'player');
     const ramp = clamp01(ctx.clock() / GAP.ramp);
-    attackIn = (GAP.start + (GAP.end - GAP.start) * ramp) * Math.sqrt(HEADS_START / Math.max(1, headWeight()));
+    attackIn = (GAP.start + (GAP.end - GAP.start) * ramp) * Math.sqrt(HEADS_START / Math.max(1, headWeight())) * (v.pace ?? 1);
   }
 
   // ---- el cuerpo: entrar, plantarse, correrse de costado ----
@@ -691,7 +722,7 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
       back += 0.6 * (slot.recoil / RECOIL);
       tilt -= 0.25 * (slot.recoil / RECOIL);
     }
-    slot.rise = approach(slot.rise, rise, a ? 8 : 14, dt);
+    slot.rise = approach(slot.rise, slot.base + rise, a ? 8 : 14, dt);
     slot.back = approach(slot.back, back, 14, dt);
     slot.tilt = approach(slot.tilt, tilt, 14, dt);
     slot.jaw = approach(slot.jaw, jaw, 16, dt);
@@ -777,7 +808,7 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
         const g = ease(1 - slot.timer / BUD_TIME);
         const restW = toWorld(restOf(slot.i), tmpA);
         const k = slot.budStrong ? STRONG.scale : 1;
-        tmpB.set(restW.x, heightAt(restW.x, restW.z) + (HEAD_Y - 0.12) * k, restW.z);
+        tmpB.set(restW.x, heightAt(restW.x, restW.z) + (HEAD_Y + slot.base - 0.12) * k, restW.z);
         slot.end.lerpVectors(shoulder, tmpB, g);
         slot.droop = 0;
         if (slot.timer <= 0) {
@@ -874,7 +905,7 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
     for (const s of slots) {
       cancelAttack(s);
       if (s.head?.alive) {
-        ctx.effects.explosion(s.head.position.clone().setY(s.head.position.y + HEAD_Y), 1.4, COLORS.scale);
+        ctx.effects.explosion(s.head.position.clone().setY(s.head.position.y + HEAD_Y + s.rise), 1.4, COLORS.scale);
         dropHead(s.head, s);
         s.head.remove();
       }
@@ -889,8 +920,8 @@ export function startHydra(ctx: BossCtx, v: Variant): BossFight {
     ctx.banner(L('¡Cayó la Hidra!', 'The Hydra falls!'), '', 2.5);
   }
 
-  // las tres del principio
-  for (const i of [1, 3, 5]) spawnHead(slots[i], false);
+  // las del principio (tres: la baja del medio y las dos altas), del medio para afuera
+  for (const i of FILL_ORDER.slice(0, v.heads ?? HEADS_START)) spawnHead(slots[i], false);
   const secs = String(v.window);
   ctx.banner(L('La Hidra', 'The Hydra'), L(`Cortale una cabeza y quemale el muñón: pegale en ${secs.replace('.', ',')} s o le salen dos`, `Cut off a head, then sear the stump: hit it within ${secs} s or two grow back`), 4);
 

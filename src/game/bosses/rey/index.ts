@@ -4,9 +4,9 @@
 // la versión. Pone a prueba las pelotas: cuál usar primero (la que vienen a buscar), cuándo moverse, y el
 // putter de cerca, que es el que mejor defiende la línea.
 //
-// Parado en una pelota no te la roban (como los guardias, que nunca tiran donde estás). Matar a los
-// cargadores tira el palanquín: el rey cae al piso un rato, sin tirar, y le entra más (o recién ahí le
-// entra, en la versión del palanquín).
+// También van por la pelota del puesto donde estás, y te la sacan aunque la estés cargando: hay que soltar
+// antes de que lleguen (desde el 15/10; antes, parado en una pelota no te la robaban). Arriba del palanquín
+// el rey es inmune: matar a los cargadores lo tira al piso un rato, sin tirar, y recién ahí le entra.
 import * as THREE from 'three';
 import { L } from '../../../i18n';
 import type { Wave } from '../../../core/waves';
@@ -23,10 +23,14 @@ const HOLD_Z = 38;
 /** Entra caminando desde acá. */
 const ENTER_Z = 60;
 const ENTER_SPEED = 2.2;
-/** Va y viene de costado al fondo, entre -PATROL_X y PATROL_X, y en cada punta se queda un rato. */
+/**
+ * Va y viene de costado al fondo, entre -PATROL_X y PATROL_X, y en cada punta se queda un rato. Más rápido
+ * desde el 15/10 (era 1.1 m/s y pausas de 1 a 2.5 s): arriba es inmune, así que lo que importa de que se
+ * mueva es apuntarles a los cargadores, que se mueven con él.
+ */
 const PATROL_X = 9;
-const PATROL_SPEED = 1.1;
-const PATROL_PAUSE: [number, number] = [1, 2.5];
+const PATROL_SPEED = 2.2;
+const PATROL_PAUSE: [number, number] = [0.6, 1.6];
 /** Los palos, sobre los hombros de los cargadores; el rey se para un poco más arriba, en el almohadón. */
 const POLE_Y = 1.25;
 const SEAT_Y = POLE_Y + 0.3;
@@ -34,7 +38,7 @@ const SEAT_Y = POLE_Y + 0.3;
 const SLOTS: [number, number][] = [[-1.05, -1.75], [1.05, -1.75], [-1.05, 1.75], [1.05, 1.75]];
 const PORTER_HP = 3;
 const PORTER_HEIGHT = 1.55;
-/** Con esta cantidad de cargadores vivos o menos, el palanquín se cae. */
+/** Con esta cantidad de cargadores vivos o menos, el palanquín se cae (la versión puede pedir más, ver `Rules`). */
 const FALL_AT = 2;
 /** Lo mínimo que queda el rey en el piso; después espera a que estén los cuatro cargadores. */
 const DOWN_TIME = 9;
@@ -50,13 +54,13 @@ const KING_RADIUS = 0.9;
 // ---- los pícaros ----
 const THIEF_HP = 1;
 const THIEF_HEIGHT = 1.3;
-const THIEF_SPEED = 5.2;
+const THIEF_SPEED = 5.6;
 /** Con la pelota, un poco más lentos: es la segunda oportunidad de pararlos. */
 const CARRY_SPEED = 4.2;
 /** Cada cuántos segundos sale uno, del arranque al final de la rampa. */
-const THIEF_EVERY: [number, number] = [6.5, 2.8];
+const THIEF_EVERY: [number, number] = [5, 2.4];
 /** Cuántos puede haber a la vez, del arranque al final de la rampa. */
-const THIEF_MAX: [number, number] = [2, 5];
+const THIEF_MAX: [number, number] = [3, 6];
 /** El primero sale a los tantos segundos de arrancar (el palanquín todavía viene entrando). */
 const FIRST_THIEF = 3;
 /** Agarra la pelota a esta distancia de la línea (del lado de la horda). */
@@ -67,17 +71,19 @@ const WAIT_Z = 3.5;
 const ANGRY_AT = 0.5;
 const ANGRY_SPEED = 1.15;
 /** En cuántos segundos la presión llega a lo más alto (más pícaros, tiros más rápidos). */
-const RAMP = 120;
+const RAMP = 100;
 const THIEF_TINT = 0xc39cf0;
 const THIEF_COLOR = 0xb05cff;
+/** El anillo de la pelota que viene a buscar cuando es la tuya (la del puesto donde estás): más fuerte. */
+const MINE_COLOR = 0xff4fd8;
 
 // ---- el tiro del rey ----
 /** Levanta la pelota con los dos brazos: la marca ya está en el piso desde que empieza. */
 const THROW_WINDUP = 0.75;
 /** Lo que vuela, del arranque al final de la rampa. */
-const THROW_FLIGHT: [number, number] = [1.6, 1.15];
+const THROW_FLIGHT: [number, number] = [1.4, 1.0];
 /** Entre un tiro y el siguiente, como mucho uno cada tanto. */
-const THROW_GAP = 1.1;
+const THROW_GAP = 0.9;
 const THROW_RADIUS = 1.4;
 const THROW_HEIGHT = 7;
 const THROW_DAMAGE = 1;
@@ -95,8 +101,10 @@ interface Rules {
   target: 'player' | 'gate';
   /** El pícaro se la lleva corriendo hasta el rey (si lo matás en el camino vuelve a su puesto) o se la come ahí. */
   carry: boolean;
-  /** Arriba del palanquín no le entra nada: solo caído. */
+  /** Arriba del palanquín no le entra nada: solo caído. Desde el 15/10, en todas (Leandro: «al jefe le hago daño aunque esté levantado»). */
   guarded: boolean;
+  /** Con esta cantidad de cargadores vivos o menos, se cae. */
+  fallAt: number;
   /** Cuánto le entra caído (1 = lo normal). */
   downMul: number;
   /** Vida del rey (más la de la dificultad). */
@@ -114,6 +122,10 @@ interface Thief {
   ring: GroundMark;
   /** La pelota que lleva arriba de la cabeza. */
   ball: THREE.Mesh | null;
+  /** Va por la pelota del puesto donde estás. */
+  mine?: boolean;
+  /** Ya contó (y avisó) que fue por la tuya alguna vez. */
+  mineCounted?: boolean;
 }
 
 interface Throw {
@@ -256,7 +268,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
   let angry = false;
   let won = false;
   let scattered = false;
-  const stats = { robadas: 0, recuperadas: 0, tiradas: 0, pegadas: 0, devueltas: 0, aPuerta: 0, picaros: 0, picarosMuertos: 0, caidas: 0, cargadoresMuertos: 0 };
+  const stats = { robadas: 0, recuperadas: 0, tiradas: 0, pegadas: 0, devueltas: 0, aPuerta: 0, picaros: 0, picarosMuertos: 0, caidas: 0, cargadoresMuertos: 0, delPalo: 0, porLaTuya: 0 };
 
   const ramp = () => Math.min(1, ctx.clock() / RAMP);
   const king = (): Enemy => kingE;
@@ -394,7 +406,8 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
 
   /** Vuelve arriba: los cuatro cargadores están y ya pasó lo mínimo en el piso. */
   function rise(): void {
-    phase = 'patrol';
+    // si se cayó entrando, termina de entrar
+    phase = pos.z > HOLD_Z + 0.05 ? 'enter' : 'patrol';
     pauseLeft = 0.8;
     hop = 0;
     hopFrom.copy(kingE.position);
@@ -403,8 +416,16 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
   }
 
   // ---- los pícaros ----
-  /** ¿Le sirve al pícaro `t` la pelota del puesto `i`? (Que esté, que no estés ahí, que no vaya otro.) */
-  const stealable = (i: number, t: Thief | null) => tees.hasBall(i) && !playerOn(i) && !thieves.some((o) => o !== t && o.state === 'go' && o.spot === i);
+  /**
+   * ¿Le pueden robar la pelota del puesto donde está el golfista? Sí, también mientras carga (15/10, Leandro:
+   * «estaría bueno que puedan robarla mientras estoy cargando, si no suelto a tiempo»); no si ya soltó (el palo
+   * está bajando: la pelota ya es del tiro).
+   */
+  const mineStealable = () => ctx.player().mode === 'free' || ctx.player().mode === 'charging';
+  /** ¿Le sirve al pícaro `t` la pelota del puesto `i`? (Que esté, que no vaya otro; la tuya, si no soltaste.) */
+  const stealable = (i: number, t: Thief | null) => tees.hasBall(i) && (!playerOn(i) || mineStealable()) && !thieves.some((o) => o !== t && o.state === 'go' && o.spot === i);
+  /** Avisó ya que vienen por la tuya (las primeras veces, con letras). */
+  let mineTold = 0;
 
   function pickBall(t: Thief): number {
     let best = -1;
@@ -504,11 +525,18 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
   }
 
   function steal(t: Thief): void {
+    const mine = playerOn(t.spot);
+    // la tuya, mientras cargabas: el tiro se corta
+    if (mine && ctx.player().mode === 'charging') {
+      ctx.player().cancelSwing();
+      stats.delPalo++;
+      ctx.feedback(L('¡Te la sacaron del palo!', 'Snatched right off your club!'));
+    }
     if (!tees.take(t.spot)) return;
     stats.robadas++;
     effects.blink(new THREE.Vector3(spots[t.spot], 0.3, TEE_Z), THIEF_COLOR);
     audio.dodge();
-    if (stats.robadas <= 2) ctx.feedback(L('¡Te robaron una pelota!', 'A ball got stolen!'));
+    if (stats.robadas <= 2 && !mine) ctx.feedback(L('¡Te robaron una pelota!', 'A ball got stolen!'));
     if (rules.carry) {
       t.state = 'carry';
       t.ball = ballMesh();
@@ -670,13 +698,27 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
       thieves.splice(i, 1);
     }
     const pulse = 0.5 + 0.5 * Math.sin(ctx.clock() * 8);
+    const fast = 0.5 + 0.5 * Math.sin(ctx.clock() * 16);
     for (const t of thieves) {
       const go = t.state === 'go';
       const x = spots[t.spot];
-      // la franja hasta la pelota que viene a buscar, y un anillo en esa pelota
+      // la franja hasta la pelota que viene a buscar, y un anillo en esa pelota; si es la tuya, más fuerte
+      // y latiendo más rápido cuanto más cerca está: soltá antes de que llegue
       if (go || t.state === 'wait') {
-        t.lane.between(t.e.position.x, t.e.position.z, x, TEE_Z + GRAB_Z).opacity(go ? 0.3 : 0.12);
-        t.ring.at(x, TEE_Z).size(go ? 0.75 + 0.15 * pulse : 0.6).opacity(go ? 0.55 + 0.35 * pulse : 0);
+        const mine = go && playerOn(t.spot);
+        if (mine && !t.mineCounted) {
+          t.mineCounted = true;
+          stats.porLaTuya++;
+          if (mineTold++ < 2) ctx.feedback(L('¡Un pícaro viene por tu pelota: tirala antes!', 'A thief is after your ball: shoot it first!'));
+        }
+        t.mine = mine;
+        const near = mine ? 1 - Math.min(1, Math.max(0, t.e.position.z - TEE_Z) / 18) : 0;
+        t.lane.color(mine ? MINE_COLOR : THIEF_COLOR).between(t.e.position.x, t.e.position.z, x, TEE_Z + GRAB_Z).opacity(mine ? 0.45 : go ? 0.3 : 0.12);
+        t.ring
+          .at(x, TEE_Z)
+          .color(mine ? MINE_COLOR : THIEF_COLOR)
+          .size(mine ? 0.9 + 0.3 * (near > 0.5 ? fast : pulse) : go ? 0.75 + 0.15 * pulse : 0.6)
+          .opacity(mine ? 0.7 + 0.3 * pulse : go ? 0.55 + 0.35 * pulse : 0);
       } else {
         t.lane.opacity(0);
         t.ring.opacity(0);
@@ -791,8 +833,9 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
       }
       moveLitter(dt);
       updatePorters();
-      // con dos cargadores menos, se cae
-      if (phase === 'patrol' && porters.filter(Boolean).length <= FALL_AT) fall();
+      // con dos cargadores menos, se cae. También entrando: antes solo se miraba patrullando, y si los
+      // matabas antes de que llegara a su lugar el palanquín seguía avanzando, flotando sin nadie abajo (15/10)
+      if (phase !== 'down' && porters.filter(Boolean).length <= rules.fallAt) fall();
       if (phase === 'down') {
         downFor += dt;
         if (downFor >= DOWN_TIME && porters.every(Boolean) && !coming.length) rise();
@@ -814,7 +857,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
       const left = Math.max(0, kingE.hp);
       let sub: string;
       if (!up()) sub = rules.guarded ? L('¡En el piso! Ahora le entra', 'He\'s down! Now he can be hurt') : L('¡En el piso! Le entra el doble', 'He\'s down! Double damage');
-      else if (rules.guarded) sub = L('Tirá a los cargadores para bajarlo', 'Hit the bearers to bring him down');
+      else if (rules.guarded) sub = L(`Inmune arriba: tirá a los cargadores · Pelotas en la bolsa: ${queued}`, `Immune up there: hit the bearers · Balls in his sack: ${queued}`);
       else sub = L(`Pelotas en la bolsa: ${queued} · Pícaros: ${thieves.length}`, `Balls in his sack: ${queued} · Thieves: ${thieves.length}`);
       bar.set(left, kingE.maxHp, sub);
       bar.color(up() ? '#d9a93a' : '#ff6a3a');
@@ -832,6 +875,7 @@ function start(ctx: BossCtx, rules: Rules): BossFight {
           // el que lleva una pelota es lo más urgente (en la puerta, más); el que viene, según cuánto le falta
           if (t.state === 'carry') return rules.target === 'gate' ? 4 : 3;
           if (t.state === 'back') return 0.3;
+          if (t.mine) return 3.5;
           return 2 + Math.max(0, 1.5 - (e.position.z - TEE_Z) / 15);
         }
         if (e === kingE) return rules.guarded && up() ? 0 : up() ? 1 : 2.5;
@@ -861,13 +905,19 @@ function escort(wave: Wave): void {
   wave.groups = wave.groups.filter((g) => g.kind !== 'warchief');
 }
 
-const BASE: Rules = { target: 'player', carry: true, guarded: false, downMul: 2, hp: 60 };
+/**
+ * Desde el 15/10 todas son «del palanquín»: arriba es inmune, y bajarlo (matar a dos cargadores) es lo que abre
+ * la ventana de daño. Leandro: «la mecánica de tener un carrito levantado y matar a los que lo levantan no tiene
+ * un gran sentido si no te hace mucha diferencia», «lo del palanquín suena más balanceado». Antes: `lanza`,
+ * `puerta` y `gloton` le entraban siempre (60 de vida, el doble caído).
+ */
+const BASE: Rules = { target: 'player', carry: true, guarded: true, fallAt: FALL_AT, downMul: 1, hp: 38 };
 
 export const BOSSES: BossDef[] = [
   {
     id: 'rey.lanza',
     name: L('Rey goblin ladrón', 'Goblin Thief King'),
-    blurb: 'Los pícaros se llevan la pelota hasta el rey (matalos y vuelve) y él te la tira al puesto: esquivala y es tuya.', // i18n-ok: el panel de pruebas
+    blurb: 'Inmune en el palanquín: matá dos cargadores para bajarlo. Los pícaros te roban (también la que cargás) y él te la tira.', // i18n-ok: el panel de pruebas
     escort,
     start: (ctx) => start(ctx, BASE),
   },
@@ -888,8 +938,8 @@ export const BOSSES: BossDef[] = [
   {
     id: 'rey.palanquin',
     name: L('Rey goblin ladrón', 'Goblin Thief King'),
-    blurb: 'Arriba del palanquín es inmune: matá dos cargadores, cae al piso y recién ahí le entra.', // i18n-ok: el panel de pruebas
+    blurb: 'La más dura: para bajarlo hay que matar tres cargadores; en el piso le entra una vez y media.', // i18n-ok: el panel de pruebas
     escort,
-    start: (ctx) => start(ctx, { ...BASE, guarded: true, downMul: 1, hp: 36 }),
+    start: (ctx) => start(ctx, { ...BASE, fallAt: 1, downMul: 1.5, hp: 44 }),
   },
 ];

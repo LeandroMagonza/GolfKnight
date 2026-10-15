@@ -14,14 +14,22 @@ import { startLagarto, type LagartoCfg } from './pelea';
 
 const NAME = L('El Lagarto lancero', 'The Lizard Lancer');
 const SHOOT_HINT = L('¡Bajá las lanzas a pelotazos!', 'Shoot the spears down!');
-const PARRY_HINT = L('¡Pegale a la pelota cuando llega la lanza!', 'Swing as the spear arrives!');
+const PARRY_HINT = L('¡Parate en la flecha y pegale a la pelota cuando la lanza entra en lo dorado!', 'Stand on the arrow and swing when the spear hits the gold!');
+const BOTH_HINT = L('¡Bajalas a pelotazos, o devolvelas cuando entran en lo dorado!', 'Shoot them down, or bat them back in the gold!');
+
+/** Lo que tarda en salir la escolta de la última oleada (s): la anota `escort` y la usa la pelea (la fase 2). */
+let escortSpan = 0;
 
 function version(id: string, blurb: string, cfg: LagartoCfg): BossDef {
   return {
     id: `lagarto.${id}`,
     name: NAME,
     blurb,
-    start: (ctx) => startLagarto(ctx, cfg, cfg.shoot ? SHOOT_HINT : PARRY_HINT),
+    // la escolta de siempre; solo se anota cuánto tarda en salir
+    escort: (wave) => {
+      escortSpan = wave.groups.reduce((n, g) => n + g.count, 0) * wave.interval;
+    },
+    start: (ctx) => startLagarto(ctx, cfg, cfg.shoot && cfg.parry ? BOTH_HINT : cfg.shoot ? SHOOT_HINT : PARRY_HINT, escortSpan),
   };
 }
 
