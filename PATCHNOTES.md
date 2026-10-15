@@ -20,6 +20,7 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **Jefes para probar** (panel B, Pruebas → Jefes; en las partidas sigue el gólem de siempre)
 - **Jefe nuevo con música**: el guitarrista de metal y el tamborilero. Mientras tocan, todo tiro que no sale en el pulso es pifia, y el tempo sube con la pelea. `d489b0c`
 - **Cambios en casi todos** según lo jugado: menos vida al gólem, al minotauro y al lagarto; torre, rey, ogro y ritmo más difíciles; el limo que llega a la puerta la tira entera; la hidra con cabezas bajas y separadas; espectro eterno, ritmo al azar y minotauro con coraza, nuevos. `d489b0c`
+- **El jefe con música se oye más fuerte y tiene metrónomo**: un click en cada pulso. Cada canción tiene su volumen y el metrónomo el suyo, en el panel B, pestaña Sonido. `6ebd857`
 - **Arreglos**: el ogro ya batea goblins, el palanquín del rey no flota sin cargadores, el roll del lagarto sale de donde está, y los jefes aturdidos se recuperan. `d489b0c`
 
 **Jefes nuevos para probar, monstruos y música**
