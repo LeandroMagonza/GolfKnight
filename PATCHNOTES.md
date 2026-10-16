@@ -7,6 +7,14 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 16 de octubre
+
+**Los invisibles, más**
+- **Ahora vienen muchos más**: en el escenario de los invisibles, más de la mitad de cada oleada se esfuma. No te protegen de los golpes, pero no los ves venir. `abbba12`
+
+**Detrás de escena**
+- El panel de balance ocupa la pantalla entera, pausa la partida y se puede abrir desde la pantalla de entrada. La pestaña de enemigos quedó ordenada por poder, con la explicación de cada número. `abbba12`
+
 ## 15 de octubre
 
 **Poder nuevo: los invisibles** (en la versión completa)
