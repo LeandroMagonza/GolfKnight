@@ -1,0 +1,1 @@
+var e=`gk.balance`;export{e as t};

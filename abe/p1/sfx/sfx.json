@@ -1,0 +1,744 @@
+{
+  "ball-hit": {
+    "files": [
+      "ball-hit.mp3",
+      "ball-hit-2.mp3",
+      "ball-hit-3.mp3"
+    ],
+    "seconds": 0.3,
+    "source": "K impactPunch_medium_000.ogg | K impactPunch_medium_002.ogg | K impactPunch_medium_004.ogg",
+    "note": "Golpe seco en el cuerpo (Kenney impactPunch_medium, CC0), tres variantes. Reemplaza el \"bonk\" de dibujito."
+  },
+  "perfect": {
+    "files": [
+      "perfect.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "K impactPunch_heavy_000.ogg + K impactWood_medium_002.ogg",
+    "note": "Golpe perfecto: un golpe pleno y grave abajo del del palo (Kenney impactPunch_heavy tres semitonos abajo e impactWood_medium). Antes la estrellita de TD_Collect_Star: un seno de 2,6 kHz que sonaba a vidrio."
+  },
+  "duff": {
+    "files": [
+      "duff.mp3"
+    ],
+    "seconds": 0.45,
+    "source": "W UI_SFX/Stinger/CGM3_Funny_Negative_Feedback_02_1.wav",
+    "note": "Pifia del mapeo."
+  },
+  "explosion-small": {
+    "files": [
+      "explosion-small.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "F x535592.mp3",
+    "note": "Explosión chica (el hierro y el wedge al caer, las marcas): un \"boom\" de impacto real que se apaga solo (Freesound 535592, \"BOOM IMPACT 2\", CC0), a 0,8 s. Antes PP_Explosion_1_4, de 8 bits."
+  },
+  "explosion-big": {
+    "files": [
+      "explosion-big.mp3"
+    ],
+    "seconds": 1.3,
+    "source": "F x535592.mp3 + F x431174.mp3",
+    "note": "Explosión grande (golpe 3 del hierro y el wedge, kamikaze, pólvora, bola de fuego): el mismo \"boom\" tres semitonos más grave y largo, con un golpe sordo abajo (Freesound 431174, \"Fireball Explosion\", CC0). Antes PP_Explosion_1_3, de 8 bits."
+  },
+  "bubble-pop": {
+    "files": [
+      "bubble-pop.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "W UI_SFX/UI/CGM3_Bubble_Button_01_6.wav + W UI_SFX/Collect Item/PP_Collect_Item_1_2.wav",
+    "note": "No hay vidrio en los paquetes: el \"bloop\" de burbuja más agudo de W (sube de 1,6 a 2,5 kHz) con un brillo que sube encima (PP_Collect_Item_1_2, -7 dB). Romper la burbuja es un logro del jugador, así que el brillo \"de premio\" cuadra."
+  },
+  "bubble-up": {
+    "files": [
+      "bubble-up.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "W UI_SFX/Misc/FA_Power_Up_1_3.wav",
+    "note": "Arpegio de power-up que sube (200 Hz a 1,4 kHz) con entrada suave (~125 ms) y eco; FA_Power_Up_1_1 quedaba para el regalo según el mapeo."
+  },
+  "armor-hit": {
+    "files": [
+      "armor-hit.mp3",
+      "armor-hit-2.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "P Game/MetalCollision.ogg | K impactPlate_heavy_001.ogg",
+    "note": "1: el choque metálico de P. 2: chapa pesada de Kenney (antes PP_Small_Impact, de 8 bits)."
+  },
+  "ricochet": {
+    "files": [
+      "ricochet.mp3"
+    ],
+    "seconds": 0.3,
+    "source": "P Game/MetalCollision.ogg",
+    "note": "No hay un ricochet propiamente dicho: el MetalCollision subido una quinta (+7 semitonos), sin graves (pasa-altos 500 Hz) y cortado a 0,3 s: el mismo metal, más agudo y corto que armor-hit."
+  },
+  "phase-bounce": {
+    "files": [
+      "phase-bounce.mp3"
+    ],
+    "seconds": 0.37,
+    "source": "W UI_SFX/Misc/FA_Cute_Jump.wav + P Game/RubberCollision.ogg",
+    "note": "\"Boing\" tonal de W (dos tonos, ~480 y ~900 Hz, sin metal) sobre el golpe de goma hueco de P (-4 dB): rebote amortiguado, se distingue del metal."
+  },
+  "heal": {
+    "files": [
+      "heal.mp3"
+    ],
+    "seconds": 0.75,
+    "source": "W Stingers_Jingles/Fantasy/FA_Time_Extend_1_1.wav",
+    "note": "Brillo mágico (notas sueltas de 1,3 a 4 kHz que se asientan en 2 kHz), 0,7 s, ataque blando; a -21 LUFS para que no tape. Alternativa: TD_Star_01_02 (campanita de dos notas, pero es de la misma familia que perfect)."
+  },
+  "dodge": {
+    "files": [
+      "dodge.mp3",
+      "dodge-2.mp3"
+    ],
+    "seconds": 0.19,
+    "source": "W UI_SFX/Misc/FA_Cute_Dash_1_2.wav | W UI_SFX/Misc/FA_Cute_Dash_1_3.wav",
+    "note": "\"Dash\" cartoon de 0,19 s (zumbido corto que sube): se lee como esquive y no se confunde con los whoosh del swing (PP_Whoosh / FA_Whoosh). Dos variantes, la 2 más aguda."
+  },
+  "dodge-ready": {
+    "files": [
+      "dodge-ready.mp3"
+    ],
+    "seconds": 0.07,
+    "source": "W UI_SFX/UI/CGM3_Cute_Chirpy_Button_01_1.wav",
+    "note": "Blip de 0,06 s (3,5 kHz), a -24 LUFS: chiquito y suave. No uso PP_UI_Select, que es el hover de la UI en el mapeo."
+  },
+  "caster-cast": {
+    "files": [
+      "caster-cast.mp3"
+    ],
+    "seconds": 0.7,
+    "source": "C Ancient Language/Ancient Language 1_16.wav",
+    "note": "Conjuro del mapeo (Ancient Language 1_16, 0,8 s activos), recortado a 0,7 s con fade."
+  },
+  "caster-hit": {
+    "files": [
+      "caster-hit.mp3"
+    ],
+    "seconds": 0.58,
+    "source": "H Hit Skill9.wav",
+    "note": "Impacto mágico de Hovl (prefab \"Magic hit\")."
+  },
+  "burn-tick": {
+    "files": [
+      "burn-tick.mp3"
+    ],
+    "seconds": 0.3,
+    "source": "C Hissing/Hiss 3_5.wav",
+    "note": "No hay chisporroteo; el siseo más corto y más ruidoso de C (casi ruido puro, centroide 12 kHz, 0,32 s activos) hace de \"fsss\", recortado a 0,3 s."
+  },
+  "death-goblin": {
+    "files": [
+      "death-goblin.mp3",
+      "death-goblin-2.mp3"
+    ],
+    "seconds": 0.9,
+    "source": "C Humanoid Small 1/Humanoid Small - Long 4.wav | C Humanoid Small 1/Humanoid Small - Long 5.wav",
+    "note": "Humanoid Small 1, Long 4 y 5 (caen ~10 semitonos por segundo), a 0,9 s."
+  },
+  "death-goblina": {
+    "files": [
+      "death-goblina.mp3",
+      "death-goblina-2.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "C Humanoid Small 2/Humanoid Small 2 - Long 3.wav | C Humanoid Small 2/Humanoid Small 2 - Long 8.wav",
+    "note": "Humanoid Small 2, Long 3 y 8 (caen)."
+  },
+  "death-orc": {
+    "files": [
+      "death-orc.mp3",
+      "death-orc-2.mp3"
+    ],
+    "seconds": 1.0,
+    "source": "C Humanoid Large 2/Humanoid Large 2 - Long 1.wav | C Humanoid Large 2/Humanoid Large 2 - Long 7.wav",
+    "note": "Humanoid Large 2, Long 1 y 7."
+  },
+  "death-skeleton": {
+    "files": [
+      "death-skeleton.mp3"
+    ],
+    "seconds": 0.69,
+    "source": "C Zombie 1/Zombie 1_02.wav + K impactPlank_medium_001.ogg + K impactPlank_medium_003.ogg + K impactWood_light_002.ogg",
+    "note": "Zombie 1_02 (la voz de zombi menos siseante, cae) y los huesos que se desarman: tres toc de madera de Kenney a los 0,14, 0,25 y 0,34 s."
+  },
+  "death-warchief": {
+    "files": [
+      "death-warchief.mp3",
+      "death-warchief-2.mp3"
+    ],
+    "seconds": 1.1,
+    "source": "C Humanoid Large 4/Humanoid Large 4 - Long 6.wav | C Humanoid Large 4/Humanoid Large 4 - Long 12.wav",
+    "note": "Humanoid Large 4, Long 6 y 12 (caen)."
+  },
+  "death-shaman": {
+    "files": [
+      "death-shaman.mp3",
+      "death-shaman-2.mp3"
+    ],
+    "seconds": 1.0,
+    "source": "C Humanoid Small 4/Humanoid Small 4 - Long 2.wav | C Humanoid Small 4/Humanoid Small 4 - Long 18.wav",
+    "note": "Humanoid Small 4, Long 2 y 18 (caen, voz limpia)."
+  },
+  "death-knight": {
+    "files": [
+      "death-knight.mp3",
+      "death-knight-2.mp3"
+    ],
+    "seconds": 0.9,
+    "source": "C Demon 3/Demon 3 - Long 10.wav + K impactPlate_heavy_000.ogg | C Demon 3/Demon 3 - Long 12.wav + K impactPlate_heavy_002.ogg",
+    "note": "Demon 3, Long 10 y 12, con la armadura que cae (Kenney impactPlate_heavy, -5 dB) a los 0,35-0,4 s."
+  },
+  "death-stoneling": {
+    "files": [
+      "death-stoneling.mp3"
+    ],
+    "seconds": 1.2,
+    "source": "C Large Creature 01/Large Creature 1 - Long 2.wav + K impactSoft_heavy_001.ogg",
+    "note": "Large Creature 1, Long 2, y el cuerpo que cae (Kenney impactSoft_heavy) a los 0,35 s. Sin el derrumbe PP."
+  },
+  "death-wraith": {
+    "files": [
+      "death-wraith.mp3"
+    ],
+    "seconds": 1.2,
+    "source": "C Ghost/Ghost 1_5.wav",
+    "note": "Un lamento de Ghost 1_5 que cae, cortado a 1,2 s. Sin el PP_Monster_Dissipate."
+  },
+  "elite-alert": {
+    "files": [
+      "elite-alert.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "W UI_SFX/Misc/PP_Monster_Alert_1_1.wav + C Demon 1/Demon 1 - Laugh 04.wav",
+    "note": "Alerta PP_Monster_Alert_1_1 y la risa Demon 1 Laugh 04 entrando a los 0,22 s, en un archivo; a -16 LUFS (aviso, pero importante)."
+  },
+  "boss-appear": {
+    "files": [
+      "boss-appear.mp3"
+    ],
+    "seconds": 2.5,
+    "source": "C Large Creature 09/Large Creature 9 - Long 6.wav",
+    "note": "Rugido del mapeo (Large Creature 9 Long 6), recortado a 2,5 s con fade."
+  },
+  "boss-death": {
+    "files": [
+      "boss-death.mp3"
+    ],
+    "seconds": 2.5,
+    "source": "C Large Creature 09/Large Creature 9 - Long 8.wav",
+    "note": "Muerte del mapeo (Large Creature 9 Long 8), recortada a 2,5 s con fade."
+  },
+  "boss-throw": {
+    "files": [
+      "boss-throw.mp3"
+    ],
+    "seconds": 1.0,
+    "source": "C Large Creature 09/Large Creature 9 - Short 1.wav",
+    "note": "Gruñido del mapeo (Large Creature 9 Short 1, la misma voz que aparecer y morir; 1,28 s activos, la cola recortada a 1 s con fade)."
+  },
+  "boss-rock": {
+    "files": [
+      "boss-rock.mp3"
+    ],
+    "seconds": 0.95,
+    "source": "D SFX_Dino_Stomp.ogg",
+    "note": "Pisotón del mapeo; casi todo graves, por eso mide menos LUFS aunque el pico esté arriba."
+  },
+  "gate-hit": {
+    "files": [
+      "gate-hit.mp3",
+      "gate-hit-2.mp3",
+      "gate-hit-3.mp3"
+    ],
+    "seconds": 0.31,
+    "source": "K impactWood_heavy_000.ogg + K impactPlank_medium_001.ogg | K impactWood_heavy_002.ogg + K impactPlank_medium_003.ogg | K impactWood_heavy_004.ogg + K impactPlank_medium_000.ogg",
+    "note": "Puerta de madera: el golpe sordo (Kenney impactWood_heavy) y el crujido de la tabla (impactPlank, -5 dB). Tres variantes."
+  },
+  "hurt": {
+    "files": [
+      "hurt.mp3",
+      "hurt-2.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "K impactPunch_heavy_001.ogg + K impactPlate_light_002.ogg | K impactPunch_heavy_002.ogg + K impactPlate_light_004.ogg",
+    "note": "Al caballero le pegan: el golpe pesado y la armadura que suena (Kenney impactPunch_heavy + impactPlate_light, -5 dB)."
+  },
+  "player-dies": {
+    "files": [
+      "player-dies.mp3"
+    ],
+    "seconds": 0.86,
+    "source": "K impactPlate_heavy_004.ogg + K impactSoft_heavy_000.ogg + K impactPlate_medium_001.ogg",
+    "note": "Cae el caballero: chapa pesada, el cuerpo contra el piso (0,18 s) y la armadura que rebota (0,34 s)."
+  },
+  "ice": {
+    "files": [
+      "ice.mp3"
+    ],
+    "seconds": 1.2,
+    "source": "H Skill 8.wav",
+    "note": "Hovl \"Ise attack\" desde el golpe fuerte: arranca a los 0,897 s del original (10 ms antes del ataque, que está en 0,907 s; se pierden los cristales del principio) y sigue 1,2 s con fade de ~0,2 s al final."
+  },
+  "lightning-chain": {
+    "files": [
+      "lightning-chain.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "H Skill 10.wav",
+    "note": "Hovl \"Electro splash\", recortado a 0,8 s con fade."
+  },
+  "hole": {
+    "files": [
+      "hole.mp3"
+    ],
+    "seconds": 1.19,
+    "source": "W UI_SFX/Misc/LQ_Comedy_Drop.wav",
+    "note": "Del mapeo."
+  },
+  "trample": {
+    "files": [
+      "trample.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "P Game/EngineMuscle_Backfire.ogg + K impactPunch_heavy_004.ogg",
+    "note": "El carrito atropella: petardeo del motor y el golpe pesado de Kenney (antes un \"bonk\" de dibujito)."
+  },
+  "wave-clear": {
+    "files": [
+      "wave-clear.mp3"
+    ],
+    "seconds": 1.26,
+    "source": "W UI_SFX/Stinger/LQ_Stage Clear.wav",
+    "note": "Del mapeo."
+  },
+  "card-appear": {
+    "files": [
+      "card-appear.mp3"
+    ],
+    "seconds": 0.2,
+    "source": "W UI_SFX/Misc/LQ_Swipe.wav",
+    "note": "Del mapeo; el original está muy bajo (pico -25 dBFS), subido."
+  },
+  "card-pick": {
+    "files": [
+      "card-pick.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "W UI_SFX/Misc/FA_Lap_Complete_1_2.wav",
+    "note": "Más festivo que FA_Select_Button_1_4 (que es un tono solo de 0,25 s): dos notas que suben (880 a 1,5 kHz), 0,57 s, de la misma familia FA."
+  },
+  "ui-click": {
+    "files": [
+      "ui-click.mp3"
+    ],
+    "seconds": 0.1,
+    "source": "W UI_SFX/UI/LQ_Click_Button.wav",
+    "note": "Del mapeo."
+  },
+  "victory": {
+    "files": [
+      "victory.mp3"
+    ],
+    "seconds": 4.32,
+    "source": "W Stingers_Jingles/Fantasy/TD_Win_Stinger_01_01.wav",
+    "note": "Del mapeo, entero."
+  },
+  "defeat": {
+    "files": [
+      "defeat.mp3"
+    ],
+    "seconds": 4.07,
+    "source": "W Stingers_Jingles/Fantasy/TD_Lose Stinger_01_01.wav",
+    "note": "Del mapeo, entero."
+  },
+  "burn-loop": {
+    "files": [
+      "burn-loop.mp3"
+    ],
+    "seconds": 2.0,
+    "source": "tools/crepitar.py",
+    "note": "Generado: ningún paquete trae un crepitar de fuego."
+  },
+  "club-putter": {
+    "files": [
+      "club-putter.mp3",
+      "club-putter-2.mp3"
+    ],
+    "seconds": 0.25,
+    "source": "F 408260.mp3 + K impactWood_light_000.ogg | F 408260.mp3 + K impactWood_light_002.ogg",
+    "note": "Putter: el \"tic\" del putt de verdad (Freesound 408260, CC0) sin lo de arriba de 3 kHz (el segundo golpe tenía un anillo en 3-6 kHz), con un toc de madera chico abajo (Kenney impactWood_light, +5 st, -8 dB)."
+  },
+  "club-iron": {
+    "files": [
+      "club-iron.mp3",
+      "club-iron-2.mp3"
+    ],
+    "seconds": 0.3,
+    "source": "F 622414.mp3 + K impactGeneric_light_000.ogg + K impactPunch_medium_001.ogg | F 622414.mp3 + K impactGeneric_light_002.ogg + K impactPunch_medium_003.ogg",
+    "note": "Hierro: el click de Freesound 622414 (CC0) sin el brillo de arriba de 4 kHz y 3 dB abajo, con un golpe seco (Kenney impactGeneric_light) y cuerpo (impactPunch_medium, -8 dB)."
+  },
+  "club-wedge": {
+    "files": [
+      "club-wedge.mp3"
+    ],
+    "seconds": 0.3,
+    "source": "F 21877.mp3 + K footstep_grass_001.ogg + K impactWood_light_002.ogg",
+    "note": "Wedge: el golpe de Freesound 21877 (CC0) sin el anillo de 3-6 kHz, con pasto (Kenney footstep_grass, -3 dB) y un toc de madera (-6 dB)."
+  },
+  "club-driver": {
+    "files": [
+      "club-driver.mp3",
+      "club-driver-2.mp3"
+    ],
+    "seconds": 0.3,
+    "source": "K impactWood_light_000.ogg + K impactPunch_medium_000.ogg + F 593483.mp3 | K impactWood_light_002.ogg + K impactPunch_medium_003.ogg + F 593483.mp3",
+    "note": "Driver: un \"thock\" de madera (Kenney impactWood_light, dos semitonos abajo) con cuerpo (impactPunch_medium, -5 dB) y el golpe del driver de antes (Freesound 593483) sin el \"ping\" de titanio (de 3 kHz para arriba: sus parciales de 4,2, 6 y 8 kHz) y a -6 dB."
+  },
+  "hit-heavy": {
+    "files": [
+      "hit-heavy.mp3",
+      "hit-heavy-2.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "K impactPunch_heavy_000.ogg | K impactPunch_heavy_003.ogg",
+    "note": "El golpe 3 y el perfecto: el mismo puñetazo, más pesado (Kenney impactPunch_heavy)."
+  },
+  "hit-bone": {
+    "files": [
+      "hit-bone.mp3",
+      "hit-bone-2.mp3"
+    ],
+    "seconds": 0.23,
+    "source": "K impactPlank_medium_000.ogg + K impactPunch_medium_001.ogg | K impactPlank_medium_002.ogg + K impactPunch_medium_003.ogg",
+    "note": "Esqueleto: un toc de madera (hueso) con el golpe abajo, -6 dB (Kenney impactPlank + impactPunch)."
+  },
+  "hit-armor": {
+    "files": [
+      "hit-armor.mp3",
+      "hit-armor-2.mp3"
+    ],
+    "seconds": 0.45,
+    "source": "K impactPlate_light_000.ogg + K impactPunch_medium_002.ogg | K impactPlate_light_003.ogg + K impactPunch_medium_004.ogg",
+    "note": "Caballero esqueleto (con armadura aunque no sea blindado): chapa liviana y el golpe abajo (Kenney impactPlate_light + impactPunch)."
+  },
+  "hit-stone": {
+    "files": [
+      "hit-stone.mp3",
+      "hit-stone-2.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "K impactPunch_heavy_001.ogg + K impactWood_heavy_000.ogg | K impactPunch_heavy_004.ogg + K impactWood_heavy_003.ogg",
+    "note": "Gólems: el puñetazo pesado cuatro semitonos abajo con un golpe sordo de madera: macizo, sin brillo."
+  },
+  "hurt-goblin": {
+    "files": [
+      "hurt-goblin.mp3",
+      "hurt-goblin-2.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "C Humanoid Small 1/Humanoid Small - Short 1.wav | C Humanoid Small 1/Humanoid Small - Short 5.wav",
+    "note": "Quejido: Humanoid Small 1, Short 1 (sube) y Short 5 (cae)."
+  },
+  "hurt-goblina": {
+    "files": [
+      "hurt-goblina.mp3",
+      "hurt-goblina-2.mp3"
+    ],
+    "seconds": 0.35,
+    "source": "C Humanoid Small 2/Humanoid Small 2 - Short 4.wav | C Humanoid Small 2/Humanoid Small 2 - Short 8.wav",
+    "note": "Quejido: Humanoid Small 2 (la voz más aguda y limpia de las chicas), Short 4 y 8."
+  },
+  "hurt-orc": {
+    "files": [
+      "hurt-orc.mp3",
+      "hurt-orc-2.mp3"
+    ],
+    "seconds": 0.45,
+    "source": "C Humanoid Large 2/Humanoid Large 2 - Short 14.wav | C Humanoid Large 2/Humanoid Large 2 - Short 5.wav",
+    "note": "Quejido: Humanoid Large 2, Short 14 y 5 (las más limpias de esa voz)."
+  },
+  "hurt-skeleton": {
+    "files": [
+      "hurt-skeleton.mp3",
+      "hurt-skeleton-2.mp3"
+    ],
+    "seconds": 0.45,
+    "source": "C Zombie 1/Zombie 1_10.wav | C Zombie 3/Zombie 3_11.wav",
+    "note": "Quejido: Zombie 1_10 y Zombie 3_11 (de los zombis, los menos siseantes)."
+  },
+  "hurt-warchief": {
+    "files": [
+      "hurt-warchief.mp3",
+      "hurt-warchief-2.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "C Humanoid Large 4/Humanoid Large 4 - Short 6.wav | C Humanoid Large 4/Humanoid Large 4 - Short 3.wav",
+    "note": "Quejido: Humanoid Large 4, Short 6 y 3."
+  },
+  "hurt-shaman": {
+    "files": [
+      "hurt-shaman.mp3",
+      "hurt-shaman-2.mp3"
+    ],
+    "seconds": 0.45,
+    "source": "C Humanoid Small 4/Humanoid Small 4 - Short 10.wav | C Humanoid Small 4/Humanoid Small 4 - Short 11.wav",
+    "note": "Quejido: Humanoid Small 4, Short 10 y 11."
+  },
+  "hurt-knight": {
+    "files": [
+      "hurt-knight.mp3",
+      "hurt-knight-2.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "C Demon 3/Demon 3 - Short 02.wav | C Demon 3/Demon 3 - Short 11.wav",
+    "note": "Quejido: Demon 3, Short 02 y 11 (los dos caen)."
+  },
+  "hurt-stoneling": {
+    "files": [
+      "hurt-stoneling.mp3",
+      "hurt-stoneling-2.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "C Large Creature 01/Large Creature 1 - Short 4.wav | C Large Creature 01/Large Creature 1 - Short 3.wav",
+    "note": "Quejido: Large Creature 1, Short 4 y 3."
+  },
+  "hurt-wraith": {
+    "files": [
+      "hurt-wraith.mp3",
+      "hurt-wraith-2.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "C Ghost/Ghost 1_2.wav | C Ghost/Ghost 1_4.wav",
+    "note": "Quejido: el arranque de Ghost 1_2 y 1_4, cortado a 0,5 s."
+  },
+  "hurt-golem": {
+    "files": [
+      "hurt-golem.mp3",
+      "hurt-golem-2.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "C Large Creature 09/Large Creature 9 - Short 3.wav | C Large Creature 09/Large Creature 9 - Short 5.wav",
+    "note": "El gólem jefe: Large Creature 9 (su misma voz), Short 3 y 5, a 0,8 s."
+  },
+  "elite-hurt": {
+    "files": [
+      "elite-hurt.mp3",
+      "elite-hurt-2.mp3",
+      "elite-hurt-3.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "C Demon 1/Demon 1 - Short 03.wav | C Demon 1/Demon 1 - Short 06.wav | C Demon 1/Demon 1 - Short 10.wav",
+    "note": "El élite al recibir: la voz de su risa (Demon 1), gruñidos cortos que caen, dos semitonos más graves. Leandro: «que cada vez que reciba daño haga algún ruido, que sea grave»."
+  },
+  "cast-fire": {
+    "files": [
+      "cast-fire.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "H Skill 11.wav",
+    "note": "Disparo de fuego: la llamarada del \"Meteor\" de Hovl desde que arranca, 0,8 s."
+  },
+  "cast-ice": {
+    "files": [
+      "cast-ice.mp3"
+    ],
+    "seconds": 0.6,
+    "source": "H Skill 8.wav",
+    "note": "Disparo de hielo: los cristales que se forman al principio del \"Ise attack\" de Hovl (sin el golpe)."
+  },
+  "cast-lightning": {
+    "files": [
+      "cast-lightning.mp3"
+    ],
+    "seconds": 0.6,
+    "source": "H Skill 2.wav",
+    "note": "Disparo de rayo: el arranque del \"Lightning strike\" de Hovl, 0,6 s."
+  },
+  "cast-wind": {
+    "files": [
+      "cast-wind.mp3"
+    ],
+    "seconds": 0.77,
+    "source": "W UI_SFX/Misc/FA_Whoosh_1_3.wav",
+    "note": "Disparo de viento: el whoosh largo (FA_Whoosh_1_3)."
+  },
+  "cast-ghost": {
+    "files": [
+      "cast-ghost.mp3"
+    ],
+    "seconds": 0.75,
+    "source": "H Skill 3.wav",
+    "note": "Disparo fantasma: el soplido que sube y el corte del \"Flower slash\" de Hovl."
+  },
+  "cast-silence": {
+    "files": [
+      "cast-silence.mp3"
+    ],
+    "seconds": 0.6,
+    "source": "C Hissing/Hiss 1_2.wav",
+    "note": "Disparo de silencio: un \"shhh\" (Hiss 1_2)."
+  },
+  "cast-glove": {
+    "files": [
+      "cast-glove.mp3"
+    ],
+    "seconds": 1.0,
+    "source": "W UI_SFX/Collect Item/FA_Special_Item_1_1.wav",
+    "note": "Ponerse un guante: brillo de objeto especial (FA_Special_Item_1_1); encima va el sonido de su elemento, bajito."
+  },
+  "cast-boost": {
+    "files": [
+      "cast-boost.mp3"
+    ],
+    "seconds": 0.38,
+    "source": "W UI_SFX/Misc/FA_Power_Up_1_2.wav",
+    "note": "Potencia: power-up corto (FA_Power_Up_1_2)."
+  },
+  "cast-might": {
+    "files": [
+      "cast-might.mp3"
+    ],
+    "seconds": 0.79,
+    "source": "W UI_SFX/Misc/FA_Power_Up_1_1.wav",
+    "note": "Fuerza: power-up largo (FA_Power_Up_1_1)."
+  },
+  "cast-lens": {
+    "files": [
+      "cast-lens.mp3"
+    ],
+    "seconds": 1.0,
+    "source": "W UI_SFX/Misc/FA_Speed_Up.wav",
+    "note": "Lupa: algo que crece (FA_Speed_Up, 1 s)."
+  },
+  "cast-caddie": {
+    "files": [
+      "cast-caddie.mp3"
+    ],
+    "seconds": 1.0,
+    "source": "W UI_SFX/Collect Item/FA_Special_Item_3.wav",
+    "note": "Caddie dorado: brillo dorado (FA_Special_Item_3)."
+  },
+  "cast-rain": {
+    "files": [
+      "cast-rain.mp3"
+    ],
+    "seconds": 1.2,
+    "source": "W UI_SFX/Misc/FA_Speed_Up_Riser_1_2.wav",
+    "note": "Lluvia de pelotas: una subida (FA_Speed_Up_Riser_1_2) mientras salen."
+  },
+  "cast-powder": {
+    "files": [
+      "cast-powder.mp3"
+    ],
+    "seconds": 0.6,
+    "source": "C Hissing/Hiss 2_3.wav",
+    "note": "Pólvora: la mecha que chisporrotea (Hiss 2_3)."
+  },
+  "cast-clone": {
+    "files": [
+      "cast-clone.mp3"
+    ],
+    "seconds": 0.8,
+    "source": "H Skill 7.wav",
+    "note": "Clon: la energía que sube del \"Energy explosion\" de Hovl, sin la explosión."
+  },
+  "cast-echo": {
+    "files": [
+      "cast-echo.mp3"
+    ],
+    "seconds": 0.7,
+    "source": "H Skill 9.wav",
+    "note": "Eco: los pulsos mágicos del \"Magic attack\" de Hovl, 0,7 s."
+  },
+  "cast-flag": {
+    "files": [
+      "cast-flag.mp3"
+    ],
+    "seconds": 0.5,
+    "source": "W UI_SFX/Misc/FA_Whoosh_1_2.wav + K impactWood_medium_002.ogg",
+    "note": "Bandera: vuela (FA_Whoosh_1_2) y se clava (Kenney impactWood_medium) a los 0,14 s."
+  },
+  "cast-hole": {
+    "files": [
+      "cast-hole.mp3"
+    ],
+    "seconds": 0.45,
+    "source": "K impactSoft_heavy_002.ogg + K footstep_grass_001.ogg",
+    "note": "Hoyo: un golpe sordo en la tierra y pasto (Kenney impactSoft_heavy + footstep_grass)."
+  },
+  "cast-cart": {
+    "files": [
+      "cast-cart.mp3"
+    ],
+    "seconds": 1.0,
+    "source": "P Game/Engine1_Backfire.ogg + P Game/Engine1_Idle.ogg",
+    "note": "Carrito: arranca (petardeo) y anda."
+  },
+  "cast-melee": {
+    "files": [
+      "cast-melee.mp3"
+    ],
+    "seconds": 0.33,
+    "source": "K impactPunch_heavy_002.ogg",
+    "note": "Palazo que conecta: el puñetazo pesado."
+  },
+  "hit-soft": {
+    "files": [
+      "hit-soft.mp3",
+      "hit-soft-2.mp3"
+    ],
+    "seconds": 0.16,
+    "source": "K impactSoft_medium_000.ogg | K impactSoft_medium_002.ogg",
+    "note": "Golpe blando, apagado (Kenney impactSoft_medium): el alma en pena, y la pelota que cae o empuja."
+  },
+  "swing": {
+    "files": [
+      "swing.mp3",
+      "swing-2.mp3",
+      "swing-3.mp3"
+    ],
+    "seconds": 0.47,
+    "source": "F 479966.mp3 + F x855844.mp3 | F 479966.mp3 + F x855844.mp3 | F 479966.mp3 + F x855844.mp3",
+    "note": "Swing del hierro: un palo de golf de verdad cortando el aire (Freesound 479966, craigsmith \"R19-33 Golf Club Swings and Hits\", CC0), con el aire grave de un bambú abajo, -4 dB (Freesound 855844, Sadiquecat, CC0). Pico a 0,07 s: el juego lo agenda para que caiga en el impacto."
+  },
+  "swing-big": {
+    "files": [
+      "swing-big.mp3",
+      "swing-big-2.mp3"
+    ],
+    "seconds": 0.53,
+    "source": "F 479966.mp3 + F x855844.mp3 | F 479966.mp3 + F x855844.mp3",
+    "note": "Swing del driver: el mismo palo dos semitonos más grave y con más aire (bambú a -2 dB). Pico a 0,08 s."
+  },
+  "swing-short": {
+    "files": [
+      "swing-short.mp3",
+      "swing-short-2.mp3"
+    ],
+    "seconds": 0.4,
+    "source": "F 479966.mp3 | F 479966.mp3",
+    "note": "Swing corto (putter y wedge): un palo de R19-33 solo, sin el bambú, más bajo. Pico a 0,07 s."
+  },
+  "gate-fall": {
+    "files": [
+      "gate-fall.mp3"
+    ],
+    "seconds": 1.23,
+    "source": "F x723974.mp3 + K impactWood_heavy_001.ogg + K impactPunch_heavy_002.ogg + K impactWood_heavy_003.ogg + F x431174.mp3 + K impactPlank_medium_002.ogg + K impactWood_light_003.ogg",
+    "note": "Cae la puerta: madera que se rompe (Freesound 723974, Saladsounds \"Wooden Door breaks\", CC0) con el primer golpe (Kenney impactWood_heavy, 4 st abajo) y, a los 0,42 s, la puerta contra el piso: golpe pesado grave, madera y el golpe sordo de Freesound 431174; después tablas que rebotan. A -12 LUFS: más fuerte que los golpes."
+  },
+  "knight-groan": {
+    "files": [
+      "knight-groan.mp3",
+      "knight-groan-2.mp3"
+    ],
+    "seconds": 0.68,
+    "source": "F x803168.mp3 | F x387153.mp3",
+    "note": "El caballero se queja al caer: un quejido de hombre que cae de tono (Freesound 803168, salemaudio \"Short Pained Groans\", y 387153, seachangeau \"groan by adam\"; los dos CC0)."
+  }
+}

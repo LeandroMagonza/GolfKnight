@@ -1,0 +1,1 @@
+var e=`gk.botPrefs`,t={abilities:!0,playing:!0};try{let n=JSON.parse(localStorage.getItem(e)??`{}`);typeof n.abilities==`boolean`&&(t.abilities=n.abilities)}catch{}new URLSearchParams(location.search).has(`sinhabilidades`)&&(t.abilities=!1);function n(){try{localStorage.setItem(e,JSON.stringify({abilities:t.abilities}))}catch{}}export{n,t};

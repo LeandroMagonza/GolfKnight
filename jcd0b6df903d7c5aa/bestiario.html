@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golf Knight · Bestiario</title>
+    <style>html,body{color:#e4e9f0;background:#0c1219;height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}canvas{display:block}#bar{z-index:5;background:#080c12d1;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;font-size:14px;display:flex;position:fixed;top:0;left:0;right:0}#bar h1{color:#ffd66b;margin:0 12px 0 0;font-size:20px}#bar .group{align-items:center;gap:6px;display:flex}#bar .sep{background:#2c3644;width:1px;height:24px;margin:0 6px}button{font:inherit;color:#e4e9f0;cursor:pointer;background:#26303d;border:1px solid #4a5666;border-radius:7px;padding:6px 12px}button:hover{border-color:#ffd66b}button.on{color:#102;background:#5be07a;border-color:#5be07a;font-weight:600}#labels{pointer-events:none;z-index:4;position:fixed;inset:0}.tag{text-align:center;white-space:nowrap;text-shadow:0 1px 3px #000,0 0 6px #000;position:absolute;transform:translate(-50%)}.tag b{font-size:14px;display:block}.tag small{color:#c9d2de;font-size:11px;line-height:1.25;display:block}.tag.new b{color:#ffd66b}#note{color:#8d97a5;z-index:5;font-size:12.5px;position:fixed;bottom:10px;left:14px}#loading{color:#9aa4b2;justify-content:center;align-items:center;font-size:18px;display:flex;position:fixed;inset:0}</style>
+    <script type="module" crossorigin src="./assets/bestiario-CT_Uk_9R.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="modulepreload" crossorigin href="./assets/SkeletonUtils-Be-XVruE.js">
+    <link rel="modulepreload" crossorigin href="./assets/GLTFLoader-BC4_JCSR.js">
+    <link rel="modulepreload" crossorigin href="./assets/i18n-D4Vce-qs.js">
+    <link rel="modulepreload" crossorigin href="./assets/clubs-Dfiyihpy.js">
+    <link rel="modulepreload" crossorigin href="./assets/waves-D13DtJ8u.js">
+    <link rel="modulepreload" crossorigin href="./assets/swingPose-BZcGtZ9M.js">
+    <link rel="modulepreload" crossorigin href="./assets/models-DsK0-TeN.js">
+  </head>
+  <body>
+    <div id="bar">
+      <h1>Bestiario</h1>
+      <div class="group" id="clips"></div>
+      <span class="sep"></span>
+      <div class="group" id="who"></div>
+      <span class="sep"></span>
+      <div class="group"><button id="move">Avanzan</button></div>
+    </div>
+    <div id="labels"></div>
+    <div id="loading">Cargando modelos…</div>
+    <div id="note">Arrastrá para girar, rueda para acercar. En amarillo, los nuevos (todavía no salen en las oleadas).</div>
+  </body>
+</html>

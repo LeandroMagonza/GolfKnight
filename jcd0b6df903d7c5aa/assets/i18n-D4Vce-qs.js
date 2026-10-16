@@ -1,0 +1,1 @@
+var e=typeof document<`u`&&document.documentElement.lang===`en`?`en`:`es`;function t(t,n){return e===`en`?n:t}function n(e){let t=new URL(location.href);t.searchParams.delete(`lang`);try{localStorage.setItem(`gk.lang`,e)}catch{t.searchParams.set(`lang`,e)}location.replace(t.toString())}export{e as n,n as r,t};

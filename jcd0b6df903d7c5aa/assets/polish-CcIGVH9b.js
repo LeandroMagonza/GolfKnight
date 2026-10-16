@@ -1,0 +1,1 @@
+var e={impacts:1,hitstop:1,squash:1,explosions:1,auras:1,burning:1,frozen:1,bubble:1,heals:1,samples:1,voices:1,powerSounds:1,uiSounds:1,fireSounds:1,groans:1,abilitySounds:1,mix:1,onTime:1,swing:1,defeatPause:1,mixGuard:1};function t(t){return e[t]>0}function n(t){for(let n of Object.keys(e))e[n]=+!!t}export{t as n,n as r,e as t};
