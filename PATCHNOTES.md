@@ -12,6 +12,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **Los invisibles, más**
 - **Ahora vienen muchos más**: en el escenario de los invisibles, más de la mitad de cada oleada se esfuma. No te protegen de los golpes, pero no los ves venir. `abbba12`
 
+**Sonido**
+- **El sonido ya no se traba** cuando pasan muchas cosas a la vez: el eco de los efectos ahora le pide mucho menos a la compu. Suena parecido; si notás el eco distinto, avisá. `6ff2eca`
+
 **Detrás de escena**
 - El panel de balance ocupa la pantalla entera, pausa la partida y se puede abrir desde la pantalla de entrada. La pestaña de enemigos quedó ordenada por poder, con la explicación de cada número. `abbba12`
 
