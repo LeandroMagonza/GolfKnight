@@ -20,7 +20,7 @@ import { BALLS, REFILL } from './game/tees';
 import { COURSES } from './core/terrain';
 import { TENNIS } from './tennis/bounce';
 import { ABE_BOLT, ABE_SPELLS, BOLT_INFO, SPELL_INFO, SPELL_ORDER, type SpellId } from './coop/spells';
-import { BUDGET, POWER_WEIGHT } from './core/budget';
+import { BUDGET, POWER_FILL, POWER_WEIGHT } from './core/budget';
 import { POLISH, setAllPolish, type PolishKey } from './core/polish';
 import { groupOf, METRONOME, SFX_NAMES, SFX_VOLUME, SONG_VOLUME, VOLUME, type VolumeGroup } from './audio/volumes';
 import { DIVINE, ELITE, ENEMIES, GEOMANCER, HEAVY_GAP, POWER_BIAS, POWER_COUNT, POWER_SPEED, SCENARIO_POWERS, SPAWN_RUSH, type ScenarioPower, HEAL_AURA, MARKS, PHASE, REGEN, STEALTH, type EnemyKind, type WaveDirector } from './core/waves';
@@ -77,6 +77,8 @@ const CONFIGS: Record<string, Record<string, number | number[]>> = {
   // cuántos salen con cada poder, sobre los que tocaban (`cuantos.divine:0.7`)
   cuantos: POWER_COUNT,
   curandero: HEAL_AURA, geomante: GEOMANCER, rebote: RICOCHET, dificultad: DIFFICULTY, marcas: MARKS, 'se cura': REGEN, intocable: PHASE, divino: DIVINE, invisible: STEALTH,
+  // si lo que sobra del presupuesto de los poderes se gasta en más de cada uno (`relleno.stealth:0`; ver POWER_FILL)
+  relleno: POWER_FILL,
   // la vida del élite, fija desde el 12/10 (ver ELITE.hp)
   élite: ELITE as unknown as Record<string, number | number[]>,
   tenis: TENNIS as unknown as Record<string, number | number[]>,
@@ -117,6 +119,8 @@ export function applyTweaks(text: string): string[] {
 }
 
 export interface DebugHooks {
+  /** Se abrió o se cerró el panel: la partida se pausa mientras está abierto (16/10). */
+  onToggle?(open: boolean): void;
   /** Los niveles de dificultad desbloqueados: para probar cualquiera sin ganar las partidas. */
   difficultyPoints: { get(): number; set(points: number): void };
   /** Saca tres cartas ya, como al terminar una oleada. */
@@ -214,6 +218,8 @@ const RESET_ON_UPGRADE: Record<number, readonly string[]> = {
   19: ['elementos.silenceSeconds'],
   // el área del wedge bajó un 20 % y la explosión del hierro subió un 10 % (Leandro, 15/10)
   20: ['wedge.spread', 'iron.spread'],
+  // el invisible pasó a costar poco en el presupuesto (Leandro, 16/10: «es una habilidad molesta pero que no mitiga daño»)
+  21: ['pesos.stealth'],
 };
 /** ¿Un guardado de la versión `from` trae un valor viejo de `key`, que el código redefinió después? */
 function outdated(from: number, key: string): boolean {
@@ -391,6 +397,26 @@ function timingText(t: ChargeTimes): string {
   return `débil ${t.weak.toFixed(2)} s (${pct(t.weak)}) · medio ${t.mid.toFixed(2)} s (${pct(t.mid)}) · fuerte ${t.strong.toFixed(3)} s (${pct(t.strong)}) · el fuerte abre a ${(t.weak + t.mid).toFixed(2)} s`;
 }
 
+/** Un número del panel con su explicación: etiqueta, leer, escribir, paso, unidad y qué hace. */
+type Explained = [string, () => number, (v: number) => void, number, string, string];
+
+/**
+ * Arma la página en cajas, una por título (h4): con el panel a pantalla completa, las secciones van en
+ * columnas. Lo que haya antes del primer título va en una caja propia.
+ */
+function boxify(page: HTMLElement): void {
+  const nodes = [...page.childNodes];
+  let box: HTMLElement | null = null;
+  for (const n of nodes) {
+    if (!box || (n as HTMLElement).tagName === 'H4') {
+      box = document.createElement('section');
+      box.className = 'box';
+      page.append(box);
+    }
+    box.append(n);
+  }
+}
+
 function note(text: string): HTMLElement {
   const p = document.createElement('p');
   p.className = 'note';
@@ -471,6 +497,8 @@ export class DebugPanel {
       this.btn.blur();
       this.toggle();
     });
+    // fuera del HUD: va por encima de todo, también de la pantalla de entrada
+    document.body.append(this.el);
     this.build();
   }
 
@@ -483,6 +511,7 @@ export class DebugPanel {
     if (!this.open) this.closeModal();
     // los números se releen al abrir: pudieron cambiar desde la consola, desde una carta o desde otro botón
     if (this.open) this.refresh();
+    this.hooks.onToggle?.(this.open);
   }
 
   private refresh(): void {
@@ -550,6 +579,24 @@ export class DebugPanel {
     return r;
   }
 
+  /**
+   * Una tabla de números con su explicación debajo de cada uno (16/10, Leandro: «una explicación cada una en
+   * vez de una explicación general después»): etiqueta, casilla, unidad y qué hace.
+   */
+  private explained(rows: Explained[]): HTMLTableElement {
+    const table = document.createElement('table');
+    for (const [label, get, set, step, unit, help] of rows) {
+      const r = table.insertRow();
+      r.className = 'has-help';
+      cell(r, label, 'l');
+      cell(r, this.field(get, set, step)).style.width = '84px';
+      cell(r, unit, 'l');
+      const h = cell(table.insertRow(), help, 'help');
+      h.colSpan = 3;
+    }
+    return table;
+  }
+
   /** Una tabla chica de números sueltos: etiqueta, casilla y unidad. */
   private numbers(rows: [string, () => number, (v: number) => void, number, string][]): { table: HTMLTableElement; rows: HTMLTableRowElement[] } {
     const table = document.createElement('table');
@@ -571,7 +618,9 @@ export class DebugPanel {
     title.textContent = 'Balance';
     const bar = document.createElement('div');
     bar.className = 'tabs';
-    el.append(title, note('Los cambios entran en el próximo tiro. B cierra el panel.'), bar);
+    const close = this.button('× Cerrar (B)', () => this.toggle());
+    close.className = 'closebtn';
+    el.append(title, close, note('Mientras está abierto la partida queda en pausa. Los cambios entran en el próximo tiro. B cierra el panel.'), bar);
     for (const tab of TABS) {
       const page = document.createElement('div');
       page.className = 'page';
@@ -591,6 +640,7 @@ export class DebugPanel {
     this.buildVisual(this.pages.get('Visual')!);
     this.buildSound(this.pages.get('Sonido')!);
     this.buildTests(this.pages.get('Pruebas')!);
+    for (const page of this.pages.values()) boxify(page);
     this.buildFooter(el);
     let first: Tab = 'Palos';
     try {
@@ -1177,9 +1227,10 @@ export class DebugPanel {
     el.append(heals.table, note('Entre oleadas ya no se cura solo: curarse es una de las cartas. Sale sí o sí si la puerta está a la mitad o te queda una vida.'));
   }
 
-  // ---- enemigos ----
+  // ---- enemigos (16/10, Leandro: separado por poder, y cada número con su explicación) ----
   private buildEnemies(el: HTMLElement): void {
-    el.append(heading('Enemigos'));
+    const n = (v: number) => Math.round(v);
+    el.append(heading('Cuerpos'));
     const enemies = document.createElement('table');
     const eHead = enemies.insertRow();
     for (const h of ['', 'sale', 'vida', 'vel.', 'daño', 'ataca c/']) {
@@ -1213,94 +1264,197 @@ export class DebugPanel {
       if (s.attackEvery === undefined) cell(row, '—', 'l');
       else cell(row, this.field(() => s.attackEvery ?? 0, (v) => { s.attackEvery = Math.max(0.2, v); }, 0.5)).title = 'segundos entre ataques';
     }
-    el.append(enemies, note('«sale» lo saca de todas las oleadas sin cambiar el resto. La vida y la velocidad se les pasan también a los que ya están en el campo.'));
+    el.append(enemies, note('«sale» en «no» lo saca de las oleadas sin cambiar el resto. Vida (golpes que aguanta), velocidad (m/s) y daño (a vos y a la puerta) del cuerpo, sin poderes. La vida y la velocidad les llegan también a los que ya están en la cancha.'));
 
-    el.append(heading('Dificultad'));
     const d = DIFFICULTY;
-    const levels = this.numbers([
-      ['niveles desbloqueados', () => this.hooks.difficultyPoints.get(), (v) => this.hooks.difficultyPoints.set(Math.max(0, Math.min(TOP_DIFFICULTY, Math.round(v)))), 1, `de ${TOP_DIFFICULTY}`],
-      ['velocidad en el nivel 0', () => d.speedBase, (v) => { d.speedBase = Math.max(0.3, v); }, 0.05, '× (cada «Más rápidos» le suma su parte)'],
-      ['con poder, de base', () => d.share[0], (v) => { d.share[0] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
-      ['con poder, con 1', () => d.share[1], (v) => { d.share[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
-      ['con poder, con 2', () => d.share[2], (v) => { d.share[2] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada'],
-      ['escudo hasta, de base', () => d.cap[0], (v) => { d.cap[0] = Math.max(1, Math.min(3, Math.round(v))); }, 1, ''],
-      ['blindaje: sorteos con «poderes más duros»', () => d.armorRolls[1], (v) => { d.armorRolls[1] = Math.max(1, Math.round(v)); }, 1, 'se queda con el mayor'],
-      ['recarga del escurridizo y el bendito, sin el punto', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×'],
-      ['intocable: tiempos del ritmo, sin el punto', () => d.timings[0], (v) => { d.timings[0] = Math.max(2, Math.round(v)); }, 1, '(con el punto, 3)'],
-      ['intocable: abierto, sin el punto', () => d.phaseOpen[0], (v) => { d.phaseOpen[0] = Math.min(0.95, Math.max(0.1, v)); }, 0.05, 'del ciclo'],
-      ['intocable: abierto, con el punto', () => d.phaseOpen[1], (v) => { d.phaseOpen[1] = Math.min(0.95, Math.max(0.1, v)); }, 0.05, 'del ciclo'],
-      ['margen del que se cura, sin el punto', () => d.regen[0], (v) => { d.regen[0] = Math.max(0.5, v); }, 0.1, '×'],
-      ['fantasma: vida de más con el punto', () => d.ghostHp[1], (v) => { d.ghostHp[1] = Math.max(0, Math.round(v)); }, 1, ''],
+    el.append(heading('Dificultad: general'), this.explained([
+      ['niveles desbloqueados', () => this.hooks.difficultyPoints.get(), (v) => this.hooks.difficultyPoints.set(Math.max(0, Math.min(TOP_DIFFICULTY, n(v)))), 1, `de ${TOP_DIFFICULTY}`,
+        'Hasta qué nivel se puede elegir en el menú de dificultad, sin tener que ganar las partidas.'],
+      ['velocidad en el nivel 0', () => d.speedBase, (v) => { d.speedBase = Math.max(0.3, v); }, 0.05, '×',
+        'La velocidad de todos los enemigos sin talentos, sobre la de su cuerpo. Cada «Más rápidos» le suma su parte de esto.'],
+      ['con poder, sin el talento', () => d.share[0], (v) => { d.share[0] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada',
+        'Qué parte de cada oleada sale con poder sin «Más con poder». El presupuesto puede sacar algunos (los caros) o, con relleno, sumar del poder del escenario.'],
+      ['con poder, con el talento', () => d.share[1], (v) => { d.share[1] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada',
+        'Lo mismo, con «Más con poder».'],
+      ['con poder, con el talento dos veces', () => d.share[2], (v) => { d.share[2] = Math.max(0, Math.min(1, v)); }, 0.05, 'de la oleada',
+        'Por si algún día se puede tomar dos veces.'],
+      ['descanso con «Sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's',
+        'Los segundos entre una oleada y la siguiente con ese talento.'],
+      ['recarga de los poderes con reloj, sin «Poderes más duros»', () => d.recharge[0], (v) => { d.recharge[0] = Math.max(1, v); }, 0.1, '×',
+        'Sin el talento, cuánto más tardan en volver la esquiva del escurridizo y la burbuja del bendito, y cuánto más rato pasa a la vista el invisible.'],
+      ['golpe 4: vida de más de los comunes', () => d.fourthHp, (v) => { d.fourthHp = Math.max(0, n(v)); }, 1, '',
+        'Con el talento del golpe 4 (que también te da el golpe más fuerte), la vida que suma cada enemigo común.'],
+      ['golpe 4: vida de más del jefe', () => d.fourthBossHp, (v) => { d.fourthBossHp = Math.max(0, n(v)); }, 1, '',
+        'Lo mismo, para el jefe del final.'],
+    ]));
+    // lo que suma cada opción que se suma (más rápidos, recarga lenta, hechiceros), escalón por escalón
+    el.append(heading('Dificultad: lo que suma cada escalón'), this.explained(LADDER.flatMap((options, i) => options.filter((o) => o.add !== undefined).map((o): Explained =>
+      [`escalón ${i + 1}: ${talent(o.id).name.toLowerCase()}`, () => Math.round((o.add ?? 0) * 100) / 100, (v) => { o.add = Math.max(0, Math.min(3, v)); }, 0.05,
+        o.id === 'casters' ? 'de la oleada' : 'más',
+        o.id === 'casters' ? 'Cuántos hechiceros se suman a cada oleada, por la parte de la oleada (al menos uno). Van aparte: no hace falta matarlos para terminar.' : `Lo que suma «${talent(o.id).name}» si se lo elige en ese escalón.`]))),
+    note('El nivel y lo de cada escalón se eligen en el menú de dificultad, en la pantalla de inicio (R desde la pausa). La dificultad vale desde la próxima partida: la de ahora ya está armada.'));
 
-      ['élite del escenario 1: vida de más', () => ELITE.hp[0], (v) => { ELITE.hp[0] = Math.max(0, Math.round(v)); }, 1, '(al doble, con la de su cuerpo)'],
-      ['élite del escenario 2: vida de más', () => ELITE.hp[1], (v) => { ELITE.hp[1] = Math.max(0, Math.round(v)); }, 1, '(al doble, con la de su cuerpo)'],
-      ['élite del escenario 3: vida de más', () => ELITE.hp[2], (v) => { ELITE.hp[2] = Math.max(0, Math.round(v)); }, 1, '(al doble, con la de su cuerpo)'],
-      ['descanso con «sin respiro»', () => d.rest[1], (v) => { d.rest[1] = Math.max(0.5, v); }, 0.5, 's'],
+    el.append(heading('Élites'), this.explained([0, 1, 2].map((i): Explained =>
+      [`del escenario ${i + 1}: vida de más`, () => ELITE.hp[i], (v) => { ELITE.hp[i] = Math.max(0, n(v)); }, 1, '',
+        `Lo que se le suma al élite que cierra el escenario ${i + 1}, sobre la vida de su cuerpo; después toda su vida va al doble.`])));
 
-      ['golpe 4: vida de más de los comunes', () => d.fourthHp, (v) => { d.fourthHp = Math.max(0, Math.round(v)); }, 1, ''],
-      ['golpe 4: del jefe', () => d.fourthBossHp, (v) => { d.fourthBossHp = Math.max(0, Math.round(v)); }, 1, ''],
-      ['estampida: chicos de más por oleada', () => MARKS.stampede, (v) => { MARKS.stampede = Math.max(0, Math.round(v)); }, 1, ''],
-      ['gigantes: por oleada', () => MARKS.giants, (v) => { MARKS.giants = Math.max(0, Math.round(v)); }, 1, ''],
-      ['todos con poder: con los que no salieron', () => MARKS.foreign, (v) => { MARKS.foreign = Math.max(0, Math.round(v)); }, 1, ''],
-      // lo que suma cada opción que se suma (más rápidos, recarga lenta, hechiceros), escalón por escalón
-      ...LADDER.flatMap((options, i) => options.filter((o) => o.add !== undefined).map((o): [string, () => number, (v: number) => void, number, string] =>
-        [`escalón ${i + 1}: ${talent(o.id).name.toLowerCase()}`, () => o.add ?? 0, (v) => { o.add = Math.max(0, Math.min(3, v)); }, 0.05, o.id === 'casters' ? 'de cada oleada, aparte' : 'más']))
-        .map(([label, get, set, step, unit]) => [label, () => Math.round(get() * 100) / 100, set, step, unit] as [string, () => number, (v: number) => void, number, string]),
-    ]);
-    el.append(levels.table, note('El nivel y lo de cada escalón se eligen en el menú de dificultad, en la pantalla de inicio (R desde la pausa). Lo demás vale desde la próxima partida: la de ahora ya está armada.'));
+    el.append(heading('Olas especiales y sus marcas'), this.explained([
+      ['estampida: chicos de más por oleada', () => MARKS.stampede, (v) => { MARKS.stampede = Math.max(0, n(v)); }, 1, '',
+        'Después de la estampida, cada oleada trae tantos goblins de más (pueden salir kamikazes). Sin estampida no hay kamikazes.'],
+      ['gigantes: por oleada', () => MARKS.giants, (v) => { MARKS.giants = Math.max(0, n(v)); }, 1, '',
+        'Después de la oleada de gigantes, cuántos se agrandan en cada oleada.'],
+      ['todos con poder: con los que no salieron', () => MARKS.foreign, (v) => { MARKS.foreign = Math.max(0, n(v)); }, 1, '',
+        'Después de «todos con poder», cuántos por oleada traen poderes de escenario que no salieron en la partida.'],
+    ]));
 
-    el.append(heading('Rebote del escudo'));
-    const ricochet = this.numbers([
-      ['velocidad', () => RICOCHET.speed, (v) => { RICOCHET.speed = Math.max(1, v); }, 1, 'm/s'],
-      ['tarda al menos', () => RICOCHET.minFlight, (v) => { RICOCHET.minFlight = Math.max(0.2, v); }, 0.1, 's'],
-      ['tarda como mucho', () => RICOCHET.maxFlight, (v) => { RICOCHET.maxFlight = Math.max(RICOCHET.minFlight, v); }, 0.1, 's'],
-      ['sube', () => RICOCHET.height, (v) => { RICOCHET.height = Math.max(0, v); }, 0.5, 'm sobre la recta'],
-      ['radio de la marca', () => RICOCHET.radius, (v) => { RICOCHET.radius = Math.max(0.3, v); }, 0.1, 'm'],
-      ['daño', () => RICOCHET.damage, (v) => { RICOCHET.damage = Math.max(0, Math.round(v)); }, 1, 'de vida'],
-    ]);
-    el.append(ricochet.table, note('La pelota que para un escudo vuelve por el aire adonde estabas cuando rebotó, con una marca roja quieta ahí. Si seguís adentro cuando cae, te pega.'));
+    this.buildBudget(el);
 
-    el.append(heading('El que se cura, el intocable y el bendito'));
-    const regen = this.numbers([
-      ['se cura: vida de más', () => REGEN.hp, (v) => { REGEN.hp = Math.max(0, Math.round(v)); }, 1, ''],
-      ['intocable: ciclo (abierto, un tiempo; cerrado, los otros)', () => PHASE.cycle, (v) => { PHASE.cycle = Math.max(0.6, v); }, 0.1, 's'],
-      ['intocable: abierto llegando a la línea', () => PHASE.line, (v) => { PHASE.line = Math.max(0, v); }, 0.25, 'pulsos'],
-      ['se cura: daño del golpe medio', () => REGEN.hit, (v) => { REGEN.hit = Math.max(1, Math.round(v)); }, 1, ''],
-      ['se cura: un golpe medio cada', () => REGEN.gap, (v) => { REGEN.gap = Math.max(0.3, v); }, 0.1, 's'],
-      ['se cura: margen', () => REGEN.margin, (v) => { REGEN.margin = Math.max(0, v); }, 0.1, 's'],
-      ['se cura: margen del élite', () => REGEN.eliteMargin, (v) => { REGEN.eliteMargin = Math.max(0, v); }, 0.1, 's'],
-      ['se cura: ciclo mínimo', () => REGEN.min, (v) => { REGEN.min = Math.max(0.5, v); }, 0.1, 's'],
-      ['se cura: el ciclo arranca con el primer golpe', () => REGEN.onHit, (v) => { REGEN.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 corre siempre'],
-      ['se cura: el ciclo con las cargas', () => REGEN.byCharge, (v) => { REGEN.byCharge = v > 0 ? 1 : 0; }, 1, '1 sí (rematarlo después de un 3), 0 con golpes medios'],
-      ['se cura, con las cargas: entre tiros', () => REGEN.move, (v) => { REGEN.move = Math.max(0, v); }, 0.05, 's'],
-      ['se cura, con las cargas: parte del margen', () => REGEN.slack, (v) => { REGEN.slack = Math.max(0, v); }, 0.05, '×'],
-      ['burbuja: vuelve sola a los', () => DIVINE.every, (v) => { DIVINE.every = Math.max(0.5, v); }, 0.5, 's'],
-      ['burbuja del élite: a los', () => DIVINE.elite, (v) => { DIVINE.elite = Math.max(0.5, v); }, 0.5, 's'],
-      ['presupuesto de las oleadas', () => BUDGET.on, (v) => { BUDGET.on = v > 0 ? 1 : 0; }, 1, '1 sí, 0 el reparto de antes'],
-      ['presupuesto: tope de un común con poder', () => BUDGET.cap, (v) => { BUDGET.cap = Math.max(1, v); }, 0.5, 'tiros'],
-      ['presupuesto: lo de los poderes, por la parte con poder', () => BUDGET.powers, (v) => { BUDGET.powers = Math.max(0, v); }, 0.1, '×'],
-      ['presupuesto: lo de cada marca', () => BUDGET.marks, (v) => { BUDGET.marks = Math.max(0, v); }, 0.05, 'de la oleada'],
-      ['bendito: preferir cuerpos chicos', () => POWER_BIAS.divine, (v) => { POWER_BIAS.divine = Math.max(0, v); }, 0.5, '(0 parejo)'],
-      ['fantasma: preferir cuerpos chicos', () => POWER_BIAS.ethereal, (v) => { POWER_BIAS.ethereal = Math.max(0, v); }, 0.5, '(0 parejo)'],
-      ['gigantes fantasmas y benditos', () => POWER_BIAS.giants, (v) => { POWER_BIAS.giants = v > 0 ? 1 : 0; }, 1, '1 sí, 0 no'],
-      ...(Object.entries(SPEED_NAMES) as [ScenarioPower, string][]).map(([p, name]) => [`velocidad del ${name}, siempre`, () => POWER_SPEED[p], (v: number) => { POWER_SPEED[p] = Math.min(2, Math.max(0.3, v)); }, 0.05, '×'] as [string, () => number, (v: number) => void, number, string]),
-    ]);
-    el.append(regen.table, note('El que se cura se cura entero cada tanto: el ciclo alcanza para matarlo con golpes medios (cuántos le hacen falta por su vida, uno cada tanto) y sobra el margen. Con poca dificultad el margen y la burbuja se multiplican por la recarga de arriba. Al bendito, además, cada golpe que le entra le devuelve la burbuja. Los intocables van en tres grupos que se turnan (sin el punto, dos), en el mismo ciclo: en cada pulso hay uno abierto. Vale desde la próxima partida.'));
+    el.append(heading('Escudo'), this.explained([
+      ['nivel más alto, sin «Poderes más duros»', () => d.cap[0], (v) => { d.cap[0] = Math.max(1, Math.min(3, n(v))); }, 1, '',
+        'Hasta qué nivel llega el escudo (lo que le resta a lo que le llega de frente). Con el talento llega a 3 y sale siempre al máximo.'],
+      ['rebote: velocidad', () => RICOCHET.speed, (v) => { RICOCHET.speed = Math.max(1, v); }, 1, 'm/s',
+        'La pelota que para un escudo vuelve por el aire adonde estabas cuando rebotó. Esto es lo rápido que viene.'],
+      ['rebote: tarda al menos', () => RICOCHET.minFlight, (v) => { RICOCHET.minFlight = Math.max(0.2, v); }, 0.1, 's',
+        'Aunque estés cerca, nunca llega antes de esto: da tiempo a correrse.'],
+      ['rebote: tarda como mucho', () => RICOCHET.maxFlight, (v) => { RICOCHET.maxFlight = Math.max(RICOCHET.minFlight, v); }, 0.1, 's',
+        'Aunque estés lejos, nunca tarda más que esto.'],
+      ['rebote: sube', () => RICOCHET.height, (v) => { RICOCHET.height = Math.max(0, v); }, 0.5, 'm',
+        'Lo alto del arco que hace la pelota de vuelta, sobre la recta.'],
+      ['rebote: radio de la marca', () => RICOCHET.radius, (v) => { RICOCHET.radius = Math.max(0.3, v); }, 0.1, 'm',
+        'La marca roja del piso donde va a caer. Si cuando cae seguís adentro, te pega.'],
+      ['rebote: daño', () => RICOCHET.damage, (v) => { RICOCHET.damage = Math.max(0, n(v)); }, 1, 'de vida',
+        'Lo que te saca si te agarra.'],
+    ]));
 
-    el.append(heading('El invisible'));
-    const stealth = this.numbers([
-      ['a la vista al aparecer', () => STEALTH.first, (v) => { STEALTH.first = Math.max(0, v); }, 0.25, 's'],
-      ['a la vista entre una y otra', () => STEALTH.visible, (v) => { STEALTH.visible = Math.max(0.25, v); }, 0.25, 's'],
-      ['escondido', () => STEALTH.hidden, (v) => { STEALTH.hidden = Math.max(0.25, v); }, 0.25, 's'],
-      ['escondido, el élite', () => STEALTH.eliteHidden, (v) => { STEALTH.eliteHidden = Math.max(0.25, v); }, 0.25, 's'],
-      ['el golpe a la vista lo esconde', () => STEALTH.onHit, (v) => { STEALTH.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 solo el reloj'],
-      ['ángulo mínimo', () => STEALTH.minAngle, (v) => { STEALTH.minAngle = Math.min(STEALTH.maxAngle, Math.max(0, v)); }, 5, '°'],
-      ['ángulo máximo', () => STEALTH.maxAngle, (v) => { STEALTH.maxAngle = Math.min(85, Math.max(STEALTH.minAngle, v)); }, 5, '°'],
-      ['aparece a', () => STEALTH.line, (v) => { STEALTH.line = Math.max(0, v); }, 1, 'm de la línea'],
-      ['destello del golpe', () => STEALTH.ping, (v) => { STEALTH.ping = Math.max(0.05, v); }, 0.05, 's'],
-      ['fundido', () => STEALTH.fade, (v) => { STEALTH.fade = Math.max(0.02, v); }, 0.05, 's'],
-    ]);
-    el.append(stealth.table, note('Escondido camina cruzado, a un ángulo al azar entre el mínimo y el máximo, para un lado o el otro: lo de costado se suma a lo que avanza (no se normaliza), así llega a la línea cuando llegaría a la vista. Si el punto queda afuera de la cancha prueba el otro lado. Un golpe que le llega escondido lo delata (destello blanco) sin cambiarle el camino. Silenciado aparece. Vale en el acto.'));
+    el.append(heading('Blindaje'), this.explained([
+      ['sorteos con «Poderes más duros»', () => d.armorRolls[1], (v) => { d.armorRolls[1] = Math.max(1, n(v)); }, 1, '',
+        'El nivel del blindaje común sale del mayor de tantos sorteos: con 2, el blindaje 1 sale mucho menos. (Con el talento, además, sale siempre al máximo.)'],
+    ]));
+
+    el.append(heading('Fantasma'), this.explained([
+      ['vida de más con «Poderes más duros»', () => d.ghostHp[1], (v) => { d.ghostHp[1] = Math.max(0, n(v)); }, 1, '',
+        'Al fantasma común cada golpe le saca 1: con el talento trae esta vida de más.'],
+      ['preferir cuerpos chicos', () => POWER_BIAS.ethereal, (v) => { POWER_BIAS.ethereal = Math.max(0, v); }, 0.5, '(0 parejo)',
+        'Con 0 cae en cualquier cuerpo; con más, en los de poca vida (con 1, el de 4 de vida sale la mitad que el de 2).'],
+      ['gigantes fantasmas y benditos', () => POWER_BIAS.giants, (v) => { POWER_BIAS.giants = v > 0 ? 1 : 0; }, 1, '1 sí, 0 no',
+        'Si la marca de los gigantes puede agrandar a un fantasma o a un bendito (vale para los dos).'],
+    ]));
+
+    el.append(heading('Bendito'), this.explained([
+      ['la burbuja vuelve sola a los', () => DIVINE.every, (v) => { DIVINE.every = Math.max(0.5, v); }, 0.5, 's',
+        'La burbuja se come el primer golpe entero. Rota, se rearma sola a los tantos segundos (y cada golpe que le entra se la devuelve).'],
+      ['la del élite, a los', () => DIVINE.elite, (v) => { DIVINE.elite = Math.max(0.5, v); }, 0.5, 's',
+        'Lo mismo para el élite bendito.'],
+      ['preferir cuerpos chicos', () => POWER_BIAS.divine, (v) => { POWER_BIAS.divine = Math.max(0, v); }, 0.5, '(0 parejo)',
+        'Con 0 cae en cualquier cuerpo; con más, en los de poca vida.'],
+    ]));
+
+    el.append(heading('Se cura'), this.explained([
+      ['vida de más', () => REGEN.hp, (v) => { REGEN.hp = Math.max(0, n(v)); }, 1, '',
+        'La que trae el común que se cura, para que no caiga de un golpe (el élite no: ya trae la suya).'],
+      ['el ciclo arranca con el primer golpe', () => REGEN.onHit, (v) => { REGEN.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 siempre',
+        'Con 1, sano no corre: el primer golpe arranca el ciclo y al llenarse se cura entero. Con 0 corre siempre.'],
+      ['el ciclo con las cargas', () => REGEN.byCharge, (v) => { REGEN.byCharge = v > 0 ? 1 : 0; }, 1, '1 sí, 0 golpes medios',
+        'Con 1, el ciclo alcanza justo para rematarlo después del golpe más fuerte, con la combinación más rápida. Con 0, con golpes medios seguidos.'],
+      ['con las cargas: entre tiros', () => REGEN.move, (v) => { REGEN.move = Math.max(0, v); }, 0.05, 's',
+        'Lo que se tarda entre un tiro y el siguiente, para esa cuenta.'],
+      ['con las cargas: parte del margen', () => REGEN.slack, (v) => { REGEN.slack = Math.max(0, v); }, 0.05, '×',
+        'Cuánto del margen de abajo se suma al ciclo con las cargas.'],
+      ['con golpes medios: daño del golpe medio', () => REGEN.hit, (v) => { REGEN.hit = Math.max(1, n(v)); }, 1, '',
+        'Sin las cargas, el ciclo cuenta golpes de este daño...'],
+      ['con golpes medios: uno cada', () => REGEN.gap, (v) => { REGEN.gap = Math.max(0.3, v); }, 0.1, 's',
+        '...uno cada tantos segundos.'],
+      ['margen', () => REGEN.margin, (v) => { REGEN.margin = Math.max(0, v); }, 0.1, 's',
+        'Lo que le sobra al ciclo después de esos golpes: más margen, más fácil.'],
+      ['margen del élite', () => REGEN.eliteMargin, (v) => { REGEN.eliteMargin = Math.max(0, v); }, 0.1, 's',
+        'El del élite que se cura: menos margen, sin errar.'],
+      ['ciclo mínimo', () => REGEN.min, (v) => { REGEN.min = Math.max(0.5, v); }, 0.1, 's',
+        'El ciclo nunca es más corto que esto.'],
+      ['margen sin «Poderes más duros»', () => d.regen[0], (v) => { d.regen[0] = Math.max(0.5, v); }, 0.1, '×',
+        'Sin el talento el margen se multiplica por esto: tarda más en curarse.'],
+    ]));
+
+    el.append(heading('Intocable'), this.explained([
+      ['ciclo', () => PHASE.cycle, (v) => { PHASE.cycle = Math.max(0.6, v); }, 0.1, 's',
+        'Lo que dura una vuelta del ritmo. Los intocables van en grupos que se turnan dentro del ciclo.'],
+      ['tiempos, sin «Poderes más duros»', () => d.timings[0], (v) => { d.timings[0] = Math.max(2, n(v)); }, 1, '(con el talento, 3)',
+        'En cuántos grupos se reparten: cada grupo abre su ventana un tiempo después del anterior.'],
+      ['abierto, sin «Poderes más duros»', () => d.phaseOpen[0], (v) => { d.phaseOpen[0] = Math.min(0.95, Math.max(0.1, v)); }, 0.05, 'del ciclo',
+        'Qué parte del ciclo se le puede pegar a cada uno.'],
+      ['abierto, con «Poderes más duros»', () => d.phaseOpen[1], (v) => { d.phaseOpen[1] = Math.min(0.95, Math.max(0.1, v)); }, 0.05, 'del ciclo',
+        'Lo mismo con el talento.'],
+      ['abierto llegando a la línea', () => PHASE.line, (v) => { PHASE.line = Math.max(0, v); }, 0.25, 'pulsos',
+        'Si le faltan tantos pulsos para cruzar tu línea se abre y llega abierto: que no se cierre a unos metros.'],
+    ]));
+
+    el.append(heading('Invisible'), this.explained([
+      ['a la vista al aparecer', () => STEALTH.first, (v) => { STEALTH.first = Math.max(0, v); }, 0.25, 's',
+        'Cuánto se lo ve al entrar a la cancha antes de esfumarse la primera vez.'],
+      ['escondido', () => STEALTH.hidden, (v) => { STEALTH.hidden = Math.max(0.25, v); }, 0.25, 's',
+        'Cuánto dura escondido. Mientras tanto camina cruzado.'],
+      ['escondido, el élite', () => STEALTH.eliteHidden, (v) => { STEALTH.eliteHidden = Math.max(0.25, v); }, 0.25, 's',
+        'Lo mismo para el élite invisible.'],
+      ['a la vista entre una y otra', () => STEALTH.visible, (v) => { STEALTH.visible = Math.max(0.25, v); }, 0.25, 's',
+        'Cuánto se lo ve después de aparecer, hasta esfumarse otra vez (sin «Poderes más duros», por la recarga de «Dificultad: general»).'],
+      ['el golpe a la vista lo esconde', () => STEALTH.onHit, (v) => { STEALTH.onHit = v > 0 ? 1 : 0; }, 1, '1 sí, 0 no',
+        'Con 1, si le pegás mientras se lo ve, se esfuma en el acto. Con 0, solo con el reloj.'],
+      ['ángulo mínimo', () => STEALTH.minAngle, (v) => { STEALTH.minAngle = Math.min(STEALTH.maxAngle, Math.max(0, v)); }, 5, '°',
+        'Escondido camina cruzado a un ángulo al azar de su camino, para un lado o el otro. Este es el menos cruzado.'],
+      ['ángulo máximo', () => STEALTH.maxAngle, (v) => { STEALTH.maxAngle = Math.min(85, Math.max(STEALTH.minAngle, v)); }, 5, '°',
+        'Y este el más cruzado. Lo de costado se suma a lo que avanza (no frena): a 70° se corre casi el triple de lo que avanza.'],
+      ['aparece a', () => STEALTH.line, (v) => { STEALTH.line = Math.max(0, v); }, 1, 'm de la línea',
+        'Cerca de tu línea aparece y ya no se esconde.'],
+      ['destello del golpe', () => STEALTH.ping, (v) => { STEALTH.ping = Math.max(0.05, v); }, 0.05, 's',
+        'Lo que dura la silueta blanca cuando una pelota le llega escondido.'],
+      ['fundido', () => STEALTH.fade, (v) => { STEALTH.fade = Math.max(0.02, v); }, 0.05, 's',
+        'Lo que tarda en desvanecerse o en aparecer.'],
+    ]));
+  }
+
+  /** El presupuesto de las oleadas (ver core/budget y docs/presupuesto.md), con los números de cada poder. */
+  private buildBudget(el: HTMLElement): void {
+    el.append(heading('Presupuesto de las oleadas'), note('Cada enemigo cuesta los tiros que te pide: su vida y lo que le hace su poder, sobre lo que saca un golpe que pega. Con eso se decide cuántos salen con poder. Vale desde la próxima oleada.'), this.explained([
+      ['prendido', () => BUDGET.on, (v) => { BUDGET.on = v > 0 ? 1 : 0; }, 1, '1 sí, 0 no',
+        'Con 0, el reparto de antes: siempre la parte con poder de la dificultad, sin mirar lo que cuesta.'],
+      ['lo de los poderes', () => BUDGET.powers, (v) => { BUDGET.powers = Math.max(0, v); }, 0.1, '×',
+        'Lo que pueden sumar los poderes de una oleada, por la parte que sale con poder: con 1 y un tercio con poder, un tercio más de tiros que los cuerpos sin poder. Si se pasa, salen menos con poder (o menos cuerpos, si el élite es caro).'],
+      ['tope de un común con poder', () => BUDGET.cap, (v) => { BUDGET.cap = Math.max(1, v); }, 0.5, 'tiros',
+        'Un común no recibe un poder que lo haga pedir más que esto (el chamán fantasma de 8, por ejemplo).'],
+      ['relleno: hasta', () => BUDGET.fillMax, (v) => { BUDGET.fillMax = Math.min(1, Math.max(0, v)); }, 0.05, 'de la oleada',
+        'A los poderes con relleno (en la tabla de cada poder), lo que sobra de lo de los poderes se gasta en más del poder del escenario, hasta esta parte de la oleada.'],
+      ['invisible: a ciegas', () => BUDGET.blind, (v) => { BUDGET.blind = Math.max(0, v); }, 0.1, '× de tiros',
+        'El invisible no resta daño: lo que cuesta son los tiros que se tiran buscándolo. Por cada tiro que pediría a la vista, tantos de más.'],
+      ['lo de cada marca', () => BUDGET.marks, (v) => { BUDGET.marks = Math.max(0, v); }, 0.05, 'de la oleada',
+        'Lo que puede sumar cada marca de las olas especiales (los chicos de la estampida, los gigantes...) sobre lo que piden los cuerpos.'],
+      ['el que se cura, a lo sumo', () => BUDGET.regen, (v) => { BUDGET.regen = Math.max(1, v); }, 0.1, '×',
+        'El que se cura nunca cuenta más que esto por lo que pediría sin curarse.'],
+      ['tiros por minuto', () => BUDGET.perMin, (v) => { BUDGET.perMin = Math.max(5, v); }, 1, '',
+        'El jugador de referencia (Leandro en el nivel 10): cuántos tiros hace por minuto. Lo usan las cuentas del intocable y del que se cura.'],
+      ['tiros que pegan', () => BUDGET.connect, (v) => { BUDGET.connect = Math.min(1, Math.max(0.1, v)); }, 0.01, 'de cada 1',
+        'Y qué parte de sus tiros pega.'],
+    ]));
+    // por poder: lo que cuenta (peso), si rellena, cuántos salen y a qué velocidad
+    const table = document.createElement('table');
+    const head = table.insertRow();
+    for (const h of ['', 'peso', 'relleno', 'cuántos', 'velocidad']) {
+      const th = document.createElement('th');
+      th.textContent = h;
+      if (!h) th.className = 'l';
+      head.appendChild(th);
+    }
+    for (const p of SCENARIO_POWERS) {
+      const r = table.insertRow();
+      cell(r, SPEED_NAMES[p], 'l');
+      cell(r, this.field(() => POWER_WEIGHT[p] ?? 1, (v) => { POWER_WEIGHT[p] = Math.max(0, v); }, 0.1));
+      cell(r, this.field(() => POWER_FILL[p] ?? 0, (v) => { POWER_FILL[p] = Math.min(1, Math.max(0, v)); }, 0.25));
+      cell(r, this.field(() => POWER_COUNT[p], (v) => { POWER_COUNT[p] = Math.min(1, Math.max(0, v)); }, 0.05));
+      cell(r, this.field(() => POWER_SPEED[p], (v) => { POWER_SPEED[p] = Math.min(2, Math.max(0.3, v)); }, 0.05));
+    }
+    el.append(heading('Presupuesto: cada poder'), table,
+      note('Peso: lo que cuenta lo que suma el poder, sobre la cuenta. Menos de 1, más barato: entran más (con relleno) o en cuerpos más grandes; más de 1, menos.'),
+      note('Relleno: 1, lo que sobra de lo de los poderes se gasta en más de este poder cuando es el del escenario (hasta el tope de arriba); 0, sale la parte de siempre y lo que sobra no se usa.'),
+      note('Cuántos: de cada diez que le tocaban, cuántos lo traen de verdad (el resto sale sin poder). 1, todos.'),
+      note('Velocidad: la de todos los que lo traen, élite incluido, encima de la que traigan. 1, la de siempre.'));
   }
 
   // ---- campo y cámara ----

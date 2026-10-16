@@ -16,7 +16,7 @@
 // especiales ni apoyos; `buildRun()` sin reglas arma la más difícil.
 
 import { L } from '../i18n';
-import { BUDGET, shotsFor } from './budget';
+import { BUDGET, POWER_FILL, shotsFor } from './budget';
 import { CHARGE, FOURTH } from './clubs';
 
 export type EnemyKind = 'goblin' | 'goblina' | 'orc' | 'skeleton' | 'warchief' | 'shaman' | 'knight' | 'stoneling' | 'wraith' | 'golem' | NewKind;
@@ -1203,6 +1203,16 @@ export function spawnOrder(wave: Wave, rand: () => number = Math.random): Spawn[
     for (const s of wave.supports ?? []) for (let i = 0; i < s.count && left > 0; i++, left--) give(power(s.key), false);
     for (; focus > 0; focus--) give(power(wave.focus!), false);
     for (; rest > 0 && old.length; rest--) give(power(old[Math.floor(rand() * old.length)]), false);
+  }
+  // el relleno (ver POWER_FILL): lo que sobró de lo de los poderes se gasta en más del poder del escenario,
+  // hasta BUDGET.fillMax de la oleada
+  const fill = budget && wave.focus && wave.mod !== 'powered' ? POWER_FILL[wave.focus] ?? 0 : 0;
+  if (fill > 0 && left > 0) {
+    const focusKey = wave.focus as keyof EnemyMods;
+    const most = Math.round(arriving.filter((s) => !ENEMIES[s.kind].boss).length * BUDGET.fillMax);
+    let have = arriving.filter((s) => s.mods?.[focusKey]).length;
+    left *= fill;
+    for (let tries = 0; have < most && tries < 200 && give(power(wave.focus!), false); tries++) have++;
   }
   // los hechiceros del talento: se suman, en cuerpos chicos de la oleada, repartidos (nunca primeros)
   if (wave.casters) {

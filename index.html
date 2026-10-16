@@ -649,7 +649,14 @@
       /* panel de balance y pruebas: columna a la derecha, con el juego corriendo detrás */
       /* por encima de la pausa y del final: el panel tiene que poder usarse con el juego frenado */
       /* todo el sonido (N): en el que mira va donde estaría el skin, que ahí no está */
-      #balance { position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); box-sizing: border-box; z-index: 7; overflow-y: auto; background: rgba(8, 12, 18, 0.93); border-left: 2px solid #4a5666; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
+      /* el panel de balance (16/10, Leandro): la pantalla entera, por encima de la entrada, y pausa la partida */
+      #balance { position: fixed; inset: 0; box-sizing: border-box; z-index: 15; overflow-y: auto; background: #0a0f16; padding: 14px 16px 30px; pointer-events: auto; font-size: 13px; }
+      #balance .page:not([hidden]) { columns: 520px; column-gap: 16px; margin-top: 10px; }
+      #balance .box { box-sizing: border-box; min-width: 0; break-inside: avoid; margin-bottom: 12px; background: rgba(255, 255, 255, 0.025); border: 1px solid #232c38; border-radius: 8px; padding: 0 12px 10px; }
+      #balance .box > h4:first-child { margin-top: 10px; }
+      #balance td.help { white-space: normal; color: #8792a2; font-size: 11px; line-height: 1.4; padding: 0 2px 7px; }
+      #balance tr.has-help td { padding-top: 4px; }
+      #balance .closebtn { position: fixed; top: 10px; right: 14px; z-index: 2; font-size: 16px; padding: 4px 12px; }
       #balance[hidden] { display: none; }
       #balance h3 { margin: 0 0 4px; font-size: 20px; color: #ffd66b; }
       #balance h4 { margin: 16px 0 6px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #9aa4b2; border-bottom: 1px solid #2c3644; padding-bottom: 4px; }

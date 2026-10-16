@@ -2006,8 +2006,29 @@ async function startBotNow(): Promise<void> {
 let debugPanel: DebugPanel | null = null;
 // sin las herramientas de prueba (la demo, la de Abe), tampoco su botón
 if (!DEV_TOOLS) document.getElementById('balancebtn')?.remove();
+/** El panel pausó la partida al abrirse: al cerrarlo, sigue (si ya estaba en pausa, queda en pausa). */
+let pausedByPanel = false;
+// en la pantalla de entrada, un botón para abrirlo (la B también anda ahí)
+if (DEV_TOOLS) {
+  const open = document.createElement('button');
+  open.type = 'button';
+  open.className = 'link';
+  open.textContent = 'Balance (B)'; // i18n-ok: herramienta de prueba, igual en los dos idiomas
+  open.addEventListener('click', () => { open.blur(); debugPanel?.toggle(); });
+  document.getElementById('corner')?.prepend(open);
+}
 function makeDebugPanel(): DebugPanel {
   return new DebugPanel({
+    // abierto, la partida queda en pausa (16/10, Leandro)
+    onToggle(open) {
+      if (open && started && !ended && !paused) {
+        togglePause();
+        pausedByPanel = true;
+      } else if (!open && pausedByPanel) {
+        pausedByPanel = false;
+        if (paused) togglePause();
+      }
+    },
     director,
     bot: { running: () => botStarted, start: () => { void startBotNow(); } },
     difficultyPoints: {

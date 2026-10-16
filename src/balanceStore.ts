@@ -15,4 +15,4 @@ export const BALANCE_KEY = 'gk.balance';
  * Al subir la versión esos vuelven al valor del código y el resto de lo tocado se conserva (ver
  * RESET_ON_UPGRADE en src/debug.ts).
  */
-export const BALANCE_VERSION = 20;
+export const BALANCE_VERSION = 21;

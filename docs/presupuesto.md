@@ -78,6 +78,22 @@ den parecido. El bendito va en 1.4 (con el bot que juega como Leandro, en el niv
 45 %). El fantasma, entre 0.6 y 1.4, no se movió del 20 a 30 %: lo que más pierde es el élite fantasma, que
 el peso no toca. Al blindaje y al escurridizo (70 y 65 %), bajarlos a 0.7 tampoco los movió.
 
+## El relleno y el invisible (16/10)
+
+Leandro: los invisibles salían fáciles («es una habilidad molesta pero que no mitiga daño», hay que bajarles
+mucho el costo). Medido: el presupuesto le cobraba **cero** al invisible, como al escudo, y ya salía con el
+máximo del reparto (un tercio de la oleada, 5,3 por oleada en el primer escenario). Bajarle el costo no
+cambiaba nada, porque el presupuesto **solo sacaba** poderes, nunca los sumaba.
+
+- **Costo real del invisible**: `BUDGET.blind` (0,4): los tiros de más que se tiran a ciegas, por cada tiro
+  que pediría a la vista. Con peso 0,3 (`POWER_WEIGHT.stealth`): barato.
+- **Relleno** (`POWER_FILL`, por poder; hoy solo el invisible): lo que sobra de lo de los poderes de la
+  oleada se gasta en más del poder del escenario, hasta `BUDGET.fillMax` (70 %) de la oleada. Cuanto más
+  barato el poder, más vienen.
+- Resultado, primer escenario: de 5,3 a unos 11,7 invisibles por oleada (de 19). Los demás poderes, igual.
+- Todo en el panel B → Enemigos → «Presupuesto» y «Presupuesto: cada poder» (peso, relleno, cuántos,
+  velocidad).
+
 ## Lo que falta
 
 - **Las llegadas repartidas por carga**: hoy cada uno tiene su turno a intervalo fijo, y los gordos de la 9

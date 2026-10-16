@@ -10,7 +10,8 @@
  * - fantasma: cada golpe le saca 1;
  * - bendito y escurridizo: cada golpe que entra pide antes otro tiro (romper la burbuja, hacerlo saltar);
  * - intocable: le entra uno por ciclo (cuenta lo que se espera);
- * - se cura: hay que matarlo adentro de un ciclo; los ciclos que no alcanzan se tiran enteros.
+ * - se cura: hay que matarlo adentro de un ciclo; los ciclos que no alcanzan se tiran enteros;
+ * - invisible: no resta nada, pero se tiran tiros a ciegas (`blind`).
  */
 import { ENEMIES, PHASE, regenPeriod, type EnemyKind, type EnemyMods } from './waves';
 
@@ -30,9 +31,12 @@ import { ENEMIES, PHASE, regenPeriod, type EnemyKind, type EnemyMods } from './w
  * - `regen`: el que se cura pide a lo sumo esto por lo que pediría sin curarse. La cuenta de los ciclos
  *   sale con los golpes de siempre, pero contra él se carga más: Leandro mató al élite que se cura (18 de
  *   vida) en 5 a 10 golpes, y la cuenta le daba 39 tiros.
+ * - `blind`: los tiros de más que pide el invisible, por cada tiro que pediría a la vista (los que se
+   tiran a ciegas, buscándolo). Sin esto le costaba cero, como el escudo.
+ * - `fillMax`: el relleno (ver POWER_FILL) no pasa de esta parte de la oleada con el poder del escenario.
  * - `on`: 0 lo apaga (el reparto de antes, para comparar con ?ajuste=presupuesto.on:0).
  */
-export const BUDGET = { on: 1, perMin: 37.1, connect: 0.87, mix: [0.33, 0.34, 0.2, 0.13], small: [0.6, 0.8], cap: 7, powers: 1, marks: 0.1, regen: 2 };
+export const BUDGET = { on: 1, perMin: 37.1, connect: 0.87, mix: [0.33, 0.34, 0.2, 0.13], small: [0.6, 0.8], cap: 7, powers: 1, marks: 0.1, regen: 2, blind: 0.4, fillMax: 0.7 };
 
 /**
  * Lo que cuenta de más cada poder, sobre lo que dice la cuenta (13/10, Leandro: «tendrían que dar todos los
@@ -45,7 +49,16 @@ export const BUDGET = { on: 1, perMin: 37.1, connect: 0.87, mix: [0.33, 0.34, 0.
  * - blindaje y escurridizo: con 1, 70 y 65 %; con 0.7, 78 y 67 % (el blindaje bien jugado casi no suma, así
  *   que el peso casi no lo mueve).
  */
-export const POWER_WEIGHT: Record<string, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1.4, dodge: 1, regen: 1, phase: 1, stealth: 1 };
+export const POWER_WEIGHT: Record<string, number> = { shield: 1, armor: 1, ethereal: 1, divine: 1.4, dodge: 1, regen: 1, phase: 1, stealth: 0.3 };
+
+/**
+ * **El relleno** (16/10, Leandro: el invisible salía fácil, «es una habilidad molesta pero que no mitiga
+ * daño»): el presupuesto solo podía sacar poderes, nunca sumarlos, así que un poder barato salía con el
+ * tercio de siempre y le sobraba lo suyo. Con relleno, lo que sobra de lo de los poderes de la oleada (por
+ * esta parte: 1, todo) se gasta en más del poder del escenario, hasta `BUDGET.fillMax` de la oleada. Así,
+ * cuanto más barato (POWER_WEIGHT), más vienen. 0, como antes. Por poder: hoy solo el invisible.
+ */
+export const POWER_FILL: Record<string, number> = { shield: 0, armor: 0, ethereal: 0, divine: 0, dodge: 0, regen: 0, phase: 0, stealth: 1 };
 
 /** Lo que le entra de un golpe que pega, en promedio, con lo que le resta su defensa (`cut`). */
 export function perHit(cut: (d: number) => number = (d) => d): number {
@@ -96,6 +109,8 @@ function rawShots(kind: EnemyKind, m: EnemyMods, hp: number): number {
   if (m.ethereal) hit = Math.min(hit, perHit((d) => Math.min(d, 1)));
   if (m.divine || m.dodge) hit /= 2;
   if (m.phase) slow = Math.max(1, PHASE.cycle / (60 / BUDGET.perMin));
+  // el invisible: no resta, pero se le tira a ciegas
+  if (m.stealth) slow *= 1 + BUDGET.blind;
   let shots = (hp / (BUDGET.connect * Math.max(hit, 0.05))) * slow;
   if (m.regen) {
     const k = killChance(hp, regenPeriod(hp, m.regen));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUDGET } from './budget';
+import { BUDGET, POWER_FILL } from './budget';
 import { CHARGE } from './clubs';
 import { DIFFICULTY, rulesFor } from './difficulty';
 import { ARMOR_HP, ARMOR_MAX, arrivalOrder, arrivals, behaviorOf, HEAVY_SPEED, buildRun, canTake, DIVINE, DODGE, ENEMIES, ELITE, elite, GIANTS, giantScale, HARDEST, HEAVY, HEAVY_GAP, hasPower, KAMIKAZE, LADDER, LIMITS, MARKS, POWERED, PHASE, phaseSlot, POWER_BIAS, POWER_SPEED, POWERS, REGEN, finishTime, regenPace, regenPeriod, SCENARIO_POWERS, SHIELD_WALL, SPAWN_RUSH, spawnOrder, STEALTH, SUPPORT_POWERS, WaveDirector, type DirectorEvent, type EnemyKind, type EnemyMods, type PowerKey, type Spawn, type Wave } from './waves';
@@ -752,6 +752,31 @@ describe('waves', () => {
     expect(STEALTH.minAngle).toBeLessThanOrEqual(STEALTH.maxAngle);
     const run = buildRun(Math.random, { ...HARDEST, order: ['stealth', 'dodge', 'phase'] });
     expect(run.powers[0]).toBe('stealth');
+  });
+
+  it('el invisible rellena: lo que sobra del presupuesto de los poderes trae más invisibles, hasta el tope', () => {
+    const count = (fill: number) => {
+      const was = POWER_FILL.stealth;
+      POWER_FILL.stealth = fill;
+      try {
+        let powered = 0;
+        let total = 0;
+        for (let k = 0; k < 40; k++) {
+          const run = buildRun(Math.random, { ...HARDEST, order: ['stealth', 'shield', 'armor'] });
+          const order = spawnOrder(run.waves[0]);
+          total += order.length;
+          powered += order.filter((s) => s.mods?.stealth).length;
+        }
+        return powered / total;
+      } finally {
+        POWER_FILL.stealth = was;
+      }
+    };
+    const plain = count(0);
+    const filled = count(1);
+    expect(plain).toBeLessThan(0.4);
+    expect(filled).toBeGreaterThan(plain + 0.15);
+    expect(filled).toBeLessThanOrEqual(BUDGET.fillMax + 0.05);
   });
 
   it('el intocable: los grupos se turnan escalonados en el mismo ciclo, abiertos la parte que diga', () => {
