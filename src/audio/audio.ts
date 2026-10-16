@@ -6,6 +6,7 @@
 import * as Tone from 'tone';
 import { polished, type PolishKey } from '../core/polish';
 import { MusicPlayer } from './music/player';
+import { makeRoom } from './room';
 import { SampleBank } from './samples';
 import { sampleVolume, SFX_NAMES, groupOf, VOLUME, type VolumeGroup } from './volumes';
 
@@ -110,6 +111,8 @@ export class GameAudio {
   private musicDown = false;
   /** La música de la derrota, esperando que pase el silencio. */
   private defeatTimer: ReturnType<typeof setTimeout> | null = null;
+  /** La sala (reverb) de los efectos y la música, compartida (ver audio/room). */
+  private verb!: Tone.Gain;
   /** Lo último de la cadena, lo que va a los parlantes (ver `start`). */
   private out!: Tone.ToneAudioNode;
   ready = false;
@@ -209,7 +212,9 @@ export class GameAudio {
     // el compresor blando sube solo lo que no comprime unos 3,6 dB (el de antes, 1,7): -1,9 dB a la entrada
     // para que todo suene igual de fuerte que antes
     this.master = new Tone.Gain(VOLUME.todo).connect(guard ? new Tone.Gain(0.8).connect(this.limiter) : this.limiter);
-    const verb = new Tone.Freeverb({ roomSize: 0.7, dampening: 2500, wet: 0.25 }).connect(this.master);
+    // la reverb: una sala por convolución, compartida (ver audio/room: el Freeverb de antes saturaba el hilo de audio)
+    const verb = makeRoom(this.master);
+    this.verb = verb;
     this.musicBus = new Tone.Gain(this.musicLevel()).connect(verb);
 
     this.click = new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 2, envelope: { attack: 0.001, decay: 0.07, sustain: 0, release: 0.02 }, volume: -4 }).connect(this.master);
@@ -758,7 +763,8 @@ export class GameAudio {
           modulationEnvelope: { attack: 0.004, decay: 0.2, sustain: 0, release: 0.1 },
           volume: -13,
         });
-        this.gainBell.chain(new Tone.Filter(2600, 'lowpass'), new Tone.Freeverb({ roomSize: 0.6, dampening: 2200, wet: 0.28 }), this.master);
+        // a la misma sala que los demás (tenía su propio Freeverb: otro 30 % de un núcleo, ver audio/room)
+        this.gainBell.chain(new Tone.Filter(2600, 'lowpass'), this.verb);
       }
       // las notas de cada poder (midi), de abajo para arriba
       const NOTES: Record<string, number[]> = {
