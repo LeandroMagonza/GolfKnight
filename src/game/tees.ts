@@ -79,6 +79,14 @@ export class Tees {
   private readonly flagMat = new THREE.MeshStandardMaterial({ color: 0xd8413a, side: THREE.DoubleSide, roughness: 0.9 });
   private readonly quietFlagMat = new THREE.MeshStandardMaterial({ color: 0x6b5a58, side: THREE.DoubleSide, roughness: 0.95 });
   private propsVisible = true;
+  /**
+   * Para los jefes (el fuego del dragón): puestos donde los guardias no tiran pelotas mientras esto diga
+   * true, y cuántas pelotas que no están siguen contando para el tope (las quemadas, hasta que vuelven). Así
+   * quemarte una pelota es quedarte sin ella un rato, no que el guardia la reponga en el acto. Lo pone el
+   * jefe y lo saca al terminar.
+   */
+  closed: ((index: number) => boolean) | null = null;
+  held = 0;
 
   constructor(private readonly scene: THREE.Scene) {
     this.build();
@@ -160,7 +168,7 @@ export class Tees {
 
   /** Las que cuentan para el tope de los guardias: todas menos las de regalo. */
   private get counted(): number {
-    return this.spots.reduce((n, s) => n + (s.ball && !s.bonus ? 1 : 0), 0);
+    return this.spots.reduce((n, s) => n + (s.ball && !s.bonus ? 1 : 0), this.held);
   }
 
   hasBall(index: number): boolean {
@@ -219,7 +227,7 @@ export class Tees {
   }
 
   private pickSpot(playerSpot: number): number {
-    const free = this.spots.map((s, i) => ({ s, i })).filter(({ s, i }) => s.spawns && !s.ball && !s.incoming && i !== playerSpot);
+    const free = this.spots.map((s, i) => ({ s, i })).filter(({ s, i }) => s.spawns && !s.ball && !s.incoming && i !== playerSpot && !this.closed?.(i));
     if (!free.length) return -1;
     const near = free.filter(({ i }) => Math.abs(i - playerSpot) <= NEAR_STEPS);
     const pool = near.length ? near : free;

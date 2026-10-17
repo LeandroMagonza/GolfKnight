@@ -37,6 +37,9 @@ Lo que se le pide a cada jefe nuevo:
 | Pelotas | qué pelota usar antes de que la roben | Rey goblin ladrón |
 | Distancia exacta | el globo en la plataforma | Torre de asedio |
 | Ritmo (soltar en el beat) | todo tiro fuera del beat de su canción sale pifia | Bardo del metal, Ogro tamborilero |
+| Elegir y cambiar de palo | lo que sale del piso y lo sellado pide un palo; a él, el que canta | El Caddie |
+| Pegarle a lo que vuela, y cuándo | solo el hierro y el wedge le llegan; pegarle mientras trae enemigos o carga el fuego se lo corta | Dragón |
+| Cortar a tiempo y a quién bajar | patea a la horda hacia la puerta (a 20 m, gol): golpes fuertes mientras corre, o matar al marcado | Futbolista |
 
 Cada familia tiene su doc en `docs/jefes/<familia>.md`, con lo que hace cada versión y cómo le fue al bot.
 

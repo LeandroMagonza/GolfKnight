@@ -710,13 +710,16 @@ export function startBot(): BotStats {
    * Lo que le saca un pelotazo de `raw` dentro de `t` s: con el blindaje, el tope del fantasma, la lupa y la
    * marca de Abe. El golpe fantasma (`ghost`) entra entero. La burbuja se come el golpe.
    */
-  function dealt(e: Enemy, raw: number, t: number, ghost = false): number {
+  function dealt(e: Enemy, raw: number, t: number, ghost = false, club?: ClubId): number {
     if (raw <= 0) return 0;
     const mark = e.markTimer > t ? 1 : 0;
     if (ghost) return Math.max(1, Math.round(raw)) + mark;
     if (shutAt(e, t)) return mark;
     if (e.divineReady && !e.silenced) return mark;
     let d = Math.max(1, Math.round(raw)) + (e.vulnerable ? 1 : 0);
+    // el jefe que filtra por palo (el caddie: solo el palo del sello pega entero)
+    const byClub = club ? gk.boss?.fight?.bot?.dealt : undefined;
+    if (byClub) d = byClub(e, club, d);
     d = Math.max(0, d - e.armor);
     if (e.ethereal && !e.silenced) d = Math.min(d, e.enlarged ? LENS.ghostHit : 1);
     return d + mark;
@@ -750,7 +753,7 @@ export function startBot(): BotStats {
   }
 
   /** Lo que vale un área de `raw` que estalla en (x, z) dentro de `t` s, de radio `r`, para todos los que agarra. */
-  function areaValue(x: number, z: number, r: number, raw: number, t: number, o: THREE.Vector3, need: Enemy | null = null): number {
+  function areaValue(x: number, z: number, r: number, raw: number, t: number, o: THREE.Vector3, need: Enemy | null = null, club?: ClubId): number {
     let total = 0;
     let got = need === null;
     for (const e of alive()) {
@@ -758,7 +761,7 @@ export function startBot(): BotStats {
       if (Math.hypot(p.x - x, p.z - z) - e.radius > r) continue;
       const guard = areaGuard(x, z, e, t);
       if (guard >= SHIELD_WALL) continue;
-      const dmg = Math.max(0, dealt(e, raw, t) - guard);
+      const dmg = Math.max(0, dealt(e, raw, t, false, club) - guard);
       if (dmg <= 0) {
         // la burbuja se la rompe igual
         const pop = popValue(e, raw, o, t);
@@ -817,6 +820,8 @@ export function startBot(): BotStats {
     const out: { e: Enemy; along: number; t: number }[] = [];
     for (const e of gk.horde.enemies) {
       if (!e.alive || e.passed || e.hidden) continue;
+      // lo que vuela (ver Enemy.hitBand): el driver y el putter le pasan por abajo
+      if (e.hitBand && e.position.y - heightAt(e.position.x, e.position.z) + e.hitBand[0] > 0.9) continue;
       const along0 = (e.position.x - o.x) * ux + (e.position.z - o.z) * uz;
       if (along0 < 0.5 || along0 > reach + 2) continue;
       // la esquiva salta con cualquier tiro que pase cerca (menos el fantasma, que no lo ve venir)
@@ -917,27 +922,29 @@ export function startBot(): BotStats {
         if (!hit) continue;
         const scan = scanLine(club, q, o, hit.x, hit.z, lead);
         if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
-        const total = scan.hits.reduce((n, h) => n + (value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t) || popValue(h.e, damageFor(club, h.d, q), o, h.t)), 0);
+        const total = scan.hits.reduce((n, h) => n + (value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t, false, club.id), o, h.t) || popValue(h.e, damageFor(club, h.d, q), o, h.t)), 0);
         if (total <= 0) continue;
         consider(make(club, q, 'lead', total / (lead + AFTER_SHOT)));
       }
     }
     // Con relieve, los globos contra cualquiera: el hierro (le pega al que toca y revienta ahí) y el wedge
     // (revienta donde cae), apuntados a él. Pasan por arriba de las lomas que frenan al driver, y le llegan
-    // al que está en un pozo
-    if (terrainOn()) {
+    // al que está en un pozo. Y contra lo que vuela (ver Enemy.hitBand), siempre: es lo único que le llega
+    if (terrainOn() || e.hitBand) {
       for (const id of ['iron', 'wedge'] as ClubId[]) {
         if (!has(id)) continue;
         const club = CLUBS[id];
         for (const q of tops) {
           // el wedge con el golpe 1 pifia
           if (id === 'wedge' && q < 2) continue;
+          // al que vuela alto el hierro le pasa por abajo (cae a su sombra a 1.2 m de alto): solo el wedge
+          if (id === 'iron' && e.hitBand && e.position.y - heightAt(e.position.x, e.position.z) + e.hitBand[0] > 1.25) continue;
           const lead = chargeTime(q, times) + delay + walk;
           const hit = intercept(e, club, q, o, lead);
           if (!hit) continue;
           // el escudo de frente le devuelve el hierro (para eso va el tiro a la cabeza)
           if (id === 'iron' && shieldUpAt(e, hit.t) && faces(e, o, hit.x, hit.z)) continue;
-          const v = areaValue(hit.x, hit.z, spreadFor(club, q) || 1, areaDamageFor(club, hit.d, q), hit.t, o, e);
+          const v = areaValue(hit.x, hit.z, spreadFor(club, q) || 1, areaDamageFor(club, hit.d, q), hit.t, o, e, club.id);
           if (v <= 0) continue;
           const p = make(club, q, 'area', v / (lead + AFTER_SHOT));
           p.offset = { x: 0, z: 0 };
@@ -962,7 +969,7 @@ export function startBot(): BotStats {
           if (!hit || lead < chargeTime(q, times) + delay + walk || shutAt(e, hit.t)) continue;
           const scan = scanLine(club, q, o, hit.x, hit.z, lead);
           if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
-          const total = scan.hits.reduce((n, h) => n + (value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t) || popValue(h.e, damageFor(club, h.d, q), o, h.t)), 0);
+          const total = scan.hits.reduce((n, h) => n + (value(h.e, dealt(h.e, damageFor(club, h.d, q), h.t, false, club.id), o, h.t) || popValue(h.e, damageFor(club, h.d, q), o, h.t)), 0);
           if (total <= 0) continue;
           const p = make(club, q, 'lead', total / (lead + AFTER_SHOT));
           p.releaseAt = gk.clock + lead - delay;
@@ -981,7 +988,7 @@ export function startBot(): BotStats {
           const lead = chargeTime(q, times) + delay + walk;
           const h = headShot(e, q, o, lead);
           if (!h || !shieldUpAt(e, h.t) || !faces(e, o, h.x, h.z)) continue;
-          const dmg = dealt(e, damageFor(CLUBS.iron, h.d, q), h.t);
+          const dmg = dealt(e, damageFor(CLUBS.iron, h.d, q), h.t, false, 'iron');
           if (dmg > 0) consider(make(CLUBS.iron, q, 'head', value(e, dmg, o, h.t) / (lead + AFTER_SHOT)));
         }
       }
@@ -1016,7 +1023,7 @@ export function startBot(): BotStats {
             const x = hit.x + s.x;
             const z = hit.z + s.z;
             if (Math.hypot(x - o.x, z - o.z) > CLUBS.wedge.maxRange) continue;
-            const v = areaValue(x, z, r, raw, hit.t, o, e);
+            const v = areaValue(x, z, r, raw, hit.t, o, e, 'wedge');
             if (v > 0 && (!bestSpot || v > bestSpot.v)) bestSpot = { ...s, v };
           }
           if (bestSpot) {
@@ -1049,7 +1056,7 @@ export function startBot(): BotStats {
             const scan = scanLine(club, q, o, hit.x, hit.z, lead, false, false, e);
             if (scan.ricochet || !scan.hits.some((h) => h.e === e)) continue;
             // silenciado no tiene blindaje
-            const total = scan.hits.reduce((n, h) => n + value(h.e, h.e === e ? Math.max(1, damageFor(club, h.d, q)) + (h.e.markTimer > h.t ? 1 : 0) : dealt(h.e, damageFor(club, h.d, q), h.t), o, h.t), 0);
+            const total = scan.hits.reduce((n, h) => n + value(h.e, h.e === e ? Math.max(1, damageFor(club, h.d, q)) + (h.e.markTimer > h.t ? 1 : 0) : dealt(h.e, damageFor(club, h.d, q), h.t, false, club.id), o, h.t), 0);
             const p = make(club, q, 'lead', total / (lead + AFTER_SHOT));
             p.combo = { slot: hushSlot, flight: hushFlight };
             consider(p);
@@ -1078,7 +1085,7 @@ export function startBot(): BotStats {
       if (!h) return -1;
       const scan = scanLine(club, q, from, h.x, h.z, lead);
       if (scan.ricochet || !scan.hits.some((x) => x.e === e)) return -1;
-      return scan.hits.reduce((n, x) => n + (value(x.e, dealt(x.e, damageFor(club, x.d, q), x.t), from, x.t) || popValue(x.e, damageFor(club, x.d, q), from, x.t)), 0);
+      return scan.hits.reduce((n, x) => n + (value(x.e, dealt(x.e, damageFor(club, x.d, q), x.t, false, 'driver'), from, x.t) || popValue(x.e, damageFor(club, x.d, q), from, x.t)), 0);
     };
     let best = { shift: 0, value: worth(o) };
     const spotX = gk.tees.spots[gk.tees.nearest(o.x)]?.x ?? o.x;

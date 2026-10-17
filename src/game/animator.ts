@@ -75,6 +75,14 @@ export class LayeredAnimator {
     return this.clips.has(name);
   }
 
+  /**
+   * Suma un clip que la plantilla no trae (si no lo tiene ya). Para un jefe que le hace hacer a un enemigo
+   * común algo propio: el futbolista, que los patea y se levantan del piso con «Getting Up».
+   */
+  addClip(clip: THREE.AnimationClip): void {
+    if (!this.clips.has(clip.name)) this.clips.set(clip.name, clip);
+  }
+
   get busy(): boolean {
     return this.oneShot !== null;
   }

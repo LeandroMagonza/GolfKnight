@@ -69,6 +69,11 @@ export interface BossBot {
   releaseWait?(): number;
   /** Multiplica cuánto le importa pegarle a `e` (1 = como a cualquiera, 0 = no tirarle, 3 = urgente). */
   weight?(e: Enemy): number;
+  /**
+   * Lo que le entra de verdad a `e` de un golpe de `club` que le sacaría `dmg` (antes del blindaje): el jefe
+   * que filtra por palo (el caddie: solo el palo del sello pega entero). Sin esto, `dmg`.
+   */
+  dealt?(e: Enemy, club: string, dmg: number): number;
 }
 
 /** El tiro que se acaba de soltar (ver `BossFight.onRelease`). */

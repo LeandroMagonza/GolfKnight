@@ -535,7 +535,9 @@ export class Balls {
     for (const e of this.horde.enemies) {
       if (!e.alive || e.passed || ball.hitIds.has(e.id)) continue;
       // la altura se mide desde los pies del enemigo, que con relieve no están en y = 0
-      if (s.pos.y - e.position.y > e.height + BALL_RADIUS) continue;
+      if (s.pos.y - e.position.y > (e.hitBand ? e.hitBand[1] : e.height) + BALL_RADIUS) continue;
+      // lo que vuela (ver Enemy.hitBand): la pelota que pasa más abajo, pasa por abajo
+      if (e.hitBand && s.pos.y - e.position.y < e.hitBand[0] - BALL_RADIUS) continue;
       const dx = s.pos.x - e.position.x;
       const dz = s.pos.z - e.position.z;
       const r = e.radius + BALL_RADIUS;

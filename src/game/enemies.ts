@@ -798,6 +798,12 @@ export class Enemy {
    * Null: el brazo arriba.
    */
   scriptSwing: number | null = null;
+  /**
+   * Lo que vuela (el dragón, lo que lleva en las patas): la franja de alturas que tocan las pelotas, medida
+   * desde `position.y`, [abajo, arriba]. Lo que pasa más bajo pasa por abajo (el driver y el putter
+   * rasantes), y no empuja ni lo empujan los de al lado. Null, como todos: del piso a `height`.
+   */
+  hitBand: [number, number] | null = null;
   /** Hacia dónde mira, en radianes (0 = +z). */
   get heading(): number {
     return this.yaw;
@@ -3474,6 +3480,8 @@ export class Horde {
       for (let j = i + 1; j < list.length; j++) {
         const b = list[j];
         if (!b.alive) continue;
+        // lo que vuela no empuja ni lo empujan (ver Enemy.hitBand)
+        if (a.hitBand || b.hitBand) continue;
         const dx = b.position.x - a.position.x;
         const dz = b.position.z - a.position.z;
         const min = (a.radius + b.radius) * 0.9;
