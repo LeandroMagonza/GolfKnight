@@ -9,6 +9,9 @@
 // la escolta. Y cada vez que se cierra después de una ráfaga pisa fuerte y tira esquirlas a los puestos.
 // Desde el 15/10 (Leandro: «si le pegás al blindaje y no lográs pasar, que haga el ataque que te tira metales
 // a vos»), la pelota que rebota en el blindaje cerrado le devuelve una esquirla al puesto del golfista.
+// Desde el 17/10 ese es el único ataque por pegarle cerrado (Leandro: «no sé si el ataque solo debería pasar
+// cuando el blindaje bloquea todo»): el golpe que pasa el blindaje le entra lo que sobra y lo cierra al tope
+// («¡Muy pronto!»), pero sin pisotón.
 import * as THREE from 'three';
 import { L } from '../../../i18n';
 import { GATE_HALF_WIDTH, GATE_Z, heightAt, nearestSpot, TEE_Z } from '../kit';
@@ -182,7 +185,7 @@ export class Coraza {
       case 'mecha':
         if (st === 'cerrado') {
           this.log.apurados++;
-          this.close(true, true);
+          this.close(false, true);
         } else if (st === 'abierto') {
           this.state = 'mecha';
           this.fuseT = this.fuseLen = lerp(CORAZA.fuse, this.heat);
@@ -190,7 +193,8 @@ export class Coraza {
         break;
       case 'tope':
         if (st === 'cerrado') this.log.apurados++;
-        this.close(true, st === 'cerrado');
+        // pegarle antes de tiempo lo cierra igual, pero el pisotón es solo después de una ventana
+        this.close(st !== 'cerrado', st === 'cerrado');
         break;
       case 'suma': {
         const before = st === 'cerrado' ? this.armor : 0;

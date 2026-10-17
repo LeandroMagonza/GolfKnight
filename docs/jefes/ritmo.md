@@ -95,3 +95,19 @@ la puerta por ejemplo».
 hacía nada, y a solas se lo podía dejar para el final sin que la puerta corriera peligro. Ahora, si no hay a
 quién darle placas, **tira la lanza a la puerta** como la coraza (`coraza.ts`, `missed`). Ver la regla en
 `docs/jefes.md`.
+
+## El golpe apurado ya no castiga (17/10)
+
+Leandro: «el ritmo coraza tiene que hacer el ataque si está con blindaje, pero me parece que debería entrarle
+daño igual si el blindaje no es suficiente para bloquearlo todo, es más, no sé si el ataque solo debería pasar
+cuando el blindaje bloquea todo».
+
+Lo que pasa del blindaje ya entraba (el juego resta el blindaje y entra lo que sobra). Pero en `mecha` y `tope`
+ese golpe apurado, además de cerrarlo al tope («¡Muy pronto!»), hacía el pisotón con esquirlas a los puestos:
+se sentía como que no entraba y encima castigaba. Ahora:
+
+- **El blindaje se come todo:** rebota y te devuelve la esquirla a tu puesto (el único ataque por pegarle cerrado).
+- **Lo pasa:** entra lo que sobra y se cierra al tope («¡Muy pronto!»), sin pisotón. Perdés la espera, nada más.
+- **Después de una ventana** (la mecha que se apaga, o el golpe en 0 de `tope`) sigue el pisotón de siempre.
+
+`suma` no cambia (cada golpe le sube el blindaje, y el pisotón es al cerrarse después de abrirse).
