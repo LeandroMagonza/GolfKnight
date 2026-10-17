@@ -12,6 +12,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 **Apuntar**
 - **El arco de carga va al lado del cursor**, donde estás mirando al apuntar, y es medio transparente para no taparte lo que apuntás. La aguja se ve entera. Si preferís el lugar de antes, se cambia en Balance (B) → Visual. `74b4926`
 
+**Jefes para probar**
+- **Caballero de hierro (ritmo coraza)**: si le pegás con el blindaje arriba y el golpe lo pasa, le entra lo que sobra y se cierra, pero ya no te tira esquirlas a los puestos. Solo te devuelve una cuando el blindaje se come el golpe entero. `fe43f6f`
+
 ## 16 de octubre
 
 **Los invisibles, más**
