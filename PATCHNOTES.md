@@ -14,6 +14,9 @@ figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muest
 
 **Jefes para probar**
 - **Caballero de hierro (ritmo coraza)**: si le pegás con el blindaje arriba y el golpe lo pasa, le entra lo que sobra y se cierra, pero ya no te tira esquirlas a los puestos. Solo te devuelve una cuando el blindaje se come el golpe entero. `fe43f6f`
+- **Jefe nuevo: el Dragón.** Vuela todo el tiempo. Te pasa por arriba con enemigos colgando de las patas y los suelta en la línea de 10 o 20 m; si le pegás con el hierro o el wedge, los suelta ahí y se lastiman con la caída. También escupe fuego que cae en los puestos: te quema la pelota un rato y, si estás ahí, te pega. Pegarle mientras carga el fuego se lo corta. Tres formas: la lluvia (todo junto, con aviso), la ráfaga (de a una, donde estés) y el cruce (barre la línea de punta a punta). `d0baed8`
+- **Jefe nuevo: el Futbolista.** Patea a los de la horda hacia la puerta: vuelan, caen, se levantan y siguen. Si están a 20 m o menos, es gol: van directo a la puerta. Pegale fuerte mientras se prepara para cortarle la patada, o matá antes al que marcó. Tres formas: el goleador, el pesado (patea a los grandes) y el chico (patea a los livianos, más seguido). `d0baed8`
+- **Jefe nuevo: el Caddie.** Canta un palo y solo ese le pega entero. Saca formaciones del piso pensadas para cada palo, o les pone a los de la horda la funda de un palo para que solo ese les pegue. Hay que cambiar de palo todo el tiempo. Tres formas: formaciones, sellos y mixto. `d0baed8`
 
 ## 16 de octubre
 
