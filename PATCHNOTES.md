@@ -7,6 +7,11 @@ entrada).
 Al final de cada línea van los commits que la cubren. `main` no se puede subir si algún commit no
 figura acá: lo frena el hook `.githooks/pre-push`, y `npm run patchnotes` muestra lo que falta.
 
+## 17 de octubre
+
+**Apuntar**
+- **El arco de carga va al lado del cursor**, donde estás mirando al apuntar, y es medio transparente para no taparte lo que apuntás. La aguja se ve entera. Si preferís el lugar de antes, se cambia en Balance (B) → Visual. `74b4926`
+
 ## 16 de octubre
 
 **Los invisibles, más**
