@@ -5,6 +5,7 @@ import { CLUB_KEYS, CLUB_ORDER, CLUBS, clubDamage, type Club, type ClubId } from
 import { arcAngle, type ArcLayout } from './core/swing';
 import { EndScreen, type EndInfo } from './endscreen';
 import { L } from './i18n';
+import { VISUAL } from './game/visuals';
 import { METER_PX, meterArt } from './meterArt';
 import { flameHtml } from './threat';
 
@@ -468,6 +469,7 @@ export class Hud {
   /** La aguja del arco: `side` dice por qué lado va (-1 izquierda, 1 derecha; ver SwingMeter.side). */
   setMeter(charging: boolean, power: number, locked: boolean, label: string, side = -1): void {
     this.meter.classList.toggle('on', charging);
+    this.meter.style.setProperty('--meter-alpha', String(Math.min(1, Math.max(0.1, VISUAL.meterAlpha))));
     this.meter.classList.toggle('locked', charging && locked);
     // velocidad pareja: la aguja va a la par del tiempo, y cada tramo ocupa lo que dura
     const edge = this.arcEdge;

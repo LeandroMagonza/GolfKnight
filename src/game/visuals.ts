@@ -61,11 +61,11 @@ const DAY_TRANSITION = 5;
 
 /** Todo lo que la pestaña Visual toca y guarda. */
 /**
- * Dónde va el arco de carga, en pantalla: **adelante**, sobre el camino del tiro (el de fábrica), al
- * costado de la **cabeza** del golfista, o al costado de la **pelota**. Siempre del lado del golfista, para no tapar la
- * pelota ni la línea.
+ * Dónde va el arco de carga, en pantalla: al costado del **cursor**, que es donde se mira al apuntar (el de
+ * fábrica desde el 17/10), **adelante**, sobre el camino del tiro, al costado de la **cabeza** del golfista, o al
+ * costado de la **pelota**. Siempre del lado del golfista, para no tapar la pelota ni la línea.
  */
-export const METER_SPOTS = ['adelante', 'cabeza', 'pelota'] as const;
+export const METER_SPOTS = ['cursor', 'adelante', 'cabeza', 'pelota'] as const;
 export type MeterSpot = (typeof METER_SPOTS)[number];
 
 /**
@@ -77,7 +77,11 @@ export const AIM_DOTS = ['pantalla', 'campo'] as const;
 export type AimDots = (typeof AIM_DOTS)[number];
 
 export const VISUAL = {
-  meterAt: 'adelante' as MeterSpot,
+  meterAt: 'cursor' as MeterSpot,
+  /** Lo opaco del arco (sin la aguja, que va siempre entera): medio transparente para que no tape lo que se apunta (17/10, Leandro). */
+  meterAlpha: 0.6,
+  /** Con el arco en el cursor, a cuántos px del cursor va su centro. */
+  meterGap: 85,
   /**
    * El arco con el golpe 4 (10/10, ver `fourthArc` en core/swing): si no se abre, el 3 no se ve. Desde el
    * 11/10 la corona: la lupa cambiaba la velocidad de la aguja en el rojo, y eso lo hacía más difícil.
@@ -88,7 +92,7 @@ export const VISUAL = {
   /** La vida de la puerta como una puerta por punto, en el medio de la izquierda de la barra (8/10, Leandro). */
   gateIcons: false,
   /** Versión del lugar del arco: un guardado de antes de que el de fábrica fuera «adelante» no lo pisa. */
-  meterVersion: 2,
+  meterVersion: 3,
   aimDots: 'pantalla' as AimDots,
   shadows: true,
   shadowSize: '2048' as (typeof SHADOW_SIZES)[number],

@@ -1598,10 +1598,15 @@ export class DebugPanel {
     ));
 
     el.append(heading('Arco de carga'), choice('dónde va', METER_SPOTS, () => VISUAL.meterAt, (v: MeterSpot) => { VISUAL.meterAt = v; }, {
-      adelante: 'Unos metros adelante, al costado del camino del tiro (el de fábrica)',
+      cursor: 'Al costado del cursor, donde se mira al apuntar (el de fábrica)',
+      adelante: 'Unos metros adelante, al costado del camino del tiro',
       cabeza: 'Al costado de la cabeza del golfista',
       pelota: 'Al costado de la pelota, del lado del golfista',
-    }), note('Solo se ve mientras cargás. Va siempre del lado del golfista, para no tapar la pelota ni la línea de tiro.'));
+    }), num([
+      ['opacidad', 'meterAlpha', 0.05, ''],
+      ['distancia al cursor', 'meterGap', 5, 'px'],
+    ]), note('Solo se ve mientras cargás. Va siempre del lado del golfista, para no tapar la pelota ni la línea de tiro. '
+      + 'La opacidad es la del arco y los números (1 entero, 0,3 casi transparente); la aguja va siempre entera, y con el daño clavado el arco se ve entero.'));
     el.append(choice('con golpe 4', FOURTH_ARCS, () => VISUAL.fourthArc, (v: FourthArc) => { VISUAL.fourthArc = v; }, {
       medio: 'Medio círculo a velocidad pareja, como sin el talento: el 3 casi no se ve',
       extendido: 'Tres cuartos de vuelta a velocidad pareja: todo más grande, el 3 sigue chico',

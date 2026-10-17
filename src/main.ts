@@ -882,17 +882,25 @@ function updatePreview(): void {
 
 // ---------- eventos del juego ----------
 /**
- * El arco de carga va donde se mira mientras se carga, no abajo en el HUD: al costado de la cabeza, de la
+ * El arco de carga va donde se mira mientras se carga, no abajo en el HUD: al costado del cursor, de la cabeza, de la
  * pelota o del camino del tiro, según VISUAL.meterAt (panel B, Visual). Siempre del lado del golfista:
  * así no tapa la pelota ni la línea de tiro, que salen del otro lado.
  */
+// con el dedo no hay cursor (y el arco quedaría debajo de la mano): ahí va adelante
+const fineMouse = matchMedia('(pointer: fine)');
+
 function placeMeter(): void {
   const ballAt = player.teePosition(new THREE.Vector3());
   const ball = toScreen(ballAt, 0.1);
   const head = toScreen(player.position, 2.1);
   // de qué lado de la pelota está el golfista, en pantalla
   const away = Math.sign(head.x - ball.x) || -1;
-  if (VISUAL.meterAt === 'cabeza') {
+  if (VISUAL.meterAt === 'cursor' && fineMouse.matches) {
+    // la puntería sale del mouse: el arco va al lado, del lado del golfista, y un poco arriba para que la aguja quede a la altura del cursor
+    const x = ((input.pointer.x + 1) / 2) * innerWidth;
+    const y = ((1 - input.pointer.y) / 2) * innerHeight;
+    hud.placeMeter(x + away * VISUAL.meterGap, y - 10);
+  } else if (VISUAL.meterAt === 'cabeza') {
     hud.placeMeter(head.x + away * 62, head.y);
   } else if (VISUAL.meterAt === 'pelota') {
     hud.placeMeter(ball.x + away * 170, ball.y - 40);

@@ -569,6 +569,9 @@
       /* tenis: la pelota que viene no te llega: el arco se apaga */
       #meter.on.far { opacity: 0.45; filter: grayscale(1); }
       #meter.on .needle { visibility: visible; }
+      /* medio transparente (VISUAL.meterAlpha): todo menos la aguja, que es lo que hay que leer; con el daño clavado, entero */
+      #meter svg > :not(.needle) { opacity: var(--meter-alpha, 1); transition: opacity 0.12s; }
+      #meter.locked svg > :not(.needle) { opacity: 1; }
       /* palos a la izquierda, poderes a la derecha: una sola fila, sin nada que empuje el medidor */
       #rows { display: flex; align-items: flex-start; gap: 22px; }
       #rows > div { display: flex; gap: 6px; }
